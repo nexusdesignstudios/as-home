@@ -1,0 +1,36 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class PaymentTransaction extends Model
+{
+    use HasFactory;
+    protected $fillable = array(
+        'user_id',
+        'package_id',
+        'amount',
+        'payment_gateway',
+        'order_id',
+        'payment_status',
+        'transaction_id'
+    );
+
+    /**
+     * Get the customer that owns the UserPackage
+     */
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class, 'user_id');
+    }
+
+    /**
+     * Get the package that owns the UserPackage
+     */
+    public function package()
+    {
+        return $this->belongsTo(Package::class, 'package_id');
+    }
+}
