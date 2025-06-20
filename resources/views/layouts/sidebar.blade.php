@@ -4,7 +4,7 @@
             <div class="d-flex justify-content-center">
                 <div class="logo">
                     <a href="{{ url('home') }}">
-                        <img src="{{ url('assets/images/logo/' . (system_setting('company_logo') ?? null)) }}" alt="Logo" srcset="">
+                        <img src="{{ url('assets/images/logo/' . (system_setting('company_logo') ?? null)) }}" alt="Logo" srcset="" style="max-width: 180px; height: auto;">
                     </a>
                 </div>
             </div>
