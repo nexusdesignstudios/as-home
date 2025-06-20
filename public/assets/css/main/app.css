@@ -403,7 +403,7 @@ screen and (-ms-high-contrast: active) {
     --bs-gray-700: #495057;
     --bs-gray-800: #343a40;
     --bs-gray-900: #212529;
-    --bs-primary: #087C7C;
+    --bs-primary: #E8C15E;
     --bs-secondary: #6c757d;
     --bs-success: #198754;
     --bs-info: #0dcaf0;
@@ -3689,8 +3689,7 @@ textarea.form-control.is-invalid {
 .btn:focus,
 .btn:hover {
     background-color: var(--bs-primary);
-    color:white !important
-
+    color: white !important
 }
 
 .btn-check:focus+.btn,
@@ -22585,15 +22584,15 @@ a {
 
 
 .jvectormap-container .jvectormap-marker.jvectormap-element {
-  animation: animate-pulse 3s linear infinite;
-  /* cursor: pointer */
+    animation: animate-pulse 3s linear infinite;
+    /* cursor: pointer */
 }
 
-.icon_text{
+.icon_text {
     margin-left: 5px;
 }
 
-.documents-div{
+.documents-div {
     display: flex;
     justify-content: space-evenly;
 }

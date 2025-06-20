@@ -137,7 +137,7 @@ class DatabaseSeeder extends Seeder
                 ],
                 [
                     'type' => 'system_color',
-                    'data' => '#087c7c',
+                    'data' => '#E8C15E',
                 ],
             ]
         );
