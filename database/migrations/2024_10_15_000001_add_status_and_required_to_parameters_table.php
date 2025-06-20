@@ -14,8 +14,13 @@ return new class extends Migration
     public function up()
     {
         Schema::table('parameters', function (Blueprint $table) {
-            $table->tinyInteger('status')->default(1)->after('image');
-            $table->tinyInteger('is_required')->default(0)->after('status');
+            if (!Schema::hasColumn('parameters', 'status')) {
+                $table->tinyInteger('status')->default(1)->after('image');
+            }
+
+            if (!Schema::hasColumn('parameters', 'is_required')) {
+                $table->tinyInteger('is_required')->default(0)->after('status');
+            }
         });
     }
 
@@ -27,8 +32,13 @@ return new class extends Migration
     public function down()
     {
         Schema::table('parameters', function (Blueprint $table) {
-            $table->dropColumn('status');
-            $table->dropColumn('is_required');
+            if (Schema::hasColumn('parameters', 'status')) {
+                $table->dropColumn('status');
+            }
+
+            if (Schema::hasColumn('parameters', 'is_required')) {
+                $table->dropColumn('is_required');
+            }
         });
     }
 };

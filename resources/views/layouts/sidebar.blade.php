@@ -91,11 +91,19 @@
 
                 {{-- Property --}}
                 @if (has_permissions('read', 'property'))
-                    <li class="sidebar-item">
-                        <a href="{{ url('property') }}" class='sidebar-link'>
+                    <li class="sidebar-item has-sub">
+                        <a href="#" class='sidebar-link'>
                             <i class="bi bi-building"></i>
                             <span class="menu-item">{{ __('Property') }}</span>
                         </a>
+                        <ul class="submenu" style="padding-left: 0rem">
+                            <li class="submenu-item">
+                                <a href="{{ url('property') }}">{{ __('Properties') }}</a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="{{ route('property-terms.index') }}">{{ __('Terms & Conditions') }}</a>
+                            </li>
+                        </ul>
                     </li>
                 @endif
 

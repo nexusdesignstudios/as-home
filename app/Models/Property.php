@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\PropertyTerms;
 
 class Property extends Model
 {
@@ -403,5 +404,24 @@ class Property extends Model
     public function scopeClassification($query, $classification)
     {
         return $query->where('property_classification', $classification);
+    }
+
+    /**
+     * Get the terms and conditions for this property's classification.
+     */
+    public function terms()
+    {
+        return PropertyTerms::where('classification_id', $this->property_classification)->first();
+    }
+
+    /**
+     * Get terms and conditions for a specific classification.
+     *
+     * @param int $classificationId
+     * @return \App\Models\PropertyTerms|null
+     */
+    public static function getTermsByClassification($classificationId)
+    {
+        return PropertyTerms::where('classification_id', $classificationId)->first();
     }
 }
