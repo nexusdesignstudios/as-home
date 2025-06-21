@@ -13,6 +13,7 @@ class Property extends Model
 
     protected $table = 'propertys';
 
+    
     protected $fillable = [
         'category_id',
         'title',
