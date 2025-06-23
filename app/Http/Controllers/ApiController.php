@@ -5762,7 +5762,7 @@ class ApiController extends Controller
                 ApiResponseService::validationError("User Already Exists");
             }
 
-            $customerData = $request->except('pasword', 're_password');
+            $customerData = $request->except('password', 're_password');
             $customerData = array_merge($customerData, array(
                 'password' => Hash::make($request->password),
                 'auth_id' => Str::uuid()->toString(),
