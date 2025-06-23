@@ -22,12 +22,9 @@ class User extends Authenticatable
         'profile',
         'email',
         'password',
-        'type', // 'agent' or 'property_owner'
-        'agent_type', // 'individual' or 'company'
-        'management_type', // 'self' or 'as_home'
+        'type',
         'permissions',
-        'slug_id',
-        'status'
+        'slug_id'
     ];
 
     /**
@@ -49,22 +46,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
     ];
 
-    /**
-     * The model's default values for attributes.
-     *
-     * @var array
-     */
-    protected $attributes = [
-        'agent_type' => 'not_determined',
-        'management_type' => 'not_determined',
-        'status' => 1, // Default to active
-    ];
 
-    /**
-     * Check if the user is active.
-     *
-     * @return bool
-     */
     public function isActive()
     {
         if ($this->status == 1) {
@@ -72,33 +54,6 @@ class User extends Authenticatable
         }
         return false;
     }
-
-    /**
-     * Check if the user is an agent.
-     *
-     * @return bool
-     */
-    public function isAgent()
-    {
-        return $this->type == 1;
-    }
-
-    /**
-     * Check if the user is a property owner.
-     *
-     * @return bool
-     */
-    public function isPropertyOwner()
-    {
-        return $this->type == 2;
-    }
-
-    /**
-     * Get the profile attribute.
-     *
-     * @param string|null $image
-     * @return string
-     */
     public function getProfileAttribute($image)
     {
         // Check if $image is a valid URL

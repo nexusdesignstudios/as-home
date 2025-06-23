@@ -43,9 +43,9 @@ class UserController extends Controller
             'password' => 'required',
         ]);
 
-        //        if ($validator->fails()) {
-        //            return redirect()->back()->with('error',$validator->errors()->first());
-        //        }
+//        if ($validator->fails()) {
+//            return redirect()->back()->with('error',$validator->errors()->first());
+//        }
 
         if (User::where('email', $request->email)->get()->count()) {
             return redirect()->back()->with('error', 'Email already Registered please try using another email ');
@@ -71,7 +71,9 @@ class UserController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show($id) {}
+    public function show($id)
+    {
+    }
 
     public function edit($id)
     {
@@ -91,35 +93,21 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required',
             'email' => 'required',
-            'status' => 'required|in:0,1', // 0:Inactive, 1:Active
+            'status' => 'required',
         ]);
 
         if (!has_permissions('update', 'users_accounts')) {
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         } else {
             $id = $request->edit_id;
-            $update = User::find($id);
-
-            if ($request->name != $update->name) {
+            $update =  User::find($id);
+            if($request->name != $update->name){
                 $update->slug_id = generateUniqueSlug($request->name, 6, null, $id);
             }
-
-            // Update basic user information
             $update->name = $request->name;
             $update->email = $request->email;
             $update->permissions = isset($request->Editpermissions) ? json_encode($request->Editpermissions) : '';
-            $update->status = $request->status; // 0:Inactive, 1:Active
-
-            // Update agent_type if the user is an agent (type 1)
-            if ($update->type == 1 && isset($request->agent_type)) {
-                $update->agent_type = $request->agent_type; // individual, company, or not_determined
-            }
-
-            // Update management_type if the user is a property owner (type 2)
-            if ($update->type == 2 && isset($request->management_type)) {
-                $update->management_type = $request->management_type; // self, as_home, or not_determined
-            }
-
+            $update->status = $request->status;
             $update->save();
             return redirect()->back()->with('success', 'User Update Successfully');
         }
