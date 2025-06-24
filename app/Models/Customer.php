@@ -42,17 +42,22 @@ class Customer extends Authenticatable
         'city',
         'state',
         'country',
-        'slug_id'
+        'slug_id',
+        'customer_type',
+        'management_type',
+        'bankDetails_id',
+        'company_id'
     ];
 
     protected $hidden = [
         'api_token'
     ];
 
-    protected static function boot() {
+    protected static function boot()
+    {
         parent::boot();
         static::deleting(static function ($customer) {
-            if(collect($customer)->isNotEmpty()){
+            if (collect($customer)->isNotEmpty()) {
                 // before delete() method call this
                 $userId = $customer->id;
 
@@ -65,13 +70,13 @@ class Customer extends Authenticatable
                 /** Delete with modal boot events */
                 $properties = Property::where('added_by', $userId)->get();
                 foreach ($properties as $property) {
-                    if(!empty($property)){
+                    if (!empty($property)) {
                         $property->delete(); // This will trigger the deleting and deleted events in modal
                     }
                 }
                 $chats = Chats::where('sender_id', $userId)->orWhere('receiver_id', $userId)->get();
                 foreach ($chats as $chat) {
-                    if(collect($chat)->isNotEmpty()){
+                    if (collect($chat)->isNotEmpty()) {
                         $chat->delete(); // This will trigger the deleting and deleted events in modal
                     }
                 }
@@ -156,9 +161,26 @@ class Customer extends Authenticatable
         return $this->hasOne(VerifyCustomer::class, 'user_id');
     }
 
-    public function getIsUserVerifiedAttribute(){
-        return $this->whereHas('verify_customer',function($query){
+    public function getIsUserVerifiedAttribute()
+    {
+        return $this->whereHas('verify_customer', function ($query) {
             $query->where(['user_id' => $this->id, 'status' => 'success']);
         })->count() ? true : false;
+    }
+
+    /**
+     * Get the bank details associated with the customer.
+     */
+    public function bankDetail()
+    {
+        return $this->belongsTo(BankDetail::class, 'bankDetails_id');
+    }
+
+    /**
+     * Get the company associated with the customer.
+     */
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 }

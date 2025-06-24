@@ -1,0 +1,1125 @@
+{
+  "info": {
+    "_postman_id": "a5c7e8d9-b6f3-4d21-a2c3-e7f8d9a0b1c2",
+    "name": "AS Home Dashboard API",
+    "description": "API collection for AS Home Dashboard Admin",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Get OTP",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/get-otp?email=test@example.com",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get-otp"],
+              "query": [
+                {
+                  "key": "email",
+                  "value": "test@example.com",
+                  "description": "Required if number is not provided"
+                }
+              ]
+            },
+            "description": "Request an OTP via email or phone number. You can provide either email or number."
+          },
+          "response": []
+        },
+        {
+          "name": "Get OTP (Mobile)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/get-otp?number=1234567890",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get-otp"],
+              "query": [
+                {
+                  "key": "number",
+                  "value": "1234567890",
+                  "description": "Required if email is not provided"
+                }
+              ]
+            },
+            "description": "Request an OTP via phone number. This uses Twilio to send SMS."
+          },
+          "response": []
+        },
+        {
+          "name": "Verify OTP (Email)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = JSON.parse(responseBody);",
+                  "if (jsonData.error === false) {",
+                  "    pm.environment.set(\"auth_id\", jsonData.auth_id);",
+                  "    console.log(\"Auth ID saved to environment variables\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/verify-otp?email=test@example.com&otp=123456",
+              "host": ["{{base_url}}"],
+              "path": ["api", "verify-otp"],
+              "query": [
+                {
+                  "key": "email",
+                  "value": "test@example.com",
+                  "description": "Required if number is not provided"
+                },
+                {
+                  "key": "otp",
+                  "value": "123456",
+                  "description": "The OTP received via email or SMS"
+                }
+              ]
+            },
+            "description": "Verify the OTP sent to email. On successful verification, it returns an auth_id that can be used for registration."
+          },
+          "response": []
+        },
+        {
+          "name": "Verify OTP (Mobile)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = JSON.parse(responseBody);",
+                  "if (jsonData.error === false) {",
+                  "    pm.environment.set(\"auth_id\", jsonData.auth_id);",
+                  "    console.log(\"Auth ID saved to environment variables\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/verify-otp?number=1234567890&otp=123456",
+              "host": ["{{base_url}}"],
+              "path": ["api", "verify-otp"],
+              "query": [
+                {
+                  "key": "number",
+                  "value": "1234567890",
+                  "description": "Required if email is not provided"
+                },
+                {
+                  "key": "otp",
+                  "value": "123456",
+                  "description": "The OTP received via email or SMS"
+                }
+              ]
+            },
+            "description": "Verify the OTP sent to mobile number. On successful verification, it returns an auth_id that can be used for registration."
+          },
+          "response": []
+        },
+        {
+          "name": "Register (New Method)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = JSON.parse(responseBody);",
+                  "if (jsonData.error === false) {",
+                  "    console.log(\"User registered successfully\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Test User",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "test@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "password123",
+                  "type": "text"
+                },
+                {
+                  "key": "re_password",
+                  "value": "password123",
+                  "type": "text"
+                },
+                {
+                  "key": "mobile",
+                  "value": "1234567890",
+                  "type": "text"
+                },
+                {
+                  "key": "customer_type",
+                  "value": "property_owner",
+                  "description": "property_owner or agent",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/user-register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "user-register"]
+            },
+            "description": "Register a new user using the new registration flow. This creates a user account and sends verification emails with OTP."
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = JSON.parse(responseBody);",
+                  "if (jsonData.error === false) {",
+                  "    pm.environment.set(\"auth_token\", jsonData.token);",
+                  "    pm.environment.set(\"user_id\", jsonData.data.id);",
+                  "    console.log(\"Token saved to environment variables\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "email",
+                  "value": "test@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "password123",
+                  "type": "text"
+                },
+                {
+                  "key": "type",
+                  "value": "3",
+                  "description": "0: Google, 1: Facebook, 2: Apple, 3: Email/Password",
+                  "type": "text"
+                },
+                {
+                  "key": "fcm_id",
+                  "value": "",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/user_signup",
+              "host": ["{{base_url}}"],
+              "path": ["api", "user_signup"]
+            },
+            "description": "Login with existing user credentials"
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Data",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/get-user-data",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get-user-data"]
+            },
+            "description": "Get current user data"
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/forgot-password?email=test@example.com",
+              "host": ["{{base_url}}"],
+              "path": ["api", "forgot-password"],
+              "query": [
+                {
+                  "key": "email",
+                  "value": "test@example.com",
+                  "description": "Email address to send reset password link"
+                }
+              ]
+            },
+            "description": "Request a password reset link via email"
+          },
+          "response": []
+        }
+      ],
+      "description": "Authentication endpoints including registration, login, OTP verification, and password reset"
+    },
+    {
+      "name": "Customer Management",
+      "item": [
+        {
+          "name": "Update Profile",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Updated Name",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "updated@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "mobile",
+                  "value": "9876543210",
+                  "type": "text"
+                },
+                {
+                  "key": "address",
+                  "value": "123 Main St, City",
+                  "type": "text"
+                },
+                {
+                  "key": "customer_type",
+                  "value": "property_owner",
+                  "description": "property_owner or agent",
+                  "type": "text"
+                },
+                {
+                  "key": "management_type",
+                  "value": "himself",
+                  "description": "himself or as home",
+                  "type": "text"
+                },
+                {
+                  "key": "profile",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "bank_details[type_of_company]",
+                  "value": "LLC",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "bank_details[bank_branch]",
+                  "value": "Main Branch",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "bank_details[bank_address]",
+                  "value": "456 Bank St, City",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "bank_details[country]",
+                  "value": "United States",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "bank_details[bank_account_number]",
+                  "value": "123456789",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "bank_details[iban]",
+                  "value": "US123456789",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "bank_details[swift_code]",
+                  "value": "SWIFT123",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "company[company_legal_name]",
+                  "value": "Example Corp",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "company[manager_name]",
+                  "value": "John Manager",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "company[type_of_company]",
+                  "value": "Real Estate",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "company[email_address]",
+                  "value": "company@example.com",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/update_profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "update_profile"]
+            },
+            "description": "Update user profile with optional bank details and company information"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile - Property Owner (Self-Managed)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Property Owner",
+                  "type": "text"
+                },
+                {
+                  "key": "customer_type",
+                  "value": "property_owner",
+                  "type": "text"
+                },
+                {
+                  "key": "management_type",
+                  "value": "himself",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/update_profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "update_profile"]
+            },
+            "description": "Update user as property owner with self-management"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile - Property Owner (AS Home Managed)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Property Owner",
+                  "type": "text"
+                },
+                {
+                  "key": "customer_type",
+                  "value": "property_owner",
+                  "type": "text"
+                },
+                {
+                  "key": "management_type",
+                  "value": "as home",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/update_profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "update_profile"]
+            },
+            "description": "Update user as property owner with AS Home management"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile - Individual Agent",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Individual Agent",
+                  "type": "text"
+                },
+                {
+                  "key": "customer_type",
+                  "value": "agent",
+                  "type": "text"
+                },
+                {
+                  "key": "bank_details[type_of_company]",
+                  "value": "Individual",
+                  "type": "text"
+                },
+                {
+                  "key": "bank_details[bank_branch]",
+                  "value": "Main Branch",
+                  "type": "text"
+                },
+                {
+                  "key": "bank_details[bank_address]",
+                  "value": "456 Bank St, City",
+                  "type": "text"
+                },
+                {
+                  "key": "bank_details[country]",
+                  "value": "United States",
+                  "type": "text"
+                },
+                {
+                  "key": "bank_details[bank_account_number]",
+                  "value": "123456789",
+                  "type": "text"
+                },
+                {
+                  "key": "bank_details[iban]",
+                  "value": "US123456789",
+                  "type": "text"
+                },
+                {
+                  "key": "bank_details[swift_code]",
+                  "value": "SWIFT123",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/update_profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "update_profile"]
+            },
+            "description": "Update user as individual agent with bank details"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile - Company Agent",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Company Agent",
+                  "type": "text"
+                },
+                {
+                  "key": "customer_type",
+                  "value": "agent",
+                  "type": "text"
+                },
+                {
+                  "key": "bank_details[type_of_company]",
+                  "value": "LLC",
+                  "type": "text"
+                },
+                {
+                  "key": "bank_details[bank_branch]",
+                  "value": "Main Branch",
+                  "type": "text"
+                },
+                {
+                  "key": "bank_details[bank_address]",
+                  "value": "456 Bank St, City",
+                  "type": "text"
+                },
+                {
+                  "key": "bank_details[country]",
+                  "value": "United States",
+                  "type": "text"
+                },
+                {
+                  "key": "bank_details[bank_account_number]",
+                  "value": "123456789",
+                  "type": "text"
+                },
+                {
+                  "key": "bank_details[iban]",
+                  "value": "US123456789",
+                  "type": "text"
+                },
+                {
+                  "key": "bank_details[swift_code]",
+                  "value": "SWIFT123",
+                  "type": "text"
+                },
+                {
+                  "key": "company[company_legal_name]",
+                  "value": "Example Corp",
+                  "type": "text"
+                },
+                {
+                  "key": "company[manager_name]",
+                  "value": "John Manager",
+                  "type": "text"
+                },
+                {
+                  "key": "company[type_of_company]",
+                  "value": "Real Estate",
+                  "type": "text"
+                },
+                {
+                  "key": "company[email_address]",
+                  "value": "company@example.com",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/update_profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "update_profile"]
+            },
+            "description": "Update user as company agent with bank details and company information"
+          },
+          "response": []
+        }
+      ],
+      "description": "Customer management endpoints"
+    },
+    {
+      "name": "Bank Details",
+      "item": [
+        {
+          "name": "Create Bank Details",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"type_of_company\": \"LLC\",\n    \"bank_branch\": \"Main Branch\",\n    \"bank_address\": \"456 Bank St, City\",\n    \"country\": \"United States\",\n    \"bank_account_number\": \"123456789\",\n    \"iban\": \"US123456789\",\n    \"swift_code\": \"SWIFT123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/bank-details",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bank-details"]
+            },
+            "description": "Create new bank details"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Bank Details",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/bank-details/{{bank_details_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bank-details", "{{bank_details_id}}"]
+            },
+            "description": "Get bank details by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Bank Details",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"type_of_company\": \"Updated LLC\",\n    \"bank_branch\": \"Updated Branch\",\n    \"bank_address\": \"Updated Address\",\n    \"country\": \"Canada\",\n    \"bank_account_number\": \"987654321\",\n    \"iban\": \"CA987654321\",\n    \"swift_code\": \"SWIFT987\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/bank-details/{{bank_details_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bank-details", "{{bank_details_id}}"]
+            },
+            "description": "Update bank details by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Bank Details",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/bank-details/{{bank_details_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bank-details", "{{bank_details_id}}"]
+            },
+            "description": "Delete bank details by ID"
+          },
+          "response": []
+        }
+      ],
+      "description": "Bank details management endpoints"
+    },
+    {
+      "name": "Company",
+      "item": [
+        {
+          "name": "Create Company",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"company_legal_name\": \"Example Corp\",\n    \"manager_name\": \"John Manager\",\n    \"type_of_company\": \"Real Estate\",\n    \"email_address\": \"company@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/companies",
+              "host": ["{{base_url}}"],
+              "path": ["api", "companies"]
+            },
+            "description": "Create new company"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Company",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/companies/{{company_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "companies", "{{company_id}}"]
+            },
+            "description": "Get company by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Company",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"company_legal_name\": \"Updated Corp\",\n    \"manager_name\": \"Updated Manager\",\n    \"type_of_company\": \"Updated Real Estate\",\n    \"email_address\": \"updated@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/companies/{{company_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "companies", "{{company_id}}"]
+            },
+            "description": "Update company by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Company",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/companies/{{company_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "companies", "{{company_id}}"]
+            },
+            "description": "Delete company by ID"
+          },
+          "response": []
+        }
+      ],
+      "description": "Company management endpoints"
+    },
+    {
+      "name": "System Settings",
+      "item": [
+        {
+          "name": "Get System Settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/get_system_settings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get_system_settings"]
+            },
+            "description": "Get system settings"
+          },
+          "response": []
+        }
+      ],
+      "description": "System settings endpoints"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    }
+  ]
+}

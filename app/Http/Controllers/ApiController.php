@@ -20,8 +20,9 @@ use App\Models\Feature;
 use App\Models\Package;
 use App\Models\Setting;
 use App\Models\Category;
+use App\Models\Company;
 use App\Models\Customer;
-
+use App\Models\BankDetail;
 
 use App\Models\Language;
 use App\Models\Payments;
@@ -227,6 +228,7 @@ class ApiController extends Controller
             $saveCustomer->slug_id = generateUniqueSlug($request->name, 5);
             $saveCustomer->logintype = isset($request->type) ? $request->type : '';
             $saveCustomer->address = isset($request->address) ? $request->address : '';
+            $saveCustomer->customer_type = isset($request->customer_type) ? $request->customer_type : null;
             $saveCustomer->auth_id = isset($request->auth_id) ? $request->auth_id : '';
             $saveCustomer->about_me = isset($request->about_me) ? $request->about_me : '';
             $saveCustomer->facebook_id = isset($request->facebook_id) ? $request->facebook_id : '';
@@ -453,8 +455,22 @@ class ApiController extends Controller
                     'longitude',
                     'city',
                     'state',
-                    'country'
+                    'country',
+                    'customer_type',
+                    'management_type'
                 ]);
+
+                // Validate customer_type if provided
+                if (isset($fieldsToUpdate['customer_type']) && !in_array($fieldsToUpdate['customer_type'], ['property_owner', 'agent'])) {
+                    return response()->json(['error' => true, 'message' => 'Invalid customer type. Must be "property_owner" or "agent".'], 422);
+                }
+
+                // Validate management_type if customer is property_owner
+                if (isset($fieldsToUpdate['customer_type']) && $fieldsToUpdate['customer_type'] === 'property_owner') {
+                    if (isset($fieldsToUpdate['management_type']) && !in_array($fieldsToUpdate['management_type'], ['himself', 'as home'])) {
+                        return response()->json(['error' => true, 'message' => 'Invalid management type. Must be "himself" or "as home".'], 422);
+                    }
+                }
 
                 $customer->update($fieldsToUpdate);
 
@@ -463,6 +479,48 @@ class ApiController extends Controller
                         ['fcm_id' => $request->fcm_id],
                         ['customer_id' => $customer->id,]
                     );
+                }
+
+                // Handle bank details for agents
+                if (($customer->customer_type === 'agent' || $request->customer_type === 'agent') && $request->has('bank_details')) {
+                    $bankDetails = $request->bank_details;
+
+                    // Create or update bank details
+                    if ($customer->bankDetails_id) {
+                        $bankDetail = BankDetail::find($customer->bankDetails_id);
+                        if ($bankDetail) {
+                            $bankDetail->update($bankDetails);
+                        } else {
+                            $bankDetail = BankDetail::create($bankDetails);
+                            $customer->bankDetails_id = $bankDetail->id;
+                            $customer->save();
+                        }
+                    } else {
+                        $bankDetail = BankDetail::create($bankDetails);
+                        $customer->bankDetails_id = $bankDetail->id;
+                        $customer->save();
+                    }
+                }
+
+                // Handle company information for company agents
+                if (($customer->customer_type === 'agent' || $request->customer_type === 'agent') && $request->has('company')) {
+                    $companyData = $request->company;
+
+                    // Create or update company information
+                    if ($customer->company_id) {
+                        $company = Company::find($customer->company_id);
+                        if ($company) {
+                            $company->update($companyData);
+                        } else {
+                            $company = Company::create($companyData);
+                            $customer->company_id = $company->id;
+                            $customer->save();
+                        }
+                    } else {
+                        $company = Company::create($companyData);
+                        $customer->company_id = $company->id;
+                        $customer->save();
+                    }
                 }
 
                 // Update Profile
@@ -487,6 +545,9 @@ class ApiController extends Controller
                     }
                 }
 
+                // Refresh customer with related data
+                $customer = Customer::with(['bankDetail', 'company'])->find($customer->id);
+
                 DB::commit();
                 return response()->json(['error' => false, 'data' => $customer]);
             } else {
@@ -494,7 +555,7 @@ class ApiController extends Controller
             }
         } catch (Exception $e) {
             DB::rollback();
-            return response()->json(['error' => true, 'message' => 'Something Went Wrong'], 500);
+            return response()->json(['error' => true, 'message' => 'Something Went Wrong: ' . $e->getMessage()], 500);
         }
     }
 
@@ -5750,6 +5811,7 @@ class ApiController extends Controller
             'password' => 'required|min:6',
             're_password' => 'required|same:password',
             'mobile' => 'nullable',
+            'customer_type' => 'nullable|in:property_owner,agent',
         ]);
 
         if ($validator->fails()) {
@@ -5771,7 +5833,16 @@ class ApiController extends Controller
                 'isActive' => 1,
                 'logintype' => 3,
                 'mobile' => $request->has('mobile') && !empty($request->mobile) ? $request->mobile : null,
+                'customer_type' => $request->has('customer_type') ? $request->customer_type : null,
             ));
+
+            // Validate management_type if customer is property_owner
+            if (isset($customerData['customer_type']) && $customerData['customer_type'] === 'property_owner') {
+                if (isset($customerData['management_type']) && !in_array($customerData['management_type'], ['himself', 'as home'])) {
+                    ApiResponseService::validationError("Invalid management type. Must be 'himself' or 'as home'.");
+                }
+            }
+
             Customer::create($customerData);
 
 
@@ -5936,7 +6007,6 @@ class ApiController extends Controller
                 'Failed',
                 'Mail',
                 'Mailer',
-                'MailManager',
                 "Connection could not be established"
             ])) {
                 ApiResponseService::validationError("There is issue with mail configuration, kindly contact admin regarding this");

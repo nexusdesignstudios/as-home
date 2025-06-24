@@ -33,6 +33,8 @@ use App\Http\Controllers\PackageFeatureController;
 use App\Http\Controllers\PropertysInquiryController;
 use App\Http\Controllers\VerifyCustomerFormController;
 use App\Http\Controllers\PropertyTermsController;
+use App\Http\Controllers\BankDetailController;
+use App\Http\Controllers\CompanyController;
 use Illuminate\Auth\Notifications\ResetPassword;
 
 /*
@@ -168,12 +170,23 @@ Route::middleware(['language'])->group(function () {
 
         /// END :: PAYMENT ROUTE
 
-        /// START :: PAYMENT ROUTE
+        /// START :: CUSTOMER ROUTE
 
         Route::resource('customer', CustomersController::class);
         Route::get('customerList', [CustomersController::class, 'customerList']);
         Route::post('customerstatus', [CustomersController::class, 'update'])->name('customer.customerstatus');
+        Route::get('customer-details/{id}', [CustomersController::class, 'getCustomerDetails'])->name('customer.details');
         /// END :: CUSTOMER ROUTE
+
+        /// START :: BANK DETAILS ROUTE
+        Route::resource('bank-details', BankDetailController::class);
+        Route::get('bank-details-list', [BankDetailController::class, 'getBankDetailsList'])->name('bank-details.list');
+        /// END :: BANK DETAILS ROUTE
+
+        /// START :: COMPANY ROUTE
+        Route::resource('companies', CompanyController::class);
+        Route::get('companies-list', [CompanyController::class, 'getCompaniesList'])->name('companies.list');
+        /// END :: COMPANY ROUTE
 
         /// START :: SLIDER ROUTE
 
