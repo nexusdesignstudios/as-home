@@ -682,7 +682,9 @@ $('.verify-customer-status-form').on('submit', function (e) {
     let url = $(this).attr('action');
     let submitButtonText = submitButtonElement.val();
     submitButtonElement.val('Please Wait...').attr('disabled', true);
-
+    let modalElement = formElement.closest('.modal');
+    modalElement.find('.btn-close').attr('disabled', true);
+    modalElement.find('.close-btn').attr('disabled', true);
     if (!formElement.parsley().isValid()) {
         submitButtonElement.val(submitButtonText).removeAttr('disabled');
         // If the form is not valid, trigger Parsley's validation messages
@@ -702,6 +704,9 @@ $('.verify-customer-status-form').on('submit', function (e) {
                     formElement[0].reset();
                 }
                 $('#table_list').bootstrapTable('refresh');
+                $('#editModal').modal('hide');
+                modalElement.find('.btn-close').removeAttr('disabled');
+                modalElement.find('.close-btn').removeAttr('disabled');
                 if (customSuccessFunction) {
                     //If custom function name is set in the Form tag then call that function using eval
                     eval(customSuccessFunction + "(response)");
@@ -790,12 +795,6 @@ $(document).on('click', '.block-user', function () {
         successCallBack: function (response) {
             if(response.error == false){
                 window.location.reload(true);
-                // $("#chat_form").hide();
-                // $(".blocked-user-message-div").show();
-                // $(".for-blocked-by-admin").show();
-                // $(".for-blocked-by-user").hide();
-                // $(".blocked-user-message-div").show();
-                // $this.hide();
             }else{
                 $("#chat_form").show();
                 $(".blocked-user-message-div").hide();
@@ -856,9 +855,7 @@ $(document).on('click', '.unblock-user', function () {
 $(document).on("click",'.request-status', function(){
     if($(this).val() == 'rejected'){
         $(".reject-reason-text-div").show();
-        $("#reject-reason-text").text("").attr("required",true);
     }else{
-        $("#reject-reason-text").text("").removeAttr("required");
         $(".reject-reason-text-div").hide();
     }
 });
@@ -897,6 +894,30 @@ var packageFeatureRepeater = $('.feature-sections').repeater({
             $(this).remove();
             checkDuplicateFeatures('.features','.add-new-feature'); // Check duplicates after adding a new row
 
+        });
+    }
+});
+// Initialize jQuery Repeater for Bank Details
+const bankDetailsRepeater = $('.bank-details-repeater').repeater({
+    // Set initEmpty to false so it doesn't clear existing items
+    initEmpty: true,
+    show: function() {
+        $(this).slideDown();
+    },
+    hide: function(deleteElement) {
+        Swal.fire({
+            title: window.trans["Are you sure"],
+            text: window.trans["You wants to change it ?"],
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#198754',
+            cancelButtonColor: '#d33',
+            confirmButtonText: window.trans["Yes"],
+            cancelButtonText: window.trans["No"],
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $(this).slideUp(deleteElement);
+            }
         });
     }
 });

@@ -327,15 +327,15 @@ $lang = Session::get('language');
                             data-pagination-successively-size="3" data-query-params="recentPropertiesQueryParams">
                             <thead class="thead-dark">
                                 <tr>
-                                    <th scope="col" data-field="id" data-align="center" data-sortable="true"> {{ __('#') }}</th>
+                                    <th scope="col" data-field="id" data-sortable="true"> {{ __('ID') }}</th>
                                     <th scope="col" data-field="category.category" data-align="center" data-sortable="false"> {{ __('Category') }}</th>
                                     <th scope="col" data-field="Property_name" data-align="center" data-sortable="false"> {{ __('Property Name') }}</th>
                                     <th scope="col" data-field="city" data-align="center" data-sortable="false"> {{ __('Property City') }}</th>
                                     <th scope="col" data-field="added_by" data-align="center" data-sortable="false"> {{ __('Added By') }} </th>
                                     <th scope="col" data-field="propery_type" data-formatter="propertyTypeFormatter" data-align="center" data-sortable="true"> {{ __('Type') }}</th>
                                     <th scope="col" data-field="price" data-align="center" data-sortable="false">{{ __('Price') }} </th>
-                                    @if (has_permissions('update', 'property_inquiry'))
-                                        <th scope="col" data-field="operate" data-align="center" data-sortable="false"> {{ __('Action') }}</th>
+                                    @if (has_permissions('delete', 'property'))
+                                        <th scope="col" data-field="only_delete_operate" data-align="center" data-sortable="false"> {{ __('Action') }}</th>
                                     @endif
                                 </tr>
                             </thead>
@@ -385,10 +385,10 @@ $lang = Session::get('language');
                         data-pagination-successively-size="3">
                         <thead class="thead-dark">
                             <tr>
-                                <th scope="col" data-field="id" data-align="center" data-sortable="false"> {{ __('#') }}</th>
+                                <th scope="col" data-field="id" data-sortable="false"> {{ __('ID') }}</th>
                                 <th scope="col" data-field="title" data-align="left" data-sortable="false" data-formatter="featuredPropertiesDataFormatter"> {{ __('Property') }}</th>
                                 <th scope="col" data-field="status" data-sortable="false" data-align="center" data-width="5%" data-formatter="enableDisableSwitchFormatter"> {{ __('Enable/Disable') }}</th>
-                                @if (has_permissions('update', 'property_inquiry'))
+                                @if (has_permissions('update', 'property'))
                                     <th scope="col" data-field="operate" data-align="center" data-sortable="false"> {{ __('Action') }}</th>
                                 @endif
                             </tr>

@@ -71,7 +71,7 @@
                             data-pagination-successively-size="3" data-query-params="queryParams">
                             <thead class="thead-dark">
                                 <tr>
-                                    <th scope="col" data-field="id" data-align="center" data-sortable="true"> {{ __('ID') }}</th>
+                                    <th scope="col" data-field="id" data-sortable="true"> {{ __('ID') }}</th>
                                     <th scope="col" data-field="owner_name" data-align="center" data-sortable="false"> {{ __('Client Name') }}</th>
                                     <th scope="col" data-field="customer.mobile" data-align="center" data-sortable="false"> {{ __('Mobile') }} </th>
                                     <th scope="col" data-field="title" data-align="center" data-sortable="true">{{ __('Title') }} </th>
@@ -139,7 +139,7 @@
                         {{ csrf_field() }}
 
                         {!! Form::hidden('id', "", ['id' => 'edit-request-status-id']) !!}
-                        <div class="col-md-12 col-12  form-group  mandatory">
+                        <div class="col-md-12 col-12 form-group mandatory">
                             <div class="row">
                                 {{ Form::label('', __('Status'), ['class' => 'form-label col-12 ']) }}
 
@@ -156,7 +156,7 @@
                                 </div>
 
                                 {{-- Reason for Reject --}}
-                                <div class="col-12 mt-1 reject-reason-text-div form-group  mandatory" style="display: none">
+                                <div class="col-12 mt-1 reject-reason-text-div" style="display: none">
                                     {{ Form::label('reject-reason-text', __('Reject Reason'), ['class' => 'form-label']) }}
                                     {!! Form::textarea('reject_reason', null, ["id" => "reject-reason-text", "class" => 'form-control', "placeholder" => trans('Reject Reason')]) !!}
                                 </div>
@@ -304,7 +304,6 @@
             'click .request-status-btn': function(e, value, row, index) {
                 $("#edit-request-status-id").val(row.id);
                 $('input[name=request_status]').prop('checked', false);
-                $("#reject-reason-text").text("").removeAttr("required");
                 $(".reject-reason-text-div").hide();
             }
         }

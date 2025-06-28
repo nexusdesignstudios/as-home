@@ -2,7 +2,6 @@
 
 namespace App\Console;
 
-use App\Console\Commands\SeedPropertyDataCommand;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
@@ -26,7 +25,11 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        //
+        $schedule->command('demo:remove-advertisements')->daily();
+        $schedule->command('demo:remove-customers')->daily();
+        $schedule->command('demo:remove-chats')->daily();
+        $schedule->command('demo:remove-properties')->daily();
+        $schedule->command('demo:remove-projects')->daily();
     }
 
     /**
@@ -36,7 +39,8 @@ class Kernel extends ConsoleKernel
      */
     protected function commands()
     {
-        $this->load(__DIR__ . '/Commands');
+        $this->load(__DIR__.'/Commands');
+        $this->load(__DIR__.'/Commands/Demo');
 
         require base_path('routes/console.php');
     }

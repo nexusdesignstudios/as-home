@@ -76,10 +76,10 @@
                             data-pagination-successively-size="3" data-query-params="queryParams">
                             <thead>
                                 <tr>
-                                    <th scope="col" data-field="id" data-sortable="true" data-align="center">{{ __('ID') }}</th>
+                                    <th scope="col" data-field="id" data-sortable="true">{{ __('ID') }}</th>
                                     <th scope="col" data-field="user" data-sortable="false" data-formatter="userNameProfileFormatter">{{ __('Agent Name') }}</th>
-                                    <th scope="col" data-field="user.property_count" data-sortable="false" data-width="5%">{{ __('Total Properties') }}</th>
-                                    <th scope="col" data-field="user.projects_count" data-sortable="false" data-width="5%">{{ __('Total Projects') }}</th>
+                                    <th scope="col" data-field="user.property_count" data-sortable="false" data-width="5%" data-align="center">{{ __('Total Properties') }}</th>
+                                    <th scope="col" data-field="user.projects_count" data-sortable="false" data-width="5%" data-align="center">{{ __('Total Projects') }}</th>
                                     <th scope="col" data-field="view-form-btn" data-align="center" data-sortable="false" data-width="5%"> {{ __('View Submitted Values') }}</th>
                                     <th scope="col" data-field="status" data-align="center" data-sortable="false" data-formatter="verifyCustomerStatusFormatter"> {{ __('Status') }}</th>
                                     @if (has_permissions('update', 'approve_agent_verification'))
@@ -96,8 +96,7 @@
 
 
 <!-- EDIT MODEL MODEL -->
-<div id="editModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="changeVerificationModal"
-aria-hidden="true">
+<div id="editModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="changeVerificationModal" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
 <div class="modal-dialog modal-md">
     <div class="modal-content">
         <div class="modal-header">
@@ -129,7 +128,7 @@ aria-hidden="true">
 
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary waves-effect" data-bs-dismiss="modal">{{ __('Close') }}</button>
+                <button type="button" class="btn btn-secondary waves-effect close-btn" data-bs-dismiss="modal">{{ __('Close') }}</button>
                 {{ Form::submit(__('Save'), ['class' => 'btn btn-primary me-1 mb-1', 'id' => 'btn_submit']) }}
             </div>
         </form>

@@ -4,12 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
+use App\Traits\HasAppTimezone;
 class NumberOtp extends Model
 {
-    use HasFactory;
+    use HasFactory, HasAppTimezone;
     protected $table = 'number_otps';
-
+    protected $dates = ['created_at', 'updated_at', 'deleted_at'];
     protected $fillable = [
         'number',
         'email',

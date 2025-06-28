@@ -22,6 +22,7 @@ use App\Models\PropertysInquiry;
 use kornrunner\Blurhash\Blurhash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\ApiResponseService;
 use Illuminate\Support\Facades\Auth;
 use GuzzleHttp\Client as GuzzleClient;
 use App\Models\OldUserPurchasedPackage;
@@ -118,8 +119,7 @@ if (!function_exists('_attributes_to_string')) {
     }
 }
 
-function send_push_notification($registrationIDs = array(), $fcmMsg = '')
-{
+function send_push_notification($registrationIDs = array(), $fcmMsg = '') {
     try {
         if (!count($registrationIDs)) {
             return false;
@@ -183,7 +183,7 @@ function send_push_notification($registrationIDs = array(), $fcmMsg = '')
 
         return true;
     } catch (Exception $e) {
-        Log::error("Error in Notification Sending :- " . $e->getMessage());
+        Log::error("Error in Notification Sending :- ".$e->getMessage());
         return false;
     }
 }
@@ -223,58 +223,24 @@ if (!function_exists('get_states_from_json')) {
 }
 
 
-if (!function_exists('parameterTypesByCategory')) {
-    function parameterTypesByCategory($category_id, $property_id = null)
-    {
-        // $parameter_types = DB::table('categories')->select('parameter_types')->where('categories.id', $category_id)->first();
-        $parameterTypes = Category::where('id', $category_id)->pluck('parameter_types')->first();
-
-        // Explode the parameter type having string number separated by comma
-        $parameterTypes = explode(',', $parameterTypes);
-
-        if (!empty($parameterTypes)) {
-
-            // Check the parameter
-            $parameterQueryData = parameter::whereIn('id', $parameterTypes)
-                ->with(['assigned_parameter' => function ($query) use ($property_id) {
-                    if ($property_id) {
-                        $query->where('modal_id', $property_id);
-                    }
-                }])
-                ->get();
-
-            // Sort the collection in the order of $parameterTypes
-            $sortedParameterData = $parameterQueryData->sortBy(function ($item) use ($parameterTypes) {
-                return array_search($item->id, $parameterTypes);
-            });
-
-            // Reset the keys on the sorted collection
-            $parameterData = $sortedParameterData->values();
-        } else {
-            $parameterData = array(); // return an empty Array if $parameterTypes is empty
-        }
-
-        return  $parameterData;
-    }
-}
 function update_subscription($userId)
 {
     // Array Initialize
     $updateUserPackage = array();
     // User Package Query
-    $userPackages = OldUserPurchasedPackage::with('package', 'customer')->where('modal_id', $userId);
+    $userPackages = OldUserPurchasedPackage::with('package','customer')->where('modal_id', $userId);
     // Result Data
-    $result = $userPackages->clone()->with('package', 'customer')->get();
+    $result = $userPackages->clone()->with('package','customer')->get();
 
     // Get Package Count
-    $packageCount = $userPackages->clone()->where(function ($query) {
-        $query->where(function ($subQuery) {
+    $packageCount = $userPackages->clone()->where(function($query){
+        $query->where(function($subQuery){
             $subQuery->where('prop_status', 1)->orWhere('adv_status', 1);
         });
     })->count();
 
     // loop on result data
-    if (collect($result)->isNotEmpty()) {
+    if(collect($result)->isNotEmpty()){
         foreach ($result as $key => $row) {
             // Get end date of current looped data
             $endDate = Carbon::parse($row->end_date, 'UTC')->startOfDay(); // Parse the date with UTC time zone and set time to start of the day
@@ -290,16 +256,17 @@ function update_subscription($userId)
                     'prop_status' => 0,
                     'adv_status' => 0
                 );
-                if (!empty($row->package) && $row->package->type == "premium_user") {
+                if (!empty($row->package) && $row->package->type == "premium_user"){
                     $customerPremiumStatus = 0;
                 }
             }
+
         }
     }
 
     // Bulk Update the user packages limits to zero
-    if (!empty($updateUserPackage)) {
-        OldUserPurchasedPackage::upsert($updateUserPackage, ['id'], ['prop_status', 'adv_status']);
+    if(!empty($updateUserPackage)){
+        OldUserPurchasedPackage::upsert($updateUserPackage,['id'],['prop_status','adv_status']);
     }
 
     // if package count is 0 then update the customer's subscription to 0 and is_premium according to $customerPremiumStatus
@@ -307,7 +274,7 @@ function update_subscription($userId)
         $customer = Customer::find($userId);
         $customer->subscription = 0;
         // if there is customerPremiumStatus and its zero then only update
-        if (isset($customerPremiumStatus) && $customerPremiumStatus == 0) {
+        if(isset($customerPremiumStatus) && $customerPremiumStatus == 0){
             $customer->is_premium = 0;
         }
         $customer->update();
@@ -389,14 +356,22 @@ if (!function_exists('form_close')) {
         return '</form>' . $extra;
     }
 }
-function get_property_details($result, $current_user = NULL)
+function get_property_details($result, $current_user = NULL, $skipLimitCheck = false)
 {
     $rows = array();
     $tempRow = array();
     $count = 1;
     foreach ($result as $row) {
-        if ($row->is_premium == 1 && Auth::guard('sanctum')->check()) {
-            HelperService::checkPackageLimit('premium_properties');
+        if ($row->is_premium == 1) {
+            if(Auth::guard('sanctum')->check() && $skipLimitCheck == false){
+                // Check if the user has a premium property list feature in package
+                $response = HelperService::checkPackageLimit('premium_properties',true);
+                if($response['package_available'] == false || $response['feature_available'] == false){
+                    return ApiResponseService::validationError('Cannot Access Premium Property, Feature Not Available',$response);
+                }
+            }else{
+                return ApiResponseService::validationError('Cannot Access Premium Property, Feature Not Available');
+            }
         }
         $customer = $row->customer;
 
@@ -404,7 +379,7 @@ function get_property_details($result, $current_user = NULL)
         if ($customer && $row->added_by != 0) {
             $isBlockedByMe = false;
             $isBlockedByUser = false;
-            if ($current_user) {
+            if($current_user){
 
                 $isBlockedByMe = BlockedChatUser::where('by_user_id', $current_user)
                     ->where('user_id', $row->added_by)
@@ -413,6 +388,7 @@ function get_property_details($result, $current_user = NULL)
                 $isBlockedByUser = BlockedChatUser::where('by_user_id', $row->added_by)
                     ->where('user_id', $current_user)
                     ->exists();
+
             }
             $tempRow['is_blocked_by_me'] = $isBlockedByMe;
             $tempRow['is_blocked_by_user'] = $isBlockedByUser;
@@ -423,13 +399,12 @@ function get_property_details($result, $current_user = NULL)
             $tempRow['email'] = $customer->email;
             $tempRow['mobile'] = $customer->mobile;
             $tempRow['profile'] = $customer->profile;
-            $tempRow['request_status'] = $customer->request_status;
             $tempRow['client_address'] = $customer->address;
         } else if ($row->added_by == 0) {
             $isBlockedByMe = false;
             $isBlockedByAdmin = false;
 
-            if ($current_user) {
+            if($current_user){
 
                 $isBlockedByMe = BlockedChatUser::where('by_user_id', $current_user)
                     ->where('admin', 1)
@@ -438,11 +413,12 @@ function get_property_details($result, $current_user = NULL)
                 $isBlockedByUser = BlockedChatUser::where('by_admin', 1)
                     ->where('user_id', $current_user)
                     ->exists();
+
             }
             $tempRow['is_blocked_by_me'] = $isBlockedByMe;
             $tempRow['is_blocked_by_user'] = $isBlockedByAdmin;
 
-            $adminData = User::where('type', 0)->select('id', 'name', 'profile')->first();
+            $adminData = User::where('type',0)->select('id','name','profile')->first();
 
             $adminCompanyTel1 = system_setting('company_tel1');
             $adminEmail = system_setting('company_email');
@@ -461,8 +437,9 @@ function get_property_details($result, $current_user = NULL)
         $tempRow['description'] = $row->description;
         $tempRow['address'] = $row->address;
         $tempRow['property_type'] = $row->propery_type;
-        $tempRow['property_classification'] = $row->property_classification;
-
+        $tempRow['is_interest_available'] = $row->getRawOriginal('propery_type') == 0 || $row->getRawOriginal('propery_type') == 1 ? true : false;
+        $tempRow['is_report_available'] = $row->getRawOriginal('propery_type') == 0 || $row->getRawOriginal('propery_type') == 1 ? true : false;
+        $tempRow['request_status'] = $row->request_status;
         $tempRow['title_image'] = $row->title_image;
         $tempRow['title_image_hash'] = $row->title_image_hash != '' ? $row->title_image_hash : '';
         $tempRow['three_d_image'] = $row->three_d_image;
@@ -540,39 +517,7 @@ function get_property_details($result, $current_user = NULL)
             $tempRow['advertisement'] = $row->advertisement;
         }
 
-        $tempRow['parameters'] = [];
-        $parameterTypeByCategoryData = parameterTypesByCategory($row->category_id, $row->id);
-        foreach ($parameterTypeByCategoryData as $res) {
-            if (!empty($res->assigned_parameter) && !empty($res->assigned_parameter->value)) {
-                if (is_string($res->assigned_parameter->value) && is_array(json_decode($res->assigned_parameter->value, true))) {
-                    $value = json_decode($res->assigned_parameter->value, true);
-                } else {
-                    if ($res->type_of_parameter == "file") {
-                        if ($res->assigned_parameter->value == "null") {
-                            $value = "";
-                        } else {
-                            $value = url('') . config('global.IMG_PATH') . config('global.PARAMETER_IMG_PATH') . '/' .  $res->assigned_parameter->value;
-                        }
-                    } else {
-                        if ($res->assigned_parameter->value == "null" || $res->assigned_parameter->value == null) {
-                            $value = "";
-                        } else {
-                            $value = $res->assigned_parameter->value;
-                        }
-                    }
-                }
-                $parameter = [
-                    'id' => $res->id,
-                    'name' => $res->name,
-                    'type_of_parameter' => $res->type_of_parameter,
-                    'type_values' => $res->type_values,
-                    'image' => $res->image,
-                    'is_required' => $res->is_required,
-                    'value' => $value,
-                ];
-                array_push($tempRow['parameters'], $parameter);
-            }
-        }
+        $tempRow['parameters'] = $row->parameters;
 
         $rows[] = $tempRow;
         $count++;
@@ -610,7 +555,7 @@ function get_unregistered_fcm_ids($registeredIDs = array())
 function handleFileUpload($request, $key, $destinationPath, $filename, $databaseData = null)
 {
     if ($request->hasFile($key)) {
-        if (!empty($databaseData)) {
+        if(!empty($databaseData)){
             // Delete the old file if it exists
             $oldFilePath = $destinationPath . '/' . $databaseData;
             if (file_exists($oldFilePath)) {
@@ -619,7 +564,11 @@ function handleFileUpload($request, $key, $destinationPath, $filename, $database
         }
         $extension = $request->file($key)->getClientOriginalExtension();
         // Change the file name
-        $filename = microtime(true) . '.' . $extension;
+        if(empty($filename)){
+            $filename = microtime(true).'.'.$extension;
+        }else{
+            $filename = $filename;
+        }
 
         $profile = $request->file($key);
         $profile->move($destinationPath, $filename);
@@ -672,7 +621,7 @@ function store_image($file, $path)
 
         // Initialize the filename
         // $filename = $originalName . '.' . $extension;
-        $filename = microtime(true) . '.' . $extension;
+        $filename = microtime(true). '.' . $extension;
 
         $file->move($destinationPath, $filename);
         return $filename;
@@ -685,7 +634,7 @@ function store_image($file, $path)
 }
 function unlink_image($url)
 {
-    if (!empty($url)) {
+    if(!empty($url)){
         $relativePath = parse_url($url, PHP_URL_PATH);
         if (file_exists(public_path()  . $relativePath)) {
             unlink(public_path()  . $relativePath);
@@ -695,15 +644,14 @@ function unlink_image($url)
 
 /** Generate Slugs Functions */
 if (!function_exists('generateUniqueSlug')) {
-    function generateUniqueSlug($title, $type, $originalSlug = null, $exceptId = null)
-    {
+    function generateUniqueSlug($title, $type, $originalSlug = null, $exceptId = null) {
         if (!$originalSlug) {
             $originalSlug = Str::slug($title);
         } else {
             $originalSlug = Str::slug($originalSlug);
         }
 
-        if (empty($originalSlug)) {
+        if(empty($originalSlug)){
             $originalSlug = "slug";
         }
 
@@ -723,18 +671,17 @@ if (!function_exists('generateUniqueSlug')) {
 }
 
 if (!function_exists('generateSlug')) {
-    function generateSlug($originalSlug, $tableName, $exceptId)
-    {
+    function generateSlug($originalSlug, $tableName, $exceptId) {
         $counter = 1;
         $slug = $originalSlug;
 
-        if (empty($exceptId)) {
+        if(empty($exceptId)){
             while (DB::table($tableName)->where('slug_id', $slug)->exists()) {
                 $slug = $originalSlug . '-' . $counter;
                 $counter++;
             }
-        } else {
-            while (DB::table($tableName)->whereNot('id', $exceptId)->where('slug_id', $slug)->exists()) {
+        }else{
+            while (DB::table($tableName)->whereNot('id',$exceptId)->where('slug_id', $slug)->exists()) {
                 $slug = $originalSlug . '-' . $counter;
                 $counter++;
             }
@@ -744,24 +691,22 @@ if (!function_exists('generateSlug')) {
 }
 /** END OF Generate Slugs Functions */
 if (!function_exists('getAccessToken')) {
-    function getAccessToken()
-    {
+    function getAccessToken(){
         $file_name = system_setting('firebase_service_json_file');
 
-        $file_path = public_path() . '/assets/' . $file_name;
+        $file_path = public_path() . '/assets/'. $file_name;
 
         $client = new Client();
         $client->setAuthConfig($file_path);
         $client->setScopes(['https://www.googleapis.com/auth/firebase.messaging']);
-        $accessToken = $client->fetchAccessTokenWithAssertion()['access_token'];
+        $accessToken=$client->fetchAccessTokenWithAssertion()['access_token'];
 
 
         return $accessToken;
     }
 }
 if (!function_exists('updateEnv')) {
-    function updateEnv($envUpdates)
-    {
+    function updateEnv($envUpdates){
         $envFile = file_get_contents(base_path('.env'));
 
         foreach ($envUpdates as $key => $value) {
@@ -779,3 +724,4 @@ if (!function_exists('updateEnv')) {
         file_put_contents(base_path('.env'), $envFile);
     }
 }
+

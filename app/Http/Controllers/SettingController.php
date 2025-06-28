@@ -48,40 +48,7 @@ class SettingController extends Controller
         }
 
         $data = Setting::select('data')->where('type', $type1)->pluck('data')->first();
-
-        $stripe_currencies = ["USD", "AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD", "BDT", "BGN", "BIF", "BMD", "BND", "BOB", "BRL", "BSD", "BWP", "BYN", "BZD", "CAD", "CDF", "CHF", "CLP", "CNY", "COP", "CRC", "CVE", "CZK", "DJF", "DKK", "DOP", "DZD", "EGP", "ETB", "EUR", "FJD", "FKP", "GBP", "GEL", "GIP", "GMD", "GNF", "GTQ", "GYD", "HKD", "HNL", "HTG", "HUF", "IDR", "ILS", "INR", "ISK", "JMD", "JPY", "KES", "KGS", "KHR", "KMF", "KRW", "KYD", "KZT", "LAK", "LBP", "LKR", "LRD", "LSL", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP", "MRO", "MUR", "MVR", "MWK", "MXN", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK", "NPR", "NZD", "PAB", "PEN", "PGK", "PHP", "PKR", "PLN", "PYG", "QAR", "RON", "RSD", "RUB", "RWF", "SAR", "SBD", "SCR", "SEK", "SGD", "SHP", "SLE", "SOS", "SRD", "STD", "SZL", "THB", "TJS", "TOP", "TTD", "TWD", "TZS", "UAH", "UGX", "UYU", "UZS", "VND", "VUV", "WST", "XAF", "XCD", "XOF", "XPF", "YER", "ZAR", "ZMW"];
-        $languages = Language::all();
-
-
-        $paypalCurrencies = array(
-            'AUD' => 'Australian Dollar',
-            'BRL' => 'Brazilian Real',
-            'CAD' => 'Canadian Dollar',
-            'CNY' => 'Chinese Renmenbi',
-            'CZK' => 'Czeck Koruna',
-            'DKK' => 'Danish Krone',
-            'EUR' => 'Euro',
-            'HKD' => 'Hong Kong Dollar',
-            'HUF' => 'Hungarian Forint',
-            'ILS' => 'Israeli New Sheqel',
-            'JPY' => 'Japanese Yen',
-            'MYR' => 'Malaysian Ringgit',
-            'MXN' => 'Mexican Peso',
-            'NOK' => 'Norwegian Krone',
-            'TWD' => 'New Taiwan dollar',
-            'NZD' => 'New Zealand Dollar',
-            'NOK' => 'Norwegian krone',
-            'PHP' => 'Philippine Peso',
-            'PLN' => 'Polish Zloty',
-            'GBP' => 'Pound Sterling',
-            'SGD' => 'Singapore Dollar',
-            'SEK' => 'Swedish Krona',
-            'CHF' => 'Swiss Franc',
-            'THB' => 'Thai Baht',
-            'USD' => 'U.S. Dollar'
-        );
-        $listOfCurrencies = HelperService::currencyCode();
-        return view('settings.' . $type, compact('data', 'type', 'languages', 'stripe_currencies','paypalCurrencies', 'listOfCurrencies'));
+        return view('settings.' . $type, compact('data', 'type'));
     }
 
     public function settings(Request $request)
@@ -115,6 +82,65 @@ class SettingController extends Controller
         }
     }
 
+    public function systemSettingsIndex(){
+        $stripe_currencies = ["USD", "AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD", "BDT", "BGN", "BIF", "BMD", "BND", "BOB", "BRL", "BSD", "BWP", "BYN", "BZD", "CAD", "CDF", "CHF", "CLP", "CNY", "COP", "CRC", "CVE", "CZK", "DJF", "DKK", "DOP", "DZD", "EGP", "ETB", "EUR", "FJD", "FKP", "GBP", "GEL", "GIP", "GMD", "GNF", "GTQ", "GYD", "HKD", "HNL", "HTG", "HUF", "IDR", "ILS", "INR", "ISK", "JMD", "JPY", "KES", "KGS", "KHR", "KMF", "KRW", "KYD", "KZT", "LAK", "LBP", "LKR", "LRD", "LSL", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP", "MRO", "MUR", "MVR", "MWK", "MXN", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK", "NPR", "NZD", "PAB", "PEN", "PGK", "PHP", "PKR", "PLN", "PYG", "QAR", "RON", "RSD", "RUB", "RWF", "SAR", "SBD", "SCR", "SEK", "SGD", "SHP", "SLE", "SOS", "SRD", "STD", "SZL", "THB", "TJS", "TOP", "TTD", "TWD", "TZS", "UAH", "UGX", "UYU", "UZS", "VND", "VUV", "WST", "XAF", "XCD", "XOF", "XPF", "YER", "ZAR", "ZMW"];
+        $languages = Language::all();
+
+
+        $paypalCurrencies = array(
+            'AUD' => 'Australian Dollar',
+            'BRL' => 'Brazilian Real',
+            'CAD' => 'Canadian Dollar',
+            'CNY' => 'Chinese Renmenbi',
+            'CZK' => 'Czeck Koruna',
+            'DKK' => 'Danish Krone',
+            'EUR' => 'Euro',
+            'HKD' => 'Hong Kong Dollar',
+            'HUF' => 'Hungarian Forint',
+            'ILS' => 'Israeli New Sheqel',
+            'JPY' => 'Japanese Yen',
+            'MYR' => 'Malaysian Ringgit',
+            'MXN' => 'Mexican Peso',
+            'NOK' => 'Norwegian Krone',
+            'TWD' => 'New Taiwan dollar',
+            'NZD' => 'New Zealand Dollar',
+            'NOK' => 'Norwegian krone',
+            'PHP' => 'Philippine Peso',
+            'PLN' => 'Polish Zloty',
+            'GBP' => 'Pound Sterling',
+            'SGD' => 'Singapore Dollar',
+            'SEK' => 'Swedish Krona',
+            'CHF' => 'Swiss Franc',
+            'THB' => 'Thai Baht',
+            'USD' => 'U.S. Dollar'
+        );
+        $listOfCurrencies = HelperService::currencyCode();
+
+        $bankDetailsFieldsQuery = system_setting('bank_details');
+        if(isset($bankDetailsFieldsQuery) && !empty($bankDetailsFieldsQuery)){
+            $bankDetailsFields = json_decode($bankDetailsFieldsQuery, true);
+        }else{
+            $bankDetailsFields = [];
+        }
+
+        $settingsArray = array(
+            'company_name', 'company_email', 'company_tel1', 'company_tel2', 'latitude', 'longitude', 'company_address',
+            'currency_code', 'currency_symbol', 'timezone', 'min_radius_range', 'max_radius_range', 'place_api_key', 'unsplash_api_key', 'appstore_id', 'playstore_id', 'number_with_suffix', 'svg_clr','distance_option','system_color','web_url','text_property_submission','auto_approve_edited_listings',
+            'number_with_otp_login','otp_service_provider','twilio_account_sid','twilio_auth_token','twilio_phone_number','social_login',
+            'paypal_business_id','paypal_webhook_url','paypal_currency','paypal_gateway','sandbox_mode',
+            'razor_key','razorpay_webhook_url','razor_secret','razorpay_gateway','razor_webhook_secret',
+            'paystack_secret_key','paystack_webhook_url','paystack_currency','paystack_gateway','paystack_public_key',
+            'stripe_publishable_key','stripe_webhook_url','stripe_currency','stripe_gateway','stripe_secret_key','stripe_webhook_secret_key',
+            'flutterwave_public_key','flutterwave_secret_key','flutterwave_encryption_key','flutterwave_webhook_url','flutterwave_currency','flutterwave_status',
+            'schema_for_deeplink',
+            'favicon_icon','company_logo','login_image',
+            'bank_transfer_status'
+        );
+        $systemSettings = HelperService::getMultipleSettingData($settingsArray);
+
+        return view('settings.system-settings', compact('systemSettings', 'languages', 'stripe_currencies','paypalCurrencies', 'listOfCurrencies', 'bankDetailsFields'));
+    }
+
     public function system_settings(Request $request)
     {
 
@@ -123,7 +149,12 @@ class SettingController extends Controller
         }
 
         try {
-            $input = $request->except(['_token', 'btnAdd']);
+            DB::beginTransaction();
+            $input = $request->except(['_token', 'btnAdd', 'bank_details_fields']);
+
+            if(($request->has('bank_transfer_status') && $request->bank_transfer_status == 0) && $request->razorpay_gateway == 0 && $request->paystack_gateway == 0 && $request->flutterwave_status == 0 && $request->stripe_gateway == 0 && $request->paypal_gateway == 0){
+                ResponseService::errorResponse("Please enable at least one payment gateway");
+            }
 
             $logoDestinationPath = public_path('assets/images/logo');
             $backgroundDestinationPath = public_path('assets/images/bg');
@@ -156,6 +187,37 @@ class SettingController extends Controller
                 $input['login_image'] = handleFileUpload($request, 'login_image', $backgroundDestinationPath, $filename, $databaseData);
             }
 
+            if($request->has('bank_transfer_status')){
+                $bankDetailsEnabled = $request->bank_transfer_status;
+                if($bankDetailsEnabled == 1){
+                    $rules = [
+                        'bank_details_fields' => 'required|array',
+                    ];
+
+                    $messages = [
+                        'bank_details_fields.required' => 'Bank Details Fields is required',
+                    ];
+
+                    // Loop through each item to dynamically add rules and custom messages
+                    foreach ($request->input('bank_details_fields', []) as $i => $field) {
+                        $index = $i + 1;
+
+                        $rules["bank_details_fields.$i.title"] = 'required';
+                        $rules["bank_details_fields.$i.value"] = 'required';
+
+                        $messages["bank_details_fields.$i.title.required"] = "Bank Details : $index Title is required";
+                        $messages["bank_details_fields.$i.value.required"] = "Bank Details : $index Value is required";
+                    }
+
+                    $validator = Validator::make($request->all(), $rules, $messages);
+
+                    if($validator->fails()){
+                        ResponseService::validationError($validator->errors()->first());
+                    }
+                    $input['bank_details'] = json_encode($request->bank_details_fields);
+
+                }
+            }
 
             $envUpdates = [
                 'APP_NAME' => $request->company_name,
@@ -215,10 +277,11 @@ class SettingController extends Controller
             app()->setLocale($defaultLanguage->code);
             Artisan::call('cache:clear');
 
-
-            return redirect()->back()->with('success', trans("Data Updated Successfully"));
+            DB::commit();
+            ResponseService::successResponse("Data Updated Successfully");
         } catch (Throwable $e) {
-            return redirect()->back()->with('error', trans('Something Went Wrong'));
+            DB::rollBack();
+            ResponseService::logErrorResponse($e, "Something Went Wrong");
         }
     }
 
@@ -392,6 +455,17 @@ class SettingController extends Controller
         }
     }
 
+    public function appSettingsIndex(){
+        $settingsArray = array(
+            'ios_version','android_version','force_update','maintenance_mode',
+            'light_tertiary','light_secondary','light_primary','dark_tertiary','dark_secondary','dark_primary',
+            'show_admob_ads','android_banner_ad_id','ios_banner_ad_id','android_interstitial_ad_id','ios_interstitial_ad_id','android_native_ad_id','ios_native_ad_id',
+            'app_home_screen','placeholder_logo'
+        );
+        $getAppSettings = HelperService::getMultipleSettingData($settingsArray);
+        return view('settings.app-settings', compact('getAppSettings'));
+    }
+
     public function app_settings(Request $request)
     {
         if (!has_permissions('update', 'app_settings')) {
@@ -439,6 +513,11 @@ class SettingController extends Controller
     }
 
 
+    public function webSettingsIndex(){
+        $settingsArray = array('web_favicon','web_logo','web_placeholder_logo','web_footer_logo','iframe_link','facebook_id','instagram_id','twitter_id','youtube_id','category_background','sell_web_color','sell_web_background_color','rent_web_color','rent_web_background_color','buy_web_color','buy_web_background_color','web_maintenance_mode','allow_cookies');
+        $getWebSettings = HelperService::getMultipleSettingData($settingsArray);
+        return view('settings.web-settings', compact('getWebSettings'));
+    }
     public function web_settings(Request $request)
     {
         if (!has_permissions('update', 'web_settings')) {
@@ -643,19 +722,18 @@ class SettingController extends Controller
             DB::commit();
 
             ResponseService::successResponse(trans("Email Sent Successfully"));
-        } catch (Throwable $e) {
+        } catch (Exception $e) {
             DB::rollback();
-            // IF Exception message contains Mail keywords then email is not sent successfully
             if (Str::contains($e->getMessage(), [
-                    'Failed',
-                    'Mail',
-                    'Mailer',
-                    'MailManager'
-                ])) {
-                ResponseService::warningResponse("Cannot send mail, there is issue with mail configuration.");
-            } else {
-                ResponseService::logErrorResponse($e,"Email Verification Issue");
+                'Failed',
+                'Mail',
+                'Mailer',
+                'MailManager',
+                "Connection could not be established"
+            ])) {
+                ResponseService::validationError("There is issue with mail configuration, kindly contact admin regarding this");
             }
+            ResponseService::errorResponse("Something went wrong");
         }
     }
 

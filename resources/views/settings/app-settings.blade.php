@@ -35,28 +35,28 @@
                                     {{-- IOS Version --}}
                                     <label class="col-sm-2 form-label-mandatory">{{ __('IOS Version') }}</label>
                                     <div class="col-sm-12 form-group mandatory">
-                                        <input name="ios_version" type="text" class="form-control" placeholder="{{ __('IOS Version') }}" value="{{ system_setting('ios_version') != '' ? system_setting('ios_version') : '' }}" data-parsley-required="true">
+                                        <input name="ios_version" type="text" class="form-control" placeholder="{{ __('IOS Version') }}" value="{{ isset($getAppSettings['ios_version']) && $getAppSettings['ios_version'] != '' ? $getAppSettings['ios_version'] : '' }}" data-parsley-required="true">
                                     </div>
 
                                     {{-- Android Version --}}
                                     <label class="col-sm-12 form-label-mandatory ">{{ __('Android Version') }}</label>
                                     <div class="col-sm-12 form-group mandatory">
-                                        <input name="android_version" type="text" class="form-control" placeholder="{{ __('Android Version') }}" value="{{ system_setting('android_version') != '' ? system_setting('android_version') : '' }}" data-parsley-required="true">
+                                        <input name="android_version" type="text" class="form-control" placeholder="{{ __('Android Version') }}" value="{{ isset($getAppSettings['android_version']) && $getAppSettings['android_version'] != '' ? $getAppSettings['android_version'] : '' }}" data-parsley-required="true">
                                     </div>
 
                                     {{-- Force Update --}}
                                     <div class="form-check form-switch">
                                         <label class="form-check-label">{{ __('Force Update') }}</label>
-                                        <input type="hidden" name="force_update" id="force_update" value="{{ system_setting('force_update') != '' ? system_setting('force_update') : 0 }}">
-                                        <input class="form-check-input" type="checkbox" role="switch" {{ system_setting('force_update') == '1' ? 'checked' : '' }} id="switch_force_update">
+                                        <input type="hidden" name="force_update" id="force_update" value="{{ isset($getAppSettings['force_update']) && $getAppSettings['force_update'] != '' ? $getAppSettings['force_update'] : 0 }}">
+                                        <input class="form-check-input" type="checkbox" role="switch" {{ isset($getAppSettings['force_update']) && $getAppSettings['force_update'] == '1' ? 'checked' : '' }} id="switch_force_update">
                                         <label class="form-check-label mandatory" for="switch_force_update"></label>
                                     </div>
 
                                     {{-- Maintenance Mode --}}
                                     <div class="col-sm-12 form-check form-switch">
                                         <label class="form-check-label ">{{ __('Maintenance Mode') }}</label>
-                                        <input type="hidden" name="maintenance_mode" id="maintenance_mode" value="{{ system_setting('maintenance_mode') != '' ? system_setting('maintenance_mode') : 0 }}">
-                                        <input class="form-check-input" type="checkbox" role="switch" {{ system_setting('maintenance_mode') == '1' ? 'checked' : '' }} id="switch_maintenance_mode">
+                                        <input type="hidden" name="maintenance_mode" id="maintenance_mode" value="{{ isset($getAppSettings['maintenance_mode']) && $getAppSettings['maintenance_mode'] != '' ? $getAppSettings['maintenance_mode'] : 0 }}">
+                                        <input class="form-check-input" type="checkbox" role="switch" {{ isset($getAppSettings['maintenance_mode']) && $getAppSettings['maintenance_mode'] == '1' ? 'checked' : '' }} id="switch_maintenance_mode">
                                         <label class="form-check-label mandatory" for="switch_maintenance_mode"></label>
                                     </div>
                                 </div>
@@ -80,7 +80,7 @@
                                             {{-- Tertiary Light--}}
                                             <div class="col-md-4">
                                                 <label class="form-label ">{{ __('Tertiary') }}</label>
-                                                <input name="light_tertiary" type="color" class="form-control" placeholder="System Color" value="{{ system_setting('light_tertiary') != '' ? system_setting('light_tertiary') : '#087C7C' }}" id="systemColor">
+                                                <input name="light_tertiary" type="color" class="form-control" placeholder="System Color" value="{{ isset($getAppSettings['light_tertiary']) && $getAppSettings['light_tertiary'] != '' ? $getAppSettings['light_tertiary'] : '#087C7C' }}" id="systemColor">
                                                 <script>
                                                     // Initialize the color picker
                                                     new jscolor('.color', {
@@ -92,13 +92,13 @@
                                             {{-- Secondary Light--}}
                                             <div class="col-md-4">
                                                 <label class="form-label ">{{ __('Secondary') }}</label>
-                                                <input name="light_secondary" type="color" class="form-control" placeholder="System Color" value="{{ system_setting('light_secondary') != '' ? system_setting('light_secondary') : '#FFFFFF' }}" id="systemColor">
+                                                <input name="light_secondary" type="color" class="form-control" placeholder="System Color" value="{{ isset($getAppSettings['light_secondary']) && $getAppSettings['light_secondary'] != '' ? $getAppSettings['light_secondary'] : '#FFFFFF' }}" id="systemColor">
                                             </div>
 
                                             {{-- Primary Light--}}
                                             <div class="col-md-4">
                                                 <label class="form-label ">{{ __('Primary') }}</label>
-                                                <input name="light_primary" type="color" class="form-control" placeholder="System Color" value="{{ system_setting('light_primary') != '' ? system_setting('light_primary') : '#FAFAFA' }}" id="systemColor">
+                                                <input name="light_primary" type="color" class="form-control" placeholder="System Color" value="{{ isset($getAppSettings['light_primary']) && $getAppSettings['light_primary'] != '' ? $getAppSettings['light_primary'] : '#FAFAFA' }}" id="systemColor">
                                             </div>
                                         </div>
                                     </div>
@@ -113,19 +113,19 @@
                                             {{-- Tertiary Dark --}}
                                             <div class="col-md-4">
                                                 <label class="form-label ">{{ __('Tertiary') }}</label>
-                                                <input name="dark_tertiary" type="color" class="form-control" placeholder="System Color" value="{{ system_setting('dark_tertiary') != '' ? system_setting('dark_tertiary') : '#53ADAE' }}" id="systemColor">
+                                                <input name="dark_tertiary" type="color" class="form-control" placeholder="System Color" value="{{ isset($getAppSettings['dark_tertiary']) && $getAppSettings['dark_tertiary'] != '' ? $getAppSettings['dark_tertiary'] : '#53ADAE' }}" id="systemColor">
                                             </div>
 
                                             {{-- Secondary Dark --}}
                                             <div class="col-md-4">
                                                 <label class="form-label ">{{ __('Secondary') }}</label>
-                                                <input name="dark_secondary" type="color" class="form-control" placeholder="System Color" value="{{ system_setting('dark_secondary') != '' ? system_setting('dark_secondary') : '#1C1C1C' }}" id="systemColor">
+                                                <input name="dark_secondary" type="color" class="form-control" placeholder="System Color" value="{{ isset($getAppSettings['dark_secondary']) && $getAppSettings['dark_secondary'] != '' ? $getAppSettings['dark_secondary'] : '#1C1C1C' }}" id="systemColor">
                                             </div>
 
                                             {{-- Primary Dark --}}
                                             <div class="col-md-4">
                                                 <label class="form-label ">{{ __('Primary') }}</label>
-                                                <input name="dark_primary" type="color" class="form-control" placeholder="System Color" value="{{ system_setting('dark_primary') != '' ? system_setting('dark_primary') : '#0C0C0C' }}" id="systemColor">
+                                                <input name="dark_primary" type="color" class="form-control" placeholder="System Color" value="{{ isset($getAppSettings['dark_primary']) && $getAppSettings['dark_primary'] != '' ? $getAppSettings['dark_primary'] : '#0C0C0C' }}" id="systemColor">
                                             </div>
                                         </div>
 
@@ -148,21 +148,30 @@
 
                         <div class="row">
                             {{-- Home Screen Logo --}}
-                            <div class="col-md-4">
-                                <label class="form-label">{{ __('Home Screen Logo') }}</label>
-                                <button class="bottomleft btn btn-primary btn_app_home_screen" type="button">+</button>
-                                <input accept=".jpg,.jpeg,.png" name='app_home_screen' type='file' id="app_home_screen" style="display: none" />
-                                <img id="blah_app_home_screen" height="100" width="110" style="margin-left: 5%;background: #f7f7f7" src="{{ url('assets/images/logo/' . (system_setting('app_home_screen') ? system_setting('app_home_screen') : 'homeLogo.svg')) }}" />
+                            <div class="col-md-6 mt-3">
+                                <div class="col-12 form-group mandatory card title_card">
+                                    {{ Form::label('app_home_screen', __('Home Screen Logo'), ['class' => 'form-label col-12 ']) }}
+                                    <input type="file" class="filepond" id="app_home_screen" name="app_home_screen" {{ isset($getAppSettings['app_home_screen']) && $getAppSettings['app_home_screen'] == '' ? 'required' : '' }} accept="image/png,image/jpg,image/jpeg">
+                                    @if (isset($getAppSettings['app_home_screen']) && $getAppSettings['app_home_screen'] != '')
+                                        <div class="title_img mt-2">
+                                            <img src="{{ url('assets/images/logo/'.$getAppSettings['app_home_screen']) }}" alt="Image" class="img-fluid" width="100" height="100">
+                                        </div>
+                                    @endif
+                                </div>
                             </div>
 
                             {{-- Placeholder Image --}}
-                            <div class="col-md-4">
-                                <label class="form-label ">{{ __('Placeholder Image') }}</label>
-                                <button class="bottomleft btn btn-primary btn_placeholder_logo" type="button">+</button>
-                                <input accept=".jpg,.jpeg,.png" name='placeholder_logo' type='file' id="placeholder_logo" style="display: none" />
-                                <img id="blah_placeholder_logo" height="100" width="110" style="margin-left: 5%;background: #f7f7f7" src="{{ url('assets/images/logo/' . (system_setting('placeholder_logo') ? system_setting('placeholder_logo') : 'placeholder.svg')) }}" />
+                            <div class="col-md-6 mt-3">
+                                <div class="col-12 form-group mandatory card title_card">
+                                    {{ Form::label('placeholder_logo', __('Placeholder Image'), ['class' => 'form-label col-12 ']) }}
+                                    <input type="file" class="filepond" id="placeholder_logo" name="placeholder_logo" {{ isset($getAppSettings['placeholder_logo']) && $getAppSettings['placeholder_logo'] == '' ? 'required' : '' }} accept="image/png,image/jpg,image/jpeg">
+                                    @if (isset($getAppSettings['placeholder_logo']) && $getAppSettings['placeholder_logo'] != '')
+                                        <div class="title_img mt-2">
+                                            <img src="{{ url('assets/images/logo/'.$getAppSettings['placeholder_logo']) }}" alt="Image" class="img-fluid" width="100" height="100">
+                                        </div>
+                                    @endif
+                                </div>
                             </div>
-
 
                             <div class="mt-2">
                                 ({{ __('Only JPG, JPEG and PNG files are allowed') }})
@@ -178,8 +187,8 @@
                         {{-- Ads Section --}}
                         <div class="form-check form-switch">
                             <label class="form-check-label">{{ __('Show Ad Mob Ads') }}</label>
-                            <input type="hidden" name="show_admob_ads" id="show_admob_ads" value="{{ system_setting('show_admob_ads') != '' ? system_setting('show_admob_ads') : 0 }}">
-                            <input class="form-check-input" type="checkbox" role="switch" {{ system_setting('show_admob_ads') == '1' ? 'checked' : '' }} id="switch_admob_ads">
+                            <input type="hidden" name="show_admob_ads" id="show_admob_ads" value="{{ isset($getAppSettings['show_admob_ads']) && $getAppSettings['show_admob_ads'] != '' ? $getAppSettings['show_admob_ads'] : 0 }}">
+                            <input class="form-check-input" type="checkbox" role="switch" {{ isset($getAppSettings['show_admob_ads']) && $getAppSettings['show_admob_ads'] == '1' ? 'checked' : '' }} id="switch_admob_ads">
                             <label class="form-check-label mandatory" for="switch_admob_ads"></label>
                         </div>
 
@@ -196,14 +205,14 @@
                                 <div class="col-md-6">
                                     <label class="col-sm-12 form-label-mandatory ">{{ __('Android') }}</label>
                                     <div class="col-sm-12 form-group mandatory">
-                                        <input name="android_banner_ad_id" type="text" class="form-control" placeholder="{{ __('Android') }}" id="android_banner_ad_id" value="{{ system_setting('android_banner_ad_id') != '' ? system_setting('android_banner_ad_id') : '' }}">
+                                        <input name="android_banner_ad_id" type="text" class="form-control" placeholder="{{ __('Android') }}" id="android_banner_ad_id" value="{{ isset($getAppSettings['android_banner_ad_id']) && $getAppSettings['android_banner_ad_id'] != '' ? $getAppSettings['android_banner_ad_id'] : '' }}">
                                     </div>
                                 </div>
                                 {{-- Banner IOS Ads --}}
                                 <div class="col-md-6">
                                     <label class="col-sm-12 form-label-mandatory ">{{ __('IOS') }}</label>
                                     <div class="col-sm-12 form-group mandatory">
-                                        <input name="ios_banner_ad_id" type="text" class="form-control" placeholder="{{ __('IOS') }}" id="ios_banner_ad_id" value="{{ system_setting('ios_banner_ad_id') != '' ? system_setting('ios_banner_ad_id') : '' }}">
+                                        <input name="ios_banner_ad_id" type="text" class="form-control" placeholder="{{ __('IOS') }}" id="ios_banner_ad_id" value="{{ isset($getAppSettings['ios_banner_ad_id']) && $getAppSettings['ios_banner_ad_id'] != '' ? $getAppSettings['ios_banner_ad_id'] : '' }}">
                                     </div>
                                 </div>
                             </div>
@@ -217,14 +226,14 @@
                                 <div class="col-md-6">
                                     <label class="col-sm-12 form-label-mandatory ">{{ __('Android') }}</label>
                                     <div class="col-sm-12 form-group mandatory">
-                                        <input name="android_interstitial_ad_id" type="text" class="form-control" id='android_interstitial_ad_id' placeholder="{{ __('Android') }}" value="{{ system_setting('android_interstitial_ad_id') != '' ? system_setting('android_interstitial_ad_id') : '' }}">
+                                        <input name="android_interstitial_ad_id" type="text" class="form-control" id='android_interstitial_ad_id' placeholder="{{ __('Android') }}" value="{{ isset($getAppSettings['android_interstitial_ad_id']) && $getAppSettings['android_interstitial_ad_id'] != '' ? $getAppSettings['android_interstitial_ad_id'] : '' }}">
                                     </div>
                                 </div>
                                 {{-- Interstitial IOS Ads --}}
                                 <div class="col-md-6">
                                     <label class="col-sm-12 form-label-mandatory ">{{ __('IOS') }}</label>
                                     <div class="col-sm-12 form-group mandatory">
-                                        <input name="ios_interstitial_ad_id" type="text" class="form-control" id="ios_interstitial_ad_id" placeholder="{{ __('IOS') }}" value="{{ system_setting('ios_interstitial_ad_id') != '' ? system_setting('ios_interstitial_ad_id') : '' }}">
+                                        <input name="ios_interstitial_ad_id" type="text" class="form-control" id="ios_interstitial_ad_id" placeholder="{{ __('IOS') }}" value="{{ isset($getAppSettings['ios_interstitial_ad_id']) && $getAppSettings['ios_interstitial_ad_id'] != '' ? $getAppSettings['ios_interstitial_ad_id'] : '' }}">
                                     </div>
                                 </div>
                             </div>
@@ -239,14 +248,14 @@
                                 <div class="col-md-6">
                                     <label class="col-sm-12 form-label-mandatory ">{{ __('Android') }}</label>
                                     <div class="col-sm-12 form-group mandatory">
-                                        <input name="android_native_ad_id" type="text" class="form-control" id='android_native_ad_id' placeholder="{{ __('Android') }}" value="{{ system_setting('android_native_ad_id') != '' ? system_setting('android_native_ad_id') : '' }}">
+                                        <input name="android_native_ad_id" type="text" class="form-control" id='android_native_ad_id' placeholder="{{ __('Android') }}" value="{{ isset($getAppSettings['android_native_ad_id']) && $getAppSettings['android_native_ad_id'] != '' ? $getAppSettings['android_native_ad_id'] : '' }}">
                                     </div>
                                 </div>
                                 {{-- Native IOS Ads --}}
                                 <div class="col-md-6">
                                     <label class="col-sm-12 form-label-mandatory ">{{ __('IOS') }}</label>
                                     <div class="col-sm-12 form-group mandatory">
-                                        <input name="ios_native_ad_id" type="text" class="form-control" id="ios_native_ad_id" placeholder="{{ __('IOS') }}" value="{{ system_setting('ios_native_ad_id') != '' ? system_setting('ios_native_ad_id') : '' }}">
+                                        <input name="ios_native_ad_id" type="text" class="form-control" id="ios_native_ad_id" placeholder="{{ __('IOS') }}" value="{{ isset($getAppSettings['ios_native_ad_id']) && $getAppSettings['ios_native_ad_id'] != '' ? $getAppSettings['ios_native_ad_id'] : '' }}">
                                     </div>
                                 </div>
                             </div>

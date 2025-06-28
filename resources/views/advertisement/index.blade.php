@@ -33,7 +33,7 @@
                             data-pagination-successively-size="3" data-query-params="queryParams">
                             <thead class="thead-dark">
                                 <tr>
-                                    <th scope="col" data-field="id" data-align="center" data-sortable="true"> {{ __('ID') }}</th>
+                                    <th scope="col" data-field="id" data-sortable="true"> {{ __('ID') }}</th>
                                     <th scope="col" data-field="for" data-align="center" data-sortable="true" data-formatter="advertisementTypeFormatter">{{ __('Advertisement Type') }}</th>
                                     <th scope="col" data-field="image" data-formatter="imageFormatter" data-align="center"> {{ __('Image') }} </th>
                                     <th scope="col" data-field="start_date" data-align="center" data-sortable="true">{{ __('Start Date') }}</th>

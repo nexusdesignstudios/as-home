@@ -111,6 +111,7 @@
                     <div class="col-md-12 col-12 form-group mandatory" id='duration'>
                         {{ Form::label('Duration', __('Duration For Price'), ['class' => 'form-label col-12 ']) }}
                         <select name="price_duration" id="price_duration"class="choosen-select form-select form-control-sm" data-parsley-minSelect='1'>
+                            <option value="">{{ __("Select Duration") }}</option>
                             <option value="Daily" {{ $list->rentduration == 'Daily' ? 'selected' : '' }}> {{ __('Daily') }} </option>
                             <option value="Monthly" {{ $list->rentduration == 'Monthly' ? 'selected' : '' }}> {{ __('Monthly') }} </option>
                             <option value="Yearly" {{ $list->rentduration == 'Yearly' ? 'selected' : '' }}> {{ __('Yearly') }} </option>
@@ -121,7 +122,7 @@
                     {{-- Price --}}
                     <div class="control-label col-12 form-group mandatory">
                         {{ Form::label('price', __('Price') . '(' . $currency_symbol . ')', ['class' => 'form-label col-12 ']) }}
-                        {{ Form::number('price', isset($list->price) ? $list->price : '', ['class' => 'form-control ', 'placeholder' => __('Price'), 'required' => 'true', 'min' => '1', 'id' => 'price']) }}
+                        {{ Form::number('price', isset($list->price) ? $list->price : '', ['class' => 'form-control ', 'placeholder' => __('Price'), 'required' => 'true', 'min' => '1', 'max' => '9223372036854775807', 'id' => 'price']) }}
                     </div>
                 </div>
             </div>
@@ -608,9 +609,11 @@
             if ($('input[name="property_type"]:checked').val() == 0) {
                 $('#duration').hide();
                 $('#price_duration').removeAttr('required');
+                $('#price_duration').val('');
             } else {
                 $('#duration').show();
-
+                $('#price_duration').attr('required', 'true');
+                $('#price_duration').val('');
             }
             getWordCount("edit_meta_title", "edit_meta_title_count", "19.9px arial");
             getWordCount("edit_meta_description", "edit_meta_description_count", "12.9px arial");

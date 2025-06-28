@@ -47,7 +47,7 @@
                                 data-query-params="queryParams">
                                 <thead class="thead-dark">
                                     <tr>
-                                        <th scope="col" data-field="id" data-align="center" data-sortable="true"> {{ __('ID') }}</th>
+                                        <th scope="col" data-field="id" data-sortable="true"> {{ __('ID') }}</th>
                                         <th scope="col" data-field="name" data-align="center" data-sortable="false"> {{ __('Package Name') }} </th>
                                         <th scope="col" data-field="start_date" data-align="center" data-sortable="true"> {{ __('Start Date') }} </th>
                                         <th scope="col" data-field="end_date" data-align="center" data-sortable="true"> {{ __('End Date') }} </th>

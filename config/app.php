@@ -186,6 +186,7 @@ return [
         /*
          * Package Service Providers...
          */
+        Barryvdh\DomPDF\ServiceProvider::class,
 
         /*
          * Application Service Providers...
@@ -200,7 +201,6 @@ return [
         App\Providers\RouteServiceProvider::class,
         Collective\Html\HtmlServiceProvider::class,
         App\Providers\ViewServiceProvider::class,
-        App\Providers\PropertyHelperServiceProvider::class,
     ],
 
     /*
@@ -218,7 +218,7 @@ return [
         // 'ExampleClass' => App\Example\ExampleClass::class,
         'Debugbar' => 'Barryvdh\Debugbar\Facade',
         'Paystack' => Unicodeveloper\Paystack\Facades\Paystack::class,
-        'PropertyHelper' => App\Facades\PropertyHelper::class,
+        'PDF' => Barryvdh\DomPDF\Facade\Pdf::class,
     ])->toArray(),
 
 ];

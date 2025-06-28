@@ -5,11 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
-
+use App\Traits\HasAppTimezone;
 
 class Chats extends Model
 {
-    use HasFactory;
+    use HasFactory, HasAppTimezone;
+    protected $dates = ['created_at', 'updated_at'];
+    protected $table = 'chats';
+    protected $fillable = ['sender_id', 'receiver_id', 'property_id', 'message', 'is_read', 'file', 'audio', 'created_at','updated_at'];
 
 
     protected static function boot() {

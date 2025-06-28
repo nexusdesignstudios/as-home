@@ -32,7 +32,7 @@
                         data-pagination-successively-size="3" data-query-params="queryParams">
                         <thead class="thead-dark">
                             <tr>
-                                <th scope="col" data-field="id" data-sortable="true" data-align="center">{{ __('ID') }}</th>
+                                <th scope="col" data-field="id" data-sortable="true">{{ __('ID') }}</th>
                                 <th scope="col" data-field="first_name" data-sortable="true" data-align="center">{{ __("First Name") }} </th>
                                 <th scope="col" data-field="last_name" data-sortable="true" data-align="center">{{ __('Last Name') }}</th>
                                 <th scope="col" data-field="email" data-sortable="true" data-align="center">{{ __('Email') }}</th>

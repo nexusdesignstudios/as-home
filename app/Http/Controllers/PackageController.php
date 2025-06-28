@@ -139,6 +139,7 @@ class PackageController extends Controller
         $tempRow = array();
         $count = 1;
 
+        $priceSymbol = HelperService::getSettingData('currency_symbol') ?? '$';
         foreach ($res as $row) {
             $tempRow = $row->toArray();
 
@@ -147,6 +148,7 @@ class PackageController extends Controller
 
             $tempRow['operate'] = $operate;
             $tempRow['duration'] = $row->duration / 24;
+            $tempRow['price_symbol'] = $priceSymbol;
             $rows[] = $tempRow;
             $count++;
         }
@@ -249,6 +251,8 @@ class PackageController extends Controller
         foreach ($res as $row) {
             $tempRow = $row->toArray();
             $tempRow['subscription_status'] = $row->end_date >= now() ? 1 : 0;
+            $tempRow['start_date'] = $row->start_date->format('d-m-Y H:i:s');
+            $tempRow['end_date'] = $row->end_date->format('d-m-Y H:i:s');
             $rows[] = $tempRow;
             $count++;
         }
@@ -257,4 +261,3 @@ class PackageController extends Controller
         return response()->json($bulkData);
     }
 }
-

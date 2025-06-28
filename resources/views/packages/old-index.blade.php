@@ -177,7 +177,7 @@
                                     data-query-params="queryParams">
                                     <thead class="thead-dark">
                                         <tr>
-                                            <th scope="col" data-field="id" data-align="center" data-sortable="true"> {{ __('ID') }}</th>
+                                            <th scope="col" data-field="id" data-sortable="true"> {{ __('ID') }}</th>
                                             <th scope="col" data-field="ios_product_id" data-align="center" data-sortable="true"> {{ __('IOS Product ID') }} </th>
                                             <th scope="col" data-field="name" data-align="center" data-sortable="true"> {{ __('Name') }} </th>
                                             <th scope="col" data-field="duration" data-align="center" data-sortable="false"> {{ __('Duration') }}</th>

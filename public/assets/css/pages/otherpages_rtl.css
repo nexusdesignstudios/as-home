@@ -1954,7 +1954,6 @@ body {
 .delete_btn {
 	background-color: rgba(140, 26, 38, 0.15);
 	border: none;
-	margin-right: 3px;
 }
 
 .delete_btn:hover {
@@ -2643,8 +2642,12 @@ body {
     z-index:9999 !important;
 }
 .block-user{
+    margin-right:20px;
     margin-left:20px;
     cursor: pointer;
+}
+.block-user:hover{
+    transform: scale(1.05);
 }
 .blocked-user-message-div{
     position: relative;
@@ -2660,4 +2663,10 @@ body {
     outline: none;
     border: 1px solid transparent;
     text-align: center;
+}
+.refresh-chats{
+    cursor: pointer;
+}
+.refresh-chats:hover{
+    transform: scale(1.05);
 }

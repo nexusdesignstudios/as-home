@@ -549,7 +549,31 @@
     "Duplicate value": "Duplicate value",
     "Feature Packages": "Feature Packages",
     "Features": "Features",
-    "Select Feature": "Select Feature"
+    "Select Feature": "Select Feature",
+    "Review": "Review",
+    "Payment Type": "Payment Type",
+    "Bank Transfer": "Bank Transfer",
+    "Payment Status": "Payment Status",
+    "Payment Update Date": "Payment Update Date",
+    "Online Payment": "Online Payment",
+    "Enter Reject Reason": "Enter Reject Reason",
+    "Accept": "Accept",
+    "Reject": "Reject",
+    "Are you sure to make this payment success ?": "Are you sure to make this payment success ?",
+    "Are you sure to make this payment cancel ?": "Are you sure to make this payment cancel ?",
+    "Are you sure to make this payment reject ?": "Are you sure to make this payment reject ?",
+    "Payment is not in review status": "Payment is not in review status",
+    "View Receipt": "View Receipt",
+    "Error generating receipt": "Error generating receipt",
+    "Receipt is only available for successful payments": "Receipt is only available for successful payments",
+    "Please enable at least one payment gateway": "Please enable at least one payment gateway",
+    "NOTE :- Drag and drop to change the order and click on update order button to save the order": "NOTE :- Drag and drop to change the order and click on update order button to save the order",
+    "Update Order": "Update Order",
+    "Select Duration": "Select Duration",
+    "Only SVG is allowed": "Only SVG is allowed",
+    "Message not be empty": "Message not be empty",
+    "Select Property Owner": "Select Property Owner",
+    "Email Templates": "Email Templates"
 }
 
 

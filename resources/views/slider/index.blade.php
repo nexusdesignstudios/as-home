@@ -38,12 +38,14 @@
                             <div class="col-sm-12 col-md-4 form-group mandatory">
                                 {{ Form::label('app-image', __('App Image'), [ 'class' => 'col-md-12 col-sm-12 form-label', ]) }}
                                 {{ Form::file('image', ['class' => 'form-control', 'accept' => 'image/jpg,image/png,image/jpeg', 'data-parsley-required' => true,'id' => 'app-image']) }}
+                                <span class="text-danger text-sm">{{ __('Only JPG, JPEG and PNG files are allowed') }}</span>
                             </div>
 
                             {{-- Web Image --}}
                             <div class="col-sm-12 col-md-4 form-group mandatory">
                                 {{ Form::label('web-image', __('Web Image'), [ 'class' => 'col-md-12 col-sm-12 form-label', ]) }}
                                 {{ Form::file('web_image', ['class' => 'form-control', 'accept' => 'image/jpg,image/png,image/jpeg', 'data-parsley-required' => true,'id' => 'web-image']) }}
+                                <span class="text-danger text-sm">{{ __('Only JPG, JPEG and PNG files are allowed') }}</span>
                             </div>
 
                             {{-- Category --}}
@@ -113,7 +115,7 @@
                                     <table class="table table-striped" id="table_list" data-toggle="table" data-url="{{ url('sliderList') }}" data-click-to-select="true" data-side-pagination="server" data-pagination="true" data-page-list="[5, 10, 20, 50, 100, 200]" data-search="true" data-toolbar="#toolbar" data-show-columns="true" data-show-refresh="true" data-trim-on-search="false" data-responsive="true" data-sort-name="id" data-sort-order="desc" data-pagination-successively-size="3" data-query-params="queryParams" data-id-field="id" data-editable-emptytext="Default empty text.">
                                         <thead class="thead-dark">
                                             <tr>
-                                                <th scope="col" data-field="id" data-align="center" data-sortable="true"> {{ __('ID') }}</th>
+                                                <th scope="col" data-field="id" data-sortable="true"> {{ __('ID') }}</th>
                                                 <th scope="col" data-field="type" data-sortable="true" data-align="center" data-sortable="false"> {{ __('Type') }}</th>
                                                 <th scope="col" data-field="image" data-align="center" data-formatter="imageFormatter" data-sortable="false"> {{ __('Image') }}</th>
                                                 <th scope="col" data-field="web_image" data-align="center" data-formatter="imageFormatter" data-sortable="false"> {{ __('Web Image') }}</th>

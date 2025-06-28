@@ -276,6 +276,16 @@
                     </li>
                 @endif
 
+                {{-- Homepage Sections --}}
+                @if (has_permissions('read', 'homepage-sections'))
+                    <li class="sidebar-item">
+                        <a href="{{ route('homepage-sections.index') }}" class='sidebar-link'>
+                            <i class="bi bi-house-fill"></i>
+                            <span class="menu-item">{{ __('Homepage Sections') }}</span>
+                        </a>
+                    </li>
+                @endif
+
                 {{-- Settings --}}
                 @if (has_permissions('read', 'users_accounts') ||
                         has_permissions('read', 'about_us') ||

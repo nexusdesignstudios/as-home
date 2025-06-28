@@ -43,10 +43,10 @@
                             data-pagination-successively-size="3" data-query-params="queryParams">
                             <thead class="thead-dark">
                                 <tr>
-                                    <th scope="col" data-field="id" data-sortable="true" data-align="center">{{ __('ID') }}</th>
+                                    <th scope="col" data-field="id" data-sortable="true">{{ __('ID') }}</th>
                                     <th scope="col" data-field="title" data-sortable="true">{{ __('Title') }}</th>
                                     <th scope="col" data-field="description" data-sortable="true">{{ __('Description') }}</th>
-                                    <th scope="col" data-field="category_title" data-sortable="true">{{ __('Category Title') }}</th>
+                                    <th scope="col" data-field="category_title" data-sortable="false">{{ __('Category Title') }}</th>
                                     <th scope="col" data-field="image" data-formatter="imageFormatter" data-sortable="false" data-align="center">{{ __('Image') }}</th>
                                     <th scope="col" data-field="meta_title" data-sortable="false" data-visible="false">{{ __('Meta Title') }}</th>
                                     <th scope="col" data-field="meta_description" data-sortable="false" data-visible="false">{{ __('Meta Description') }}</th>

@@ -4,8 +4,6 @@ namespace App\Http\Controllers;
 
 use Exception;
 use App\Models\Customer;
-use App\Models\Company;
-use App\Models\BankDetail;
 use App\Models\Usertokens;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
@@ -34,6 +32,8 @@ class CustomersController extends Controller
         return view('customer.index');
     }
 
+
+
     /**
      * Update the specified resource in storage.
      *
@@ -44,7 +44,7 @@ class CustomersController extends Controller
     public function update(Request $request)
     {
         if (!has_permissions('update', 'customer')) {
-            return ResponseService::errorResponse(PERMISSION_ERROR_MSG);
+            ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         } else {
             // Update customer status
             $updateData = ['isActive' => $request->status];
@@ -143,9 +143,9 @@ class CustomersController extends Controller
 
             // Send mail for user status
             try {
-                $customerData = Customer::where('id', $request->id)->select('id', 'name', 'email', 'isActive')->first();
+                $customerData = Customer::where('id',$request->id)->select('id','name','email','isActive')->first();
 
-                if ($customerData->email) {
+                if($customerData->email){
                     // Get Data of email type
                     $emailTypeData = HelperService::getEmailTemplatesTypes("user_status");
 
@@ -155,17 +155,17 @@ class CustomersController extends Controller
                     $variables = array(
                         'app_name' => $appName,
                         'user_name' => $customerData->name,
-                        'status' => $customerData->isActive == 1 ? 'Activated' : 'Deactivated',
+                        'status' => $customerData->isActive == 1 ? 'Activated' : 'Deactivated' ,
                         'email' => $customerData->email
                     );
-                    if (empty($propertyFeatureStatusTemplateData)) {
-                        $propertyFeatureStatusTemplateData = "Your Property :- " . $variables['propertyName'] . "'s feature status " . $variables['status'];
+                    if(empty($propertyFeatureStatusTemplateData)){
+                        $propertyFeatureStatusTemplateData = "Your Property :- ".$variables['propertyName']."'s feature status ".$variables['status'];
                     }
-                    $propertyFeatureStatusTemplate = HelperService::replaceEmailVariables($propertyFeatureStatusTemplateData, $variables);
+                    $propertyFeatureStatusTemplate = HelperService::replaceEmailVariables($propertyFeatureStatusTemplateData,$variables);
 
                     $data = array(
                         'email_template' => $propertyFeatureStatusTemplate,
-                        'email' => $customerData->email,
+                        'email' =>$customerData->email,
                         'title' => $emailTypeData['title'],
                     );
                     HelperService::sendMail($data);
@@ -177,11 +177,12 @@ class CustomersController extends Controller
             /** Notification */
             $fcm_ids = array();
 
-            $customer_id = Customer::where(['id' => $request->id, 'notification' => 1])->count();
+            $customer_id = Customer::where(['id' => $request->id,'notification' => 1])->count();
             if ($customer_id) {
                 $user_token = Usertokens::where('customer_id', $request->id)->pluck('fcm_id')->toArray();
                 $fcm_ids[] = $user_token;
             }
+
 
             $msg = "";
             if (!empty($fcm_ids)) {
@@ -197,11 +198,12 @@ class CustomersController extends Controller
                     'body' => 'Your Account'  . $msg,
                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                     'sound' => 'default',
+
                 );
                 send_push_notification($registrationIDs, $fcmMsg);
             }
 
-            ResponseService::successResponse($request->status ? "Customer Updated Successfully" : "Customer Updated Successfully");
+            ResponseService::successResponse($request->status ? "Customer Activated Successfully" : "Customer Deactivated Successfully");
         }
     }
 
@@ -244,7 +246,7 @@ class CustomersController extends Controller
             $sql = Customer::whereIn('id', $interested_users)->orderBy($sort, $order);
             if (isset($_GET['search']) && !empty($_GET['search'])) {
                 $search = $_GET['search'];
-                $sql->where(function ($query) use ($search) {
+                $sql->where(function($query) use($search){
                     $query->where('id', 'LIKE', "%$search%")->orwhere('email', 'LIKE', "%$search%")->orwhere('name', 'LIKE', "%$search%")->orwhere('mobile', 'LIKE', "%$search%");
                 });
             }
@@ -277,6 +279,7 @@ class CustomersController extends Controller
             $sql->skip($offset)->take($limit);
         }
 
+
         $res = $sql->get();
 
         $bulkData = array();
@@ -285,14 +288,15 @@ class CustomersController extends Controller
         $tempRow = array();
         $count = 1;
 
+
         $operate = '';
         foreach ($res as $row) {
             $tempRow = $row->toArray();
 
             // Mask Details in Demo Mode
-            $tempRow['mobile'] = (env('DEMO_MODE') ? (env('DEMO_MODE') == true && Auth::user()->email == 'superadmin@gmail.com' ? ($row->mobile) : '****************************') : ($row->mobile));
-            $tempRow['email'] = (env('DEMO_MODE') ? (env('DEMO_MODE') == true && Auth::user()->email == 'superadmin@gmail.com' ? ($row->email) : '****************************') : ($row->email));
-            $tempRow['address'] = (env('DEMO_MODE') ? (env('DEMO_MODE') == true && Auth::user()->email == 'superadmin@gmail.com' ? ($row->address) : '****************************') : ($row->address));
+            $tempRow['mobile'] = (env('DEMO_MODE') ? ( env('DEMO_MODE') == true && Auth::user()->email == 'superadmin@gmail.com' ? ( $row->mobile ) : '****************************' ) : ( $row->mobile ));
+            $tempRow['email'] = (env('DEMO_MODE') ? ( env('DEMO_MODE') == true && Auth::user()->email == 'superadmin@gmail.com' ? ( $row->email ) : '****************************' ) : ( $row->email ));
+            $tempRow['address'] = (env('DEMO_MODE') ? ( env('DEMO_MODE') == true && Auth::user()->email == 'superadmin@gmail.com' ? ( $row->address ) : '****************************' ) : ( $row->address ));
             $tempRow['logintype'] = $row->logintype;
 
             // Add management type and agent type information
@@ -300,7 +304,8 @@ class CustomersController extends Controller
             $tempRow['agent_type'] = $row->company_id ? 'Company Agent' : ($row->bankDetails_id ? 'Individual Agent' : 'Not an agent');
 
             $tempRow['edit_status_url'] = 'customerstatus';
-            $tempRow['total_properties'] =  '<a href="' . url('property') . '?customer=' . $row->id . '">' . $row->total_properties . '</a>';
+            $tempRow['total_properties'] =  $row->total_properties;
+            $tempRow['total_projects'] =  $row->total_projects;
             $tempRow['operate'] = $operate;
             $rows[] = $tempRow;
             $count++;
@@ -309,30 +314,27 @@ class CustomersController extends Controller
         $bulkData['rows'] = $rows;
         return response()->json($bulkData);
     }
-
-    public function resetPasswordIndex(Request $request)
-    {
+    public function resetPasswordIndex(Request $request){
         $validator = Validator::make($request->all(), [
             'token' => 'required'
         ]);
         if ($validator->fails()) {
-            return redirect(route('home'))->with('error', $validator->errors()->first())->send();
+            return redirect(route('home'))->with('error',$validator->errors()->first())->send();
         }
         try {
             $token = $request->token;
             $email = HelperService::verifyToken($token);
-            if ($email) {
-                return view('customer.reset-password', compact('token'));
-            } else {
-                ResponseService::errorRedirectResponse("", trans('Invalid Token'));
+            if($email){
+                return view('customer.reset-password',compact('token'));
+            }else{
+                ResponseService::errorRedirectResponse("",trans('Invalid Token'));
             }
         } catch (Exception $e) {
-            ResponseService::errorRedirectResponse("", trans('Something Went Wrong'));
+            ResponseService::errorRedirectResponse("",trans('Something Went Wrong'));
         }
     }
 
-    public function resetPassword(Request $request)
-    {
+    public function resetPassword(Request $request){
         $validator = Validator::make($request->all(), [
             'token' => 'required',
             'password' => 'required|min:6',
@@ -343,21 +345,21 @@ class CustomersController extends Controller
         }
         try {
             $email = HelperService::verifyToken($request->token);
-            if ($email) {
+            if($email){
                 $customerQuery = Customer::where(['email' => $email, 'logintype' => 3]);
                 $customerCheck = $customerQuery->clone()->count();
-                if (!$customerCheck) {
+                if(!$customerCheck){
                     ResponseService::errorResponse("No User Found");
                 }
                 $password = Hash::make($request->password);
                 $customerQuery->clone()->update(['password' => $password]);
                 HelperService::expireToken($email);
                 ResponseService::successResponse("Password Changed Successfully");
-            } else {
+            }else{
                 ResponseService::errorResponse("Token Expired");
             }
         } catch (Exception $e) {
-            ResponseService::errorRedirectResponse("", trans('Something Went Wrong'));
+            ResponseService::errorRedirectResponse("",trans('Something Went Wrong'));
         }
     }
 }

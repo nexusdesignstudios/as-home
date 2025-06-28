@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Route;
 /** Property */
 Route::post('set_property_total_click', [ApiController::class, 'set_property_total_click']);
 Route::get('get_nearby_properties', [ApiController::class, 'get_nearby_properties']);
+Route::get('compare-properties', [ApiController::class, 'compareProperties']);
 Route::get('get-cities-data', [ApiController::class, 'getCitiesData']);
 /*********************************************************************** */
 
@@ -105,13 +106,19 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::post('createPaymentIntent', [ApiController::class, 'createPaymentIntent']);
     Route::post('confirmPayment', [ApiController::class, 'confirmPayment']);
     Route::get('get_payment_settings', [ApiController::class, 'get_payment_settings']);
-    Route::get('get_payment_details', [ApiController::class, 'get_payment_details']);
+    Route::get('get_payment_details', [ApiController::class, 'getPaymentTransactionDetails']);
     Route::get('paypal', [ApiController::class, 'paypal']);
     Route::post('generate-razorpay-orderid', [ApiController::class, 'generateRazorpayOrderId']);
 
     Route::post('create-payment-intent',[ApiController::class, 'getPaymentIntent']);
     Route::post('payment-transaction-fail', [ApiController::class, 'makePaymentTransactionFail']);
 
+    // Payment Receipt
+    Route::get('get-payment-receipt', [ApiController::class, 'getPaymentReceipt']);
+
+    // Bank Transfer Apis
+    Route::post('initiate-bank-transfer',[ApiController::class,'initiateBankTransaction']);
+    Route::post('upload-bank-receipt-file',[ApiController::class,'uploadBankReceiptFile']);
     // Other's APIs
     Route::get('get_notification_list', [ApiController::class, 'get_notification_list']);
     /*********************************************************************** */
@@ -145,7 +152,6 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
 
     /** Projects */
     Route::get('get-added-projects', [ApiController::class, 'getAddedProjects']);
-    Route::get('get-projects', [ApiController::class, 'getProjects']);
     Route::get('get-project-detail', [ApiController::class, 'getProjectDetail']);
     Route::post('change-project-status', [ApiController::class, 'changeProjectStatus']);
     /*********************************************************************** */
@@ -161,6 +167,11 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
 Route::get('get_property', [ApiController::class, 'get_property']);
 Route::get('get-property-list', [ApiController::class, 'getPropertyList']);
 Route::get('get-facilities-for-filter',[ApiController::class,'getFacilitiesForFilter']);
+Route::get('get-all-similar-properties',[ApiController::class, 'getAllSimilarProperties']);
+/*********************************************************************** */
+
+/** Projects */
+Route::get('get-projects', [ApiController::class, 'getProjects']);
 /*********************************************************************** */
 
 /** User */
@@ -196,6 +207,10 @@ Route::get('privacy-policy', [ApiController::class, 'getPrivacyPolicy']);
 Route::get('terms-conditions', [ApiController::class, 'getTermsAndConditions']);
 
 
+// Deep Link
+Route::get('deep-link', [ApiController::class, 'deepLink']);
+
 // Temp
 Route::get('remove-account-temp', [ApiController::class, 'removeAccountTemp']);
 /*********************************************************************** */
+

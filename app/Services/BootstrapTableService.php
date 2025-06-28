@@ -4,7 +4,7 @@ namespace App\Services;
 
 class BootstrapTableService
 {
-    private static string $defaultClasses = "btn btn-xs btn-rounded btn-icon";
+    private static string $defaultClasses = "btn btn-xs btn-rounded btn-icon mb-2";
 
     /**
      * @param string $iconClass
@@ -28,7 +28,7 @@ class BootstrapTableService
         }else{
             $iconTextElement = '';
         }
-        return '<a href="' . $url . '" class="' . $class . '" ' . $attributes . '><i class="' . $iconClass . '"></i>'.$iconTextElement.'</a>&nbsp;&nbsp;';
+        return '<a href="' . $url . '" class="' . $class . '" ' . $attributes . '><i class="' . $iconClass . '"></i>'.$iconTextElement.'</a>';
     }
 
     /**

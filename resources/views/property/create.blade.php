@@ -106,6 +106,7 @@
                     <div class="col-md-12 col-12 form-group mandatory" id='duration'>
                         {{ Form::label('Duration', __('Duration For Price'), ['class' => 'form-label col-12 ']) }}
                         <select name="price_duration" id="price_duration" class="choosen-select form-select form-control-sm" data-parsley-minSelect='1'>
+                            <option value="">{{ __("Select Duration") }}</option>
                             <option value="Daily">{{ __("Daily") }}</option>
                             <option value="Monthly">{{ __("Monthly") }}</option>
                             <option value="Yearly">{{ __("Yearly") }}</option>
@@ -116,7 +117,7 @@
                     {{-- Price --}}
                     <div class="control-label col-12 form-group mt-2 mandatory">
                         {{ Form::label('price', __('Price') . '(' . $currency_symbol . ')', ['class' => 'form-label col-12 ']) }}
-                        {{ Form::number('price', '', [ 'class' => 'form-control mt-1 ', 'placeholder' => trans('Price'), 'required' => 'true', 'min' => '1', 'id' => 'price', 'max' => '1000000000000' ]) }}
+                        {{ Form::number('price', '', [ 'class' => 'form-control mt-1 ', 'placeholder' => trans('Price'), 'required' => 'true', 'min' => '1', 'id' => 'price', 'max' => '9223372036854775807' ]) }}
                     </div>
                 </div>
             </div>
@@ -348,8 +349,10 @@
 
                 if (selectedType == 1) {
                     $('#duration').show();
+                    $('#price_duration').val('Monthly');
                     $('#price_duration').attr('required', 'true');
                 } else {
+                    $('#price_duration').val('');
                     $('#duration').hide();
                     $('#price_duration').removeAttr('required');
                 }

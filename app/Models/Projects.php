@@ -4,11 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-    use Carbon\Carbon;
-
+use App\Traits\HasAppTimezone;
 class Projects extends Model
 {
-    use HasFactory;
+    use HasFactory, HasAppTimezone;
+    protected $dates = ['created_at', 'updated_at', 'deleted_at'];
     protected $fillable = array(
         'title',
         'slug_id',
@@ -30,7 +30,8 @@ class Projects extends Model
         'meta_keywords',
         'meta_image',
         'status',
-        'request_status'
+        'request_status',
+        'total_click'
     );
     protected $appends = [
         'is_promoted',
@@ -135,12 +136,6 @@ class Projects extends Model
         }
     }
 
-    public function getCreatedAtAttribute($date){
-        // Assuming $date is a string representing a date
-        $carbonDate = new Carbon($date);
-
-        return $carbonDate->diffForHumans();
-    }
 
     public function getGallaryImagesDirectlyAttribute(){
         return $this->project_documetns()->where('type','image');
@@ -152,7 +147,7 @@ class Projects extends Model
     public function getIsPromotedAttribute() {
         $id = $this->id;
         return $this->whereHas('advertisement',function($query) use($id){
-            $query->where(['project_id' => $id, 'status' => 0, 'is_enable' => 1]);
+            $query->where(['project_id' => $id, 'status' => 0, 'is_enable' => 1, 'for' => 'project']);
         })->count() ? true : false;
     }
 
@@ -166,10 +161,15 @@ class Projects extends Model
         // Check if there is no advertisement or if the advertisement has expired
         $hasExpiredAdvertisement = !$this->advertisement()->exists() ||
             $this->whereHas('advertisement', function ($query) use ($id) {
-                $query->where('project_id', $id)->where('status', 3);
+                $query->where(['project_id' => $id, 'status' => 3, 'for' => 'project']);
             })->exists();
 
-        return $isProjectTypeValid && $hasExpiredAdvertisement;
+        // Check if there are any advertisements with other statuses
+        $hasOtherStatusAdvertisement = $this->whereHas('advertisement', function ($query) use ($id) {
+            $query->where('status', '!=', 3)->where(['project_id' => $id, 'for' => 'project']);
+        })->exists();
+
+        return $isProjectTypeValid && $hasExpiredAdvertisement && !$hasOtherStatusAdvertisement;
     }
 }
 

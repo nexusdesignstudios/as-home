@@ -22608,3 +22608,8 @@ a {
 .mfp-wrap {
     z-index:9999;
 }
+.eye-icon{
+    position: absolute;
+    left: 1.5rem;
+    top: 1.8rem !important;
+}

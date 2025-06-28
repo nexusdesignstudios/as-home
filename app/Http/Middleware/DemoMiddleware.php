@@ -34,7 +34,11 @@ class DemoMiddleware
             '/api/delete_chat_message',
             '/api/system_settings',
             '/api/user_signup',
-            '/project-generate-slug'
+            '/project-generate-slug',
+            'article/generate-slug',
+            'category/generate-slug',
+            'parameter/generate-slug',
+            '/property/generate-slug'
         );
 
         // Exclude Emails

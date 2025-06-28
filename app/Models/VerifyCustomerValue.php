@@ -5,10 +5,11 @@ namespace App\Models;
 use App\Models\VerifyCustomer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-
+use App\Traits\HasAppTimezone;
 class VerifyCustomerValue extends Model
 {
-    use HasFactory;
+    use HasFactory, HasAppTimezone;
+    protected $dates = ['created_at', 'updated_at', 'deleted_at'];
     protected $fillable = [
         'verify_customer_id',
         'verify_customer_form_id',

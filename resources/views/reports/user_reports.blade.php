@@ -42,7 +42,7 @@
                                         data-query-params="queryParams">
                                         <thead>
                                             <tr>
-                                                <th scope="col" data-field="id" data-align="center" data-sortable="true"> {{ __('ID') }}</th>
+                                                <th scope="col" data-field="id" data-sortable="true"> {{ __('ID') }}</th>
                                                 <th scope="col" data-field="reason" data-align="center"> {{ __('Reason') }}</th>
                                                 <th scope="col" data-sort-name="customer_name" data-field="customer.name" data-align="center"> {{ __('User') }}</th>
                                                 <th scope="col" data-field="property_title" data-align="center" data-events="actionEvents"> {{ __('Property') }}</th>

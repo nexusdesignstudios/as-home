@@ -99,10 +99,10 @@
                             data-pagination="true" data-page-list="[5, 10, 20, 50, 100, 200]" data-search="true"
                             data-toolbar="#toolbar" data-fixed-number="1" data-fixed-right-number="1"
                             data-trim-on-search="false" data-sort-name="id" data-sort-order="desc"
-                            data-pagination-successively-size="3" data-query-params="queryParams">
+                            data-pagination-successively-size="3" data-query-params="queryParams" data-show-refresh="true">
                             <thead class="thead-dark">
                                 <tr>
-                                    <th scope="col" data-field="id" data-sortable="true" data-align="center"> {{ __('ID') }}</th>
+                                    <th scope="col" data-field="id" data-sortable="true"> {{ __('ID') }}</th>
                                     <th scope="col" data-field="image" data-sortable="false"  data-formatter="imageFormatter" data-align="center"> {{ __('Image') }} </th>
                                     <th scope="col" data-field="page" data-sortable="true" data-align="center"> {{ __('Page') }} </th>
                                     <th scope="col" data-field="title" data-sortable="true" data-align="center"> {{ __('Title') }}</th>
@@ -212,7 +212,7 @@
                 $('#edit_meta_title').val(row.title);
                 $('#edit_meta_description').val(row.description);
                 $('#edit_keywords').val(row.keywords);
-                $('#meta_img').attr('src', row.img_url);
+                $('#meta_img').attr('src', row.image);
 
                 getWordCount('edit_meta_description', 'edit_meta_description_count', '12.9px arial');
                 getWordCount('edit_meta_title', 'edit_meta_title_count', '19.9px arial');

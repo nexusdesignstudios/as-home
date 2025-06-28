@@ -35,9 +35,7 @@
                                             <select required name="mail_mailer" id="mail-mailer" class="form-control select2" style="width:100%;" tabindex="-1" aria-hidden="true">
                                                 <option value="">{{ __("Select Mailer") }}</option>
                                                 <option {{env('MAIL_MAILER')=='smtp' ?'selected':''}} value="smtp">SMTP</option>
-                                                <option {{env('MAIL_MAILER')=='mailgun' ?'selected':''}} value="mailgun">Mailgun</option>
                                                 <option {{env('MAIL_MAILER')=='sendmail' ?'selected':''}} value="sendmail">sendmail</option>
-                                                <option {{env('MAIL_MAILER')=='postmark' ?'selected':''}} value="postmark">Postmark</option>
                                                 <option {{env('MAIL_MAILER')=='amazon_ses' ?'selected':''}} value="amazon_ses">Amazon SES</option>
                                             </select>
                                         </div>
@@ -64,7 +62,7 @@
                                         <div class="form-group position-relative mb-4 col-md-4" id="pwd">
                                             <label for="mail-password">{{ __('Mail Password') }}</label>
                                             <input id="mail-password" type="password" value="{{env('MAIL_PASSWORD')}}" name="mail_password" placeholder="{{ __('Password') }}" class="form-control form-input" required>
-                                            <div class="form-control-icon" style="position: absolute; right: 1.5rem; top: 1.8rem;">
+                                            <div class="form-control-icon eye-icon">
                                                 <i class="bi bi-eye" id='toggle_pass'></i>
                                             </div>
                                         </div>

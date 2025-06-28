@@ -105,7 +105,7 @@ class DatabaseSeeder extends Seeder
                 ],
                 [
                     'type' => 'system_version',
-                    'data' => '1.2.3',
+                    'data' => '1.2.4',
                 ],
                 [
                     'type' => 'company_logo',
@@ -117,6 +117,10 @@ class DatabaseSeeder extends Seeder
                 ],
                 [
                     'type' => 'favicon_icon',
+                    'data' => 'favicon.png',
+                ],
+                [
+                    'type' => 'web_favicon',
                     'data' => 'favicon.png',
                 ],
                 [
@@ -141,12 +145,6 @@ class DatabaseSeeder extends Seeder
                 ],
             ]
         );
-
-        // Call the PropertySeeder
-        // $this->call([
-        //     ParameterSeeder::class,
-        //     CategorySeeder::class,
-        //     PropertySeeder::class,
-        // ]);
     }
 }
+

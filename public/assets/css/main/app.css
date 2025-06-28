@@ -3689,7 +3689,8 @@ textarea.form-control.is-invalid {
 .btn:focus,
 .btn:hover {
     background-color: var(--bs-primary);
-    color: white !important
+    color:white !important
+
 }
 
 .btn-check:focus+.btn,
@@ -22584,15 +22585,15 @@ a {
 
 
 .jvectormap-container .jvectormap-marker.jvectormap-element {
-    animation: animate-pulse 3s linear infinite;
-    /* cursor: pointer */
+  animation: animate-pulse 3s linear infinite;
+  /* cursor: pointer */
 }
 
-.icon_text {
+.icon_text{
     margin-left: 5px;
 }
 
-.documents-div {
+.documents-div{
     display: flex;
     justify-content: space-evenly;
 }
@@ -22600,4 +22601,9 @@ a {
 .disabled-button {
     pointer-events: none;
     opacity: 0.6;
+}
+.eye-icon{
+    position: absolute;
+    right: 1.5rem;
+    top: 1.8rem !important;
 }

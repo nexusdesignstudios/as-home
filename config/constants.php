@@ -33,5 +33,21 @@ return [
         'MORTGAGE_CALCULATOR_DETAIL'    => 'Mortgage Calculator Detail Access',
         'PREMIUM_PROPERTIES'            => 'Premium Properties Access',
         'PROJECT_ACCESS'                => 'Project List Access'
+    ],
+
+    'HOMEPAGE_SECTION_TYPES' => [
+        'AGENTS_LIST_SECTION'               => ['TYPE' => 'agents_list_section',            'TITLE' => 'Agent Sections List'],
+        'ARTICLES_SECTION'                  => ['TYPE' => 'articles_section',               'TITLE' => 'Article Sections List'],
+        'CATEGORIES_SECTION'                => ['TYPE' => 'categories_section',             'TITLE' => 'Category Sections List'],
+        'FAQS_SECTION'                      => ['TYPE' => 'faqs_section',                   'TITLE' => 'FAQ Sections List'],
+        'FEATURED_PROPERTIES_SECTION'       => ['TYPE' => 'featured_properties_section',    'TITLE' => 'Featured Properties Sections List'],
+        'FEATURED_PROJECTS_SECTION'         => ['TYPE' => 'featured_projects_section',      'TITLE' => 'Featured Projects Sections List'],
+        'MOST_LIKED_PROPERTIES_SECTION'     => ['TYPE' => 'most_liked_properties_section',  'TITLE' => 'Most Liked Properties Sections List'],
+        'MOST_VIEWED_PROPERTIES_SECTION'    => ['TYPE' => 'most_viewed_properties_section', 'TITLE' => 'Most Viewed Properties Sections List'],
+        'NEARBY_PROPERTIES_SECTION'         => ['TYPE' => 'nearby_properties_section',      'TITLE' => 'Nearby Properties Sections List'],
+        'PROJECTS_SECTION'                  => ['TYPE' => 'projects_section',               'TITLE' => 'Project Sections List'],
+        'PREMIUM_PROPERTIES_SECTION'        => ['TYPE' => 'premium_properties_section',     'TITLE' => 'Premium Properties Sections List'],
+        'USER_RECOMMENDATIONS_SECTION'      => ['TYPE' => 'user_recommendations_section',   'TITLE' => 'User Recommendations Sections List'],
+        'PROPERTIES_BY_CITIES_SECTION'      => ['TYPE' => 'properties_by_cities_section',   'TITLE' => 'Properties by Cities Sections List']
     ]
 ];

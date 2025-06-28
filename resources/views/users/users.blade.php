@@ -37,7 +37,7 @@
                             data-pagination-successively-size="3" data-query-params="queryParams">
                             <thead>
                                 <tr>
-                                    <th scope="col" data-field="id" data-sortable="true" data-align="center">{{ __('ID') }}</th>
+                                    <th scope="col" data-field="id" data-sortable="true">{{ __('ID') }}</th>
                                     <th scope="col" data-field="name" data-sortable="true" data-align="center">{{ __('Name') }}</th>
                                     <th scope="col" data-field="email" data-sortable="true" data-align="center">{{ __('Email') }}</th>
                                     <th scope="col" data-field="status" data-sortable="false" data-align="center" data-formatter="statusFormatter">{{ __('Active Status') }}</th>
@@ -90,6 +90,14 @@
                                         <label for="password" class="form-label col-12 ">{{ __('Password') }}</label>
                                         <input type="password" name="password" id="password" class="form-control col-12" placeholder="{{ __('Password') }}" minlength="8">
                                         <span class="form-text text-muted"><small>{{ __('Min Password Length Must Be of 8') }}</small></span>
+                                    </div>
+                                </div>
+
+                                {{-- Active Status --}}
+                                <div class="col-md-12 col-12">
+                                    <div class="form-group mandatory">
+                                        <label for="status" class="form-label col-12">{{ __('Active Status') }}</label>
+                                        {!! Form::select('status', ['0' => trans('Inactive'), '1' => trans('Active')], 1, [ 'class' => 'form-select', 'id' => 'status', 'required' => true]) !!}
                                     </div>
                                 </div>
                             </div>
@@ -189,7 +197,7 @@
                                 <div class="col-md-12 col-12">
                                     <div class="form-group mandatory">
                                         <label for="status" class="form-label col-12">{{ __('Active Status') }}</label>
-                                        {!! Form::select('status', ['0' => trans('Inactive'), '1' => trans('Active')], '', [ 'class' => 'form-select', 'id' => 'status', 'required' => true]) !!}
+                                        {!! Form::select('status', ['0' => trans('Inactive'), '1' => trans('Active')], '', [ 'class' => 'form-select', 'id' => 'edit-status', 'required' => true]) !!}
                                     </div>
                                 </div>
                             </div>
@@ -306,12 +314,15 @@
 @section('script')
     <script src="{{ url('assets/js/custom/users/users.js') }}"></script>
     <script>
+        $(document).ready(function () {
+            $('#status').val(1).trigger('change');
+        });
         window.actionEvents = {
             'click .editdata': function(e, value, row, index) {
                 $('#edit_name').val(row.name);
                 $('#edit_email').val(row.email);
                 $('#edit_id').val(row.id);
-                $('#status').val(row.status).trigger('change');;
+                $('#edit-status').val(row.status).trigger('change');;
                 $.each(row.permissions, function(index, value) {
                     $.each(value, function(key, value) {
                         el = document.getElementsByName('Editpermissions[' + index + '][' + key + ']')[0];

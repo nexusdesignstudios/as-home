@@ -38,6 +38,7 @@ $config = [
     'email_templates'               => array('read', 'create'),
     'system_update'                 => array('read', 'update'),
     'notification'                  => array('read', 'create','delete'),
+    'homepage-sections'             => array('create', 'read', 'update','delete'),
     // 'property_inquiry'      => array('read', 'update'),
     // 'type' => array('create', 'read', 'update','delete'),
     // 'unit' => array('create', 'read', 'update','delete'),

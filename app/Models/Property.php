@@ -5,15 +5,15 @@ namespace App\Models;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Traits\HasAppTimezone;
 use App\Models\PropertyTerms;
 
 class Property extends Model
 {
-    use HasFactory;
-
+    use HasFactory, HasAppTimezone;
+    protected $dates = ['created_at', 'updated_at', 'deleted_at'];
     protected $table = 'propertys';
 
-    
     protected $fillable = [
         'category_id',
         'title',
@@ -87,7 +87,9 @@ class Property extends Model
                             }
                         }
                     }
-                    rmdir(public_path('images') . config('global.PROPERTY_GALLERY_IMG_PATH') . $property->id);
+                    if (is_dir(public_path('images') . config('global.PROPERTY_GALLERY_IMG_PATH') . $property->id)) {
+                        rmdir(public_path('images') . config('global.PROPERTY_GALLERY_IMG_PATH') . $property->id);
+                    }
                 }
 
                 // Delete Documents
@@ -101,6 +103,9 @@ class Property extends Model
                             }
                         }
                     }
+                    if (is_dir(public_path('images') . config('global.PROPERTY_DOCUMENT_PATH') . $property->id)) {
+                        rmdir(public_path('images') . config('global.PROPERTY_DOCUMENT_PATH') . $property->id);
+                    }
                 }
                 /** Delete the properties associated data */
                 // Delete Directly without modal boot events
@@ -110,6 +115,8 @@ class Property extends Model
                 AssignParameters::where('property_id', $property->id)->delete();
                 InterestedUser::where('property_id', $property->id)->delete();
                 PropertysInquiry::where('propertys_id', $property->id)->delete();
+                user_reports::where('property_id', $property->id)->delete();
+                InterestedUser::where('property_id', $property->id)->delete();
 
                 // Delete The Data with modal boot events
                 $chats = Chats::where('property_id', $property->id)->get();
@@ -164,7 +171,7 @@ class Property extends Model
     }
     public function assignfacilities()
     {
-        return $this->hasMany(AssignedOutdoorFacilities::class);
+        return $this->hasMany(AssignedOutdoorFacilities::class, 'property_id', 'id');
     }
 
     public function favourite()
@@ -330,7 +337,7 @@ class Property extends Model
     }
     public function getAssignFacilitiesAttribute()
     {
-        $assignFacilitiesQuery = $this->assignfacilities()->with('outdoorfacilities')->get();
+        $assignFacilitiesQuery = $this->assignfacilities()->with('outdoorfacilities:id,name,image')->get();
         if (collect($assignFacilitiesQuery)->isNotEmpty()) {
             $assignFacilitiesData = [];
             foreach ($assignFacilitiesQuery as $facility) {

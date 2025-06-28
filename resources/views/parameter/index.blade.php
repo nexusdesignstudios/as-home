@@ -59,6 +59,7 @@
                                     <div class="col-sm-12 col-md-6 col-lg-3 form-group mandatory">
                                         {{ Form::label('image', __('Image'), ['class' => ' form-label text-center']) }}
                                         {{ Form::file('image', ['class' => 'form-control', 'data-parsley-required' => 'true', 'accept' => '.svg']) }}
+                                        <span class="text-danger text-sm">{{__('Only SVG is allowed')}}</span>
                                     </div>
 
                                     {{-- Is Required --}}
@@ -109,7 +110,7 @@
                                         <th scope="col" data-field="is_required" data-formatter="yesNoStatusFormatter"> {{ __('Is Required ?') }}</th>
                                         <th scope="col" data-field="value" data-sortable="true">{{ __('Value') }}</th>
                                         @if (has_permissions('update', 'facility'))
-                                            <th scope="col" data-field="operate" data-sortable="false">{{ __('Action') }} </th>
+                                            <th scope="col" data-field="operate" data-sortable="false" data-events="parameterEvents">{{ __('Action') }} </th>
                                         @endif
                                     </tr>
                                 </thead>
@@ -138,8 +139,8 @@
                         <div class="row">
                             <div class="col-md-12 col-12">
                                 <div class="form-group mandatory">
-                                    <label for="edit_name" class="form-label col-12">{{ __('Name') }}</label>
-                                    <input type="text" id="edit_name" class="form-control col-12" placeholder="" name="edit_name" data-parsley-required="true">
+                                    <label for="edit-name" class="form-label col-12">{{ __('Name') }}</label>
+                                    <input type="text" id="edit-name" class="form-control col-12" placeholder="" name="edit_name" data-parsley-required="true">
                                 </div>
                             </div>
                         </div>
@@ -149,8 +150,8 @@
                             <div class="col-md-12 col-12">
                                 <input accept="image/svg+xml" name='image' type='file' id="edit_image" class="filepond" />
                             </div>
-                            <div class="col-md-12 col-12 text-center">
-                                <img id="blah" height="100" width="110" />
+                            <div class="col-md-12 col-12 text-center edit-image-preview-div" style="display: none;">
+                                <img id="edit-image-preview" height="100" width="110" />
                             </div>
                         </div>
 
@@ -161,29 +162,6 @@
                                 {{ Form::checkbox('edit_is_required', '1', false, ['class' => 'form-check-input', 'id' => 'edit-is-required']) }}
                             </div>
                         </div>
-
-                        {{-- Edit Type --}}
-                        {{-- <div class="row form-group mandatory">
-                            {{ Form::label('type', trans('Type'), ['class' => 'col-12 form-label mt-3']) }}
-                            <div class="col-sm-12 col-md-12">
-                                <select name="edit_options" id="edit_options" class="form-select form-control-sm" data-parsley-required=true>
-                                    <option selected='false'>{{ __('Select Type') }}</option>
-                                    <option value="textbox">{{ __('Text Box') }}</option>
-                                    <option value="textarea">{{ __('Text Area') }}</option>
-                                    <option value="dropdown">{{ __('Dropdown') }}</option>
-                                    <option value="radiobutton">{{ __('Radio Button') }}</option>
-                                    <option value="checkbox">{{ __('Checkbox') }}</option>
-                                    <option value="file">{{ __('File') }}</option>
-                                    <option value="number">{{ __('Number') }}</option>
-                                </select>
-                            </div>
-
-                            <input type="hidden" name="edit_optionvalues" id="edit_optionvalues">
-                            <input type="hidden" value="{{ system_setting('svg_clr') }}" id="svg_clr">
-
-                            <div class="row pt-5" id="edit_elements">
-                            </div>
-                        </div>--}}
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary waves-effect" data-bs-dismiss="modal">{{ __('Close') }}</button>
@@ -209,6 +187,23 @@
                 limit: p.limit,
                 search: p.search
             };
+        }
+        window.parameterEvents = {
+            'click .edit_btn': function(e, value, row, index) {
+                $("#edit_id").val(row.id);
+                $("#edit-name").val(row.name);
+                $("#edit-image-preview").attr('src', row.image);
+                if(row.image != null){
+                    $(".edit-image-preview-div").show();
+                }else{
+                    $(".edit-image-preview-div").hide();
+                }
+                if(row.is_required){
+                    $("#edit-is-required").prop('checked', true);
+                }else{
+                    $("#edit-is-required").prop('checked', false);
+                }
+            }
         }
         window.onload = function() {
             $('#add_options').hide();
@@ -302,104 +297,10 @@
             }
         }
 
-        // $('#edit_options').on('change', function() {
-
-        //     selected_option = $('#edit_options').val();
-
-        //     if (selected_option == "radiobutton" || selected_option == "dropdown" ||
-        //         selected_option == "checkbox") {
-        //         $('#edit_elements').empty();
-
-
-
-        //         $('#edit_elements').append(
-
-
-
-        //             ' <div class="card" style="width: 15rem;" id="op">' +
-        //             '<div class="row">' +
-        //             ' <div class="col-6">' +
-        //             ' <lable class="form-lable" name="">Click to Add values </lable>' +
-        //             '      </div>' +
-        //             ' <div class="col-1">' +
-
-        //             ' <button type="button" class="btn btn-primary me-1 mb-1 mt-0" id="button-editon2"> +</button>' +
-
-
-
-
-
-        //             '</div>' +
-        //             ' </div>' +
-        //             '</div>' +
-
-        //             ' <div class="card" style="width:15rem;" id="edit_op">' +
-        //             '<div class="row">' +
-        //             ' <div class="col-6">' +
-
-        //             ' <input type="text" class="form-control opt" name="edit_opt[]" id="first_value"' +
-        //             '" data-parsley-required="true">' +
-        //             '      </div>' +
-        //             ' <div class="col-1">' +
-
-        //             '<button type="button" class="btn btn-primary me-1 mb-1 mt-0" id="btn2" ' +
-        //             'disabled' + '> x</button>' +
-        //             '</div>' +
-        //             ' </div>' +
-        //             '</div>'
-
-
-        //         );
-        //         $('#button-editon2').click(function() {
-        //             console.log("on");
-
-        //             newRowAdd =
-
-        //                 ' <div class="card" style="width:15rem;" id="edit_op">' +
-        //                 '<div class="row">' +
-        //                 ' <div class="col-6">' +
-        //                 ' <input type="text" class="form-control opt" name="edit_opt[]" data-parsley-required="true">' +
-        //                 '      </div>' +
-        //                 ' <div class="col-1">' +
-
-        //                 ' <button type="button" class="btn btn-primary me-1 mb-1 mt-0" id="btn2"> x</button>' +
-        //                 '</div>' +
-        //                 ' </div>' +
-        //                 '</div>';
-
-        //             $('#edit_elements').append(
-
-        //                 newRowAdd
-
-        //             );
-        //         });
-        //         $("body").on("click", "#btn2", function() {
-        //             $(this).parents("#edit_op").remove();
-        //         })
-
-        //     } else {
-
-        //         $('#edit_elements').empty();
-
-        //     }
-
-        // });
-
-
-        // Wait for the DOM content to be fully loaded
-
 
 
 
         function setValue(id) {
-
-            $("#edit_id").val(id);
-            $("#edit_name").val($("#" + id).parents('tr:first').find('td:nth-child(2)').text());
-            if($("#" + id).parents('tr:first').find('td:nth-child(5)').text() == 'Yes'){
-                $("#edit-is-required").prop('checked', true);
-            }else{
-                $("#edit-is-required").prop('checked', false);
-            }
             $('#edit_options').val($("#" + id).parents('tr:first').find('td:nth-child(4)').text()).trigger('change');
             if ($('#svg_clr').val() == 1) {
                 src = ($("#" + id).parents('tr:first').find('td:nth-child(3)').find($('.svg-img'))).attr('src');
@@ -407,6 +308,7 @@
                 src = ($("#" + id).parents('tr:first').find('td:nth-child(3)').find($('.image-popup-no-margins'))).attr('href');
             }
             $('#blah').attr('src', src);
+
             // $('#image').attr('src', src);
 
             if ($('#edit_options').val() == "checkbox" || $('#edit_options').val() == "radiobutton" || $('#edit_options') .val() == "dropdown") {

@@ -41,6 +41,7 @@ class UserController extends Controller
             'email' => 'required',
             'permissions' => 'required',
             'password' => 'required',
+            'status' => 'required|in:0,1',
         ]);
 
 //        if ($validator->fails()) {
@@ -59,6 +60,7 @@ class UserController extends Controller
                 'password' => Hash::make($request->password),
                 'permissions' => isset($request->permissions) ? json_encode($request->permissions) : '',
                 'type' => 1,
+                'status' => $request->status,
                 'slug_id' => generateUniqueSlug($request->name, 6)
             ]);
             return redirect()->back()->with('success', 'User Insert Successfully');

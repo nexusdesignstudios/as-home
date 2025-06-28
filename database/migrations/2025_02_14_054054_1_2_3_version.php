@@ -145,13 +145,13 @@ return new class extends Migration
         /********************************************************************************* */
         /** Add Data */
         $featureData = array(
-            ['id' => 1, 'name' => "Property List", 'status' => 1],
-            ['id' => 2, 'name' => "Property Feature List", 'status' => 1],
-            ['id' => 3, 'name' => "Project List", 'status' => 1],
-            ['id' => 4, 'name' => "Project Feature List", 'status' => 1],
-            ['id' => 5, 'name' => "Mortgage Calculator Detail Access", 'status' => 1],
-            ['id' => 6, 'name' => "Premium Properties Access", 'status' => 1],
-            ['id' => 7, 'name' => "Project List Access", 'status' => 1],
+            ['id' => 1, 'name' => config('constants.FEATURES.PROPERTY_LIST'), 'status' => 1],
+            ['id' => 2, 'name' => config('constants.FEATURES.PROPERTY_FEATURE'), 'status' => 1],
+            ['id' => 3, 'name' => config('constants.FEATURES.PROJECT_LIST'), 'status' => 1],
+            ['id' => 4, 'name' => config('constants.FEATURES.PROJECT_FEATURE'), 'status' => 1],
+            ['id' => 5, 'name' => config('constants.FEATURES.MORTGAGE_CALCULATOR_DETAIL'), 'status' => 1],
+            ['id' => 6, 'name' => config('constants.FEATURES.PREMIUM_PROPERTIES'), 'status' => 1],
+            ['id' => 7, 'name' => config('constants.FEATURES.PROJECT_ACCESS'), 'status' => 1],
         );
         Feature::upsert($featureData,['id'],['name','status']);
 

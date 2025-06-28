@@ -31,7 +31,7 @@
                             data-pagination-successively-size="3" data-query-params="queryParams">
                             <thead>
                                 <tr>
-                                    <th scope="col" data-field="id" data-sortable="true" data-align="center">{{ __('ID') }}</th>
+                                    <th scope="col" data-field="id" data-sortable="true">{{ __('ID') }}</th>
                                     <th scope="col" data-field="city" data-sortable="false">{{ __('City') }}</th>
                                     <th scope="col" data-field="image" data-sortable="false" data-align="center" data-formatter="imageFormatter">{{ __('Image') }}</th>
                                     <th scope="col" data-field="total_properties" data-sortable="false" data-align="center">{{ __('Total Properties') }}</th>

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\FaqController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Session;
@@ -22,20 +23,21 @@ use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\CustomersController;
 use App\Http\Controllers\InstallerController;
 use App\Http\Controllers\ParameterController;
+use App\Http\Controllers\CityImagesController;
 use App\Http\Controllers\SeoSettingsController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportReasonController;
+use Illuminate\Auth\Notifications\ResetPassword;
 use App\Http\Controllers\AdvertisementController;
-use App\Http\Controllers\CityImagesController;
-use App\Http\Controllers\FaqController;
-use App\Http\Controllers\OutdoorFacilityController;
 use App\Http\Controllers\PackageFeatureController;
+use App\Http\Controllers\HomepageSectionController;
+use App\Http\Controllers\OutdoorFacilityController;
 use App\Http\Controllers\PropertysInquiryController;
 use App\Http\Controllers\VerifyCustomerFormController;
 use App\Http\Controllers\PropertyTermsController;
 use App\Http\Controllers\BankDetailController;
 use App\Http\Controllers\CompanyController;
-use Illuminate\Auth\Notifications\ResetPassword;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -87,10 +89,10 @@ Route::middleware(['language'])->group(function () {
         Route::get('about-us', [SettingController::class, 'index']);
         Route::get('privacy-policy', [SettingController::class, 'index']);
         Route::get('terms-conditions', [SettingController::class, 'index']);
-        Route::get('system-settings', [SettingController::class, 'index']);
+        Route::get('system-settings', [SettingController::class, 'systemSettingsIndex']);
         Route::get('firebase_settings', [SettingController::class, 'index']);
-        Route::get('app-settings', [SettingController::class, 'index']);
-        Route::get('web-settings', [SettingController::class, 'index']);
+        Route::get('app-settings', [SettingController::class, 'appSettingsIndex']);
+        Route::get('web-settings', [SettingController::class, 'webSettingsIndex']);
         Route::get('system-version', [SettingController::class, 'index']);
         Route::post('firebase-settings', [SettingController::class, 'firebase_settings']);
         Route::post('app-settings', [SettingController::class, 'app_settings']);
@@ -130,7 +132,7 @@ Route::middleware(['language'])->group(function () {
         /// START :: SETTINGS ROUTE
 
         Route::post('settings', [SettingController::class, 'settings']);
-        Route::post('set_settings', [SettingController::class, 'system_settings']);
+        Route::post('store-settings', [SettingController::class, 'system_settings'])->name('store-settings');
         /// END :: SETTINGS ROUTE
 
         /// START :: LANGUAGES ROUTE
@@ -151,6 +153,8 @@ Route::middleware(['language'])->group(function () {
 
         Route::get('payment-list', [PaymentController::class, 'paymentList'])->name('payment.list');
         Route::get('payment', [PaymentController::class, 'index'])->name('payment.index');
+        Route::post('payment-status', [PaymentController::class, 'updateStatus'])->name('payment.status');
+        Route::get('payment-receipt/{id}/view', [PaymentController::class, 'viewReceipt'])->name('payment.receipt.view');
         /// END :: PAYMENT ROUTE
 
         /// START :: USER ROUTE
@@ -170,23 +174,12 @@ Route::middleware(['language'])->group(function () {
 
         /// END :: PAYMENT ROUTE
 
-        /// START :: CUSTOMER ROUTE
+        /// START :: PAYMENT ROUTE
 
         Route::resource('customer', CustomersController::class);
         Route::get('customerList', [CustomersController::class, 'customerList']);
         Route::post('customerstatus', [CustomersController::class, 'update'])->name('customer.customerstatus');
-        Route::get('customer-details/{id}', [CustomersController::class, 'getCustomerDetails'])->name('customer.details');
         /// END :: CUSTOMER ROUTE
-
-        /// START :: BANK DETAILS ROUTE
-        Route::resource('bank-details', BankDetailController::class);
-        Route::get('bank-details-list', [BankDetailController::class, 'getBankDetailsList'])->name('bank-details.list');
-        /// END :: BANK DETAILS ROUTE
-
-        /// START :: COMPANY ROUTE
-        Route::resource('companies', CompanyController::class);
-        Route::get('companies-list', [CompanyController::class, 'getCompaniesList'])->name('companies.list');
-        /// END :: COMPANY ROUTE
 
         /// START :: SLIDER ROUTE
 
@@ -216,10 +209,10 @@ Route::middleware(['language'])->group(function () {
         /// START :: PACKAGE ROUTE
 
         Route::post('package-features/status-update', [PackageFeatureController::class, 'updateStatus'])->name('package-features.status-update');
-        Route::resource('package-features', PackageFeatureController::class);
+        Route::resource('package-features',PackageFeatureController::class);
 
         Route::post('package-status', [PackageController::class, 'updatestatus'])->name('package.updatestatus');
-        Route::get('user-packages', [PackageController::class, 'userPackageIndex'])->name('user-packages.index');
+        Route::get('user-packages', [PackageController::class,'userPackageIndex'])->name('user-packages.index');
         Route::get('user-package-list', [PackageController::class, 'getUserPackageList'])->name('user-packages.list');
         Route::resource('package', PackageController::class);
 
@@ -300,8 +293,8 @@ Route::middleware(['language'])->group(function () {
         Route::get('get-chat-list', [ChatController::class, 'getChats'])->name('get-chat-list');
         Route::post('store_chat', [ChatController::class, 'store']);
         Route::get('getAllMessage', [ChatController::class, 'getAllMessage']);
-        Route::post('block-user/{c_id}', [ChatController::class, 'blockUser'])->name('block-user');
-        Route::post('unblock-user/{c_id}', [ChatController::class, 'unBlockUser'])->name('unblock-user');
+        Route::post('block-user/{c_id}', [ChatController::class,'blockUser'])->name('block-user');
+        Route::post('unblock-user/{c_id}', [ChatController::class,'unBlockUser'])->name('unblock-user');
         /// END :: CHAT ROUTE
 
 
@@ -337,6 +330,12 @@ Route::middleware(['language'])->group(function () {
         Route::resource('city-images', CityImagesController::class);
         /// END :: City Images
 
+        /// START :: Homepage Sections
+        Route::post('homepage-sections/status-update', [HomepageSectionController::class, 'statusUpdate'])->name('homepage-sections.status-update');
+        Route::post('homepage-sections/update-order', [HomepageSectionController::class, 'updateOrder'])->name('homepage-sections.update-order');
+        Route::resource('homepage-sections', HomepageSectionController::class);
+        /// END :: Homepage Sections
+
 
         Route::get('calculator', function () {
             if (!has_permissions('read', 'calculator')) {
@@ -347,7 +346,7 @@ Route::middleware(['language'])->group(function () {
 
 
         /// Start :: User Verification Form
-        Route::prefix('verify-customer')->group(function () {
+        Route::prefix('verify-customer')->group(function(){
             Route::get('/custom-form', [VerifyCustomerFormController::class, 'verifyCustomerFormIndex'])->name('verify-customer.form');
             Route::post('/save-custom-form', [VerifyCustomerFormController::class, 'verifyCustomerFormStore'])->name('verify-customer-form.store');
             Route::get('/list-custom-form', [VerifyCustomerFormController::class, 'verifyCustomerFormShow'])->name('verify-customer-form.show');
@@ -360,18 +359,21 @@ Route::middleware(['language'])->group(function () {
             Route::get('/', [VerifyCustomerFormController::class, 'agentVerificationListIndex'])->name('agent-verification.index');
             Route::get('/list', [VerifyCustomerFormController::class, 'agentVerificationList'])->name('agent-verification.list');
             Route::get('/submitted-form/{id}', [VerifyCustomerFormController::class, 'getAgentSubmittedForm'])->name('agent-verification.show-form');
-            Route::post('/update-verification-status', [VerifyCustomerFormController::class, 'updateVerificationStatus'])->name('agent-verification.change-status');
-            Route::post('/auto-approve-settings', [VerifyCustomerFormController::class, 'autoApproveSettings'])->name('agent-verification.auto-approve');
-            Route::post('/verification-required-for-user-settings', [VerifyCustomerFormController::class, 'verificationRequiredForUserSettings'])->name('agent-verification.verification-required-for-user');
+            Route::post('/update-verification-status', [VerifyCustomerFormController::class,'updateVerificationStatus'])->name('agent-verification.change-status');
+            Route::post('/auto-approve-settings', [VerifyCustomerFormController::class,'autoApproveSettings'])->name('agent-verification.auto-approve');
+            Route::post('/verification-required-for-user-settings', [VerifyCustomerFormController::class,'verificationRequiredForUserSettings'])->name('agent-verification.verification-required-for-user');
         });
+
     });
 
-    Route::get('get-currency-symbol', [SettingController::class, 'getCurrencySymbol'])->name('get-currency-symbol');
+    Route::get('get-currency-symbol',[SettingController::class, 'getCurrencySymbol'])->name('get-currency-symbol');
     // Reset Password
-    Route::get('reset-password', [CustomersController::class, 'resetPasswordIndex']);
-    Route::post('change-password', [CustomersController::class, 'resetPassword'])->name('customer.reset-password');
+    Route::get('reset-password',[CustomersController::class, 'resetPasswordIndex']);
+    Route::post('change-password',[CustomersController::class, 'resetPassword'])->name('customer.reset-password');
 });
-
+Route::get('deep-link', function(){
+    return view('settings.deep-link');
+});
 // Local Language Values for JS
 Route::get('/js/lang', static function () {
     //    https://medium.com/@serhii.matrunchyk/using-laravel-localization-with-javascript-and-vuejs-23064d0c210e
@@ -381,7 +383,7 @@ Route::get('/js/lang', static function () {
         $files = resource_path('lang/' . $lang . '.json');
         return File::get($files);
     });
-    echo ('window.trans = ' . $labels);
+    echo('window.trans = ' . $labels);
     exit();
 })->name('assets.lang');
 
@@ -414,9 +416,15 @@ Route::get('/clear', function () {
     return redirect()->back();
 });
 
-Route::get('/add-url', function () {
+Route::get('/add-url', function(){
     $envUpdates = [
         'APP_URL' => Request::root(),
     ];
     updateEnv($envUpdates);
 })->name('add-url-in-env');
+
+Route::get('/seed-demo-data', function(){
+    Artisan::call('db:seed', ['--class' => 'DemoDataSeeder']);
+    $output = Artisan::output();
+    echo nl2br($output); // Convert newlines to <br> for better readability in HTML
+});

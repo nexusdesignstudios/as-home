@@ -52,8 +52,7 @@ class PackageFeatureController extends Controller
         $sql = Feature::when($search, function ($query) use ($search) {
                 $query->where(function ($query) use ($search) {
                     $query->where('id', 'LIKE', "%$search%")
-                        ->orWhere('question', 'LIKE', "%$search%")
-                        ->orWhere('answer', 'LIKE', "%$search%");
+                        ->orWhere('name', 'LIKE', "%$search%");
                 });
             });
 

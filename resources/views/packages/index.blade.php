@@ -40,16 +40,6 @@
                                         ]) }}
                                     </div>
 
-                                    {{-- IOS Product ID --}}
-                                    <div class="col-md-6 col-lg-4 form-group">
-                                        {{ Form::label('ios_product_id', __('IOS Product ID'), ['class' => 'form-label']) }}
-                                        {{ Form::text('ios_product_id', '', [
-                                            'class' => 'form-control ',
-                                            'placeholder' => trans('IOS Product ID'),
-                                            'id' => 'ios_product_id',
-                                        ]) }}
-                                    </div>
-
                                     {{-- Duration --}}
                                     <div class="col-md-6 col-lg-4 form-group mandatory">
                                         {{ Form::label('duration', __('Duration (In Days)'), ['class' => 'form-label']) }}
@@ -87,6 +77,16 @@
                                             'min' => '0.01',
                                             'step' => '0.01'
                                         ])}}
+                                    </div>
+
+                                    {{-- IOS Product ID --}}
+                                    <div class="col-md-6 col-lg-4 form-group" id="ios-product-id-div">
+                                        {{ Form::label('ios-product-id', __('IOS Product ID'), ['class' => 'form-label']) }}
+                                        {{ Form::text('ios_product_id', '', [
+                                            'class' => 'form-control ',
+                                            'placeholder' => trans('IOS Product ID'),
+                                            'id' => 'ios-product-id',
+                                        ]) }}
                                     </div>
                                 </div>
 
@@ -167,7 +167,7 @@
                                     data-query-params="queryParams">
                                     <thead class="thead-dark">
                                         <tr>
-                                            <th scope="col" data-field="id" data-align="center" data-sortable="true"> {{ __('ID') }}</th>
+                                            <th scope="col" data-field="id" data-sortable="true"> {{ __('ID') }}</th>
                                             <th scope="col" data-field="ios_product_id" data-align="center" data-sortable="true"> {{ __('IOS Product ID') }} </th>
                                             <th scope="col" data-field="name" data-align="center" data-sortable="true"> {{ __('Name') }} </th>
                                             <th scope="col" data-field="duration" data-align="center" data-sortable="false"> {{ __('Duration (In Days)') }}</th>
@@ -269,12 +269,22 @@
     <script>
         $(document).ready(function () {
             $('.package-type').on('click',function(e){
+                $("#price").val("");
+                $("#ios-product-id").val("");
                 if($(this).val() == 'paid'){
+                    // Show Price Div
                     $('.price-div').show();
                     $("#price").attr('data-parsley-required',true);
+                    $("#price").val("");
+
+                    // Show IOS Product ID Div
+                    $("#ios-product-id-div").show();
                 }else{
+                    // Hide Price Div
                     $("#price").removeAttr('data-parsley-required');
                     $('.price-div').hide();
+                    // Hide IOS Product ID Div
+                    $("#ios-product-id-div").hide();
                 }
             })
             $(".add-new-feature").trigger('click');
@@ -285,9 +295,9 @@
             let value = $(this).val();
             checkDuplicateFeatures('.features','.add-new-feature'); // Check duplicates after adding a new row
             // Get Feature ID of mortgage, premium properties and project access
-            let mortgageCalculatorText = "{{$featureMapData[config('constants.FEATURES.MORTGAGE_CALCULATOR_DETAIL')]}}";
-            let premiumPropertiesText = "{{$featureMapData[config('constants.FEATURES.PREMIUM_PROPERTIES')]}}";
-            let projectAccessText = "{{$featureMapData[config('constants.FEATURES.PROJECT_ACCESS')]}}";
+            let mortgageCalculatorText = "{{$featureMapData[config('constants.FEATURES.MORTGAGE_CALCULATOR_DETAIL')] ?? ''}}";
+            let premiumPropertiesText = "{{$featureMapData[config('constants.FEATURES.PREMIUM_PROPERTIES')] ?? ''}}";
+            let projectAccessText = "{{$featureMapData[config('constants.FEATURES.PROJECT_ACCESS')] ?? ''}}";
 
             // Get limit Radio Elements
             let limitRadioElement = $(this).parent().parent().find('.package-types').find('.feature-type-limited');
@@ -343,15 +353,22 @@
         window.actionEvents = {
             'click .edit_btn': function(e, value, row, index) {
                 $("#edit-id").val(row.id);
-                $("#edit-ios-product-id").val(row.ios_product_id);
                 $("#edit-name").val(row.name);
                 $("#edit-duration").val(row.duration);
                 if(row.package_type == 'paid'){
+                    // Show Price Div
                     $("#edit-price-div").show();
                     $('#edit-price').val(row.price).attr('data-parsley-required',true)
+                    // Show IOS Product ID Div
+                    $("#edit-ios-product-id-div").show();
+                    $("#edit-ios-product-id").val(row.ios_product_id);
                 }else{
+                    // Hide Price Div
                     $('#edit-price').val("").removeAttr('data-parsley-required')
                     $("#edit-price-div").hide();
+                    // Hide IOS Product ID Div
+                    $("#edit-ios-product-id-div").hide();
+                    $("#edit-ios-product-id").val("");
                 }
             }
         }

@@ -4,18 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
+use App\Traits\HasAppTimezone;
 class parameter extends Model
 {
-    use HasFactory;
+    use HasFactory, HasAppTimezone;
+    protected $dates = ['created_at', 'updated_at', 'deleted_at'];
 
     protected $table = 'parameters';
 
     protected $fillable = [
         'name',
-        'category_id',
+        'type_of_parameter',
+        'type_values',
         'is_required',
-        'options'
+        'image'
     ];
     protected $hidden = ["created_at", "updated_at"];
 

@@ -32,9 +32,9 @@
                             data-responsive="true" data-sort-name="id" data-sort-order="desc"
                             data-pagination-successively-size="3" data-query-params="queryParams" data-show-export="true"
                             data-export-options='{ "fileName": "data-list-<?= date(' d-m-y') ?>" }'>
-1                            <thead class="thead-dark">
+                            <thead class="thead-dark">
                                 <tr>
-                                    <th scope="col" data-field="id" data-sortable="true" data-align="center">
+                                    <th scope="col" data-field="id" data-sortable="true">
                                         {{ __('ID') }}</th>
                                     <th scope="col" data-field="profile" data-sortable="false" data-align="center"
                                         data-formatter="imageFormatter">
@@ -51,7 +51,10 @@
                                         {{ __('Address') }}</th>
                                     <th scope="col" data-field="total_properties" data-sortable="false"
                                         data-align="center">
-                                        {{ __('Total Post') }}</th>
+                                        {{ __('Total Property Post') }}</th>
+                                    <th scope="col" data-field="total_projects" data-sortable="false"
+                                        data-align="center">
+                                        {{ __('Total Project Post') }}</th>
                                     @if (has_permissions('update', 'customer'))
                                         <th scope="col" data-field="isActive" data-formatter="enableDisableSwitchFormatter"
                                             data-sortable="false" data-align="center">

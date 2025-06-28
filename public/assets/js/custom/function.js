@@ -14,33 +14,6 @@
 //     toast_position = 'top-right';
 // }
 
-// Function to check for duplicate selections
-function checkDuplicateFeatures(elementClass, newRowButton) {
-    let selectedElement = [];
-    let duplicateFound = false;
-
-    $(elementClass).each(function () {
-        let value = $(this).val();
-        let $parent = $(this).closest('.form-group'); // Get parent form-group
-
-        // Remove previous error messages
-        $parent.find('.duplicate-error').remove();
-
-        if (value) {
-            if (selectedElement.includes(value)) {
-                duplicateFound = true;
-
-                // Show error message below the select dropdown
-                $parent.append(`<span class="text-danger duplicate-error"><strong>${window.trans["Duplicate value"]}</strong></span>`);
-            }
-            selectedElement.push(value);
-        }
-    });
-
-    // Disable "Add New Feature" button if duplicate is found
-    $(newRowButton).prop('disabled', duplicateFound);
-}
-
 
 function showErrorToast(message) {
     Toastify({
@@ -297,10 +270,10 @@ function closeLoading() {
 
 // Function to check for duplicate selections
 function checkDuplicateFeatures(elementClass, newRowButton) {
-    console.log('hello');
 
     let selectedElement = [];
     let duplicateFound = false;
+    let submitButton = $(newRowButton).closest('form').find(':submit');
 
     $(elementClass).each(function () {
         let value = $(this).val();
@@ -322,4 +295,5 @@ function checkDuplicateFeatures(elementClass, newRowButton) {
 
     // Disable "Add New Feature" button if duplicate is found
     $(newRowButton).prop('disabled', duplicateFound);
+    submitButton.prop('disabled', duplicateFound);
 }

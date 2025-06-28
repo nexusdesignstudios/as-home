@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 
@@ -14,11 +13,15 @@ use App\Models\User;
 use App\Models\Chats;
 use Razorpay\Api\Api;
 use App\Models\Slider;
-use App\Models\Article;
 
+use App\Models\Article;
 use App\Models\Feature;
 use App\Models\Package;
 use App\Models\Setting;
+use Stripe\ApiResource;
+
+
+use Stripe\ApiResponse;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\Customer;
@@ -33,35 +36,39 @@ use App\Models\CityImage;
 use App\Models\Favourite;
 use App\Models\NumberOtp;
 use App\Models\parameter;
-use App\Models\OldPackage;
-use App\Models\Usertokens;
-use App\Models\SeoSettings;
 
 // use GuzzleHttp\Client;
+use App\Models\OldPackage;
+use App\Models\Usertokens;
+
+use App\Models\SeoSettings;
+
 use App\Models\UserPackage;
 use Carbon\CarbonInterface;
 
 use Illuminate\Support\Str;
-
 use App\Models\ProjectPlans;
 use App\Models\user_reports;
-
 use App\Models\UserInterest;
+
 use Illuminate\Http\Request;
 use App\Models\Advertisement;
+// use PayPal_Pro as GlobalPayPal_Pro;
 use App\Models\Notifications;
 
 use App\Models\InterestedUser;
+use App\Models\PackageFeature;
 use App\Models\PropertyImages;
-// use PayPal_Pro as GlobalPayPal_Pro;
 use App\Models\report_reasons;
-
 use App\Models\VerifyCustomer;
+use App\Models\BankReceiptFile;
 use App\Models\BlockedChatUser;
 use App\Models\Contactrequests;
+use App\Models\HomepageSection;
 use App\Services\HelperService;
 use App\Models\AssignParameters;
 use App\Models\ProjectDocuments;
+use App\Models\UserPackageLimit;
 use App\Models\OutdoorFacilities;
 use App\Services\ResponseService;
 use App\Models\PaymentTransaction;
@@ -71,6 +78,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\VerifyCustomerValue;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
+use App\Services\ApiResponseService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
@@ -79,15 +87,11 @@ use App\Models\OldUserPurchasedPackage;
 use App\Models\VerifyCustomerFormValue;
 use App\Services\Payment\PaymentService;
 use App\Models\AssignedOutdoorFacilities;
-use App\Models\PackageFeature;
-use App\Models\UserPackageLimit;
-use App\Services\ApiResponseService;
 use Illuminate\Support\Facades\Validator;
+use App\Services\PDF\PaymentReceiptService;
 use Twilio\Rest\Client as TwilioRestClient;
 use KingFlamez\Rave\Facades\Rave as Flutterwave;
 use Illuminate\Support\Facades\Request as FacadesRequest;
-use Stripe\ApiResource;
-use Stripe\ApiResponse;
 
 class ApiController extends Controller
 {
@@ -201,22 +205,22 @@ class ApiController extends Controller
             ApiResponseService::validationError($validator->errors()->first());
         }
         $type = $request->type;
-        if ($type == 3) {
+        if($type == 3){
             $email = $request->email;
             $user = Customer::where(['email' => $email, 'logintype' => 3])->first();
 
-            if ($user) {
-                if (!Hash::check($request->password, $user->password)) {
+            if($user){
+                if(!Hash::check($request->password, $user->password)){
                     ApiResponseService::validationError("Invalid Password");
-                } else if ($user->is_email_verified == false) {
+                }else if($user->is_email_verified == false){
                     ApiResponseService::validationError("Email is not verified");
                 }
-            } else {
+            }else{
                 ApiResponseService::validationError("Invalid Email");
             }
 
             $auth_id = $user->auth_id;
-        } else {
+        }else{
             $auth_id = $request->auth_id;
             $user = Customer::where('auth_id', $auth_id)->where('logintype', $type)->first();
         }
@@ -224,7 +228,7 @@ class ApiController extends Controller
             $saveCustomer = new Customer();
             $saveCustomer->name = isset($request->name) ? $request->name : '';
             $saveCustomer->email = isset($request->email) ? $request->email : '';
-            $saveCustomer->mobile = isset($request->mobile) ? $request->mobile : '';
+            $saveCustomer->mobile = isset($request->mobile) ? $request->mobile : null;
             $saveCustomer->slug_id = generateUniqueSlug($request->name, 5);
             $saveCustomer->logintype = isset($request->type) ? $request->type : '';
             $saveCustomer->address = isset($request->address) ? $request->address : '';
@@ -274,7 +278,7 @@ class ApiController extends Controller
             $response['token'] = $token->plainTextToken;
             $response['data'] = $credentials;
 
-            if (!empty($credentials->email)) {
+            if(!empty($credentials->email)){
                 Log::info('under Mail');
                 $data = array(
                     'appName' => env("APP_NAME"),
@@ -292,10 +296,10 @@ class ApiController extends Controller
                         'user_name' => !empty($request->name) ? $request->name : "$appName User",
                         'email' => $request->email,
                     );
-                    if (empty($welcomeEmailTemplateData)) {
+                    if(empty($welcomeEmailTemplateData)){
                         $welcomeEmailTemplateData = "Welcome to $appName";
                     }
-                    $welcomeEmailTemplate = HelperService::replaceEmailVariables($welcomeEmailTemplateData, $variables);
+                    $welcomeEmailTemplate = HelperService::replaceEmailVariables($welcomeEmailTemplateData,$variables);
 
                     $data = array(
                         'email_template' => $welcomeEmailTemplate,
@@ -304,7 +308,7 @@ class ApiController extends Controller
                     );
                     HelperService::sendMail($data);
                 } catch (Exception $e) {
-                    Log::info("Welcome Mail Sending Issue with error :- " . $e->getMessage());
+                    Log::info("Welcome Mail Sending Issue with error :- ".$e->getMessage());
                 }
             }
         } else {
@@ -338,16 +342,16 @@ class ApiController extends Controller
     //* START :: get_slider   *//
     public function getSlider(Request $request)
     {
-        $sliderData = Slider::select('id', 'type', 'image', 'web_image', 'category_id', 'propertys_id', 'show_property_details', 'link')->with(['category' => function ($query) {
-            $query->select('id,category')->where('status', 1);
-        }], 'property:id,title,title_image,price,propery_type as property_type')->orderBy('id', 'desc')->get()->map(function ($slider) {
-            if (collect($slider->property)->isNotEmpty()) {
+        $sliderData = Slider::select('id','type', 'image', 'web_image', 'category_id', 'propertys_id','show_property_details','link')->with(['category' => function($query){
+            $query->select('id,category')->where('status',1);
+        }],'property:id,title,title_image,price,propery_type as property_type')->orderBy('id', 'desc')->get()->map(function($slider){
+            if(collect($slider->property)->isNotEmpty()){
                 $slider->property->parameters = $slider->property->parameters;
             }
             return $slider;
         });
 
-        if (collect($sliderData)->isNotEmpty()) {
+        if(collect($sliderData)->isNotEmpty()){
             $response['error'] = false;
             $response['message'] = "Data Fetch Successfully";
             $response['data'] = $sliderData;
@@ -367,15 +371,20 @@ class ApiController extends Controller
     {
         $offset = isset($request->offset) ? $request->offset : 0;
         $limit = isset($request->limit) ? $request->limit : 10;
+        $latitude = $request->has('latitude') ? $request->latitude : null;
+        $longitude = $request->has('longitude') ? $request->longitude : null;
 
         $categories = Category::select('id', 'category', 'image', 'parameter_types', 'meta_title', 'meta_description', 'meta_keywords', 'slug_id')->where('status', '1');
 
-        if ($request->has('has_property') && $request->has_property == true) {
-            $categories = $categories->clone()->whereHas('properties', function ($query) {
-                $query->where('status', 1);
-            })->withCount([
-                'properties' => function ($query) {
-                    $query->where(['status' => 1, 'request_status' => 'approved']);
+        if($request->has('has_property') && $request->has_property == true){
+            $categories = $categories->clone()->whereHas('properties',function($query) use($latitude, $longitude){
+                $query->where(['status' => 1, 'request_status' => 'approved'])->when($latitude && $longitude, function($query) use($latitude, $longitude){
+                    $query->where('latitude', $latitude)->where('longitude', $longitude);
+                });
+            })->withCount(['properties' => function ($query) use($latitude, $longitude) {
+                    $query->where(['status' => 1, 'request_status' => 'approved'])->when($latitude && $longitude, function($query) use($latitude, $longitude){
+                        $query->where('latitude', $latitude)->where('longitude', $longitude);
+                    });
                 }
             ]);
         }
@@ -406,7 +415,7 @@ class ApiController extends Controller
             $response['error'] = false;
             $response['message'] = "Data Fetch Successfully";
             foreach ($result as $row) {
-                $parameterData = parameterTypesByCategory($row->id);
+                $parameterData = $row->parameters;
                 if (collect($parameterData)->isNotEmpty()) {
                     $parameterData = $parameterData->map(function ($item) {
                         unset($item->assigned_parameter);
@@ -653,6 +662,7 @@ class ApiController extends Controller
         // If Id is passed
         if ($request->has('id') && !empty($request->id)) {
             $property = $property->where('id', $request->id);
+            HelperService::incrementTotalClick('property',$request->id);
         }
 
         if ($request->has('category_slug_id') && !empty($request->category_slug_id)) {
@@ -667,6 +677,7 @@ class ApiController extends Controller
         // If Property Slug is passed
         if ($request->has('slug_id') && !empty($request->slug_id)) {
             $property = $property->where('slug_id', $request->slug_id);
+            HelperService::incrementTotalClick('property',null,$request->slug_id);
         }
 
         // If Country is passed
@@ -704,17 +715,6 @@ class ApiController extends Controller
             $response['data'] = [];
         }
 
-        // if (isset($request->promoted)) {
-
-        //     if (!($property->Has('advertisement'))) {
-        //         $response['error'] = false;
-        //         $response['message'] = "No data found!";
-        //         $response['data'] = [];
-        //         return ($response);
-        //     }
-
-        //     $property = $property->with('advertisement');
-        // }
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
             $property = $property->where(function ($query) use ($search) {
@@ -725,9 +725,6 @@ class ApiController extends Controller
                     });
             });
         }
-        // if (empty($request->search)) {
-        //     $property = $property;
-        // }
 
         // If Top Rated passed then show the property data with Order by on Total Click Descending
         if ($request->has('top_rated') && $request->top_rated == 1) {
@@ -767,7 +764,6 @@ class ApiController extends Controller
 
             $response['error'] = false;
             $response['message'] = "Data Fetch Successfully";
-            $response['total_clicks'] = (float)$totalClicks;
             $response['similar_properties'] = $getSimilarProperties ?? array();
             $response['total'] = $total;
             $response['data'] = $property_details;
@@ -795,9 +791,9 @@ class ApiController extends Controller
             'title_image'       => 'required|file|max:3000|mimes:jpeg,png,jpg',
             'three_d_image'     => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
             'documents.*'       => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
-            'price'             => ['required', function ($attribute, $value, $fail) {
-                if ($value > 1000000000000) {
-                    $fail("The Price must not exceed one trillion that is 1000000000000.");
+            'price'             => ['required', 'numeric', 'min:1', 'max:9223372036854775807', function ($attribute, $value, $fail) {
+                if ($value >= 9223372036854775807) {
+                    $fail("The Price must not exceed more than 9223372036854775807.");
                 }
             }],
             'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
@@ -862,9 +858,9 @@ class ApiController extends Controller
             $saveProperty->post_type = 1;
 
             $autoApproveStatus = $this->getAutoApproveStatus($loggedInUserId);
-            if ($autoApproveStatus) {
+            if($autoApproveStatus){
                 $saveProperty->request_status = 'approved';
-            } else {
+            }else{
                 $saveProperty->request_status = 'pending';
             }
             $saveProperty->status = 1;
@@ -928,7 +924,7 @@ class ApiController extends Controller
             }
             if ($request->parameters) {
                 foreach ($request->parameters as $key => $parameter) {
-                    if (isset($parameter['value']) && !empty($parameter['value'])) {
+                    if(isset($parameter['value']) && !empty($parameter['value'])){
                         $AssignParameters = new AssignParameters();
                         $AssignParameters->modal()->associate($saveProperty);
                         $AssignParameters->parameter_id = $parameter['parameter_id'];
@@ -964,7 +960,7 @@ class ApiController extends Controller
             }
             if ($request->hasfile('gallery_images')) {
                 foreach ($request->file('gallery_images') as $file) {
-                    $name = microtime(true) . '.' . $file->extension();
+                    $name = microtime(true). '.' . $file->extension();
                     $file->move($destinationPath, $name);
                     $gallary_image = new PropertyImages();
                     $gallary_image->image = $name;
@@ -987,7 +983,7 @@ class ApiController extends Controller
             if ($request->hasfile('documents')) {
                 $documentsData = array();
                 foreach ($request->file('documents') as $file) {
-                    $name = microtime(true) . '.' . $file->extension();
+                    $name = microtime(true). '.' . $file->extension();
                     $type = $file->extension();
                     $file->move($destinationPath, $name);
                     $documentsData[] = array(
@@ -997,14 +993,14 @@ class ApiController extends Controller
                     );
                 }
 
-                if (collect($documentsData)->isNotEmpty()) {
+                if(collect($documentsData)->isNotEmpty()){
                     PropertiesDocument::insert($documentsData);
                 }
             }
             /// END :: UPLOAD DOCUMENTS
 
             // START :: ADD CITY DATA
-            if (isset($request->city) && !empty($request->city)) {
+            if(isset($request->city) && !empty($request->city)){
                 CityImage::updateOrCreate(array('city' => $request->city));
             }
             // END :: ADD CITY DATA
@@ -1037,9 +1033,9 @@ class ApiController extends Controller
             'three_d_image'         => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
             'remove_three_d_image'  => 'nullable|in:0,1',
             'documents.*'           => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
-            'price'                 => ['nullable', function ($attribute, $value, $fail) {
-                if ($value > 1000000000000) {
-                    $fail("The Price must not exceed one trillion that is 1000000000000.");
+            'price'                 => ['required', 'numeric', 'min:1', 'max:9223372036854775807', function ($attribute, $value, $fail) {
+                if ($value >= 9223372036854775807) {
+                    $fail("The Price must not exceed more than 9223372036854775807.");
                 }
             }],
             'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
@@ -1103,11 +1099,11 @@ class ApiController extends Controller
                     if (isset($request->title)) {
                         $property->title = $request->title;
                         $slugData = (isset($request->slug_id) && !empty($request->slug_id)) ? $request->slug_id : $request->title;
-                        $property->slug_id = generateUniqueSlug($slugData, 1, null, $id);
+                        $property->slug_id = generateUniqueSlug($slugData, 1,null,$id);
                     }
 
-                    if (isset($request->slug_id) && !empty($request->slug_id)) {
-                        $property->slug_id = generateUniqueSlug($request->slug_id, 1, null, $id);
+                    if(isset($request->slug_id) && !empty($request->slug_id)){
+                        $property->slug_id = generateUniqueSlug($request->slug_id, 1,null,$id);
                     }
 
                     if (isset($request->description)) {
@@ -1160,6 +1156,10 @@ class ApiController extends Controller
                     $property->meta_keywords = $request->meta_keywords ?? null;
                     $property->is_premium = !empty($request->is_premium) && $request->is_premium == "true" ? 1 : 0;
 
+                    if(HelperService::getSettingData('auto_approve_edited_listings') == 0){
+                        $property->request_status = 'pending';
+                    }
+
                     if ($request->hasFile('title_image')) {
                         $profile = $request->file('title_image');
                         $imageName = microtime(true) . "." . $profile->getClientOriginalExtension();
@@ -1201,8 +1201,8 @@ class ApiController extends Controller
 
 
 
-                    if ($request->has('meta_image')) {
-                        if ($request->meta_image != $property->meta_image) {
+                    if($request->has('meta_image')){
+                        if($request->meta_image != $property->meta_image){
                             if (!empty($request->meta_image && $request->hasFile('meta_image'))) {
                                 if (!empty($property->meta_image)) {
                                     $url = $property->meta_image;
@@ -1232,7 +1232,7 @@ class ApiController extends Controller
                         }
                     }
 
-                    if ($request->has('remove_three_d_image') && $request->remove_three_d_image == 1) {
+                    if($request->has('remove_three_d_image') && $request->remove_three_d_image == 1){
                         $threeDImage = $property->getRawOriginal('three_d_image');
                         if (!empty($threeDImage)) {
                             if (file_exists(public_path('images') . config('global.3D_IMG_PATH') .  $threeDImage)) {
@@ -1316,6 +1316,7 @@ class ApiController extends Controller
                         $prop = Property::where('slug_id', $request->slug_id)->first();
                         $prop_id = $prop->id;
                         AssignedOutdoorFacilities::where('property_id', $prop->id)->delete();
+
                     }
                     // AssignedOutdoorFacilities::where('property_id', $request->id)->delete();
                     if ($request->facilities) {
@@ -1351,7 +1352,7 @@ class ApiController extends Controller
                     }
                     if ($request->hasfile('gallery_images')) {
                         foreach ($request->file('gallery_images') as $file) {
-                            $name = microtime(true) . '.' . $file->extension();
+                            $name = microtime(true). '.' . $file->extension();
                             $file->move($destinationPath, $name);
                             PropertyImages::create([
                                 'image' => $name,
@@ -1390,7 +1391,7 @@ class ApiController extends Controller
                             // $file->move($destinationPath, $name);
 
                             $type = $file->extension();
-                            $name = microtime(true) . '.' . $type;
+                            $name = microtime(true). '.' . $type;
                             $file->move($destinationPath, $name);
 
                             $documentsData[] = array(
@@ -1400,21 +1401,21 @@ class ApiController extends Controller
                             );
                         }
 
-                        if (collect($documentsData)->isNotEmpty()) {
+                        if(collect($documentsData)->isNotEmpty()){
                             PropertiesDocument::insert($documentsData);
                         }
                     }
                     /// END :: UPLOAD DOCUMENTS
 
                     // START :: ADD CITY DATA
-                    if (isset($request->city) && !empty($request->city)) {
+                    if(isset($request->city) && !empty($request->city)){
                         CityImage::updateOrCreate(array('city' => $request->city));
                     }
                     // END :: ADD CITY DATA
 
 
                     $current_user = Auth::user()->id;
-                    $property_details = get_property_details($update_property, $current_user);
+                    $property_details = get_property_details($update_property, $current_user, true);
                     $response['error'] = false;
                     $response['message'] = 'Property Update Successfully';
                     $response['data'] = $property_details;
@@ -1535,50 +1536,6 @@ class ApiController extends Controller
     //* END :: get_notification_list   *//
 
 
-
-
-    //* START :: set_property_total_click   *//
-    public function set_property_total_click(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'property_id' => 'required_without_all:project_id,project_slug_id,property_slug_id',
-            'project_id' => 'required_without_all:property_id,project_slug_id,property_slug_id',
-            'project_slug_id' => 'required_without_all:property_id,project_id,property_slug_id',
-            'property_slug_id' => 'required_without_all:property_id,project_id,project_slug_id',
-        ]);
-
-        if (!$validator->fails()) {
-            if (isset($request->project_id)) {
-                // When project id is there
-                $project = Projects::find($request->project_id);
-                $project->increment('total_click');
-            } else if ($request->property_id) {
-                // When property id is there
-                $Property = Property::find($request->property_id);
-                $Property->increment('total_click');
-            } else if (isset($request->project_slug_id)) {
-                // When project slug is there
-                $project = Projects::where('slug_id', $request->project_slug_id);
-                $project->increment('total_click');
-            } else if (isset($request->property_slug_id)) {
-                // When property slug is there
-                $Property = Property::where('slug_id', $request->property_slug_id);
-                $Property->increment('total_click');
-            }
-
-
-            $response['error'] = false;
-            $response['message'] = 'Update Succssfully';
-        } else {
-            $response['error'] = true;
-            $response['message'] = $validator->errors()->first();
-        }
-
-        return response()->json($response);
-    }
-    //* END :: set_property_total_click   *//
-
-
     //* START :: delete_user   *//
     public function delete_user(Request $request)
     {
@@ -1586,7 +1543,7 @@ class ApiController extends Controller
             DB::beginTransaction();
             $loggedInUserId = Auth::user()->id;
             $customer = Customer::find($loggedInUserId);
-            if (collect($customer)->isNotEmpty()) {
+            if(collect($customer)->isNotEmpty()){
                 $customer->delete();
             }
             DB::commit();
@@ -1728,18 +1685,18 @@ class ApiController extends Controller
         try {
             DB::beginTransaction();
             $current_user = Auth::user()->id;
-            $advertisementQuery = Advertisement::whereIn('status', [0, 1]);
-            if ($request->feature_for == 'property') {
-                $packageData = HelperService::updatePackageLimit('property_feature', true);
+            $advertisementQuery = Advertisement::whereIn('status',[0,1]);
+            if($request->feature_for == 'property'){
+                $packageData = HelperService::updatePackageLimit('property_feature',true);
                 $checkAdvertisement = $advertisementQuery->clone()->where('property_id', $request->property_id)->count();
-            } else {
-                $packageData = HelperService::updatePackageLimit('project_feature', true);
+            }else{
+                $packageData = HelperService::updatePackageLimit('project_feature',true);
                 $checkAdvertisement = $advertisementQuery->clone()->where('project_id', $request->project_id)->count();
             }
-            if (collect($packageData)->isEmpty()) {
+            if(collect($packageData)->isEmpty()){
                 ApiResponseService::validationError("Package not found");
             }
-            if (!empty($checkAdvertisement)) {
+            if(!empty($checkAdvertisement)){
                 ApiResponseService::validationError("Advertisement Already Exists");
             }
             $advertisementData = new Advertisement();
@@ -1752,9 +1709,9 @@ class ApiController extends Controller
             }
             $advertisementData->package_id = $packageData->id;
             $advertisementData->type = 'HomeScreen';
-            if ($request->feature_for == 'property') {
+            if($request->feature_for == 'property'){
                 $advertisementData->property_id = $request->property_id;
-            } else {
+            }else{
                 $advertisementData->project_id = $request->project_id;
             }
             $advertisementData->customer_id = $current_user;
@@ -1762,10 +1719,10 @@ class ApiController extends Controller
 
             // Check the auto approve and verified user status and make advertisement auto approved or pending and is enable true or false
             $autoApproveStatus = $this->getAutoApproveStatus($current_user);
-            if ($autoApproveStatus) {
+            if($autoApproveStatus){
                 $advertisementData->status = 0;
                 $advertisementData->is_enable = true;
-            } else {
+            }else{
                 $advertisementData->status = 1;
                 $advertisementData->is_enable = false;
             }
@@ -1962,7 +1919,7 @@ class ApiController extends Controller
 
             $response['error'] = false;
             $response['message'] = "Data Fetch Successfully";
-            $response['data'] =  get_property_details($result, $current_user);
+            $response['data'] =  get_property_details($result, $current_user, true);
             $response['total'] = $total;
         } else {
             $response['error'] = false;
@@ -2124,29 +2081,40 @@ class ApiController extends Controller
 
         return response()->json($response);
     }
-    public function get_payment_details(Request $request)
+    public function getPaymentTransactionDetails(Request $request)
     {
-        $loggedInUserId = Auth::user()->id;
-        $offset = isset($request->offset) ? $request->offset : 0;
-        $limit = isset($request->limit) ? $request->limit : 10;
+        try {
+            $validator = Validator::make($request->all(), [
+                'payment_type' => 'nullable|string|in:online payment,bank transfer,free'
+            ]);
+            if ($validator->fails()) {
+                ApiResponseService::validationError($validator->errors()->first());
+            }
+            // Get offset and limit
+            $offset = isset($request->offset) ? $request->offset : 0;
+            $limit = isset($request->limit) ? $request->limit : 10;
+            // Get logged in user id
+            $loggedInUserId = Auth::user()->id;
 
-        $paymentQuery = PaymentTransaction::where('user_id', $loggedInUserId);
-        $total = $paymentQuery->clone()->count();
-        $result = $paymentQuery->orderBy('created_at', 'DESC')->skip($offset)->take($limit)->get();
+            // Get payment query
+            $paymentQuery = PaymentTransaction::where('user_id', $loggedInUserId)
+            // Filter by payment type if provided
+            ->when($request->payment_type, function ($query) use ($request) {
+                $query->where('payment_type', $request->payment_type);
+            });
+            // Get total count of filtered results
+            $total = $paymentQuery->clone()->count();
+            // Get paginated results
+            $result = $paymentQuery->with('package:id,name,price')->orderBy('created_at','DESC')->skip($offset)->take($limit)->get();
 
-        if (count($result)) {
-            $response['error'] = false;
-            $response['message'] = "Data Fetch Successfully";
-
-            $response['total'] = $total;
-
-            $response['data'] = $result;
-        } else {
-            $response['error'] = false;
-            $response['message'] = "No data found!";
-            $response['data'] = [];
+            if (count($result)) {
+                ApiResponseService::successResponse("Data Fetch Successfully", $result, array('total' => $total));
+            } else {
+                ApiResponseService::errorResponse("No data found!");
+            }
+        } catch (Exception $e) {
+            ApiResponseService::errorResponse($e->getMessage());
         }
-        return response()->json($response);
     }
 
 
@@ -2159,12 +2127,12 @@ class ApiController extends Controller
         if ($validator->fails()) {
             ApiResponseService::validationError($validator->errors()->first());
         }
-        try {
+        try{
             DB::beginTransaction();
 
             $currentUser = Auth::user();
             $package = Package::where(['id' => $request->package_id, 'status' => 1])->first();
-            if (collect($package)->isEmpty()) {
+            if(collect($package)->isEmpty()){
                 ApiResponseService::validationError("Packge not found");
             }
 
@@ -2175,10 +2143,11 @@ class ApiController extends Controller
                 'amount'          => $package->price,
                 'payment_gateway' => "Paypal",
                 'payment_status'  => 'pending',
-                'order_id'        => null
+                'order_id'        => null,
+                'payment_type'    => 'online payment'
             ]);
-            $returnURL = url('api/app_payment_status?error=false&payment_transaction_id=' . $paymentTransactionData->id);
-            $cancelURL = url('api/app_payment_status?error=true&payment_transaction_id=' . $paymentTransactionData->id);
+            $returnURL = url('api/app_payment_status?error=false&payment_transaction_id='.$paymentTransactionData->id);
+            $cancelURL = url('api/app_payment_status?error=true&payment_transaction_id='.$paymentTransactionData->id);
             $notifyURL = url('webhook/paypal');
 
             $paypal = new Paypal();
@@ -2197,7 +2166,7 @@ class ApiController extends Controller
             DB::commit();
             // Render paypal form
             $paypal->paypal_auto_form();
-        } catch (Exception $e) {
+        } catch(Exception $e){
             DB::rollBack();
             ApiResponseService::errorResponse();
         }
@@ -2208,41 +2177,41 @@ class ApiController extends Controller
         $paymentTransactionId = $request->payment_transaction_id;
         // Get Web URL
         $webURL = system_setting('web_url') ?? null;
-        if (isset($paypalInfo) && !empty($paypalInfo) && isset($paypalInfo['payment_status']) && !empty($paypalInfo['payment_status'])) {
-            if ($paypalInfo['payment_status'] == "Completed") {
-                $webWithStatusURL = $webURL . '/payment/success';
+        if (isset($paypalInfo) && !empty($paypalInfo) && isset($paypalInfo['payment_status']) && !empty($paypalInfo['payment_status'])){
+            if($paypalInfo['payment_status'] == "Completed") {
+                $webWithStatusURL = $webURL.'/payment/success';
                 $response['error'] = false;
                 $response['message'] = "Your Purchase Package Activate Within 10 Minutes ";
                 $response['data'] = $paypalInfo['txn_id'];
             } elseif ($paypalInfo['payment_status'] == "Authorized") {
-                $webWithStatusURL = $webURL . '/payment/success';
+                $webWithStatusURL = $webURL.'/payment/success';
                 $response['error'] = false;
                 $response['message'] = "Your payment has been Authorized successfully. We will capture your transaction within 30 minutes, once we process your order. After successful capture Ads wil be credited automatically.";
                 $response['data'] = $paypalInfo;
             } else {
                 PaymentTransaction::where('id', $paymentTransactionId)->update(['payment_status' => 'failed']);
-                $webWithStatusURL = $webURL . '/payment/fail';
+                $webWithStatusURL = $webURL.'/payment/fail';
                 $response['error'] = true;
                 $response['message'] = "Payment Cancelled / Declined ";
                 $response['data'] = !empty($paypalInfo) ? $paypalInfo : "";
             }
-        } else {
+        }else{
             PaymentTransaction::where('id', $paymentTransactionId)->update(['payment_status' => 'failed']);
-            $webWithStatusURL = $webURL . '/payment/fail';
+            $webWithStatusURL = $webURL.'/payment/fail';
             $response['error'] = true;
             $response['message'] = "Payment Cancelled / Declined ";
         }
 
-        if ($webURL) {
+        if($webURL){
             echo "<html>
             <body>
             Redirecting...!
             </body>
             <script>
-                window.location.replace('" . $webWithStatusURL . "');
+                window.location.replace('".$webWithStatusURL."');
             </script>
             </html>";
-        } else {
+        }else{
             echo "<html>
             <body>
             Redirecting...!
@@ -2256,7 +2225,7 @@ class ApiController extends Controller
     }
     public function get_payment_settings(Request $request)
     {
-        $payment_settings = Setting::select('type', 'data')->whereIn('type', ['paypal_business_id', 'sandbox_mode', 'paypal_gateway', 'razor_key', 'razor_secret', 'razorpay_gateway', 'paystack_public_key', 'paystack_secret_key', 'paystack_currency', 'paystack_gateway', 'stripe_publishable_key', 'stripe_currency', 'stripe_gateway', 'stripe_secret_key', 'flutterwave_status'])->get();
+        $payment_settings = Setting::select('type', 'data')->whereIn('type', ['paypal_business_id', 'sandbox_mode', 'paypal_gateway', 'razor_key', 'razor_secret', 'razorpay_gateway', 'paystack_public_key', 'paystack_secret_key', 'paystack_currency', 'paystack_gateway', 'stripe_publishable_key', 'stripe_currency', 'stripe_gateway', 'stripe_secret_key','flutterwave_status', 'bank_transfer_status'])->get();
         foreach ($payment_settings as $setting) {
             if ($setting->type === 'stripe_secret_key') {
                 $publicKey = file_get_contents(base_path('public_key.pem')); // Load the public key
@@ -2297,22 +2266,22 @@ class ApiController extends Controller
         $customer = Customer::select('id', 'name', 'profile')->with(['usertokens' => function ($q) {
             $q->select('fcm_id', 'id', 'customer_id');
         }])->find($request->receiver_id);
-        if (collect($customer)->isNotEmpty()) {
+        if(collect($customer)->isNotEmpty()){
             $senderBlockedReciever = BlockedChatUser::where(['by_user_id' => $request->sender_id, 'user_id' => $request->receiver_id])->count();
-            if ($senderBlockedReciever) {
+            if($senderBlockedReciever){
                 ApiResponseService::validationError("You have blocked user");
             }
             $recieverBlockedSender = BlockedChatUser::where(['by_user_id' => $request->receiver_id, 'user_id' => $request->sender_id])->count();
-            if ($recieverBlockedSender) {
+            if($recieverBlockedSender){
                 ApiResponseService::validationError("You are blocked by user");
             }
-        } else {
+        }else{
             $senderBlockedReciever = BlockedChatUser::where(['by_user_id' => $request->sender_id, 'admin' => 1])->count();
-            if ($senderBlockedReciever) {
+            if($senderBlockedReciever){
                 ApiResponseService::validationError("You have blocked admin");
             }
             $recieverBlockedSender = BlockedChatUser::where(['by_admin' => 1, 'user_id' => $request->sender_id])->count();
-            if ($recieverBlockedSender) {
+            if($recieverBlockedSender){
                 ApiResponseService::validationError("You are blocked by admin");
             }
         }
@@ -2394,12 +2363,18 @@ class ApiController extends Controller
         }
 
 
+        // Get UnRead Messages Count
+        $unreadMessagesCount = Chats::where(['property_id' => $request->property_id, 'receiver_id' => $request->sender_id, 'is_read' => false])->count();
+
+
         $fcmMsg = array(
             'title' => 'Message',
             'message' => $request->message,
             'type' => 'chat',
             'body' => $request->message,
             'sender_id' => $request->sender_id,
+            'sender_name' => $senderUser->name ?? 'User',
+            'sender_profile' => $senderUser->profile ?? '',
             'receiver_id' => $request->receiver_id,
             'file' => $chat->file,
             'username' => $username,
@@ -2413,7 +2388,8 @@ class ApiController extends Controller
             'property_title_image' => $Property->title_image,
             'title' => $Property->title,
             'chat_message_type' => $chat_message_type,
-            'created_at' => Carbon::parse($chat->created_at)->toIso8601ZuluString()
+            'created_at' => Carbon::parse($chat->created_at)->toIso8601ZuluString(),
+            'unread_messages_count' => (string)$unreadMessagesCount
         );
 
         $send = send_push_notification($fcm_id, $fcmMsg);
@@ -2434,16 +2410,17 @@ class ApiController extends Controller
             $currentUser = Auth::user();
             $userId = $request->user_id;
 
+            // update is_read to true for the current user
+            Chats::where(['property_id' => $request->property_id, 'receiver_id' => $currentUser->id, 'is_read' => false])
+                ->update(['is_read' => true]);
+
             $perPage = $request->per_page ? $request->per_page : 15; // Number of results to display per page
             $page = $request->page ?? 1; // Get the current page from the query string, or default to 1
             $chat = Chats::where('property_id', $request->property_id)
                 ->where(function ($query) use ($currentUser, $userId) {
                     $query->where(function ($query) use ($currentUser, $userId) {
-                        $query->where('sender_id', $currentUser->id)
-                            ->where('receiver_id', $userId);
-                    })->orWhere(function ($query) use ($currentUser, $userId) {
-                        $query->where('sender_id', $userId)
-                            ->where('receiver_id', $currentUser->id);
+                        $query->where(['sender_id' => $currentUser->id, 'receiver_id' => $userId])
+                            ->orWhere(['sender_id' => $userId, 'receiver_id' => $currentUser->id]);
                     });
                 })
                 ->orderBy('created_at', 'DESC')
@@ -2497,19 +2474,15 @@ class ApiController extends Controller
         $perPage = $request->per_page ? $request->per_page : 15; // Number of results to display per page
         $page = $request->page ?? 1;
 
-        $adminData = User::where('type', 0)->select('id', 'name', 'profile')->first();
+        $adminData = User::where('type',0)->select('id','name','profile')->first();
 
         $chat = Chats::with(['sender', 'receiver'])->with('property')
-            ->select(
-                'id',
-                'sender_id',
-                'receiver_id',
-                'property_id',
-                'created_at',
+           ->select('id', 'sender_id', 'receiver_id', 'property_id', 'created_at',
                 DB::raw('LEAST(sender_id, receiver_id) as user1_id'),
-                DB::raw('GREATEST(sender_id, receiver_id) as user2_id')
+                DB::raw('GREATEST(sender_id, receiver_id) as user2_id'),
+                DB::raw('COUNT(CASE WHEN receiver_id = '.$current_user.' AND is_read = 0 THEN 1 END) AS unread_count')
             )
-            ->where(function ($query) use ($current_user) {
+            ->where(function($query) use ($current_user) {
                 $query->where('sender_id', $current_user)
                     ->orWhere('receiver_id', $current_user);
             })
@@ -2532,6 +2505,7 @@ class ApiController extends Controller
                 $tempRow['title_image'] = $row->property->title_image;
                 $tempRow['date'] = $row->created_at;
                 $tempRow['property_id'] = $row->property_id;
+                $tempRow['unread_count'] = $row->unread_count;
                 if (!$row->receiver || !$row->sender) {
                     $user = Customer::where('id', $row->sender_id)->orWhere('id', $row->receiver_id)->select('id')->first();
 
@@ -2611,9 +2585,47 @@ class ApiController extends Controller
     }
     public function get_nearby_properties(Request $request)
     {
+        $latitude = $request->has('latitude') ? $request->latitude : null;
+        $longitude = $request->has('longitude') ? $request->longitude : null;
+        $radius = $request->has('radius') ? $request->radius : null;
 
-        // Create Property Query
-        $propertyQuery = Property::with('category')->where(['status' => 1, 'request_status' => 'approved']);
+        // Create reusable property mapper function
+        $propertyMapper = function($propertyData) {
+            $propertyData->promoted = $propertyData->is_promoted;
+            $propertyData->property_type = $propertyData->propery_type;
+            $propertyData->parameters = $propertyData->parameters;
+            $propertyData->is_premium = $propertyData->is_premium == 1;
+            return $propertyData;
+        };
+
+        // Base property query that will be reused
+        $propertyQuery = Property::select(
+            'id', 'slug_id', 'category_id', 'city', 'state', 'country',
+            'price', 'propery_type', 'title', 'title_image', 'is_premium',
+            'address', 'rentduration', 'latitude', 'longitude'
+        )
+        ->with('category:id,slug_id,image,category')
+        ->where(['status' => 1, 'request_status' => 'approved'])
+        ->whereIn('propery_type', [0, 1]);
+
+        if($latitude && $longitude){
+            if($radius){
+                // Create a query with Haversine formula
+                $propertyQuery->
+                    selectRaw("
+                    (6371 * acos(cos(radians($latitude))
+                    * cos(radians(latitude))
+                    * cos(radians(longitude) - radians($longitude))
+                    + sin(radians($latitude))
+                    * sin(radians(latitude)))) AS distance")
+                ->where('latitude', '!=', 0)
+                ->where('longitude', '!=', 0)
+                ->having('distance', '<', $radius);
+            }else{
+                $$propertyQuery->where(['latitude' => $latitude, 'longitude' => $longitude]);
+            }
+        }
+
 
         // Check the city and state params and query the params according to it
         if (isset($request->city) || isset($request->state)) {
@@ -2629,20 +2641,7 @@ class ApiController extends Controller
         }
 
         // Get Final Data
-        $propertiesData = $propertyQuery->select(
-            'id',
-            'slug_id',
-            'category_id',
-            'title',
-            'title_image',
-            'price',
-            'latitude',
-            'longitude',
-            'city',
-            'state',
-            'country',
-            'propery_type as property_type'
-        )->get();
+        $propertiesData = $propertyQuery->get()->map($propertyMapper);
 
         // Pass data as json
         if (collect($propertiesData)->isNotEmpty()) {
@@ -2670,11 +2669,13 @@ class ApiController extends Controller
         try {
             $property = Property::find($request->property_id);
 
-            if ($property->getRawOriginal('propery_type') == 0 && $request->status != 2) {
+            if($property->getRawOriginal('propery_type') == 0 && $request->status != 2){
                 ApiResponseService::validationError("You can only change sell property to sold");
-            } else if ($property->getRawOriginal('propery_type') == 1 && $request->status != 3) {
+            }
+            else if($property->getRawOriginal('propery_type') == 1 && $request->status != 3){
                 ApiResponseService::validationError("You can only change rent property to rented");
-            } else if ($property->getRawOriginal('propery_type') != 0 && $property->getRawOriginal('propery_type') != 1) {
+            }
+            else if($property->getRawOriginal('propery_type') != 0 && $property->getRawOriginal('propery_type') != 1){
                 ApiResponseService::validationError("You can only change status of sell and rent properties");
             }
             $property->propery_type = $request->status;
@@ -2692,11 +2693,11 @@ class ApiController extends Controller
         $offset = isset($request->offset) ? $request->offset : 0;
         $limit = isset($request->limit) ? $request->limit : 10;
         $city_arr = array();
-        $citiesQuery = CityImage::where('status', 1);
-        $citiesData = $citiesQuery->clone()->withCount(['property' => function ($query) {
-            $query->where(['status' => 1, 'request_status' => 'approved']);
-        }])->orderBy('property_count', 'DESC')->skip($offset)->take($limit)->get();
+        $citiesQuery = CityImage::where('status',1)->withCount(['property' => function ($query) {
+            $query->whereIn('propery_type',[0,1])->where(['status' => 1, 'request_status' => 'approved']);
+        }])->having('property_count', '>', 0);
         $totalData = $citiesQuery->clone()->count();
+        $citiesData = $citiesQuery->clone()->orderBy('property_count','DESC')->skip($offset)->take($limit)->get();
         foreach ($citiesData as $city) {
             if (!empty($city->getRawOriginal('image'))) {
                 $url = $city->image;
@@ -2816,7 +2817,7 @@ class ApiController extends Controller
         if ($validator->fails()) {
             ApiResponseService::validationError($validator->errors()->first());
         }
-        try {
+        try{
             // Get Customer IDs
 
             // Get FCM IDs
@@ -2842,10 +2843,10 @@ class ApiController extends Controller
                     }
                     $chat->delete();
                     ApiResponseService::successResponse("Message Deleted Successfully");
-                } else {
+                }else{
                     ApiResponseService::validationError("No data found");
                 }
-            } else if (isset($request->sender_id) && isset($request->receiver_id) && isset($request->property_id)) {
+            }else if (isset($request->sender_id) && isset($request->receiver_id) && isset($request->property_id)) {
 
                 $user_chat = Chats::where('property_id', $request->property_id)
                     ->where(function ($query) use ($request) {
@@ -2866,7 +2867,7 @@ class ApiController extends Controller
             } else {
                 ApiResponseService::validationError("No data found");
             }
-        } catch (Exception $e) {
+        } catch(Exception $e){
             ApiResponseService::errorResponse();
         }
     }
@@ -2949,7 +2950,7 @@ class ApiController extends Controller
             $total = $property->get()->count();
 
             $result = $property->skip($offset)->take($limit)->get();
-            $property_details = get_property_details($result, $current_user);
+            $property_details = get_property_details($result, $current_user, true);
 
             if (!empty($result)) {
                 $response['error'] = false;
@@ -3113,7 +3114,7 @@ class ApiController extends Controller
             $response['error'] = false;
             $response['message'] =  'Delete Successfully';
             return response()->json($response);
-        } catch (Exception $e) {
+        }catch (Exception $e) {
             DB::rollback();
             $response = array(
                 'error' => true,
@@ -3137,8 +3138,8 @@ class ApiController extends Controller
             if ($request->in_app == 'true' || $request->in_app === true) {
                 $package = Package::where('ios_product_id', $request->product_id)->first();
             } else {
-                $package = Package::where('id', $request->package_id)->first();
-                if ($package->package_type == 'paid') {
+                $package = Package::where('id',$request->package_id)->first();
+                if($package->package_type == 'paid'){
                     ApiResponseService::validationError("Package is paid cannot assign directly");
                 }
             }
@@ -3152,9 +3153,21 @@ class ApiController extends Controller
                     'end_date'    => $package->package_type == "unlimited" ? null : Carbon::now()->addHours($package->duration),
                 ]);
 
+                // Create Payment Transaction
+                PaymentTransaction::create([
+                    'user_id' => $loggedInUserId,
+                    'package_id' => $package->id,
+                    'amount' => 0,
+                    'payment_gateway' => null,
+                    'payment_type' => 'free',
+                    'payment_status' => 'success',
+                    'order_id' => Str::uuid(),
+                    'transaction_id' => Str::uuid()
+                ]);
+
                 // Assign limited count feature to user with limits
                 $packageFeatures = PackageFeature::where(['package_id' => $package->id, 'limit_type' => 'limited'])->get();
-                if (collect($packageFeatures)->isNotEmpty()) {
+                if(collect($packageFeatures)->isNotEmpty()){
                     $userPackageLimitData = array();
                     foreach ($packageFeatures as $key => $feature) {
                         $userPackageLimitData[] = array(
@@ -3167,7 +3180,7 @@ class ApiController extends Controller
                         );
                     }
 
-                    if (!empty($userPackageLimitData)) {
+                    if(!empty($userPackageLimitData)){
                         UserPackageLimit::insert($userPackageLimitData);
                     }
                 }
@@ -3304,10 +3317,10 @@ class ApiController extends Controller
             $interestedUserQuery = InterestedUser::has('customer')->with('customer:id,name,profile,email,mobile')->where('property_id', $property_id);
             $totalData = $interestedUserQuery->clone()->count();
             $interestedData = $interestedUserQuery->take($limit)->skip($offset)->get();
-            if (collect($interestedData)->isNotEmpty()) {
+            if(collect($interestedData)->isNotEmpty()){
                 $data = $interestedData->pluck('customer');
-                ApiResponseService::successResponse("Data Fetched Successfully", $data, ['total' => $totalData]);
-            } else {
+                ApiResponseService::successResponse("Data Fetched Successfully",$data,['total' => $totalData]);
+            }else{
                 ApiResponseService::validationError("No Data Found");
             }
         } catch (Exception $e) {
@@ -3360,7 +3373,7 @@ class ApiController extends Controller
         }
         try {
             DB::beginTransaction();
-            if (!$request->id) {
+            if(!$request->id){
                 HelperService::updatePackageLimit('project_list');
             }
             $slugData = (isset($request->slug_id) && !empty($request->slug_id)) ? $request->slug_id : $request->title;
@@ -3371,9 +3384,9 @@ class ApiController extends Controller
 
                 // Check the auto approve and verified user status and make project auto enable or disable
                 $autoApproveStatus = $this->getAutoApproveStatus($currentUser);
-                if ($autoApproveStatus) {
+                if($autoApproveStatus){
                     $project->status = 1;
-                } else {
+                }else{
                     $project->status = 0;
                 }
             } else {
@@ -3381,6 +3394,9 @@ class ApiController extends Controller
                 if (!$project) {
                     $response['error'] = false;
                     $response['message'] = 'Project Not Found ';
+                }
+                if(HelperService::getSettingData('auto_approve_edited_listings') == 0){
+                    $project->request_status = 'pending';
                 }
             }
 
@@ -3437,8 +3453,8 @@ class ApiController extends Controller
                     $project->image = store_image($request->file('image'), 'PROJECT_TITLE_IMG_PATH');
                 }
 
-                if ($request->has('meta_image')) {
-                    if ($request->meta_image != $project->meta_image) {
+                if($request->has('meta_image')){
+                    if($request->meta_image != $project->meta_image){
                         if (!empty($request->meta_image && $request->hasFile('meta_image'))) {
                             if (!empty($project->meta_image)) {
                                 $url = $project->meta_image;
@@ -3644,7 +3660,7 @@ class ApiController extends Controller
 
             // Get User Interest Data on the basis of current User
             $userInterest = UserInterest::where('user_id', $loggedInUserId)->first();
-            if (collect($userInterest)->isNotEmpty()) {
+            if(collect($userInterest)->isNotEmpty()){
                 // Get Data
                 $categoriesIds = !empty($userInterest->category_ids) ? explode(',', $userInterest->category_ids) : '';
                 $priceRange = $userInterest->property_type != null ? explode(',', $userInterest->price_range) : '';
@@ -3770,8 +3786,16 @@ class ApiController extends Controller
 
             $loggedInUserId = Auth::user()->id;
 
-            PaymentTransaction::where('user_id', $loggedInUserId)->delete();
-            UserPackage::where('user_id', $loggedInUserId)->delete();
+            // Cannot directly delete the payment transaction and user package because it has foreign key constraint
+            $paymentTransaction = PaymentTransaction::where('user_id',$loggedInUserId)->get();
+            foreach($paymentTransaction as $transaction){
+                $transaction->bank_receipt_files()->delete();
+                $transaction->delete();
+            }
+            $userPackage = UserPackage::where('user_id',$loggedInUserId)->get();
+            foreach($userPackage as $package){
+                $package->delete();
+            }
 
             DB::commit();
             $response = array(
@@ -3813,18 +3837,18 @@ class ApiController extends Controller
             $loggedInUserID = $loggedInUserData->id;
 
             // when is_promoted is passed then show only property who has been featured (advertised)
-            if ($request->has('is_promoted') && $request->is_promoted == 1) {
+            if($request->has('is_promoted') && $request->is_promoted == 1){
                 // Create Advertisement Query which has Property Data
-                $advertisementQuery = Advertisement::whereHas('property', function ($query) use ($loggedInUserID) {
+                $advertisementQuery = Advertisement::whereHas('property',function($query) use($loggedInUserID){
                     $query->where(['post_type' => 1, 'added_by' => $loggedInUserID]);
-                })->with('property:id,category_id,slug_id,title,propery_type,city,state,country,price,title_image', 'property.category:id,category,image');
+                })->with('property:id,category_id,slug_id,title,propery_type,city,state,country,price,title_image','property.category:id,category,image');
 
                 // Get Total Advertisement Data
                 $advertisementTotal = $advertisementQuery->clone()->count();
 
                 // Get Advertisement Data with custom Data
-                $advertisementData = $advertisementQuery->clone()->skip($offset)->take($limit)->orderBy('id', 'DESC')->get()->map(function ($advertisement) {
-                    if (collect($advertisement->property)->isNotEmpty()) {
+                $advertisementData = $advertisementQuery->clone()->skip($offset)->take($limit)->orderBy('id','DESC')->get()->map(function($advertisement){
+                    if(collect($advertisement->property)->isNotEmpty()){
                         $otherData = array();
                         $otherData['id'] = $advertisement->property->id;
                         $otherData['slug_id'] = $advertisement->property->slug_id;
@@ -3849,7 +3873,7 @@ class ApiController extends Controller
                     'total' => $advertisementTotal,
                     'message' => 'Data fetched Successfully'
                 );
-            } else {
+            }else{
                 // Check the property's post is done by customer and added by logged in user
                 $propertyQuery = Property::where(['post_type' => 1, 'added_by' => $loggedInUserID])
                     // When property type is passed in payload show data according property type that is sell or rent
@@ -3862,19 +3886,19 @@ class ApiController extends Controller
                     ->when($request->filled('slug_id'), function ($query) use ($request) {
                         return $query->where('slug_id', $request->slug_id);
                     })
-                    ->when($request->filled('status'), function ($query) use ($request) {
+                    ->when($request->filled('status'), function ($query) use($request){
                         // IF Status is passed and status has active (1) or deactive (0) or both
-                        $statusData = explode(',', $request->status);
-                        return $query->whereIn('status', $statusData)->where('request_status', 'approved');
+                        $statusData = explode(',',$request->status);
+                        return $query->whereIn('status', $statusData)->where('request_status','approved');
                     })
-                    ->when($request->filled('request_status'), function ($query) use ($request) {
+                    ->when($request->filled('request_status'), function ($query) use($request){
                         // IF Request Status is passed and status has approved or rejected or pending or all
-                        $requestAccessData = explode(',', $request->request_status);
-                        return $query->whereIn('request_status', $requestAccessData);
+                        $requestAccessData = explode(',',$request->request_status);
+                        return $query->whereIn('request_status',$requestAccessData);
                     })
 
                     // Pass the Property Data with Category and Advertisement Relation Data
-                    ->with('category', 'advertisement', 'interested_users:id,property_id,customer_id', 'interested_users.customer:id,name,profile');
+                    ->with('category', 'advertisement', 'interested_users:id,property_id,customer_id','interested_users.customer:id,name,profile');
 
                 // Get Total Views by Sum of total click of each property
                 $totalViews = $propertyQuery->sum('total_click');
@@ -3883,10 +3907,10 @@ class ApiController extends Controller
                 $totalProperties = $propertyQuery->count();
 
                 // Get the property data with extra data and changes :- is_premium, post_created and promoted
-                $propertyData = $propertyQuery->skip($offset)->take($limit)->orderBy('id', 'DESC')->get()->map(function ($property) use ($loggedInUserData) {
+                $propertyData = $propertyQuery->skip($offset)->take($limit)->orderBy('id','DESC')->get()->map(function ($property) use ($loggedInUserData) {
                     // Add lastest Reject reason when request status is rejected
                     $property->reject_reason = (object)array();
-                    if ($property->request_status == 'rejected') {
+                    if($property->request_status == 'rejected'){
                         $property->reject_reason = $property->reject_reason()->latest()->first();
                     }
                     $property->is_premium = $property->is_premium == 1 ? true : false;
@@ -3900,7 +3924,7 @@ class ApiController extends Controller
                     // Interested Users
                     $interestedUsers = $property->interested_users;
                     unset($property->interested_users);
-                    $property->interested_users = $interestedUsers->map(function ($interestedUser) {
+                    $property->interested_users = $interestedUsers->map(function($interestedUser){
                         unset($property->id);
                         unset($property->property_id);
                         unset($property->customer_id);
@@ -3923,17 +3947,19 @@ class ApiController extends Controller
                     'message' => 'Data fetched Successfully'
                 );
 
-                if ($request->has('id')) {
+                if($request->has('id')){
                     $getSimilarPropertiesQueryData = Property::where(['post_type' => 1, 'added_by' => $loggedInUserID])->where('id', '!=', $request->id)->select('id', 'slug_id', 'category_id', 'title', 'added_by', 'address', 'city', 'country', 'state', 'propery_type', 'price', 'created_at', 'title_image')->orderBy('id', 'desc')->limit(10)->get();
 
                     $getSimilarProperties = get_property_details($getSimilarPropertiesQueryData, $loggedInUserData);
-                } else if ($request->has('slug_id')) {
+                }
+                else if($request->has('slug_id')){
                     $getSimilarPropertiesQueryData = Property::where(['post_type' => 1, 'added_by' => $loggedInUserID])->where('slug_id', '!=', $request->slug_id)->select('id', 'slug_id', 'category_id', 'title', 'added_by', 'address', 'city', 'country', 'state', 'propery_type', 'price', 'created_at', 'title_image')->orderBy('id', 'desc')->limit(10)->get();
                     $getSimilarProperties = get_property_details($getSimilarPropertiesQueryData, $loggedInUserData);
-                } else {
+                }
+                else{
                     $getSimilarProperties = array();
                 }
-                if ($getSimilarProperties) {
+                if($getSimilarProperties){
                     $response['similiar_properties'] = $getSimilarProperties;
                 }
             }
@@ -3952,247 +3978,133 @@ class ApiController extends Controller
      * Homepage Data API
      * Params :- None
      */
-    public function homepageData()
+    public function homepageData(Request $request)
     {
         try {
-            //Faq Data
-            $faqsData = Faq::select('id', 'question', 'answer')->where('status', 1)->orderBy('id', 'DESC')->limit(5)->get();
+            $latitude = $request->has('latitude') ? $request->latitude : null;
+            $longitude = $request->has('longitude') ? $request->longitude : null;
+            $radius = $request->has('radius') ? $request->radius : null;
+            $homepageLocationDataAvailable = false;
 
-            // Project and Featured Data
-            $projectsQuery = Projects::select('id', 'slug_id', 'city', 'state', 'country', 'title', 'type', 'image', 'location', 'category_id', 'added_by')->where(['request_status' => 'approved', 'status' => 1])->with('category:id,slug_id,image,category', 'gallary_images', 'customer:id,name,profile,email,mobile')->orderBy('id', 'desc');
-            $projectsData = $projectsQuery->clone()->limit(12)->get();
-            $featuredProjectData = $projectsQuery->clone()->whereHas('advertisement', function ($query) {
-                $query->where(['is_enable' => 1, 'status' => 0]);
-            })->limit(12)->get();
+            // Create reusable property mapper function
+            $propertyMapper = function($propertyData) {
+                $propertyData->promoted = $propertyData->is_promoted;
+                $propertyData->property_type = $propertyData->propery_type;
+                $propertyData->parameters = $propertyData->parameters;
+                $propertyData->is_premium = $propertyData->is_premium == 1;
+                return $propertyData;
+            };
 
-            // Categories Data
-            $categoriesData = Category::select('id', 'category', 'image', 'slug_id')->whereHas('properties', function ($query) {
-                $query->where('status', 1);
-            })->withCount([
-                'properties' => function ($query) {
-                    $query->where(['status' => 1, 'request_status' => 'approved']);
+            // Base property query that will be reused
+            $propertyBaseQuery = Property::select(
+                'id', 'slug_id', 'category_id', 'city', 'state', 'country',
+                'price', 'propery_type', 'title', 'title_image', 'is_premium',
+                'address', 'rentduration', 'latitude', 'longitude'
+            )
+            ->with('category:id,slug_id,image,category')
+            ->where(['status' => 1, 'request_status' => 'approved'])
+            ->whereIn('propery_type', [0, 1]);
+            if($latitude && $longitude){
+                if($radius){
+                    // Create a query with Haversine formula
+                    $latlongBasedQuery = $propertyBaseQuery->clone()
+                            ->selectRaw("
+                            (6371 * acos(cos(radians($latitude))
+                            * cos(radians(latitude))
+                            * cos(radians(longitude) - radians($longitude))
+                            + sin(radians($latitude))
+                            * sin(radians(latitude)))) AS distance")
+                        ->where('latitude', '!=', 0)
+                        ->where('longitude', '!=', 0)
+                        ->having('distance', '<', $radius);
+                }else{
+                    $latlongBasedQuery = $propertyBaseQuery->clone()->where(['latitude' => $latitude, 'longitude' => $longitude]);
                 }
-            ])->limit(12)->get();
 
-            // Article Data
-            $articlesData = Article::select('id', 'slug_id', 'category_id', 'title', 'description', 'image', 'created_at')->with('category:id,slug_id,image,category')->limit(5)->get();
+                $count = $latlongBasedQuery->clone()->count();
+                if($count > 0){
+                    $homepageLocationDataAvailable = true;
+                    $locationBasedPropertyQuery = $latlongBasedQuery;
+                }else{
+                    $locationBasedPropertyQuery = $propertyBaseQuery;
+                    $homepageLocationDataAvailable = false;
+                }
+            }else{
+                $locationBasedPropertyQuery = $propertyBaseQuery;
+                $homepageLocationDataAvailable = false;
+            }
 
-            //Slider Data
-            $slidersData = Slider::select('id', 'type', 'image', 'web_image', 'category_id', 'propertys_id', 'show_property_details', 'link')->with(['category' => function ($query) {
-                $query->where('status', 1)->select('id', 'slug_id', 'category');
-            }, 'property' => function ($query) {
-                $query->whereIn('propery_type', array(0, 1))->where(['status' => 1, 'request_status' => 'approved'])->select('id', 'slug_id', 'title', 'title_image', 'price', 'propery_type as property_type');
-            }])->orderBy('id', 'desc')->get()->map(function ($slider) {
-                $slider->slider_type = $slider->getRawOriginal('type');
-                if ($slider->getRawOriginal('type') == 2) {
-                    if (collect($slider->category)->isNotEmpty()) {
-                        return $slider;
+            // Base projects query that will be reused
+            $projectsBaseQuery = Projects::select(
+                'id', 'slug_id', 'city', 'state', 'country', 'title',
+                'type', 'image', 'location', 'category_id', 'added_by', 'latitude', 'longitude'
+            )
+            ->where(['request_status' => 'approved', 'status' => 1])
+            ->with([
+                'category:id,slug_id,image,category',
+                'gallary_images:id,project_id,name',
+                'customer:id,name,profile,email,mobile'
+            ]);
+            if($latitude && $longitude){
+                $latlongBasedQuery = $projectsBaseQuery->clone()->where(['latitude' => $latitude, 'longitude' => $longitude]);
+                $count = $latlongBasedQuery->clone()->count();
+                if($count > 0 || $homepageLocationDataAvailable == true){
+                    $homepageLocationDataAvailable = true;
+                    $projectsBaseQuery = $latlongBasedQuery;
+                }else{
+                    $projectsBaseQuery = $projectsBaseQuery;
+                    $homepageLocationDataAvailable = false;
+                }
+            }else{
+                $count = $projectsBaseQuery->clone()->count();
+                $homepageLocationDataAvailable = false;
+            }
+
+            // Get homepage sections
+            $sections = $this->getHomepageSections($latitude, $longitude, $propertyBaseQuery, $propertyMapper, $projectsBaseQuery, $homepageLocationDataAvailable, $locationBasedPropertyQuery);
+
+            // Add slider data (not controlled by homepage sections)
+            $slidersData = Slider::select('id', 'type', 'image', 'web_image', 'category_id', 'propertys_id', 'show_property_details', 'link')
+                ->with([
+                    'category' => function($query) {
+                        $query->where('status', 1)->select('id', 'slug_id', 'category');
+                    },
+                    'property' => function($query) {
+                        $query->whereIn('propery_type', [0, 1])
+                            ->where(['status' => 1, 'request_status' => 'approved'])
+                            ->select('id', 'slug_id', 'title', 'title_image', 'price', 'propery_type');
                     }
-                } else if ($slider->getRawOriginal('type') == 3) {
-                    if (collect($slider->property)->isNotEmpty() && collect($slider->property)->isNotEmpty()) {
-                        $slider->property->parameters = $slider->property->parameters;
-                        return $slider;
-                    }
-                } else {
-                    return $slider;
-                }
-            })
-                ->filter()->values(); // This will remove null values from the collection
-
-            // Agent Data
-            $agentsData = Customer::select('id', 'name', 'email', 'profile', 'slug_id')->withCount([
-                'projects' => function ($query) {
-                    $query->where('status', 1);
-                },
-                'property' => function ($query) {
-                    $query->where(['status' => 1, 'request_status' => 'approved']);
-                }
-            ])
-                ->where('isActive', 1)
+                ])
+                ->orderBy('id', 'desc')
                 ->get()
-                ->map(function ($customer) {
-                    $customer->is_verified = $customer->is_user_verified;
-                    $customer->total_count = $customer->projects_count + $customer->property_count;
-                    $customer->is_admin = false;
-                    return $customer;
-                })
-                ->filter(function ($customer) {
-                    return $customer->projects_count > 0 || $customer->property_count > 0;
-                })
-                ->sortByDesc(function ($customer) {
-                    return [$customer->is_verified, $customer->total_count];
-                })
-                ->values() // This line resets the array keys
-                ->take(12);
+                ->map(function($slider) {
+                    $slider->slider_type = $slider->getRawOriginal('type');
 
-            // Get admin List
-            $adminEmail = system_setting('company_email');
-            $adminData = array();
-            $adminPropertiesCount = Property::where(['added_by' => 0, 'status' => 1, 'request_status' => 'approved'])->count();
-            $adminProjectsCount = Projects::where(['is_admin_listing' => 1, 'status' => 1])->count();
-            $totalCount = $adminPropertiesCount + $adminProjectsCount;
-
-            $adminData = User::where('type', 0)->select('id', 'name', 'profile')->first();
-
-            $adminQuery = User::where('type', 0)->select('id', 'slug_id')->first();
-            if ($adminQuery && ($adminPropertiesCount > 0 || $adminProjectsCount > 0)) {
-                $adminData = array(
-                    'id' => $adminQuery->id,
-                    'name' => 'Admin',
-                    'slug_id' => $adminQuery->slug_id,
-                    'email' => !empty($adminEmail) ? $adminEmail : "",
-                    'property_count' => $adminPropertiesCount,
-                    'projects_count' => $adminProjectsCount,
-                    'total_count' => $totalCount,
-                    'is_verified' => true,
-                    'profile' => !empty($adminData->getRawOriginal('profile')) ? $adminData->profile : url('assets/images/faces/2.jpg'),
-                    'is_admin' => true
-                );
-                // Insert Admin Data at the Beginning
-                $agentsData->prepend((object) $adminData);
-            }
-
-
-            // Product Data Query and added extra data with its in every section
-            $propertyDataQuery = Property::select('id', 'slug_id', 'category_id', 'city', 'state', 'country', 'price', 'propery_type', 'title', 'title_image', 'is_premium', 'address', 'rentduration')->with('category:id,slug_id,image,category')->where(['status' => 1, 'request_status' => 'approved'])->whereIn('propery_type', array(0, 1));
-
-            // Get Featured Section with the data having advertisement whose data is enabled and not the type of slider and extra data of properties
-            $featuredSection = $propertyDataQuery->clone()->where(function ($query) {
-                $query->whereHas('advertisement', function ($subQuery) {
-                    $subQuery->where(['is_enable' => 1, 'status' => 0])->whereNot('type', 'Slider');
-                });
-            })->orderBy('id', 'DESC')->limit(12)->get()->map(function ($propertyData) {
-                $propertyData->promoted = $propertyData->is_promoted;
-                $propertyData->property_type = $propertyData->propery_type;
-                $propertyData->parameters = $propertyData->parameters;
-                $propertyData->is_premium = $propertyData->is_premium == 1 ? true : false;
-                return $propertyData;
-            });
-
-            // Get Most Liked Properties Section with Favourite Count and extra data of properties
-            $mostLikedProperties = $propertyDataQuery->clone()->withCount('favourite')->orderBy('favourite_count', 'DESC')->limit(12)->get()->map(function ($propertyData) {
-                $propertyData->promoted = $propertyData->is_promoted;
-                $propertyData->property_type = $propertyData->propery_type;
-                $propertyData->parameters = $propertyData->parameters;
-                $propertyData->is_premium = $propertyData->is_premium == 1 ? true : false;
-                return $propertyData;
-            });;
-
-            // Get Most Viewed Properties Section and extra data of properties
-            $mostViewedProperties = $propertyDataQuery->clone()->orderBy('total_click', 'DESC')->limit(12)->get()->map(function ($propertyData) {
-                $propertyData->promoted = $propertyData->is_promoted;
-                $propertyData->property_type = $propertyData->propery_type;
-                $propertyData->parameters = $propertyData->parameters;
-                $propertyData->is_premium = $propertyData->is_premium == 1 ? true : false;
-                return $propertyData;
-            });;
-
-            // Add Data in Homepage Array Data
-            $homepageData = array(
-                'featured_section' => $featuredSection,
-                'most_liked_properties' => $mostLikedProperties,
-                'most_viewed_properties' => $mostViewedProperties,
-                'project_section' => $projectsData,
-                'project_featured_section' => $featuredProjectData,
-                'slider_section' => $slidersData,
-                'categories_section' => $categoriesData,
-                'article_section' => $articlesData,
-                'agents_list' => $agentsData,
-                'faq_section' => $faqsData
-            );
-
-            // Get The data only on the Auth Data exists
-            if (Auth::guard('sanctum')->check()) {
-                $loggedInUserId = Auth::guard('sanctum')->user()->id;
-                $cityOfUser = Auth::guard('sanctum')->user()->city;
-                if (collect($cityOfUser)->isNotEmpty()) {
-
-                    // Get Nearby Properties on the basis of city of user selected and with extra data of properties
-                    $nearByProperties = $propertyDataQuery->clone()->where('city', $cityOfUser)->orderBy('id', 'DESC')->limit(12)->get()->map(function ($propertyData) {
-                        $propertyData->promoted = $propertyData->is_promoted;
-                        $propertyData->property_type = $propertyData->propery_type;
-                        $propertyData->parameters = $propertyData->parameters;
-                        $propertyData->is_premium = $propertyData->is_premium == 1 ? true : false;
-                        return $propertyData;
-                    });
-
-                    // Add Nearby properties data in homepage data array
-                    $homepageData['nearby_properties'] = $nearByProperties;
-                }
-                // Get User Recommendation Data
-                $userInterestData = UserInterest::where('user_id', $loggedInUserId)->first();
-                if (collect($userInterestData)->isNotEmpty()) {
-                    // User Recommendation Query
-                    $userRecommendationQuery = $propertyDataQuery->clone();
-
-                    // Check the User's Interested Category Ids
-                    if (!empty($userInterestData->category_ids)) {
-                        $categoryIds = explode(',', $userInterestData->category_ids);
-                        $userRecommendationQuery = $userRecommendationQuery->whereIn('category_id', $categoryIds);
+                    // Filter out entries that don't meet our criteria
+                    if ($slider->getRawOriginal('type') == 2 && empty($slider->category)) {
+                        return null;
                     }
 
-                    // Check User's Interested Price Range
-                    if (!empty($userInterestData->price_range)) {
-                        $minPrice = explode(',', $userInterestData->price_range)[0]; // Get User's Minimum Price
-                        $maxPrice = explode(',', $userInterestData->price_range)[1]; // Get User's Maximum Price
-
-                        if (isset($maxPrice) && isset($minPrice)) {
-                            $minPrice = floatval($minPrice);
-                            $maxPrice = floatval($maxPrice);
-                            $userRecommendationQuery = $userRecommendationQuery->where(function ($query) use ($minPrice, $maxPrice) {
-                                $query->whereRaw("CAST(price AS DECIMAL(10, 2)) >= ?", [$minPrice])
-                                    ->whereRaw("CAST(price AS DECIMAL(10, 2)) <= ?", [$maxPrice]);
-                            });
+                    if ($slider->getRawOriginal('type') == 3) {
+                        if (empty($slider->property)) {
+                            return null;
                         }
+                        $slider->property->parameters = $slider->property->parameters;
                     }
 
-                    // Check User's Interested City
-                    if (!empty($userInterestData->city)) {
-                        $city = $userInterestData->city;
-                        $userRecommendationQuery = $userRecommendationQuery->where('city', $city);
-                    }
+                    return $slider;
+                })
+                ->filter()
+                ->values();
 
-                    // Check User's Interested Property Types
-                    if (!empty($userInterestData->property_type) || $userInterestData->property_type == 0) {
-                        $propertyType = explode(',',  $userInterestData->property_type);
-                        $userRecommendationQuery = $userRecommendationQuery->whereIn('propery_type', $propertyType);
-                    }
-
-                    // Check User's Interested Outdoor Facilities
-                    if (!empty($userInterestData->outdoor_facilitiy_ids)) {
-                        $outdoorFacilityIds = explode(',', $userInterestData->outdoor_facilitiy_ids);
-                        $userRecommendationQuery = $userRecommendationQuery->whereHas('assignfacilities.outdoorfacilities', function ($q) use ($outdoorFacilityIds) {
-                            $q->whereIn('id', $outdoorFacilityIds);
-                        });
-                    }
-
-                    // Get the user recommended Properties according to its Personalised Data
-                    $userRecommendationData = $userRecommendationQuery->orderBy('id', 'DESC')->limit(12)->get()->map(function ($propertyData) {
-                        $propertyData->promoted = $propertyData->is_promoted;
-                        $propertyData->property_type = $propertyData->propery_type;
-                        $propertyData->parameters = $propertyData->parameters;
-                        $propertyData->is_premium = $propertyData->is_premium == 1 ? true : false;
-                        return $propertyData;
-                    });
-
-                    // Add user recommendation properties data in homepage data array
-                }
-                $homepageData['user_recommendation'] = $userRecommendationData ?? array();
-            }
-
-
-            $response = array(
-                'error' => false,
-                'data' => $homepageData,
-                'message' => 'Data fetched Successfully'
-            );
-            return response()->json($response);
+            $data = [
+                'sections' => $sections,
+                'slider_section' => $slidersData,
+                'homepage_location_data_available' => $homepageLocationDataAvailable == true ? true : false,
+            ];
+            ApiResponseService::successResponse("Data fetched Successfully", $data);
         } catch (Exception $e) {
-            $response = array(
-                'error' => true,
-                'message' => 'Something Went Wrong'
-            );
-            return response()->json($response, 500);
+            ApiResponseService::errorResponse("Something Went Wrong");
         }
     }
 
@@ -4209,26 +4121,37 @@ class ApiController extends Controller
             // if there is limit in request then have to do less by one so that to manage total data count with admin
             $limit = isset($request->limit) && !empty($request->limit) ? ($request->limit - 1) : 10;
 
+            $latitude = $request->has('latitude') ? $request->latitude : null;
+            $longitude = $request->has('longitude') ? $request->longitude : null;
 
-            if (!empty($request->limit)) {
-                $agentsListQuery = Customer::select('id', 'name', 'email', 'profile', 'slug_id')->where(function ($query) {
+
+            if(!empty($request->limit)){
+                $agentsListQuery = Customer::select('id','name','email','profile','slug_id')->where(function($query) {
                     $query->where('isActive', 1);
                 })
-                    ->where(function ($query) {
-                        $query->whereHas('projects', function ($query) {
-                            $query->where('status', 1);
-                        })->orWhereHas('property', function ($query) {
-                            $query->where(['status' => 1, 'request_status' => 'approved']);
+                ->where(function($query) use($latitude, $longitude) {
+                    $query->whereHas('projects', function ($query) use($latitude, $longitude) {
+                        $query->where('status', 1)->when($latitude && $longitude, function($query) use($latitude, $longitude){
+                            $query->where('latitude', $latitude)->where('longitude', $longitude);
                         });
-                    })
-                    ->withCount([
-                        'projects' => function ($query) {
-                            $query->where('status', 1);
-                        },
-                        'property' => function ($query) {
-                            $query->where(['status' => 1, 'request_status' => 'approved']);
-                        }
-                    ]);
+                    })->orWhereHas('property', function ($query) use($latitude, $longitude) {
+                        $query->where(['status' => 1, 'request_status' => 'approved'])->when($latitude && $longitude, function($query) use($latitude, $longitude){
+                            $query->where('latitude', $latitude)->where('longitude', $longitude);
+                        });
+                    });
+                })
+                ->withCount([
+                    'projects' => function ($query) use($latitude, $longitude) {
+                        $query->where('status', 1)->when($latitude && $longitude, function($query) use($latitude, $longitude){
+                            $query->where('latitude', $latitude)->where('longitude', $longitude);
+                        });
+                    },
+                    'property' => function ($query) use($latitude, $longitude) {
+                        $query->where(['status' => 1, 'request_status' => 'approved'])->when($latitude && $longitude, function($query) use($latitude, $longitude){
+                            $query->where('latitude', $latitude)->where('longitude', $longitude);
+                        });
+                    }
+                ]);
 
                 $agentListCount = $agentsListQuery->clone()->count();
 
@@ -4257,14 +4180,18 @@ class ApiController extends Controller
 
                 $adminEmail = system_setting('company_email');
                 $adminData = array();
-                $adminPropertiesCount = Property::where(['added_by' => 0, 'status' => 1, 'request_status' => 'approved'])->count();
-                $adminProjectsCount = Projects::where(['is_admin_listing' => 1, 'status' => 1, 'request_status' => 'approved'])->count();
+                $adminPropertiesCount = Property::where(['added_by' => 0, 'status' => 1, 'request_status' => 'approved'])->when($latitude && $longitude, function($query) use($latitude, $longitude){
+                    $query->where('latitude', $latitude)->where('longitude', $longitude);
+                })->count();
+                $adminProjectsCount = Projects::where(['is_admin_listing' => 1, 'status' => 1, 'request_status' => 'approved'])->when($latitude && $longitude, function($query) use($latitude, $longitude){
+                    $query->where('latitude', $latitude)->where('longitude', $longitude);
+                })->count();
                 $totalCount = $adminPropertiesCount + $adminProjectsCount;
 
-                $adminData = User::where('type', 0)->select('id', 'name', 'profile')->first();
+                $adminData = User::where('type',0)->select('id','name','profile')->first();
 
-                $adminQuery = User::where('type', 0)->select('id', 'slug_id')->first();
-                if ($adminQuery && ($adminPropertiesCount > 0 || $adminProjectsCount > 0)) {
+                $adminQuery = User::where('type',0)->select('id','slug_id')->first();
+                if($adminQuery && ($adminPropertiesCount > 0 || $adminProjectsCount > 0)){
                     $adminData = array(
                         'id' => $adminQuery->id,
                         'name' => 'Admin',
@@ -4277,10 +4204,11 @@ class ApiController extends Controller
                         'profile' => !empty($adminData->getRawOriginal('profile')) ? $adminData->profile : url('assets/images/faces/2.jpg'),
                         'is_admin' => true
                     );
-                    if ($offset == 0) {
+                    if($offset == 0){
                         $agentListData->prepend((object) $adminData);
                     }
                 }
+
             }
             $response = array(
                 'error' => false,
@@ -4290,6 +4218,7 @@ class ApiController extends Controller
             );
 
             return response()->json($response);
+
         } catch (Exception $e) {
             $response = array(
                 'error' => true,
@@ -4323,28 +4252,28 @@ class ApiController extends Controller
                 'limit_available' => false,
             );
             // Get Limit Status of premium properties feature
-            if (Auth::guard('sanctum')) {
-                $response = HelperService::checkPackageLimit('premium_properties', true);
+            if(Auth::guard('sanctum')){
+                $response = HelperService::checkPackageLimit('premium_properties',true);
             }
             // Get Offset and Limit from payload request
             $offset = isset($request->offset) ? $request->offset : 0;
             $limit = isset($request->limit) ? $request->limit : 10;
             $isAdminListing = false;
 
-            if ($request->has('is_admin') && $request->is_admin == 1) {
+            if($request->has('is_admin') && $request->is_admin == 1){
                 $addedBy = 0;
                 $isAdminListing = true;
                 $adminEmail = system_setting('company_email');
                 $adminCompanyTel1 = system_setting('company_tel1');
                 $customerData = array();
-                $adminPropertiesCount = Property::where(['added_by' => 0, 'status' => 1, 'request_status' => 'approved'])->count();
-                $adminProjectsCount = Projects::where(['is_admin_listing' => 1, 'status' => 1])->count();
+                $adminPropertiesCount = Property::where(['added_by' => 0,'status' => 1, 'request_status' => 'approved'])->count();
+                $adminProjectsCount = Projects::where(['is_admin_listing' => 1,'status' => 1])->count();
                 $totalCount = $adminPropertiesCount + $adminProjectsCount;
 
-                $adminData = User::where('type', 0)->select('id', 'name', 'profile')->first();
+                $adminData = User::where('type',0)->select('id','name','profile')->first();
 
-                $adminQuery = User::where('type', 0)->select('id', 'slug_id')->first();
-                if ($adminQuery) {
+                $adminQuery = User::where('type',0)->select('id','slug_id')->first();
+                if($adminQuery){
                     $customerData = array(
                         'id' => $adminQuery->id,
                         'name' => 'Admin',
@@ -4358,28 +4287,28 @@ class ApiController extends Controller
                         'profile' => !empty($adminData->getRawOriginal('profile')) ? $adminData->profile : url('assets/images/faces/2.jpg')
                     );
                 }
-            } else {
+            }else{
                 // Customer Query
-                $customerQuery = Customer::select('id', 'slug_id', 'name', 'profile', 'mobile', 'email', 'address', 'city', 'country', 'state', 'facebook_id', 'twiiter_id as twitter_id', 'youtube_id', 'instagram_id', 'about_me')->where(function ($query) {
+                $customerQuery = Customer::select('id','slug_id','name','profile','mobile','email','address','city','country','state','facebook_id','twiiter_id as twitter_id','youtube_id','instagram_id','about_me', 'latitude', 'longitude')->where(function($query){
                     $query->where('isActive', 1);
-                })->withCount(['projects' => function ($query) {
-                    $query->where('status', 1);
-                }, 'property' => function ($query) use ($response) {
-                    if ($response['package_available'] == true && $response['feature_available'] == true) {
+                })->withCount(['projects' => function($query){
+                    $query->where('status',1);
+                }, 'property' => function($query) use($response){
+                    if($response['package_available'] == true && $response['feature_available'] == true){
                         $query->where(['status' => 1, 'request_status' => 'approved']);
-                    } else {
+                    }else{
                         $query->where(['status' => 1, 'request_status' => 'approved', 'is_premium' => 0]);
                     }
                 }]);
                 // Check if id exists or slug id on the basis of get agent id
-                if ($request->has('id') && !empty($request->id)) {
+                if($request->has('id') && !empty($request->id)){
                     $addedBy = $request->id;
                     // Get Customer Data
-                    $customerData = $customerQuery->clone()->where('id', $request->id)->first();
+                    $customerData = $customerQuery->clone()->where('id',$request->id)->first();
                     $addedBy = !empty($customerData) ? $customerData->id : "";
-                } else if ($request->has('slug_id')) {
+                }else if($request->has('slug_id')){
                     // Get Customer Data
-                    $customerData = $customerQuery->clone()->where('slug_id', $request->slug_id)->first();
+                    $customerData = $customerQuery->clone()->where('slug_id',$request->slug_id)->first();
                     $addedBy = !empty($customerData) ? $customerData->id : "";
                 }
                 // Add Is User Verified Status in Customer Data
@@ -4387,29 +4316,29 @@ class ApiController extends Controller
             }
 
             // if there is agent id then only get properties of it
-            if (!empty($addedBy) || $addedBy == 0) {
+            if(!empty($addedBy) || $addedBy == 0){
 
-                if (($request->has('is_projects') && !empty($request->is_projects) && $request->is_projects == 1)) {
-                    $packageAccessLimit = HelperService::checkPackageLimit('project_access', true);
-                    $projectQuery = Projects::select('id', 'slug_id', 'city', 'state', 'country', 'title', 'type', 'image', 'location', 'category_id', 'added_by');
-                    if ($isAdminListing == true) {
+                if(($request->has('is_projects') && !empty($request->is_projects) && $request->is_projects == 1)){
+                    $response = HelperService::checkPackageLimit('project_access',true);
+                    $projectQuery = Projects::select('id', 'slug_id', 'city', 'state', 'country', 'title', 'type', 'image', 'location','category_id','added_by');
+                    if($isAdminListing == true){
                         $projectQuery = $projectQuery->clone()->where(['status' => 1, 'is_admin_listing' => 1]);
-                    } else {
-                        $projectQuery = $projectQuery->clone()->where(['status' => 1, 'added_by' => $addedBy]);
+                    }else{
+                        $projectQuery = $projectQuery->clone()->where(['status' => 1, 'request_status' => 'approved','added_by' => $addedBy]);
                     }
                     $totalProjects = $projectQuery->clone()->count();
                     $totalData = $totalProjects;
-                    if ($packageAccessLimit['package_available'] == true && $packageAccessLimit['feature_available'] == true) {
-                        $projectData = $projectQuery->clone()->with('gallary_images', 'category:id,slug_id,image,category')->skip($offset)->take($limit)->get();
+                    if($response['package_available'] == true && $response['feature_available'] == true){
+                        $projectData = $projectQuery->clone()->with('gallary_images','category:id,slug_id,image,category')->skip($offset)->take($limit)->get();
                     }
-                } else {
+                }else{
                     // Create a proeprty query
-                    $propertiesQuery = Property::select('id', 'slug_id', 'city', 'state', 'category_id', 'country', 'price', 'propery_type', 'title', 'title_image', 'is_premium', 'address', 'added_by')
+                    $propertiesQuery = Property::select('id', 'slug_id', 'city', 'state', 'category_id','country', 'price', 'propery_type', 'title', 'title_image', 'is_premium', 'address', 'added_by')
                         ->where(['status' => 1, 'request_status' => 'approved', 'added_by' => $addedBy]);
 
                     // Count total properties
                     $totalProperties = $propertiesQuery->clone()
-                        ->when(($response['feature_available'] == false), function ($query) {
+                        ->when(($response['feature_available'] == false), function($query){
                             $query->where('is_premium', 0);
                         })->count();
 
@@ -4418,11 +4347,11 @@ class ApiController extends Controller
 
                     // Get Propertis Data
                     $propertiesData = $propertiesQuery->clone()
-                        ->when(($response['feature_available'] == false), function ($query) {
+                        ->when(($response['feature_available'] == false), function($query){
                             $query->where('is_premium', 0);
                         })
                         ->with('category:id,slug_id,image,category')
-                        ->orderBy('is_premium', 'DESC')->skip($offset)->take($limit)->get()->map(function ($property) {
+                        ->orderBy('is_premium', 'DESC')->skip($offset)->take($limit)->get()->map(function($property){
                             $property->property_type = $property->propery_type;
                             $property->parameters = $property->parameters;
                             $property->promoted = $property->is_promoted;
@@ -4443,6 +4372,7 @@ class ApiController extends Controller
                     'premium_properties_count'  => $premiumPropertiesCount ?? 0,
                     'package_available'         => $response['package_available'],
                     'feature_available'         => $response['feature_available'],
+
                 ),
                 'message' => 'Data fetched Successfully'
             );
@@ -4457,17 +4387,16 @@ class ApiController extends Controller
     }
 
 
-    public function getWebSettings(Request $request)
-    {
-        try {
+    public function getWebSettings(Request $request){
+        try{
             // Types for web requirement only
-            $types = array('company_name', 'currency_symbol', 'default_language', 'number_with_suffix', 'web_maintenance_mode', 'company_tel', 'company_tel2', 'system_version', 'web_logo', 'web_footer_logo', 'web_placeholder_logo', 'company_email', 'latitude', 'longitude', 'company_address', 'system_color', 'svg_clr', 'iframe_link', 'facebook_id', 'instagram_id', 'twitter_id', 'youtube_id', 'playstore_id', 'sell_background', 'appstore_id', 'category_background', 'web_maintenance_mod', 'seo_settings', 'company_tel1', 'place_api_key', 'stripe_publishable_key', 'paystack_public_key', 'sell_web_color', 'sell_web_background_color', 'rent_web_color', 'rent_web_background_color', 'about_us', 'terms_conditions', 'privacy_policy', 'number_with_otp_login', 'social_login', 'distance_option', 'otp_service_provider', 'text_property_submission', 'auto_approve', 'verification_required_for_user', 'allow_cookies', 'currency_code');
+            $types = array('company_name', 'currency_symbol', 'default_language', 'number_with_suffix', 'web_maintenance_mode', 'company_tel', 'company_tel2', 'system_version','web_favicon', 'web_logo', 'web_footer_logo', 'web_placeholder_logo', 'company_email', 'latitude', 'longitude', 'company_address', 'system_color', 'svg_clr', 'iframe_link', 'facebook_id', 'instagram_id', 'twitter_id', 'youtube_id', 'playstore_id', 'sell_background', 'appstore_id', 'category_background', 'web_maintenance_mod','seo_settings','company_tel1','place_api_key','stripe_publishable_key','paystack_public_key','sell_web_color','sell_web_background_color','rent_web_color','rent_web_background_color','about_us','terms_conditions','privacy_policy','number_with_otp_login','social_login','distance_option','otp_service_provider','text_property_submission','auto_approve', 'verification_required_for_user','allow_cookies', 'currency_code', 'bank_details','schema_for_deeplink','min_radius_range','max_radius_range');
 
             // Query the Types to Settings Table to get its data
-            $result =  Setting::select('type', 'data')->whereIn('type', $types)->get();
+            $result =  Setting::select('type', 'data')->whereIn('type',$types)->get();
 
             // Check the result data is not empty
-            if (collect($result)->isNotEmpty()) {
+            if(collect($result)->isNotEmpty()){
                 $settingsData = array();
 
                 // Loop on the result data
@@ -4485,7 +4414,7 @@ class ApiController extends Controller
                     } else if ($row->type == 'verification_required_for_user') {
                         // Change Value to Bool
                         $settingsData[$row->type] = $row->data == 1 ? true : false;
-                    } else if ($row->type == 'web_logo' || $row->type == 'web_placeholder_logo' || $row->type == 'web_footer_logo') {
+                    } else if ($row->type == 'web_favicon' || $row->type == 'web_logo' || $row->type == 'web_placeholder_logo' || $row->type == 'web_footer_logo') {
                         // Add Full URL to the specified type
                         $settingsData[$row->type] = url('/assets/images/logo/') . '/' . $row->data;
                     } else if ($row->type == 'place_api_key') {
@@ -4494,13 +4423,16 @@ class ApiController extends Controller
                         $encryptedData = '';
                         if (openssl_public_encrypt($row->data, $encryptedData, $publicKey)) {
                             $settingsData[$row->type] = base64_encode($encryptedData);
-                        } else {
+                        }else{
                             $settingsData[$row->type] = "";
                         }
                     } else if ($row->type == 'currency_code') {
                         // Change Value to Bool
                         $settingsData['selected_currency_data'] = HelperService::getCurrencyData($row->data);
-                    } else {
+                    } else if ($row->type == 'bank_details') {
+                        // Change Value to Bool
+                        $settingsData['bank_details'] = json_decode($row->data, true);
+                    } else{
                         // add the data as it is in array
                         $settingsData[$row->type] = $row->data;
                     }
@@ -4518,9 +4450,9 @@ class ApiController extends Controller
                     update_subscription($loggedInUserId);
 
                     $checkVerifiedStatus = VerifyCustomer::where('user_id', $loggedInUserId)->first();
-                    if (!empty($checkVerifiedStatus)) {
+                    if(!empty($checkVerifiedStatus)){
                         $settingsData['verification_status'] = $checkVerifiedStatus->status;
-                    } else {
+                    }else{
                         $settingsData['verification_status'] = 'initial';
                     }
 
@@ -4528,7 +4460,7 @@ class ApiController extends Controller
                     $customerData = $customerDataQuery->clone()->find($loggedInUserId);
 
                     // Check Active of current User
-                    if (collect($customerData)->isNotEmpty()) {
+                    if (collect($customerData)->isNotEmpty()){
                         $settingsData['is_active'] = $customerData->isActive == 1 ? true : false;
                     } else {
                         $settingsData['is_active'] = false;
@@ -4542,12 +4474,19 @@ class ApiController extends Controller
                         $settingsData['is_premium'] = false;
                         $settingsData['subscription'] = false;
                     }
+
                 }
 
 
                 // Check the min_price and max_price
                 $settingsData['min_price'] = DB::table('propertys')->selectRaw('MIN(price) as min_price')->value('min_price');
                 $settingsData['max_price'] = DB::table('propertys')->selectRaw('MAX(price) as max_price')->value('max_price');
+
+                // Check the features available
+                $settingsData['features_available'] = array(
+                    'premium_properties' => HelperService::checkPackageLimit('premium_properties',true)['feature_available'],
+                    'project_access' => HelperService::checkPackageLimit('project_access',true)['feature_available'],
+                );
 
                 // Get Languages Data
                 $language = Language::select('id', 'code', 'name')->get();
@@ -4572,16 +4511,15 @@ class ApiController extends Controller
     }
 
 
-    public function getAppSettings(Request $request)
-    {
-        try {
-            $types = array('company_name', 'currency_symbol', 'ios_version', 'default_language', 'force_update', 'android_version', 'number_with_suffix', 'maintenance_mode', 'company_tel1', 'company_tel2', 'company_email', 'company_address', 'place_api_key', 'svg_clr', 'playstore_id', 'sell_background', 'appstore_id', 'show_admob_ads', 'android_banner_ad_id', 'ios_banner_ad_id', 'android_interstitial_ad_id', 'ios_interstitial_ad_id', 'android_native_ad_id', 'ios_native_ad_id', 'demo_mode', 'min_price', 'max_price', 'privacy_policy', 'terms_conditions', 'about_us', 'number_with_otp_login', 'social_login', 'distance_option', 'otp_service_provider', 'app_home_screen', 'placeholder_logo', 'light_tertiary', 'light_secondary', 'light_primary', 'dark_tertiary', 'dark_secondary', 'dark_primary', 'text_property_submission', 'auto_approve', 'verification_required_for_user', 'currency_code');
+    public function getAppSettings(Request $request){
+        try{
+          $types = array('company_name', 'currency_symbol', 'ios_version', 'default_language', 'force_update', 'android_version', 'number_with_suffix', 'maintenance_mode', 'company_tel1', 'company_tel2', 'company_email', 'company_address', 'place_api_key', 'svg_clr', 'playstore_id', 'sell_background', 'appstore_id', 'show_admob_ads', 'android_banner_ad_id', 'ios_banner_ad_id', 'android_interstitial_ad_id', 'ios_interstitial_ad_id', 'android_native_ad_id', 'ios_native_ad_id', 'demo_mode', 'min_price', 'max_price','privacy_policy', 'terms_conditions','about_us','number_with_otp_login','social_login','distance_option','otp_service_provider','app_home_screen','placeholder_logo','light_tertiary','light_secondary','light_primary','dark_tertiary','dark_secondary','dark_primary','text_property_submission','auto_approve', 'verification_required_for_user', 'currency_code', 'bank_details','schema_for_deeplink','min_radius_range','max_radius_range','latitude','longitude');
 
             // Query the Types to Settings Table to get its data
-            $result =  Setting::select('type', 'data')->whereIn('type', $types)->get();
+            $result =  Setting::select('type', 'data')->whereIn('type',$types)->get();
 
             // Check the result data is not empty
-            if (collect($result)->isNotEmpty()) {
+            if(collect($result)->isNotEmpty()){
                 $settingsData = array();
 
                 // Loop on the result data
@@ -4592,16 +4530,16 @@ class ApiController extends Controller
                         if (openssl_public_encrypt($row->data, $encryptedData, $publicKey)) {
                             $settingsData[$row->type] = base64_encode($encryptedData);
                         }
-                    } else if ($row->type == 'default_language') {
+                    } else if ($row->type == 'default_language'){
                         // Add Code in Data
                         $settingsData[$row->type] = $row->data;
 
                         // Add Default language's name
-                        $languageData = Language::where('code', $row->data)->first();
-                        if (collect($languageData)->isNotEmpty()) {
+                        $languageData = Language::where('code',$row->data)->first();
+                        if(collect($languageData)->isNotEmpty()){
                             $settingsData['default_language_name'] = $languageData->name;
                             $settingsData['default_language_rtl'] = $languageData->rtl == 1 ? 1 : 0;
-                        } else {
+                        }else{
                             $settingsData['default_language_name'] = "";
                             $settingsData['default_language_rtl'] = 0;
                         }
@@ -4613,7 +4551,10 @@ class ApiController extends Controller
                     } else if ($row->type == 'currency_code') {
                         // Change Value to Bool
                         $settingsData['selected_currency_data'] = HelperService::getCurrencyData($row->data);
-                    } else {
+                    } else if ($row->type == 'bank_details') {
+                        // Change Value to Bool
+                        $settingsData['bank_details'] = json_decode($row->data, true);
+                    } else{
                         // add the data as it is in array
                         $settingsData[$row->type] = $row->data;
                     }
@@ -4627,9 +4568,9 @@ class ApiController extends Controller
 
 
                     $checkVerifiedStatus = VerifyCustomer::where('user_id', $loggedInUserId)->first();
-                    if (!empty($checkVerifiedStatus)) {
+                    if(!empty($checkVerifiedStatus)){
                         $settingsData['verification_status'] = $checkVerifiedStatus->status;
-                    } else {
+                    }else{
                         $settingsData['verification_status'] = 'initial';
                     }
 
@@ -4637,7 +4578,7 @@ class ApiController extends Controller
                     $customerData = $customerDataQuery->clone()->find($loggedInUserId);
 
                     // Check Active of current User
-                    if (collect($customerData)->isNotEmpty()) {
+                    if (collect($customerData)->isNotEmpty()){
                         $settingsData['is_active'] = $customerData->isActive == 1 ? true : false;
                     } else {
                         $settingsData['is_active'] = false;
@@ -4651,11 +4592,18 @@ class ApiController extends Controller
                         $settingsData['is_premium'] = false;
                         $settingsData['subscription'] = false;
                     }
+
                 }
 
                 // Check the min_price and max_price
                 $settingsData['min_price'] = DB::table('propertys')->selectRaw('MIN(price) as min_price')->value('min_price');
                 $settingsData['max_price'] = DB::table('propertys')->selectRaw('MAX(price) as max_price')->value('max_price');
+
+                // Check the features available
+                $settingsData['features_available'] = array(
+                    'premium_properties' => HelperService::checkPackageLimit('premium_properties',true)['feature_available'],
+                    'project_access' => HelperService::checkPackageLimit('project_access',true)['feature_available'],
+                );
 
                 // Get Languages Data
                 $language = Language::select('id', 'code', 'name')->get();
@@ -4679,11 +4627,10 @@ class ApiController extends Controller
         }
     }
 
-    public function getLanguagesData()
-    {
+    public function getLanguagesData(){
         try {
             $languageData = Language::select('id', 'code', 'name')->get();
-            if (collect($languageData)->isNotEmpty()) {
+            if(collect($languageData)->isNotEmpty()){
                 $response['error'] = false;
                 $response['message'] = "Data Fetch Successfully";
                 $response['data'] = $languageData;
@@ -4713,9 +4660,9 @@ class ApiController extends Controller
             $offset = isset($request->offset) ? $request->offset : 0;
             $limit = isset($request->limit) ? $request->limit : 10;
 
-            $faqsQuery = Faq::where('status', 1);
+            $faqsQuery = Faq::where('status',1);
             $totalData = $faqsQuery->clone()->count();
-            $faqsData = $faqsQuery->clone()->select('id', 'question', 'answer')->orderBy('id', 'DESC')->skip($offset)->take($limit)->get();
+            $faqsData = $faqsQuery->clone()->select('id','question','answer')->orderBy('id','DESC')->skip($offset)->take($limit)->get();
             $response = array(
                 'error' => false,
                 'total' => $totalData ?? 0,
@@ -4735,10 +4682,9 @@ class ApiController extends Controller
     /**
      * beforeLogout API
      */
-    public function beforeLogout(Request $request)
-    {
+    public function beforeLogout(Request $request){
         try {
-            if ($request->has('fcm_id')) {
+            if($request->has('fcm_id')){
                 Usertokens::where(['fcm_id' => $request->fcm_id, 'customer_id' => $request->user()->id])->delete();
             }
             $response = array(
@@ -4755,8 +4701,7 @@ class ApiController extends Controller
         }
     }
 
-    public function getOtp(Request $request)
-    {
+    public function getOtp(Request $request){
         $validator = Validator::make($request->all(), [
             'number' => 'required_without:email|nullable',
             'email' => 'required_without:number|email|nullable|exists:customers,email',
@@ -4769,17 +4714,17 @@ class ApiController extends Controller
         }
         try {
             $otpRecordDB = NumberOtp::query();
-            if ($request->has('number') && !empty($request->number)) {
+            if($request->has('number') && !empty($request->number)){
                 $requestNumber = $request->number; // Get data from Request
-                $trimmedNumber = ltrim($requestNumber, '+'); // remove + from starting if exists
-                $toNumber = "+" . (string)$trimmedNumber; // Add + starting of number
+                $trimmedNumber = ltrim($requestNumber,'+'); // remove + from starting if exists
+                $toNumber = "+".(string)$trimmedNumber; // Add + starting of number
 
                 // Initialize empty array
                 $dbData = array();
 
                 // make an array of types for database query and get data from settings table
-                $twilioCredentialsTypes = array('twilio_account_sid', 'twilio_auth_token', 'twilio_my_phone_number');
-                $twilioCredentialsDB = Setting::select('type', 'data')->whereIn('type', $twilioCredentialsTypes)->get();
+                $twilioCredentialsTypes = array('twilio_account_sid','twilio_auth_token','twilio_my_phone_number');
+                $twilioCredentialsDB = Setting::select('type','data')->whereIn('type',$twilioCredentialsTypes)->get();
 
                 // Loop the db result in such a way that type becomes key of array and data becomes its value in new array
                 foreach ($twilioCredentialsDB as $value) {
@@ -4805,11 +4750,12 @@ class ApiController extends Controller
                 }
                 // Check if OTP already exists and is still valid
                 $existingOtp = $otpRecordDB->clone()->where('number', $toNumber)->first();
-            } else if ($request->has('email') && !empty($request->email)) {
+
+            }else if ($request->has('email') && !empty($request->email)){
                 $toEmail = $request->email;
                 // Check if OTP already exists and is still valid
                 $existingOtp = $otpRecordDB->clone()->where('email', $toEmail)->first();
-            } else {
+            }else{
                 ApiResponseService::errorResponse();
             }
 
@@ -4821,7 +4767,7 @@ class ApiController extends Controller
                 $otp = rand(123456, 999999);
                 $expireAt = now()->addMinutes(10); // Set OTP expiry time
 
-                if ($request->has('number') && !empty($request->number)) {
+                if ($request->has('number') && !empty($request->number)){
                     // Update or create OTP entry in the database
                     NumberOtp::updateOrCreate(
                         ['number' => $toNumber],
@@ -4836,23 +4782,23 @@ class ApiController extends Controller
                             // A Twilio phone number you purchased at https://console.twilio.com
                             'from' => $fromNumber,
                             // The body of the text message you'd like to send
-                            'body' => "Here is the OTP: " . $otp . ". It expires in 3 minutes."
+                            'body' => "Here is the OTP: ".$otp.". It expires in 3 minutes."
                         ]
                     );
                     /** Note :- While using Trial accounts cannot send messages to unverified numbers, or purchase a Twilio number to send messages to unverified numbers.*/
-                } else if ($request->has('email') && !empty($request->email)) {
+                }else if ($request->has('email') && !empty($request->email)){
                     // Update or create OTP entry in the database
                     NumberOtp::updateOrCreate(
                         ['email' => $toEmail],
                         ['otp' => $otp, 'expire_at' => $expireAt]
                     );
-                } else {
+                }else{
                     ApiResponseService::errorResponse();
                 }
             }
 
 
-            if ($request->has('email') && !empty($request->email)) {
+            if($request->has('email') && !empty($request->email)){
                 try {
                     // Get Data of email type
                     $emailTypeData = HelperService::getEmailTemplatesTypes("verify_mail");
@@ -4863,10 +4809,10 @@ class ApiController extends Controller
                         'app_name' => env("APP_NAME") ?? "eBroker",
                         'otp' => $otp
                     );
-                    if (empty($verifyEmailTemplateData)) {
+                    if(empty($verifyEmailTemplateData)){
                         $verifyEmailTemplateData = "Your OTP is :- $otp";
                     }
-                    $verifyEmailTemplate = HelperService::replaceEmailVariables($verifyEmailTemplateData, $variables);
+                    $verifyEmailTemplate = HelperService::replaceEmailVariables($verifyEmailTemplateData,$variables);
 
                     $data = array(
                         'email_template' => $verifyEmailTemplate,
@@ -4894,6 +4840,7 @@ class ApiController extends Controller
                 'error' => false,
                 'message' => 'OTP sent successfully!',
             ]);
+
         } catch (Exception $e) {
             return response()->json([
                 'error' => true,
@@ -4902,8 +4849,7 @@ class ApiController extends Controller
         }
     }
 
-    public function verifyOtp(Request $request)
-    {
+    public function verifyOtp(Request $request) {
         $validator = Validator::make($request->all(), [
             'number' => 'required_without:email|nullable',
             'email' => 'required_without:number|nullable',
@@ -4919,18 +4865,18 @@ class ApiController extends Controller
 
         try {
             $otpRecordDB = NumberOtp::query();
-            if ($request->has('number') && !empty($request->number)) {
+            if($request->has('number') && !empty($request->number)){
                 $requestNumber = $request->number; // Get data from Request
-                $trimmedNumber = ltrim($requestNumber, '+'); // remove + from starting if exists
-                $toNumber = "+" . (string)$trimmedNumber; // Add + starting of number
+                $trimmedNumber = ltrim($requestNumber,'+'); // remove + from starting if exists
+                $toNumber = "+".(string)$trimmedNumber; // Add + starting of number
 
                 // Fetch the OTP record from the database
-                $otpRecord = $otpRecordDB->clone()->where('number', $toNumber)->first();
-            } else if ($request->has('email') && !empty($request->email)) {
+                $otpRecord = $otpRecordDB->clone()->where('number',$toNumber)->first();
+            }else if ($request->has('email') && !empty($request->email)){
                 $toEmail = $request->email;
                 // Fetch the OTP record from the database
-                $otpRecord = $otpRecordDB->clone()->where('email', $toEmail)->first();
-            } else {
+                $otpRecord = $otpRecordDB->clone()->where('email',$toEmail)->first();
+            }else{
                 ApiResponseService::errorResponse();
             }
             $userOtp = $request->otp;
@@ -4945,23 +4891,23 @@ class ApiController extends Controller
             // Check if the OTP is valid and not expired
             if ($otpRecord->otp == $userOtp && now()->isBefore($otpRecord->expire_at)) {
 
-                if ($request->has('number') && !empty($request->number)) {
+                if($request->has('number') && !empty($request->number)){
                     // Check the number and login type exists in user table
-                    $user = Customer::where('mobile', $trimmedNumber)->where('logintype', 1)->first();
-                } else if ($request->has('email') && !empty($request->email)) {
+                    $user = Customer::where('mobile', $trimmedNumber)->where('logintype',1)->first();
+                } else if ($request->has('email') && !empty($request->email)){
                     // Check the email and login type exists in user table
-                    $user = Customer::where('email', $toEmail)->where('logintype', 3)->first();
-                } else {
+                    $user = Customer::where('email', $toEmail)->where('logintype',3)->first();
+                }else{
                     ApiResponseService::errorResponse();
                 }
 
-                if (collect($user)->isNotEmpty()) {
+                if(collect($user)->isNotEmpty()){
                     $authId = $user->auth_id;
-                } else {
+                }else{
                     // Generate a unique identifier
                     $authId = Str::uuid()->toString();
                 }
-                if ($request->has('email') && !empty($request->email)) {
+                if ($request->has('email') && !empty($request->email)){
                     // Check the email and login type exists in user table
                     $user->is_email_verified = true;
                     $user->save();
@@ -4972,13 +4918,14 @@ class ApiController extends Controller
                     'message' => 'OTP verified successfully!',
                     'auth_id' => $authId
                 ]);
-            } else if ($otpRecord->otp != $userOtp) {
+            } else if ($otpRecord->otp != $userOtp){
                 ApiResponseService::validationError("Invalid OTP.");
-            } else if (now()->isAfter($otpRecord->expire_at)) {
+            } else if (now()->isAfter($otpRecord->expire_at)){
                 ApiResponseService::validationError("OTP expired.");
-            } else {
+            } else{
                 ApiResponseService::errorResponse();
             }
+
         } catch (Exception $e) {
             return response()->json([
                 'error' => true,
@@ -4988,15 +4935,23 @@ class ApiController extends Controller
     }
 
 
-    public function getPropertyList(Request $request)
-    {
+    public function getPropertyList(Request $request){
         try {
+            $validator = Validator::make($request->all(), [
+                'offset'                        => 'nullable|numeric',
+                'limit'                         => 'nullable|numeric',
+                'get_all_premium_properties'    => 'nullable|in:1',
+            ]);
+            if ($validator->fails()) {
+                ApiResponseService::validationError($validator->errors()->first());
+            }
+
             // Get Offset and Limit from payload request
             $offset = isset($request->offset) ? $request->offset : 0;
             $limit = isset($request->limit) ? $request->limit : 10;
 
             // Create a property query
-            $propertyQuery = Property::whereIn('propery_type', [0, 1])->where(function ($query) {
+            $propertyQuery = Property::whereIn('propery_type',[0,1])->where(function($query){
                 return $query->where(['status' => 1, 'request_status' => 'approved']);
             });
 
@@ -5018,17 +4973,17 @@ class ApiController extends Controller
 
             // If parameter id passed
             if ($request->has('parameter_id') && !empty($request->parameter_id)) {
-                $parametersId = explode(",", $request->parameter_id);
-                $propertyQuery = $propertyQuery->clone()->whereHas('assignParameter', function ($query) use ($parametersId) {
-                    $query->whereIn('parameter_id', $parametersId)->whereNotNull('value');
+                $parametersId = explode(",",$request->parameter_id);
+                $propertyQuery = $propertyQuery->clone()->whereHas('assignParameter',function($query) use($parametersId){
+                    $query->whereIn('parameter_id',$parametersId)->whereNotNull('value');
                 });
             }
 
             // If Category Slug is Passed
             if ($request->has('category_slug_id') && !empty($request->category_slug_id)) {
                 $categorySlugId = $request->category_slug_id;
-                $propertyQuery = $propertyQuery->clone()->whereHas('category', function ($query) use ($categorySlugId) {
-                    $query->where('slug_id', $categorySlugId);
+                $propertyQuery = $propertyQuery->clone()->whereHas('category',function($query)use($categorySlugId){
+                    $query->where('slug_id',$categorySlugId);
                 });
             }
 
@@ -5050,12 +5005,12 @@ class ApiController extends Controller
             // If Max Price And Min Price passed
             if ($request->has('min_price') && !empty($request->min_price)) {
                 $minPrice = $request->min_price;
-                $propertyQuery = $propertyQuery->clone()->where('price', '>=', $minPrice);
+                $propertyQuery = $propertyQuery->clone()->where('price','>=',$minPrice);
             }
 
             if (isset($request->max_price) && !empty($request->max_price)) {
                 $maxPrice = $request->max_price;
-                $propertyQuery = $propertyQuery->clone()->where('price', '<=', $maxPrice);
+                $propertyQuery = $propertyQuery->clone()->where('price','<=',$maxPrice);
             }
 
             // If Posted Since 0 or 1 is passed
@@ -5087,28 +5042,63 @@ class ApiController extends Controller
                 });
             }
 
-            // If Top Rated passed then show the property data with Order by on Total Click Descending
-            if ($request->has('most_viewed') && $request->most_viewed == 1) {
-                $propertyQuery = $propertyQuery->clone()->orderBy('total_click', 'DESC');
-            }
-
-            // IF Most Liked Passed then show the data according to
-            if ($request->has('most_liked') && $request->most_liked == 1) {
-                $propertyQuery = $propertyQuery->clone()->orderBy('favourite_count', 'DESC');
-            }
-
             // IF Promoted Passed then show the data according to
             if ($request->has('promoted') && $request->promoted == 1) {
-                $propertyQuery = $propertyQuery->clone()->whereHas('advertisement', function ($query) {
+                $propertyQuery = $propertyQuery->clone()->whereHas('advertisement',function($query){
                     $query->where(['status' => 0, 'is_enable' => 1]);
                 });
+            }
+
+            // If get_all_premium_properties is passed then show the data according to
+            if ($request->has('get_all_premium_properties') && $request->get_all_premium_properties == 1) {
+                $propertyQuery = $propertyQuery->clone()->where('is_premium',1);
             }
 
             // Get total properties
             $totalProperties = $propertyQuery->clone()->count();
 
+            // If Most Viewed Passed then show the property data with Order by on Total Click Descending
+            if($request->has('most_viewed') && $request->most_viewed == 1){
+                $propertyQuery = $propertyQuery->clone()->orderBy('total_click', 'DESC');
+            }
+            // If Most Liked Passed then show the property data with Order by on Total Click Descending
+            else if($request->has('most_liked') && $request->most_liked == 1){
+                $propertyQuery = $propertyQuery->clone()->orderBy('favourite_count', 'DESC');
+            }else{
+                // If No Most Viewed or Most Liked Passed then show the property data with Order by on Id Descending
+                $propertyQuery = $propertyQuery->clone()->orderBy('id', 'DESC');
+            }
+
             // Get properties list data
-            $propertiesData = $propertyQuery->clone()->with('category:id,category,image,slug_id')->select('id', 'slug_id', 'propery_type', 'title_image', 'category_id', 'title', 'price', 'city', 'state', 'country', 'rentduration', 'added_by', 'is_premium', 'property_classification')->withCount('favourite')->orderBy('id', 'DESC')->skip($offset)->take($limit)->get()->map(function ($property) {
+            $propertiesData = $propertyQuery->clone()
+            ->with('category:id,category,image,slug_id')
+            ->select('id','slug_id','propery_type','title_image','category_id','title','price','city','state','country','rentduration','added_by','is_premium', 'property_classification','latitude','longitude','total_click')
+            ->withCount('favourite');
+
+            // Latitude and Longitude
+            if ($request->has('latitude') && !empty($request->latitude) && $request->has('longitude') && !empty($request->longitude)) {
+                if($request->has('radius') && !empty($request->radius)){
+
+                    // Get the distance from the latitude and longitude
+                    $propertyQuery = $propertyQuery->clone()->selectRaw("
+                            (6371 * acos(cos(radians($request->latitude))
+                            * cos(radians(latitude))
+                            * cos(radians(longitude) - radians($request->longitude))
+                            + sin(radians($request->latitude))
+                            * sin(radians(latitude)))) AS distance")
+                        ->where('latitude', '!=', 0)
+                        ->where('longitude', '!=', 0)
+                        ->having('distance', '<', $request->radius);
+                }else{
+                    $propertyQuery = $propertyQuery->clone()->where('latitude',$request->latitude)->where('longitude',$request->longitude);
+                }
+            }
+
+
+            $propertiesData = $propertiesData->skip($offset)
+            ->take($limit)
+            ->get()
+            ->map(function($property){
                 $property->promoted = $property->is_promoted;
                 $property->is_premium = $property->is_premium == 1 ? true : false;
                 $property->property_type = $property->propery_type;
@@ -5187,34 +5177,31 @@ class ApiController extends Controller
     // }
 
 
-    public function getAgentVerificationFormFields(Request $request)
-    {
-        $data = VerifyCustomerForm::where('status', 'active')->with('form_fields_values:id,verify_customer_form_id,value')->select('id', 'name', 'field_type')->get();
+    public function getAgentVerificationFormFields(Request $request){
+        $data = VerifyCustomerForm::where('status','active')->with('form_fields_values:id,verify_customer_form_id,value')->select('id','name','field_type')->get();
 
         if (collect($data)->isNotEmpty()) {
-            ApiResponseService::successResponse("Data Fetched Successfully", $data, array(), 200);
+            ApiResponseService::successResponse("Data Fetched Successfully",$data,array(),200);
         } else {
             ApiResponseService::successResponse("No data found!");
         }
     }
 
-    public function getAgentVerificationFormValues(Request $request)
-    {
-        $data = VerifyCustomer::where('user_id', Auth::user()->id)->with(['user' => function ($query) {
+    public function getAgentVerificationFormValues(Request $request){
+        $data = VerifyCustomer::where('user_id', Auth::user()->id)->with(['user' => function($query){
             $query->select('id', 'name', 'profile')->withCount(['property', 'projects']);
-        }])->with(['verify_customer_values' => function ($query) {
-            $query->with('verify_form:id,name,field_type', 'verify_form.form_fields_values:id,verify_customer_form_id,value')->select('id', 'verify_customer_id', 'verify_customer_form_id', 'value');
+        }])->with(['verify_customer_values' => function($query){
+            $query->with('verify_form:id,name,field_type','verify_form.form_fields_values:id,verify_customer_form_id,value')->select('id','verify_customer_id','verify_customer_form_id','value');
         }])->first();
 
         if (collect($data)->isNotEmpty()) {
-            ApiResponseService::successResponse("Data Fetched Successfully", $data, array(), 200);
+            ApiResponseService::successResponse("Data Fetched Successfully",$data,array(),200);
         } else {
             ApiResponseService::successResponse("No data found!");
         }
     }
 
-    public function applyAgentVerification(Request $request)
-    {
+    public function applyAgentVerification(Request $request) {
         $validator = Validator::make($request->all(), [
             'form_fields'           => 'required|array',
             'form_fields.*.id'      => 'required|exists:verify_customer_forms,id',
@@ -5343,8 +5330,7 @@ class ApiController extends Controller
         }
     }
 
-    public function calculateMortgageCalculator(Request $request)
-    {
+    public function calculateMortgageCalculator(Request $request) {
         $validator = Validator::make($request->all(), [
             'down_payment' => 'nullable|lt:loan_amount',
             'show_all_details' => 'nullable|in:1'
@@ -5361,7 +5347,7 @@ class ApiController extends Controller
             $interestRate = $request->interest_rate; // Annual interest rate in percentage
             $loanTermYear = $request->loan_term_years; // Loan term in years
             $showAllDetails = 0;
-            if ($request->show_all_details == 1) {
+            if($request->show_all_details == 1){
                 if (Auth::guard('sanctum')->check()) {
                     $packageLimit = HelperService::checkPackageLimit('mortgage_calculator_detail');
                     if ($packageLimit == true) {
@@ -5371,7 +5357,7 @@ class ApiController extends Controller
             }
 
             $schedule = $this->mortgageCalculation($loanAmount, $downPayment, $interestRate, $loanTermYear, $showAllDetails);
-            ApiResponseService::successResponse('Data Fetched Successfully', $schedule, [], 200);
+            ApiResponseService::successResponse('Data Fetched Successfully',$schedule,[],200);
         } catch (Exception $e) {
             ApiResponseService::logErrorResponse($e, $e->getMessage(), 'Something Went Wrong');
         }
@@ -5393,24 +5379,26 @@ class ApiController extends Controller
                 ->with('documents')
                 ->with('plans')
                 ->with('category:id,category,image')
-                ->where(function ($query) {
-                    $query->where(['request_status' => 'approved', 'status' => 1]);
+                ->where(function($query){
+                    $query->where(['request_status' => 'approved','status' => 1]);
                 });
 
             if ($request->get_similar == 1) {
-                if ($request->has('id') && !empty($request->id)) {
-                    $getSimilarProjects = $project->clone()->where('id', '!=', $request->id)->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'type', 'image', 'location', 'category_id', 'added_by', 'request_status')->get();
-                } else if ($request->has('slug_id') && !empty($request->slug_id)) {
-                    $getSimilarProjects = $project->clone()->where('slug_id', '!=', $request->slug_id)->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'type', 'image', 'location', 'category_id', 'added_by', 'request_status')->get();
+                if($request->has('id') && !empty($request->id)){
+                    $getSimilarProjects = $project->clone()->where('id', '!=', $request->id)->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'type', 'image', 'location','category_id','added_by','request_status')->get();
+                }else if($request->has('slug_id') && !empty($request->slug_id)){
+                    $getSimilarProjects = $project->clone()->where('slug_id', '!=', $request->slug_id)->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'type', 'image', 'location','category_id','added_by','request_status')->get();
                 }
             }
 
             if ($request->id) {
-                $project = $project->clone()->where('id', $request->id);
+                $project = $project->clone()->where('id',$request->id);
+                HelperService::incrementTotalClick('project',$request->id);
             }
 
             if ($request->slug_id) {
-                $project = $project->clone()->where('slug_id', $request->slug_id);
+                $project = $project->clone()->where('slug_id',$request->slug_id);
+                HelperService::incrementTotalClick('project',null,$request->slug_id);
             }
 
             $total = $project->clone()->count();
@@ -5453,36 +5441,48 @@ class ApiController extends Controller
         }
     }
 
-    public function getAddedProjects(Request $request)
-    {
-        try {
+    public function getAddedProjects(Request $request){
+        try{
             $user = Auth::user();
 
 
             // Base query for selected columns
             $projectsQuery = Projects::where('added_by', $user->id)
-                ->with('category:id,slug_id,image,category', 'gallary_images', 'customer:id,name,profile,email,mobile');
+            ->with('category:id,slug_id,image,category', 'gallary_images', 'customer:id,name,profile,email,mobile');
 
             // Check if either id or slug_id is provided
             if ($request->filled('id') || $request->filled('slug_id')) {
                 $specificProjectsQuery = $projectsQuery->clone()
-                    ->where(function ($query) use ($request) {
+                    ->where(function($query) use($request){
                         $query->when($request->filled('id'), function ($query) use ($request) {
                             return $query->where('id', $request->id);
                         })
-                            ->when($request->filled('slug_id'), function ($query) use ($request) {
-                                return $query->orWhere('slug_id', $request->slug_id);
-                            });
+                        ->when($request->filled('slug_id'), function ($query) use ($request) {
+                            return $query->orWhere('slug_id', $request->slug_id);
+                        });
                     });
-                $data = $specificProjectsQuery->clone()->first();
-                // Get Similar Projects
-                if ($request->has('id')) {
-                    $getSimilarProjects = $projectsQuery->clone()->where('id', '!=', $request->id)->get();
-                } else if ($request->has('slug_id')) {
-                    $getSimilarProjects = $projectsQuery->clone()->where('slug_id', '!=', $request->slug_id)->get();
-                }
+                    $data = $specificProjectsQuery->clone()->first();
+                    if(collect($data)->isNotEmpty()){
+                        $data = $data->toArray();
+                        $data['created_at'] = Carbon::parse($data['created_at'])->diffForHumans();
+                    }
+                    // Get Similar Projects
+                    if($request->has('id')){
+                        $getSimilarProjects = $projectsQuery->clone()->where('id','!=',$request->id)->get()->map(function ($project) {
+                            $array = $project->toArray();
+                            $array['created_at'] = Carbon::parse($project->created_at)->diffForHumans();
+                            return $array;
+                        });
+                    }
+                    else if($request->has('slug_id')){
+                        $getSimilarProjects = $projectsQuery->clone()->where('slug_id','!=',$request->slug_id)->get()->map(function($project){
+                            $projectArray = $project->toArray(); // detach from Eloquent model
+                            $projectArray['created_at'] = Carbon::parse($project->created_at)->diffForHumans();
+                            return $projectArray;
+                        });
+                    }
 
-                ApiResponseService::successResponse("Data Fetched Successfully", $data, array('similar_projects' => $getSimilarProjects));
+                    ApiResponseService::successResponse("Data Fetched Successfully",$data,array('similar_projects' => $getSimilarProjects));
             } else {
 
                 $offset = isset($request->offset) ? $request->offset : 0;
@@ -5490,80 +5490,104 @@ class ApiController extends Controller
 
                 // If neither id nor slug_id is provided, use the base query for selected columns
                 $projectsQuery = $projectsQuery->clone()
-                    ->when($request->filled('request_status'), function ($query) use ($request) {
-                        // IF Request Status is passed and status has approved or rejected or pending or all
-                        $requestAccessData = explode(',', $request->request_status);
-                        return $query->whereIn('request_status', $requestAccessData);
-                    })->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'type', 'image', 'location', 'status', 'category_id', 'added_by', 'created_at', 'request_status');
+                        ->when($request->filled('request_status'), function ($query) use ($request) {
+                            // IF Request Status is passed and status has approved or rejected or pending or all
+                            $requestAccessData = explode(',', $request->request_status);
+                            return $query->whereIn('request_status', $requestAccessData);
+                        })->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'type', 'image', 'location', 'status', 'category_id', 'added_by', 'created_at', 'request_status');
                 // Get Total
                 $total = $projectsQuery->clone()->count();
 
                 // Get Data
-                $data = $projectsQuery->clone()->take($limit)->skip($offset)->get()->map(function ($project) {
+                $data = $projectsQuery->clone()->take($limit)->skip($offset)->get()->map(function($project){
                     $project->reject_reason = (object)array();
-                    if ($project->request_status == 'rejected') {
-                        $project->reject_reason = $project->reject_reason()->select('id', 'project_id', 'reason', 'created_at')->latest()->first();
+                    if($project->request_status == 'rejected'){
+                        $project->reject_reason = $project->reject_reason()->select('id','project_id','reason','created_at')->latest()->first();
                     }
-                    return $project;
+                    $projectArray = $project->toArray();
+                    $projectArray['created_at'] = $project->created_at->diffForHumans();
+                    return $projectArray;
                 });
-                ApiResponseService::successResponse("Data Fetched Successfully", $data, array('total' => $total));
+                ApiResponseService::successResponse("Data Fetched Successfully",$data,array('total' => $total));
             }
         } catch (Exception $e) {
             ApiResponseService::errorResponse();
         }
     }
 
-    public function getProjects(Request $request)
-    {
-        // try{
-        $offset = isset($request->offset) ? $request->offset : 0;
-        $limit = isset($request->limit) ? $request->limit : 10;
+    public function getProjects(Request $request){
+        try{
+            $offset = isset($request->offset) ? $request->offset : 0;
+            $limit = isset($request->limit) ? $request->limit : 10;
+            $latitude = $request->has('latitude') ? $request->latitude : null;
+            $longitude = $request->has('longitude') ? $request->longitude : null;
+            $radius = $request->has('radius') ? $request->radius : null;
 
-        // Query
-        $projectsQuery = Projects::where(['request_status' => 'approved', 'status' => 1])
-            ->with('category:id,slug_id,image,category', 'gallary_images', 'customer:id,name,profile,email,mobile,slug_id')
-            ->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'type', 'image', 'status', 'location', 'category_id', 'added_by', 'is_admin_listing', 'request_status');
+            // Query
+            $projectsQuery = Projects::where(['request_status' => 'approved','status' => 1])
+                        ->with('category:id,slug_id,image,category', 'gallary_images', 'customer:id,name,profile,email,mobile,slug_id')
+                        ->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'type', 'image', 'status', 'location','category_id','added_by','is_admin_listing','request_status')
+                        ->when($latitude && $longitude, function($query) use($latitude, $longitude, $radius){
+                            if($radius && !empty($radius)){
+                                $query->selectRaw("
+                                    (6371 * acos(cos(radians($latitude))
+                                    * cos(radians(latitude))
+                                    * cos(radians(longitude) - radians($longitude))
+                                    + sin(radians($latitude))
+                                    * sin(radians(latitude)))) AS distance")
+                                    ->where('latitude', '!=', 0)
+                                    ->where('longitude', '!=', 0)
+                                    ->having('distance', '<', $radius);
+                            }else{
+                                $query->where(['latitude' => $latitude, 'longitude' => $longitude]);
+                            }
+                        })
+                        ->when($request->filled('get_featured') && $request->get_featured == 1, function ($query) use ($request) {
+                            return $query->whereHas('advertisement', function ($query) {
+                                $query->where('for', 'project')->where('status', 0)->where('is_enable', 1);
+                            });
+                        });
 
-        $postedSince = $request->posted_since;
-        if (isset($postedSince)) {
-            // 0: last_week   1: yesterday
-            if ($postedSince == 0) {
-                $projectsQuery = $projectsQuery->clone()->whereBetween(
-                    'created_at',
-                    [Carbon::now()->subWeek()->startOfWeek(), Carbon::now()->subWeek()->endOfWeek()]
-                );
+            $postedSince = $request->posted_since;
+            if (isset($postedSince)) {
+                // 0: last_week   1: yesterday
+                if ($postedSince == 0) {
+                    $projectsQuery = $projectsQuery->clone()->whereBetween(
+                        'created_at',
+                        [Carbon::now()->subWeek()->startOfWeek(), Carbon::now()->subWeek()->endOfWeek()]
+                    );
+                }
+                if ($postedSince == 1) {
+                    $projectsQuery =  $projectsQuery->clone()->whereDate('created_at', Carbon::yesterday());
+                }
             }
-            if ($postedSince == 1) {
-                $projectsQuery =  $projectsQuery->clone()->whereDate('created_at', Carbon::yesterday());
-            }
+
+            // Get Total
+            $total = $projectsQuery->clone()->count();
+
+            // Get Admin Company Details
+            $adminCompanyTel1 = system_setting('company_tel1');
+            $adminEmail = system_setting('company_email');
+            $adminUser = User::where('id',1)->select('id','slug_id')->first();
+
+            // Get Data
+            $data = $projectsQuery->clone()->take($limit)->skip($offset)->get()->map(function($project) use($adminCompanyTel1,$adminEmail,$adminUser){
+                // Check if listing is by admin then add admin details in customer
+                if ($project->is_admin_listing == true) {
+                    unset($project->customer);
+                    $project->customer = array(
+                        'name' => "Admin",
+                        'email' => $adminEmail,
+                        'mobile' => $adminCompanyTel1,
+                        'slug_id' => $adminUser->slug_id
+                    );
+                }
+                return $project;
+            });
+            ApiResponseService::successResponse("Data Fetched Successfully",$data,array('total' => $total));
+        } catch (Exception $e) {
+            ApiResponseService::errorResponse();
         }
-
-        // Get Total
-        $total = $projectsQuery->clone()->count();
-
-        // Get Admin Company Details
-        $adminCompanyTel1 = system_setting('company_tel1');
-        $adminEmail = system_setting('company_email');
-        $adminUser = User::where('id', 1)->select('id', 'slug_id')->first();
-
-        // Get Data
-        $data = $projectsQuery->clone()->take($limit)->skip($offset)->get()->map(function ($project) use ($adminCompanyTel1, $adminEmail, $adminUser) {
-            // Check if listing is by admin then add admin details in customer
-            if ($project->is_admin_listing == true) {
-                unset($project->customer);
-                $project->customer = array(
-                    'name' => "Admin",
-                    'email' => $adminEmail,
-                    'mobile' => $adminCompanyTel1,
-                    'slug_id' => $adminUser->slug_id
-                );
-            }
-            return $project;
-        });
-        ApiResponseService::successResponse("Data Fetched Successfully", $data, array('total' => $total));
-        // } catch (Exception $e) {
-        //     ApiResponseService::errorResponse();
-        // }
     }
 
     public function flutterwave(Request $request)
@@ -5578,7 +5602,7 @@ class ApiController extends Controller
             DB::beginTransaction();
             $packageId = $request->package_id;
             $package = Package::where(['id' => $packageId, 'status' => 1])->first(); // Get price data from the database
-            if (collect($package)->isEmpty()) {
+            if(collect($package)->isEmpty()){
                 ApiResponseService::validationError("Package Not Found");
             }
 
@@ -5598,7 +5622,8 @@ class ApiController extends Controller
                 'amount'          => $package->price,
                 'payment_gateway' => "Flutterwave",
                 'payment_status'  => 'pending',
-                'order_id'        => $reference
+                'order_id'        => $reference,
+                'payment_type'    => 'online payment'
             ]);
 
             // Enter the details of the payment
@@ -5623,9 +5648,9 @@ class ApiController extends Controller
 
             if (empty($payment) || $payment['status'] !== 'success') {
                 ApiResponseService::validationError("Payment Failed");
-            } else {
+            }else{
                 DB::commit();
-                ApiResponseService::successResponse("Data Fetched Successfully", $payment);
+                ApiResponseService::successResponse("Data Fetched Successfully",$payment);
             }
         } catch (Exception $e) {
             DB::rollBack();
@@ -5638,36 +5663,36 @@ class ApiController extends Controller
         $flutterwavePaymentInfo = $request->all();
         // Get Web URL
         $webURL = system_setting('web_url') ?? null;
-        if (isset($flutterwavePaymentInfo) && !empty($flutterwavePaymentInfo) && isset($flutterwavePaymentInfo['status']) && !empty($flutterwavePaymentInfo['status'])) {
-            if ($flutterwavePaymentInfo['status'] == "successful") {
-                $webWithStatusURL = $webURL . '/payment/success';
+        if (isset($flutterwavePaymentInfo) && !empty($flutterwavePaymentInfo) && isset($flutterwavePaymentInfo['status']) && !empty($flutterwavePaymentInfo['status'])){
+            if($flutterwavePaymentInfo['status'] == "successful") {
+                $webWithStatusURL = $webURL.'/payment/success';
                 $response['error'] = false;
                 $response['message'] = "Your Purchase Package Activate Within 10 Minutes ";
                 $response['data'] = $flutterwavePaymentInfo;
             } else {
                 $trxRef = $flutterwavePaymentInfo['tx_ref'];
-                PaymentTransaction::where('order_id', $trxRef)->update(['payment_status' => 'failed']);
-                $webWithStatusURL = $webURL . '/payment/fail';
+                PaymentTransaction::where('order_id',$trxRef)->update(['payment_status' => 'failed']);
+                $webWithStatusURL = $webURL.'/payment/fail';
                 $response['error'] = true;
                 $response['message'] = "Payment Cancelled / Declined ";
                 $response['data'] = !empty($flutterwavePaymentInfo) ? $flutterwavePaymentInfo : "";
             }
-        } else {
-            $webWithStatusURL = $webURL . '/payment/fail';
+        }else{
+            $webWithStatusURL = $webURL.'/payment/fail';
             $response['error'] = true;
             $response['message'] = "Payment Cancelled / Declined ";
         }
 
-        if ($webURL) {
+        if($webURL){
             echo "<html>
             <body>
             Redirecting...!
             </body>
             <script>
-                window.location.replace('" . $webWithStatusURL . "');
+                window.location.replace('".$webWithStatusURL."');
             </script>
             </html>";
-        } else {
+        }else{
             echo "<html>
             <body>
             Redirecting...!
@@ -5680,11 +5705,10 @@ class ApiController extends Controller
         // return (response()->json($response));
     }
 
-    public function blockChatUser(Request $request)
-    {
+    public function blockChatUser(Request $request) {
         $userId = Auth::user()->id;
 
-        $validator = Validator::make($request->all(), [
+        $validator = Validator::make($request->all(),[
             'to_user_id' => [
                 'required_without:to_admin',
                 'exists:customers,id',
@@ -5706,19 +5730,19 @@ class ApiController extends Controller
                 'by_user_id' => $userId,
                 'reason' => $request->reason ?? null
             );
-            if ($request->has('to_user_id') && !empty($request->to_user_id)) {
-                $ifExtryExists = BlockedChatUser::where(['by_user_id' => $userId, 'user_id' => $request->to_user_id])->count();
-                if ($ifExtryExists) {
+            if($request->has('to_user_id') && !empty($request->to_user_id)){
+                $ifExtryExists = BlockedChatUser::where(['by_user_id' => $userId,'user_id' => $request->to_user_id])->count();
+                if($ifExtryExists){
                     ApiResponseService::validationError("User Already Blocked");
                 }
                 $blockUserData['user_id'] = $request->to_user_id;
-            } else if ($request->has('to_admin') && $request->to_admin == 1) {
-                $ifExtryExists = BlockedChatUser::where(['by_user_id' => $userId, 'admin' => 1])->count();
-                if ($ifExtryExists) {
+            } else if($request->has('to_admin') && $request->to_admin == 1){
+                $ifExtryExists = BlockedChatUser::where(['by_user_id' => $userId,'admin' => 1])->count();
+                if($ifExtryExists){
                     ApiResponseService::validationError("Admin Already Blocked");
                 }
                 $blockUserData['admin'] = 1;
-            } else {
+            }else{
                 ApiResponseService::errorResponse("Something Went Wrong in API");
             }
 
@@ -5729,10 +5753,9 @@ class ApiController extends Controller
         }
     }
 
-    public function unBlockChatUser(Request $request)
-    {
+    public function unBlockChatUser(Request $request){
         $userId = Auth::user()->id;
-        $validator = Validator::make($request->all(), [
+        $validator = Validator::make($request->all(),[
             'to_user_id' => [
                 'required_without:to_admin',
                 'exists:customers,id',
@@ -5750,21 +5773,21 @@ class ApiController extends Controller
         }
 
         try {
-            if ($request->has('to_user_id') && !empty($request->to_user_id)) {
-                $blockedUserQuery = BlockedChatUser::where(['by_user_id' => $userId, 'user_id' => $request->to_user_id]);
+            if($request->has('to_user_id') && !empty($request->to_user_id)){
+                $blockedUserQuery = BlockedChatUser::where(['by_user_id' => $userId,'user_id' => $request->to_user_id]);
                 $ifExtryExists = $blockedUserQuery->clone()->count();
-                if (!$ifExtryExists) {
+                if(!$ifExtryExists){
                     ApiResponseService::validationError("No Blocked User Found");
                 }
                 $blockedUserQuery->delete();
-            } else if ($request->has('to_admin') && $request->to_admin == 1) {
-                $blockedUserQuery = BlockedChatUser::where(['by_user_id' => $userId, 'user_id' => $request->to_user_id]);
+            } else if($request->has('to_admin') && $request->to_admin == 1){
+                $blockedUserQuery = BlockedChatUser::where(['by_user_id' => $userId,'user_id' => $request->to_user_id]);
                 $ifExtryExists = $blockedUserQuery->count();
-                if (!$ifExtryExists) {
+                if(!$ifExtryExists){
                     ApiResponseService::validationError("No Blocked User Found");
                 }
                 $blockedUserQuery->delete();
-            } else {
+            }else{
                 ApiResponseService::validationError("Something Went Wrong in API");
             }
             ApiResponseService::successResponse("User Unblocked Successfully");
@@ -5773,39 +5796,35 @@ class ApiController extends Controller
         }
     }
 
-    public function getFacilitiesForFilter(Request $request)
-    {
+    public function getFacilitiesForFilter(Request $request){
         try {
             $parameters = parameter::get();
-            ApiResponseService::successResponse("Data Fetched Successfully", $parameters);
+            ApiResponseService::successResponse("Data Fetched Successfully",$parameters);
         } catch (Exception $e) {
             ApiResponseService::errorResponse();
         }
     }
 
-    public function getPrivacyPolicy()
-    {
+    public function getPrivacyPolicy(){
         try {
             $privacyPolicy = system_setting("privacy_policy");
-            ApiResponseService::successResponse("Data Fetched Successfully", !empty($privacyPolicy) ? $privacyPolicy : "");
+            ApiResponseService::successResponse("Data Fetched Successfully",!empty($privacyPolicy) ? $privacyPolicy : "");
         } catch (Exception $e) {
             ApiResponseService::errorResponse();
         }
     }
 
-    public function getTermsAndConditions()
-    {
+    public function getTermsAndConditions(){
         try {
             $termsAndConditions = system_setting("terms_conditions");
-            ApiResponseService::successResponse("Data Fetched Successfully", !empty($termsAndConditions) ? $termsAndConditions : "");
+            ApiResponseService::successResponse("Data Fetched Successfully",!empty($termsAndConditions) ? $termsAndConditions : "");
         } catch (Exception $e) {
             ApiResponseService::errorResponse();
         }
     }
 
-    public function userRegister(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
+    public function userRegister(Request $request){
+        $validator = Validator::make($request->all(),[
             'name' => 'required',
             'email' => 'required|email',
             'password' => 'required|min:6',
@@ -5820,12 +5839,12 @@ class ApiController extends Controller
         try {
             DB::beginTransaction();
             $customerExists = Customer::where(['email' => $request->email, 'logintype' => 3])->count();
-            if ($customerExists) {
+            if($customerExists){
                 ApiResponseService::validationError("User Already Exists");
             }
 
-            $customerData = $request->except('password', 're_password');
-            $customerData = array_merge($customerData, array(
+            $customerData = $request->except('pasword','re_password');
+            $customerData = array_merge($customerData,array(
                 'password' => Hash::make($request->password),
                 'auth_id' => Str::uuid()->toString(),
                 'slug_id' => generateUniqueSlug($request->name, 5),
@@ -5876,17 +5895,17 @@ class ApiController extends Controller
                 'user_name' => !empty($request->name) ? $request->name : "$appName User",
                 'email' => $request->email,
             );
-            if (empty($welcomeEmailTemplateData)) {
+            if(empty($welcomeEmailTemplateData)){
                 $welcomeEmailTemplateData = "Welcome to $appName";
             }
-            $welcomeEmailTemplate = HelperService::replaceEmailVariables($welcomeEmailTemplateData, $variables);
+            $welcomeEmailTemplate = HelperService::replaceEmailVariables($welcomeEmailTemplateData,$variables);
 
             $data = array(
                 'email_template' => $welcomeEmailTemplate,
                 'email' => $request->email,
                 'title' => $emailTypeData['title'],
             );
-            HelperService::sendMail($data, true);
+            HelperService::sendMail($data,true);
 
             /** Send OTP mail for verification */
             // Get Data of email type
@@ -5899,10 +5918,10 @@ class ApiController extends Controller
                 'app_name' => $appName,
                 'otp' => $otp
             );
-            if (empty($propertyFeatureStatusTemplateData)) {
-                $propertyFeatureStatusTemplateData = "Your OTP :- " . $otp;
+            if(empty($propertyFeatureStatusTemplateData)){
+                $propertyFeatureStatusTemplateData = "Your OTP :- ".$otp;
             }
-            $propertyFeatureStatusTemplate = HelperService::replaceEmailVariables($propertyFeatureStatusTemplateData, $variables);
+            $propertyFeatureStatusTemplate = HelperService::replaceEmailVariables($propertyFeatureStatusTemplateData,$variables);
 
             $data = array(
                 'email_template' => $propertyFeatureStatusTemplate,
@@ -5928,9 +5947,8 @@ class ApiController extends Controller
         }
     }
 
-    public function changePropertyStatus(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
+    public function changePropertyStatus(Request $request) {
+        $validator = Validator::make($request->all(),[
             'property_id' => 'required|exists:propertys,id',
             'status' => 'required|in:0,1',
         ]);
@@ -5942,7 +5960,7 @@ class ApiController extends Controller
         try {
             // Get Query Data of property based on property id
             $propertyQueryData = Property::find($request->property_id);
-            if ($propertyQueryData->request_status != 'approved') {
+            if($propertyQueryData->request_status != 'approved'){
                 ApiResponseService::validationError("Property is not approved");
             }
             // update user status
@@ -5954,24 +5972,23 @@ class ApiController extends Controller
         }
     }
 
-    public function forgotPassword(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
+    public function forgotPassword(Request $request){
+        $validator = Validator::make($request->all(),[
             'email' => 'required'
         ]);
 
         if ($validator->fails()) {
             ApiResponseService::validationError($validator->errors()->first());
         }
-        try {
+        try{
             $isUserExists = Customer::where(['email' => $request->email, 'logintype' => 3])->count();
-            if ($isUserExists) {
+            if($isUserExists){
                 $token = HelperService::generateToken();
-                HelperService::storeToken($request->email, $token);
+                HelperService::storeToken($request->email,$token);
 
                 $rootAdminUrl = env("APP_URL") ?? FacadesRequest::root();
-                $trimmedEmail = ltrim($rootAdminUrl, '/'); // remove / from starting if exists
-                $link = $trimmedEmail . "/reset-password?token=" . $token;
+                $trimmedEmail = ltrim($rootAdminUrl,'/'); // remove / from starting if exists
+                $link = $trimmedEmail."/reset-password?token=".$token;
                 $data = array(
                     'email' => $request->email,
                     'link' => $link
@@ -5987,10 +6004,10 @@ class ApiController extends Controller
                     'email' => $request->email,
                     'link' => $link
                 );
-                if (empty($verifyEmailTemplateData)) {
+                if(empty($verifyEmailTemplateData)){
                     $verifyEmailTemplateData = "Your reset password link is :- $link";
                 }
-                $verifyEmailTemplate = HelperService::replaceEmailVariables($verifyEmailTemplateData, $variables);
+                $verifyEmailTemplate = HelperService::replaceEmailVariables($verifyEmailTemplateData,$variables);
 
                 $data = array(
                     'email_template' => $verifyEmailTemplate,
@@ -5999,7 +6016,7 @@ class ApiController extends Controller
                 );
                 HelperService::sendMail($data);
                 ApiResponseService::successResponse('Reset link sent to your mail successfully');
-            } else {
+            }else{
                 ApiResponseService::validationError("No User Found");
             }
         } catch (Exception $e) {
@@ -6007,6 +6024,7 @@ class ApiController extends Controller
                 'Failed',
                 'Mail',
                 'Mailer',
+                'MailManager',
                 "Connection could not be established"
             ])) {
                 ApiResponseService::validationError("There is issue with mail configuration, kindly contact admin regarding this");
@@ -6016,9 +6034,8 @@ class ApiController extends Controller
         }
     }
 
-    public function generateRazorpayOrderId(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
+    public function generateRazorpayOrderId(Request $request){
+        $validator = Validator::make($request->all(),[
             'package_id' => 'required|exists:packages,id'
         ]);
 
@@ -6031,21 +6048,21 @@ class ApiController extends Controller
             $razorPayApiKey = system_setting('razor_key');
             $razorPaySecretKey = system_setting('razor_secret');
             $currencyCode = system_setting('currency_code');
-            $supportedCurrencies = array('AED', 'ALL', 'AMD', 'ARS', 'AUD', 'AWG', 'AZN', 'BAM', 'BBD', 'BDT', 'BGN', 'BHD', 'BIF', 'BMD', 'BND', 'BOB', 'BRL', 'BSD', 'BTN', 'BWP', 'BZD', 'CAD', 'CHF', 'CLP', 'CNY', 'COP', 'CRC', 'CUP', 'CVE', 'CZK', 'DJF', 'DKK', 'DOP', 'DZD', 'EGP', 'ETB', 'EUR', 'FJD', 'GBP', 'GHS', 'GIP', 'GMD', 'GNF', 'GTQ', 'GYD', 'HKD', 'HNL', 'HRK', 'HTG', 'HUF', 'IDR', 'ILS', 'INR', 'IQD', 'ISK', 'JMD', 'JOD', 'JPY', 'KES', 'KGS', 'KHR', 'KMF', 'KRW', 'KWD', 'KYD', 'KZT', 'LAK', 'LKR', 'LRD', 'LSL', 'MAD', 'MDL', 'MGA', 'MKD', 'MMK', 'MNT', 'MOP', 'MUR', 'MVR', 'MWK', 'MXN', 'MYR', 'MZN', 'NAD', 'NGN', 'NIO', 'NOK', 'NPR', 'NZD', 'OMR', 'PEN', 'PGK', 'PHP', 'PKR', 'PLN', 'PYG', 'QAR', 'RON', 'RSD', 'RUB', 'RWF', 'SAR', 'SCR', 'SEK', 'SGD', 'SLL', 'SOS', 'SSP', 'SVC', 'SZL', 'THB', 'TND', 'TRY', 'TTD', 'TWD', 'TZS', 'UAH', 'UGX', 'USD', 'UYU', 'UZS', 'VND', 'VUV', 'XAF', 'XCD', 'XOF', 'XPF', 'YER', 'ZAR', 'ZMW');
+            $supportedCurrencies = array('AED','ALL','AMD','ARS','AUD','AWG','AZN','BAM','BBD','BDT','BGN','BHD','BIF','BMD','BND','BOB','BRL','BSD','BTN','BWP','BZD','CAD','CHF','CLP','CNY','COP','CRC','CUP','CVE','CZK','DJF','DKK','DOP','DZD','EGP','ETB','EUR','FJD','GBP','GHS','GIP','GMD','GNF','GTQ','GYD','HKD','HNL','HRK','HTG','HUF','IDR','ILS','INR','IQD','ISK','JMD','JOD','JPY','KES','KGS','KHR','KMF','KRW','KWD','KYD','KZT','LAK','LKR','LRD','LSL','MAD','MDL','MGA','MKD','MMK','MNT','MOP','MUR','MVR','MWK','MXN','MYR','MZN','NAD','NGN','NIO','NOK','NPR','NZD','OMR','PEN','PGK','PHP','PKR','PLN','PYG','QAR','RON','RSD','RUB','RWF','SAR','SCR','SEK','SGD','SLL','SOS','SSP','SVC','SZL','THB','TND','TRY','TTD','TWD','TZS','UAH','UGX','USD','UYU','UZS','VND','VUV','XAF','XCD','XOF','XPF','YER','ZAR','ZMW');
 
-            if (empty($razorPayApiKey) || empty($razorPaySecretKey)) {
+            if(empty($razorPayApiKey) || empty($razorPaySecretKey)){
                 ApiResponseService::validationError("Payment Configuration is invalid, contact admin regarding this");
             }
 
-            if ($packageData->price == 0) {
+            if($packageData->price == 0){
                 ApiResponseService::validationError("Package is Free, no need to proceed for payment");
             }
 
-            if (!empty($currencyCode)) {
-                if (!in_array($currencyCode, $supportedCurrencies)) {
+            if(!empty($currencyCode)) {
+                if(!in_array($currencyCode,$supportedCurrencies)){
                     ApiResponseService::validationError("Currency Selected in system is not supported");
                 }
-            } else {
+            }else{
                 ApiResponseService::validationError("No Currency data available");
             }
 
@@ -6069,15 +6086,14 @@ class ApiController extends Controller
                 'amount'   => $orderData['amount'],
                 'currency' => $orderData['currency']
             );
-            ApiResponseService::successResponse("Order Created Successfully", $data);
+            ApiResponseService::successResponse("Order Created Successfully",$data);
         } catch (Exception $e) {
             ApiResponseService::errorResponse();
         }
     }
 
-    public function changeProjectStatus(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
+    public function changeProjectStatus(Request $request) {
+        $validator = Validator::make($request->all(),[
             'project_id' => 'required|exists:projects,id',
             'status' => 'required|in:0,1',
         ]);
@@ -6089,34 +6105,32 @@ class ApiController extends Controller
         try {
             $loggedInUserID = Auth::user()->id;
             // Get Query Data of project based on project id
-            $projectQueryData = Projects::find($request->project_id);
-            if ($projectQueryData->added_by != $loggedInUserID) {
+            $projectQuery = Projects::where('id',$request->project_id);
+            $projectQueryData = $projectQuery->firstOrFail();
+            if($projectQueryData->added_by != $loggedInUserID){
                 ApiResponseService::validationError("Cannot change the status of project owned by others");
             }
-            if ($projectQueryData->request_status != 'approved') {
+            if($projectQueryData->request_status != 'approved'){
                 ApiResponseService::validationError("Project is not approved");
             }
             // update user status
-            $projectQueryData->status = $request->status == 1 ? 1 : 0;
-            $projectQueryData->save();
+            $projectQuery->update(['status' => $request->status == 1 ? 1 : 0]);
             ApiResponseService::successResponse("Data Updated Successfully");
         } catch (Exception $e) {
             ApiResponseService::errorResponse();
         }
     }
 
-    public function getFeatures(Request $request)
-    {
+    public function getFeatures(Request $request){
         try {
-            $features = Feature::where('status', 1)->get();
-            ApiResponseService::successResponse("Data Fetched Successfully", $features);
+            $features = Feature::where('status',1)->get();
+            ApiResponseService::successResponse("Data Fetched Successfully",$features);
         } catch (Exception $e) {
             ApiResponseService::errorResponse();
         }
     }
-    public function getPackages(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
+    public function getPackages(Request $request){
+        $validator = Validator::make($request->all(),[
             'platform_type' => 'nullable|in:ios',
         ]);
 
@@ -6125,42 +6139,44 @@ class ApiController extends Controller
         }
         try {
             $packageQuery = Package::query();
-            $filteredPackageQuery = $packageQuery->clone()->when($request->has('platform_type') && $request->platform_type == 'ios', function ($query) {
-                $query->whereNotNull('ios_product_id');
+            $filteredPackageQuery = $packageQuery->clone()->when($request->has('platform_type') && $request->platform_type == 'ios', function($query) {
+                $query->whereNotNull('ios_product_id')->orWhere('package_type','free');
             });
 
             $auth = Auth::guard('sanctum');
             $getActivePackages = array();
             $getAllActivePackageIds = array();
 
-            if ($auth->check()) {
+            if($auth->check()) {
                 $userId = $auth->user()->id;
                 $getAllActivePackageIds = HelperService::getAllActivePackageIds($userId);
 
                 if (!empty($getAllActivePackageIds)) {
-                    $getActivePackages = $packageQuery->clone()->whereIn('id', $getAllActivePackageIds)
-                        ->with(['package_features' => function ($query) use ($userId) {
-                            $query->with(['feature', 'user_package_limits' => function ($subQuery) use ($userId) {
-                                $subQuery->whereHas('user_package', function ($userQuery) use ($userId) {
-                                    $userQuery->where('user_id', $userId)->orderBy('id', 'desc');
+                    $getActivePackages = $packageQuery->clone()->withTrashed()->whereIn('id', $getAllActivePackageIds)
+                        ->with(['package_features' => function($query) use ($userId){
+                            $query->with(['feature', 'user_package_limits' => function($subQuery) use($userId){
+                                $subQuery->whereHas('user_package',function($userQuery) use($userId){
+                                    $userQuery->where('user_id',$userId)->orderBy('id','desc');
                                 });
                             }]);
-                        }, 'user_packages' => function ($query) use ($userId) {
-                            $query->where('user_id', $userId)->orderBy('id', 'desc');
+                        },'user_packages' => function ($query) use ($userId) {
+                            $query->where('user_id', $userId)->orderBy('id','desc');
                         }])
                         ->get()
                         ->map(function ($package) {
                             return [
-                                'id'                => $package->id,
-                                'name'              => $package->name,
-                                'package_type'      => $package->package_type,
-                                'ios_product_id'    => $package->ios_product_id,
-                                'price'             => $package->price,
-                                'duration'          => $package->duration,
-                                'start_date'        => $package->user_packages[0]->start_date,
-                                'end_date'          => $package->user_packages[0]->end_date,
-                                'created_at'        => $package->created_at,
-                                'features'          => $package->package_features->map(function ($package_feature) {
+                                'id'                        => $package->id,
+                                'name'                      => $package->name,
+                                'package_type'              => $package->package_type,
+                                'ios_product_id'            => $package->ios_product_id,
+                                'price'                     => $package->price,
+                                'duration'                  => $package->duration,
+                                'start_date'                => $package->user_packages[0]->start_date,
+                                'end_date'                  => $package->user_packages[0]->end_date,
+                                'created_at'                => $package->created_at,
+                                'package_status'            => $package->package_payment_status,
+                                'payment_transaction_id'    => $package->payment_transaction_id,
+                                'features'                  => $package->package_features->map(function ($package_feature) {
                                     $usedLimit = !empty($package_feature->user_package_limits && !empty($package_feature->user_package_limits[0])) ? $package_feature->user_package_limits[0]->used_limit : null;
                                     $totalLimit = !empty($package_feature->user_package_limits && !empty($package_feature->user_package_limits[0])) ? $package_feature->user_package_limits[0]->total_limit : null;
                                     return [
@@ -6179,7 +6195,7 @@ class ApiController extends Controller
             }
 
             $getOtherPackagesQuery = $filteredPackageQuery->clone()->where('status', 1)
-                ->whereHas('package_features', function ($query) {
+                ->whereHas('package_features', function($query) {
                     $query->whereHas('feature', function ($query) {
                         $query->where('status', 1);
                     });
@@ -6194,40 +6210,41 @@ class ApiController extends Controller
                     $query->where('status', 1);
                 });
             }])
-                ->get()
-                ->map(function ($package) {
-                    return [
-                        'id'                => $package->id,
-                        'name'              => $package->name,
-                        'package_type'      => $package->package_type,
-                        'price'             => $package->price,
-                        'ios_product_id'    => $package->ios_product_id,
-                        'duration'          => $package->duration,
-                        'created_at'        => $package->created_at,
-                        'features'          => $package->package_features->map(function ($package_feature) {
-                            return [
-                                'id'         => $package_feature->feature->id,
-                                'name'       => $package_feature->feature->name,
-                                'limit_type' => $package_feature->limit_type,
-                                'limit'      => $package_feature->limit,
-                            ];
-                        }),
-                    ];
-                });
-            // $oldPackages = $this->getOldActivePackages($request);
-            $features = Feature::where('status', 1)->get();
+            ->get()
+            ->map(function ($package) {
+                return [
+                    'id'                        => $package->id,
+                    'name'                      => $package->name,
+                    'package_type'              => $package->package_type,
+                    'price'                     => $package->price,
+                    'ios_product_id'            => $package->ios_product_id,
+                    'duration'                  => $package->duration,
+                    'created_at'                => $package->created_at,
+                    'package_status'            => $package->package_payment_status,
+                    'payment_transaction_id'    => $package->payment_transaction_id,
+                    'features'                  => $package->package_features->map(function ($package_feature) {
+                        return [
+                            'id'                => $package_feature->feature->id,
+                            'name'              => $package_feature->feature->name,
+                            'limit_type'        => $package_feature->limit_type,
+                            'limit'             => $package_feature->limit,
+                        ];
+                    }),
+                ];
+            });
+            $features = Feature::get();
 
             ApiResponseService::successResponse("Data Fetched Successfully", $getOtherPackageData, [
                 'active_packages' => $getActivePackages,
                 'all_features'    => $features
             ]);
+
         } catch (Exception $e) {
             ApiResponseService::errorResponse();
         }
     }
 
-    public function getPaymentIntent(Request $request)
-    {
+    public function getPaymentIntent(Request $request) {
         $validator = Validator::make($request->all(), [
             'package_id'        => 'required',
             'platform_type'     => 'required|in:app,web'
@@ -6238,12 +6255,12 @@ class ApiController extends Controller
         try {
             DB::beginTransaction();
             $paymentSettings = HelperService::getActivePaymentDetails();
-            if (empty($paymentSettings)) {
+            if(empty($paymentSettings)){
                 ApiResponseService::validationError("None of payment method is activated");
             }
 
             $package = Package::where(['id' => $request->package_id, 'package_type' => 'paid'])->first();
-            if (empty($package)) {
+            if(empty($package)){
                 ApiResponseService::validationError("No paid package found");
             }
 
@@ -6260,7 +6277,8 @@ class ApiController extends Controller
                 'amount'          => $package->price,
                 'payment_gateway' => Str::ucfirst($paymentSettings['payment_method']),
                 'payment_status'  => 'pending',
-                'order_id'        => null
+                'order_id'        => null,
+                'payment_type'    => 'online payment'
             ]);
 
 
@@ -6293,8 +6311,7 @@ class ApiController extends Controller
         }
     }
 
-    public function makePaymentTransactionFail(Request $request)
-    {
+    public function makePaymentTransactionFail(Request $request){
         $validator = Validator::make($request->all(), [
             'payment_transaction_id' => 'required|exists:payment_transactions,id',
         ]);
@@ -6320,7 +6337,7 @@ class ApiController extends Controller
             return ApiResponseService::validationError($validator->errors()->first());
         }
         try {
-            $data = HelperService::checkPackageLimit($request->type, true);
+            $data = HelperService::checkPackageLimit($request->type,true);
             return ApiResponseService::successResponse('Data Fetched Successfully', $data);
         } catch (Exception $e) {
             return ApiResponseService::errorResponse();
@@ -6328,8 +6345,7 @@ class ApiController extends Controller
     }
 
     /** Get Property And Project Featured */
-    public function getFeaturedData(Request $request)
-    {
+    public function getFeaturedData(Request $request){
         try {
             $validator = Validator::make($request->all(), [
                 'type' => 'required|in:property,project',
@@ -6343,21 +6359,290 @@ class ApiController extends Controller
             $loggedInUserID = Auth::user()->id;
             $advertisementQuery = Advertisement::select('id', 'status', 'start_date', 'end_date', 'property_id', 'project_id');
             if ($request->type == 'property') {
-                $advertisementQuery->whereHas('property', function ($query) use ($loggedInUserID) {
+                $advertisementQuery->whereHas('property', function($query) use($loggedInUserID) {
                     $query->where(['post_type' => 1, 'added_by' => $loggedInUserID]);
-                })->with('property:id,category_id,slug_id,title,propery_type,city,state,country,price,title_image', 'property.category:id,category,image');
+                })->with('property:id,category_id,slug_id,title,propery_type,city,state,country,price,title_image','property.category:id,category,image');
             } else {
-                $advertisementQuery->whereHas('project', function ($query) use ($loggedInUserID) {
+                $advertisementQuery->whereHas('project', function($query) use($loggedInUserID) {
                     $query->where(['added_by' => $loggedInUserID]);
-                })->with('project:id,category_id,slug_id,title,type,city,state,country,image', 'project.category:id,category,image');
+                })->with('project:id,category_id,slug_id,title,type,city,state,country,image','project.category:id,category,image');
             }
 
             $total = $advertisementQuery->count();
             $data = $advertisementQuery->take($limit)->skip($offset)->orderBy('id', 'DESC')->get();
 
-            ApiResponseService::successResponse("Data Fetched Successfully", $data, array('total' => $total));
+            ApiResponseService::successResponse("Data Fetched Successfully",$data, array('total' => $total));
         } catch (Exception $e) {
             return ApiResponseService::errorResponse();
+        }
+    }
+
+    public function initiateBankTransaction(Request $request){
+        try{
+            $validator = Validator::make($request->all(), [
+                'package_id' => 'required|exists:packages,id',
+                'file' => 'required|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:3072',
+            ]);
+
+            if ($validator->fails()) {
+                ApiResponseService::validationError($validator->errors()->first());
+            }
+
+            DB::beginTransaction();
+            $loggedInUserId = Auth::user()->id;
+            $packageData = Package::findOrFail($request->package_id);
+
+            // Check for free packages to not allowed
+            if($packageData->package_type == 'free'){
+                ApiResponseService::validationError("No paid package found");
+            }
+
+            // Check if user has already paid for this package
+            $paymentTransaction = PaymentTransaction::where(['user_id' => $loggedInUserId, 'package_id' => $packageData->id])->first();
+            if(!empty($paymentTransaction) && ($paymentTransaction->payment_status == 'pending' || $paymentTransaction->payment_status == 'rejected' || $paymentTransaction->payment_status == 'review'))  {
+                ApiResponseService::validationError("Transaction is not completed");
+            }
+
+            $paymentTransactionData = PaymentTransaction::create([
+                'user_id'         => $loggedInUserId,
+                'package_id'      => $packageData->id,
+                'amount'          => $packageData->price,
+                'payment_gateway' => null,
+                'payment_status'  => 'review',
+                'order_id'        => Str::uuid(),
+                'payment_type'    => 'bank transfer'
+            ]);
+
+            // Upload File
+            $file = $request->file('file');
+            $file = store_image($file, 'BANK_RECEIPT_FILE_PATH');
+            if(empty($file)){
+                ApiResponseService::validationError("File Upload Failed");
+            }
+
+            // Create Bank Receipt File
+            $bankReceiptFile = BankReceiptFile::create([
+                'payment_transaction_id' => $paymentTransactionData->id,
+                'file' => $file,
+            ]);
+            $paymentTransactionData['bank_receipt_file'] = $bankReceiptFile->file;
+
+            // Get Bank Details
+            $bankDetailsFieldsQuery = system_setting('bank_details');
+            if(isset($bankDetailsFieldsQuery) && !empty($bankDetailsFieldsQuery)){
+                $bankDetailsFields = json_decode($bankDetailsFieldsQuery, true);
+            }else{
+                $bankDetailsFields = [];
+            }
+            DB::commit();
+
+            ResponseService::successResponse('Transaction Initiated Successfully',$paymentTransactionData, array('bank_details' => $bankDetailsFields));
+        } catch (Exception $e){
+            DB::rollback();
+            ApiResponseService::errorResponse();
+        }
+    }
+
+    public function uploadBankReceiptFile(Request $request){
+        try{
+            $validator = Validator::make($request->all(), [
+                'payment_transaction_id' => 'required',
+                'file' => 'required|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:3072',
+            ]);
+
+            if ($validator->fails()) {
+                ApiResponseService::validationError($validator->errors()->first());
+            }
+
+            // Check Payment Transaction
+            $paymentTransaction = PaymentTransaction::findOrFail($request->payment_transaction_id);
+            if(empty($paymentTransaction)){
+                ApiResponseService::validationError("Payment Transaction Not Found");
+            }
+
+            // Check Payment Transaction Status
+            if($paymentTransaction->payment_status == 'review'){
+                ApiResponseService::validationError("Your transaction is already in review");
+            }
+
+            PaymentTransaction::where('id', $request->payment_transaction_id)->update(['payment_status' => 'review']);
+
+            // Upload File
+            $file = $request->file('file');
+            $file = store_image($file, 'BANK_RECEIPT_FILE_PATH');
+            if(empty($file)){
+                ApiResponseService::validationError("File Upload Failed");
+            }
+
+            // Create Bank Receipt File
+            $bankReceiptFile = BankReceiptFile::create([
+                'payment_transaction_id' => $request->payment_transaction_id,
+                'file' => $file,
+            ]);
+
+            ApiResponseService::successResponse("File Uploaded Successfully", $bankReceiptFile);
+        }catch(Exception $e){
+            ApiResponseService::errorResponse();
+        }
+    }
+
+    public function getPaymentReceipt(Request $request){
+        try{
+            $validator = Validator::make($request->all(), [
+                'payment_transaction_id' => 'required|exists:payment_transactions,id',
+            ]);
+
+            if ($validator->fails()) {
+                ApiResponseService::validationError($validator->errors()->first());
+            }
+
+            $loggedInUserId = Auth::user()->id;
+            $payment = PaymentTransaction::with(
+                'package:id,name,duration,package_type',
+                'customer:id,name,email,mobile'
+            )->without('customer.tokens')->findOrFail($request->payment_transaction_id);
+            if($payment->user_id != $loggedInUserId){
+                ApiResponseService::validationError("You are not authorized to view this receipt");
+            }
+
+            // Only allow viewing receipts for successful payments
+            if ($payment->payment_status !== 'success') {
+                ApiResponseService::validationError("Receipt is only available for successful payments");
+            }
+            $receiptService = new PaymentReceiptService();
+            return $receiptService->generateHTML($payment);
+        }catch(Exception $e){
+            ApiResponseService::errorResponse();
+        }
+    }
+
+
+    public function compareProperties(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'source_property_id' => 'required|exists:propertys,id',
+                'target_property_id' => 'required|exists:propertys,id',
+            ]);
+
+            if ($validator->fails()) {
+                return ApiResponseService::validationError($validator->errors()->first());
+            }
+
+            $sourcePropertyId = $request->source_property_id;
+            $targetPropertyId = $request->target_property_id;
+
+
+            $propertyBaseQuery = Property::where(['status' => 1, 'request_status' => 'approved'])->select('id', 'category_id', 'title', 'city', 'state', 'country', 'address', 'price', 'propery_type', 'total_click', 'rentduration','is_premium','title_image');
+            $sourceProperty = $propertyBaseQuery->clone()->where('id', $sourcePropertyId)->first();
+            $targetProperty = $propertyBaseQuery->clone()->where('id', $targetPropertyId)->first();
+            if(empty($sourceProperty)){
+                return ApiResponseService::errorResponse('Source property not found');
+            }
+            if(empty($targetProperty)){
+                return ApiResponseService::errorResponse('Target property not found');
+            }
+
+
+            if($sourceProperty->category_id != $targetProperty->category_id){
+                return ApiResponseService::errorResponse('Properties are not in the same category');
+            }
+            if($sourceProperty->id == $targetProperty->id){
+                return ApiResponseService::errorResponse('Source and target properties cannot be the same');
+            }
+            if($sourceProperty->is_premium == 1){
+                if (collect(Auth::guard('sanctum')->user())->isEmpty()) {
+                    return ApiResponseService::errorResponse('Source property is a premium property');
+                }else{
+                    $data = HelperService::checkPackageLimit('property_feature', true);
+                    if(($data['package_available'] == false || $data['feature_available'] == false) && $data['limit_available'] == false){
+                        ApiResponseService::validationError("Source property is a premium property", $data);
+                    }
+                }
+            }
+            if($targetProperty->is_premium == 1){
+                if (collect(Auth::guard('sanctum')->user())->isEmpty()) {
+                    return ApiResponseService::errorResponse('Target property is a premium property');
+                }else{
+                    $data = HelperService::checkPackageLimit('property_feature', true);
+                    if(($data['package_available'] == false || $data['feature_available'] == false) && $data['limit_available'] == false    ){
+                        ApiResponseService::validationError("Target property is a premium property", $data);
+                    }
+                }
+            }
+
+            if (!$sourceProperty || !$targetProperty) {
+                return ApiResponseService::errorResponse('One or both properties not found');
+            }
+
+            $sourcePropertyData = $this->getPropertyData($sourceProperty);
+            $targetPropertyData = $this->getPropertyData($targetProperty);
+            $data = array(
+                'source_property' => $sourcePropertyData,
+                'target_property' => $targetPropertyData
+            );
+            return ApiResponseService::successResponse("Properties compared successfully", $data);
+        } catch (Exception $e) {
+            return ApiResponseService::errorResponse($e->getMessage());
+        }
+    }
+    public function getAllSimilarProperties(Request $request){
+        try {
+            $validator = Validator::make($request->all(), [
+                'property_id' => 'required|exists:propertys,id',
+                'search' => 'nullable|string',
+                'offset' => 'nullable|integer',
+                'limit' => 'nullable|integer',
+            ]);
+
+            if ($validator->fails()) {
+                return ApiResponseService::validationError($validator->errors()->first());
+            }
+            $offset = isset($request->offset) ? $request->offset : 0;
+            $limit = isset($request->limit) ? $request->limit : 20;
+            $getRequestProperty = Property::findOrFail($request->property_id);
+
+            $getAllSimilarProperties = Property::where('id', '!=', $request->property_id)
+            ->whereIn('propery_type', [0, 1])
+            ->where(['status' => 1, 'request_status' => 'approved', 'category_id' => $getRequestProperty->category_id])
+            ->select(
+                'id', 'slug_id', 'category_id', 'city', 'state', 'country',
+                'price', 'propery_type', 'title', 'title_image', 'is_premium',
+                'address', 'rentduration', 'latitude', 'longitude'
+            )
+            ->with('category:id,slug_id,image,category')
+            ->when($request->has('search'), function($query) use ($request) {
+                $query->where('title', 'like', '%'.$request->search.'%');
+            })
+            ->when($request->has('offset'), function($query) use ($offset) {
+                $query->offset($offset);
+            })
+            ->when($request->has('limit'), function($query) use ($limit) {
+                $query->limit($limit);
+            })
+            ->get()
+            ->map(function($propertyData){
+                $propertyData->promoted = $propertyData->is_promoted;
+                $propertyData->property_type = $propertyData->propery_type;
+                $propertyData->parameters = $propertyData->parameters;
+                $propertyData->is_premium = $propertyData->is_premium == 1;
+                return $propertyData;
+            });
+            return ApiResponseService::successResponse("Similar properties fetched successfully", $getAllSimilarProperties);
+        } catch (Exception $e) {
+            return ApiResponseService::errorResponse($e->getMessage());
+        }
+    }
+
+    public function deepLink(Request $request){
+        try{
+            $data = HelperService::getMultipleSettingData(['company_name','playstore_id','appstore_id']);
+            $appName = $data['company_name'] ?? 'ebroker';
+            $customerPlayStoreUrl = $data['playstore_id'] ?? 'https://play.google.com/store/apps/details?id=com.ebroker.ebroker';
+            $customerAppStoreUrl = $data['appstore_id'] ?? 'https://apps.apple.com/app/id1564818806';
+            return view('settings.deep-link', compact('appName', 'customerPlayStoreUrl', 'customerAppStoreUrl'));
+        }catch(Exception $e){
+            return ApiResponseService::errorResponse($e->getMessage());
         }
     }
 
@@ -6365,11 +6650,10 @@ class ApiController extends Controller
     /*****************************************************************************************************************************************
      * Functions
      *****************************************************************************************************************************************
-     */
+    */
 
 
-    function getUnsplashData($cityData)
-    {
+    function getUnsplashData($cityData){
         $apiKey = env('UNSPLASH_API_KEY');
         $query = $cityData->city;
         $apiUrl = "https://api.unsplash.com/search/photos/?query=$query";
@@ -6402,31 +6686,28 @@ class ApiController extends Controller
         return array('City' => $cityData->city, 'Count' => $cityData->property_count, 'image' => "");
     }
 
-    public function getAutoApproveStatus($loggedInUserId)
-    {
+    public function getAutoApproveStatus($loggedInUserId){
         // Check auto approve is on and is user is verified or not
         $autoApproveSettingStatus = system_setting('auto_approve');
         $autoApproveStatus = false;
-        if ($autoApproveSettingStatus == 1) {
+        if($autoApproveSettingStatus == 1){
             $userData = Customer::where('id', $loggedInUserId)->first();
             $autoApproveStatus = $userData->is_user_verified ? true : false;
         }
 
         return $autoApproveStatus;
     }
-    function roundArrayValues($array, $pointsValue)
-    {
-        return array_map(function ($item) use ($pointsValue) {
+    function roundArrayValues($array,$pointsValue) {
+        return array_map(function($item) use($pointsValue){
             if (is_array($item)) {
-                return $this->roundArrayValues($item, $pointsValue); // Recursive call
+                return $this->roundArrayValues($item,$pointsValue); // Recursive call
             }
             return is_numeric($item) ? round($item, $pointsValue) : $item; // Base Case
         }, $array);
     }
 
 
-    function mortgageCalculation($loanAmount, $downPayment, $interestRate, $loanTermYear, $showAllDetails)
-    {
+    function mortgageCalculation($loanAmount, $downPayment, $interestRate, $loanTermYear, $showAllDetails) {
         if ($downPayment > 0) {
             $downPayment = (int)$downPayment;
             $loanAmount = $loanAmount - $downPayment;
@@ -6511,7 +6792,7 @@ class ApiController extends Controller
         // Re-index the year totals array index, year used as index
         if ($showAllDetails) {
             $schedule['yearly_totals'] = array_values($schedule['yearly_totals']);
-        } else {
+        }else{
             $schedule['yearly_totals'] = array();
         }
 
@@ -6522,18 +6803,368 @@ class ApiController extends Controller
         $schedule['main_total'] = $mainTotal;
 
         // Round off values for display
-        $schedule['main_total'] = $this->roundArrayValues($schedule['main_total'], 2);
-        $schedule['yearly_totals'] = $this->roundArrayValues($schedule['yearly_totals'], 0);
+        $schedule['main_total'] = $this->roundArrayValues($schedule['main_total'],2);
+        $schedule['yearly_totals'] = $this->roundArrayValues($schedule['yearly_totals'],0);
 
         // Return the mortgage schedule
         return $schedule;
     }
 
+    /**
+     * Get homepage sections based on latitude and longitude also
+     * @param float $latitude
+     * @param float $longitude
+     * @param Builder $propertyBaseQuery
+     * @param Builder $projectsBaseQuery
+     * @param Closure $propertyMapper
+     * @param boolean $homepageLocationDataAvailable
+     * @param Builder $locationBasedPropertyQuery
+     * @return array
+    */
+
+    public function getHomepageSections($latitude, $longitude, $propertyBaseQuery, $propertyMapper, $projectsBaseQuery, $homepageLocationDataAvailable, $locationBasedPropertyQuery){
+        $sections = [];
+        $homepageSections = HomepageSection::where('is_active', 1)
+                ->orderBy('sort_order')
+                ->get();
+        // Build homepageData array based on active sections
+        foreach ($homepageSections as $section) {
+            switch ($section->section_type) {
+                case config('constants.HOMEPAGE_SECTION_TYPES.FAQS_SECTION.TYPE'):
+                    $sections[] = [
+                        'type' => $section->section_type,
+                        'title' => $section->title,
+                        'data' => Faq::select('id', 'question', 'answer')
+                            ->where('status', 1)
+                            ->orderBy('id', 'DESC')
+                            ->limit(5)
+                            ->get()
+                    ];
+                    break;
+
+                case config('constants.HOMEPAGE_SECTION_TYPES.PROJECTS_SECTION.TYPE'):
+                    $sections[] = [
+                        'type' => $section->section_type,
+                        'title' => $section->title,
+                        'data' => $projectsBaseQuery->clone()->inRandomOrder()->limit(12)->get()
+                    ];
+                    break;
+
+                case config('constants.HOMEPAGE_SECTION_TYPES.FEATURED_PROJECTS_SECTION.TYPE'):
+                    $featuredProjectData = $projectsBaseQuery->clone()
+                        ->whereHas('advertisement', function($query) {
+                            $query->where(['is_enable' => 1, 'status' => 0]);
+                        })
+                        ->inRandomOrder()
+                        ->limit(12)
+                        ->get();
+
+                    $sections[] = [
+                        'type' => $section->section_type,
+                        'title' => $section->title,
+                        'data' => $featuredProjectData
+                    ];
+                    break;
+
+                case config('constants.HOMEPAGE_SECTION_TYPES.CATEGORIES_SECTION.TYPE'):
+                    $categoriesData = Category::select('id', 'category', 'image', 'slug_id')
+                        ->where('status', 1)
+                        ->whereHas('properties', function($query) {
+                            $query->where(['status' => 1, 'request_status' => 'approved']);
+                        })
+                        ->withCount(['properties' => function($query) {
+                            $query->where(['status' => 1, 'request_status' => 'approved']);
+                        }])
+                        ->limit(12)
+                        ->get();
+
+                    $sections[] = [
+                        'type' => $section->section_type,
+                        'title' => $section->title,
+                        'data' => $categoriesData
+                    ];
+                    break;
+
+                case config('constants.HOMEPAGE_SECTION_TYPES.ARTICLES_SECTION.TYPE'):
+                    $articlesData = Article::select('id', 'slug_id', 'category_id', 'title', 'description', 'image', 'created_at')
+                        ->with('category:id,slug_id,image,category')
+                        ->limit(5)
+                        ->get();
+
+                    $sections[] = [
+                        'type' => $section->section_type,
+                        'title' => $section->title,
+                        'data' => $articlesData
+                    ];
+                    break;
+
+                case config('constants.HOMEPAGE_SECTION_TYPES.AGENTS_LIST_SECTION.TYPE'):
+                    $agentsData = Customer::select('id', 'name', 'email', 'profile', 'slug_id')
+                        ->withCount([
+                            'projects' => function($query) {
+                                $query->where(['status' => 1, 'request_status' => 'approved']);
+                            },
+                            'property' => function($query) {
+                                $query->where(['status' => 1, 'request_status' => 'approved']);
+                            }
+                        ])
+                        ->where('isActive', 1)
+                        ->get()
+                        ->map(function($customer) {
+                            $customer->is_verified = $customer->is_user_verified;
+                            $customer->total_count = $customer->projects_count + $customer->property_count;
+                            $customer->is_admin = false;
+                            return $customer;
+                        })
+                        ->filter(function($customer) {
+                            return $customer->projects_count > 0 || $customer->property_count > 0;
+                        })
+                        ->sortByDesc(function($customer) {
+                            return [$customer->is_verified, $customer->total_count];
+                        })
+                        ->values()
+                        ->take(12);
+
+                    // Add admin user if they have properties or projects
+                    $adminEmail = system_setting('company_email');
+                    $adminPropertyQuery = Property::where(['added_by' => 0, 'status' => 1, 'request_status' => 'approved']);
+                    $adminProjectQuery = Projects::where(['is_admin_listing' => 1, 'status' => 1]);
+
+                    if($latitude && $longitude){
+                        if($homepageLocationDataAvailable){
+                            $adminPropertiesCount = $adminPropertyQuery->where(['latitude' => $latitude, 'longitude' => $longitude])->count();
+                            $adminProjectsCount = $adminProjectQuery->where(['latitude' => $latitude, 'longitude' => $longitude])->count();
+                        }else{
+                            $adminPropertiesCount = $adminPropertyQuery->count();
+                            $adminProjectsCount = $adminProjectQuery->count();
+                        }
+                    } else {
+                        $adminPropertiesCount = $adminPropertyQuery->count();
+                        $adminProjectsCount = $adminProjectQuery->count();
+                    }
+
+                    if ($adminPropertiesCount > 0 || $adminProjectsCount > 0) {
+                        $adminQuery = User::where('type', 0)->select('id', 'slug_id', 'profile')->first();
+                        if ($adminQuery) {
+                            $adminData = [
+                                'id' => $adminQuery->id,
+                                'name' => 'Admin',
+                                'slug_id' => $adminQuery->slug_id,
+                                'email' => !empty($adminEmail) ? $adminEmail : "",
+                                'property_count' => $adminPropertiesCount,
+                                'projects_count' => $adminProjectsCount,
+                                'total_count' => $adminPropertiesCount + $adminProjectsCount,
+                                'is_verified' => true,
+                                'profile' => !empty($adminQuery->getRawOriginal('profile')) ? $adminQuery->profile : url('assets/images/faces/2.jpg'),
+                                'is_admin' => true
+                            ];
+                            $agentsData->prepend((object)$adminData);
+                        }
+                    }
+
+                    $sections[] = [
+                        'type' => $section->section_type,
+                        'title' => $section->title,
+                        'data' => $agentsData
+                    ];
+                    break;
+
+                case config('constants.HOMEPAGE_SECTION_TYPES.FEATURED_PROPERTIES_SECTION.TYPE'):
+                    $featuredSection = $locationBasedPropertyQuery->clone()
+                        ->whereHas('advertisement', function($subQuery) {
+                            $subQuery->where(['is_enable' => 1, 'status' => 0])
+                                ->whereNot('type', 'Slider');
+                        })
+                        ->inRandomOrder()
+                        ->limit(12)
+                        ->get()
+                        ->map($propertyMapper);
+
+                    $sections[] = [
+                        'type' => $section->section_type,
+                        'title' => $section->title,
+                        'data' => $featuredSection
+                    ];
+                    break;
+
+                case config('constants.HOMEPAGE_SECTION_TYPES.MOST_LIKED_PROPERTIES_SECTION.TYPE'):
+                    $mostLikedProperties = $locationBasedPropertyQuery->clone()
+                        ->withCount('favourite')
+                        ->orderBy('favourite_count', 'DESC')
+                        ->limit(12)
+                        ->get()
+                        ->map($propertyMapper);
+
+                    $sections[] = [
+                        'type' => $section->section_type,
+                        'title' => $section->title,
+                        'data' => $mostLikedProperties
+                    ];
+                    break;
+
+                case config('constants.HOMEPAGE_SECTION_TYPES.MOST_VIEWED_PROPERTIES_SECTION.TYPE'):
+                    $mostViewedProperties = $locationBasedPropertyQuery->clone()
+                        ->orderBy('total_click', 'DESC')
+                        ->limit(12)
+                        ->get()
+                        ->map($propertyMapper);
+
+                    $sections[] = [
+                        'type' => $section->section_type,
+                        'title' => $section->title,
+                        'data' => $mostViewedProperties
+                    ];
+                    break;
+
+                case config('constants.HOMEPAGE_SECTION_TYPES.PREMIUM_PROPERTIES_SECTION.TYPE'):
+                    $premiumPropertiesSection = $locationBasedPropertyQuery->clone()
+                        ->where('is_premium', 1)
+                        ->inRandomOrder()
+                        ->limit(12)
+                        ->get()
+                        ->map($propertyMapper);
+
+                    $sections[] = [
+                        'type' => $section->section_type,
+                        'title' => $section->title,
+                        'data' => $premiumPropertiesSection
+                    ];
+                    break;
+
+                case config('constants.HOMEPAGE_SECTION_TYPES.NEARBY_PROPERTIES_SECTION.TYPE'):
+                    if(Auth::guard('sanctum')->check()){
+                        $loggedInUser = Auth::guard('sanctum')->user();
+                        $cityOfUser = $loggedInUser->city;
+                        $nearbySection = $propertyBaseQuery->clone()
+                            ->where('city', $cityOfUser)
+                            ->inRandomOrder()
+                            ->limit(12)
+                            ->get()
+                            ->map($propertyMapper);
+                    }
+                    $sections[] = [
+                        'type' => $section->section_type,
+                        'title' => $section->title,
+                        'data' => $nearbySection ?? []
+                    ];
+                    break;
+
+                case config('constants.HOMEPAGE_SECTION_TYPES.USER_RECOMMENDATIONS_SECTION.TYPE'):
+                    if(Auth::guard('sanctum')->check()){
+                        $loggedInUser = Auth::guard('sanctum')->user();
+                        $userInterestData = UserInterest::where('user_id', $loggedInUser->id)->first();
+
+                        if ($userInterestData) {
+                            $userRecommendationQuery = $propertyBaseQuery->clone();
+
+                            // Apply category filters
+                            if (!empty($userInterestData->category_ids)) {
+                                $categoryIds = explode(',', $userInterestData->category_ids);
+                                $userRecommendationQuery->whereIn('category_id', $categoryIds);
+                            }
+
+                            // Apply price range filters
+                            if (!empty($userInterestData->price_range)) {
+                                $priceRange = explode(',', $userInterestData->price_range);
+                                if (count($priceRange) >= 2) {
+                                    $minPrice = floatval($priceRange[0]);
+                                    $maxPrice = floatval($priceRange[1]);
+                                    $userRecommendationQuery->whereRaw("CAST(price AS DECIMAL(10, 2)) BETWEEN ? AND ?", [$minPrice, $maxPrice]);
+                                }
+                            }
+
+                            // Apply city filter
+                            if (!empty($userInterestData->city)) {
+                                $userRecommendationQuery->where('city', $userInterestData->city);
+                            }
+
+                            // Apply property type filter
+                            if (!empty($userInterestData->property_type) || $userInterestData->property_type == '0') {
+                                $propertyType = explode(',', $userInterestData->property_type);
+                                $userRecommendationQuery->whereIn('propery_type', $propertyType);
+                            }
+
+                            // Apply outdoor facilities filter
+                            if (!empty($userInterestData->outdoor_facilitiy_ids)) {
+                                $outdoorFacilityIds = explode(',', $userInterestData->outdoor_facilitiy_ids);
+                                $userRecommendationQuery->whereHas('assignfacilities.outdoorfacilities', function($q) use ($outdoorFacilityIds) {
+                                    $q->whereIn('id', $outdoorFacilityIds);
+                                });
+                            }
+
+                            // Get recommendations
+                            $userRecommendations = $userRecommendationQuery
+                                ->inRandomOrder()
+                                ->limit(12)
+                                ->get()
+                            ->map($propertyMapper);
+                        }
+                    }
+                    $sections[] = [
+                        'type' => config('constants.HOMEPAGE_SECTION_TYPES.USER_RECOMMENDATIONS_SECTION.TYPE'),
+                        'title' => $section->title,
+                        'data' => $userRecommendations ?? []
+                    ];
+                    break;
+
+                case config('constants.HOMEPAGE_SECTION_TYPES.PROPERTIES_BY_CITIES_SECTION.TYPE'):
+                    $citiesData = CityImage::where('status',1)->withCount(['property' => function ($query) {
+                        $query->whereIn('propery_type',[0,1])->where(['status' => 1, 'request_status' => 'approved']);
+                    }])->having('property_count', '>', 0)->orderBy('property_count','DESC')->limit(12)->get();
+                    $propertiesByCities = [];
+                    foreach ($citiesData as $city) {
+                        if (!empty($city->getRawOriginal('image'))) {
+                            $url = $city->image;
+                            $relativePath = parse_url($url, PHP_URL_PATH);
+                            if (file_exists(public_path()  . $relativePath)) {
+                                array_push($propertiesByCities, ['City' => $city->city, 'Count' => $city->property_count, 'image' => $city->image]);
+                                continue;
+                            }
+                        }
+                        $resultArray = $this->getUnsplashData($city);
+                        array_push($propertiesByCities, $resultArray);
+                    }
+                    $sections[] = [
+                        'type' => config('constants.HOMEPAGE_SECTION_TYPES.PROPERTIES_BY_CITIES_SECTION.TYPE'),
+                        'title' => $section->title,
+                        'data' => $propertiesByCities ?? []
+                    ];
+                    break;
+            }
+        }
+        return $sections;
+    }
+
+    /**
+     * Get the data of a property
+     */
+    function getPropertyData($property){
+        $propertyData = [
+            'id' => $property->id,
+            'title' => $property->title,
+            'city' => $property->city,
+            'state' => $property->state,
+            'country' => $property->country,
+            'is_premium' => $property->is_premium,
+            'title_image' => $property->title_image,
+            'address' => $property->address,
+            'created_at' => $property->created_at,
+            'price' => $property->price,
+            'rentduration' => !empty($property->rentduration) ? $property->rentduration : null,
+            'property_type' => $property->propery_type,
+            'total_likes' => $property->favourite()->count(),
+            'total_views' => $property->total_click,
+            'facilities' => $property->parameters,
+            'near_by_places' => $property->assign_facilities,
+        ];
+        return $propertyData;
+    }
+    /************************************************************************************************************************ */
+
 
 
     // Temp API
-    public function removeAccountTemp(Request $request)
-    {
+    public function removeAccountTemp(Request $request){
         try {
             Customer::where(['email' => $request->email, 'logintype' => 3])->delete();
             ApiResponseService::successResponse("Done");
@@ -6542,71 +7173,5 @@ class ApiController extends Controller
         }
     }
 
-
-    public function getOldActivePackages($request)
-    {
-        if (Auth::guard('sanctum')->check()) {
-            // Fetch and transform old API data
-            $oldPackages = $request->platform == "ios"
-                ?
-                OldPackage::where('status', 1)->where('ios_product_id', '!=', '')->orderBy('price', 'ASC')->get()
-                :
-                OldPackage::where('status', 1)->orderBy('price', 'ASC')->get();
-
-            $oldPackages->transform(function ($item) use ($request) {
-                $currentDate = Carbon::now()->format("Y-m-d");
-                $loggedInUserId = Auth::guard('sanctum')->user()->id;
-                $user_package = OldUserPurchasedPackage::where('modal_id', $loggedInUserId)
-                    ->where(function ($query) use ($currentDate) {
-                        $query->whereDate('start_date', '<=', $currentDate)
-                            ->whereDate('end_date', '>=', $currentDate);
-                    });
-
-                if ($request->type == 'property') {
-                    $user_package->where('prop_status', 1);
-                } else if ($request->type == 'advertisement') {
-                    $user_package->where('adv_status', 1);
-                }
-
-                $user_package = $user_package->where('package_id', $item->id)->first();
-
-                if (!empty($user_package)) {
-                    $startDate = new DateTime(Carbon::now());
-                    $endDate = new DateTime($user_package->end_date);
-                    $interval = $startDate->diff($endDate);
-                    $diffInDays = $interval->days;
-
-                    $item['is_active'] = 1;
-                    $item['type'] = $item->type === "premium_user" ? "premium_user" : "product_listing";
-                    $item['used_limit_for_property'] = $user_package->used_limit_for_property;
-                    $item['used_limit_for_advertisement'] = $user_package->used_limit_for_advertisement;
-                    $item['property_status'] = $user_package->prop_status;
-                    $item['advertisement_status'] = $user_package->adv_status;
-                    $item['start_date'] = $user_package->start_date;
-                    $item['end_date'] = $user_package->end_date;
-                    $item['remaining_days'] = $diffInDays;
-                } else {
-                    $item['is_active'] = 0;
-                }
-
-                if ($item->type !== "premium_user") {
-                    $item['advertisement_limit'] = $item->advertisement_limit == '' ? "unlimited" : ($item->advertisement_limit == 0 ? "not_available" : $item->advertisement_limit);
-                    $item['property_limit'] = $item->property_limit == '' ? "unlimited" : ($item->property_limit == 0 ? "not_available" : $item->property_limit);
-                } else {
-                    unset($item['property_limit']);
-                    unset($item['advertisement_limit']);
-                }
-
-                $item->duration = $item->duration * 24; // Convert Days to Hours
-                return $item;
-            });
-            // Filter only active packages from old API
-            if (collect($oldPackages)->isNotEmpty()) {
-                $activeOldPackages = $oldPackages->filter(function ($item) {
-                    return $item['is_active'] == 1;
-                });
-            }
-        }
-        return $activeOldPackages ?? array();
-    }
 }
+

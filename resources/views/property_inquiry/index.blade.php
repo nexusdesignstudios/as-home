@@ -59,7 +59,7 @@
                             data-pagination-successively-size="3" data-query-params="queryParams">
                             <thead>
                                 <tr>
-                                    <th scope="col" data-field="id" data-align="center" data-sortable="true">
+                                    <th scope="col" data-field="id" data-sortable="true">
                                         {{ __('ID') }}</th>
                                     <th scope="col" data-field="title" data-align="center" data-sortable="false">
                                         {{ __('Title') }}
@@ -566,12 +566,8 @@
 
 
         function setValues(id) {
-            console.log('click');
             $('#prop_id').val(id);
-            console.log($('#inquiry_by').val());
             $('#inquiry').val($('#inquiry_by').val());
-
-
             $('#table_list1').bootstrapTable('refresh');
         }
 

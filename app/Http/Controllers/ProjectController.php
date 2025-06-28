@@ -276,7 +276,7 @@ class ProjectController extends Controller
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         }
         // $project = Projects::where('id',$id)->with('gallary_images','documents','plans')->first();
-        $project = Projects::where('id',$id)->with('plans')->first();
+        $project = Projects::where('id',$id)->with('plans:id,title,project_id,document')->first();
         $project['gallary_images'] = $project->gallary_images_directly->get();
         $project['documents'] = $project->documents_directly->get();
         $category = Category::where('status', '1')->get();

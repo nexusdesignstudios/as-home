@@ -107,14 +107,14 @@
                             data-pagination-successively-size="3" data-query-params="queryParams">
                             <thead class="thead-dark">
                                 <tr>
-                                    <th scope="col" data-field="id" data-align="center" data-sortable="true"> {{ __('ID') }}</th>
+                                    <th scope="col" data-field="id" data-sortable="true"> {{ __('ID') }}</th>
                                     <th scope="col" data-field="added_by" data-align="center" data-sortable="false"> {{ __('Client Name') }}</th>
                                     <th scope="col" data-field="mobile" data-align="center" data-sortable="false"> {{ __('Mobile') }} </th>
                                     <th scope="col" data-field="client_address" data-align="center" data-sortable="false">{{ __('Client Address') }}</th>
                                     <th scope="col" data-field="title" data-sortable="false" class="max-width-row">{{ __('Title') }}</th>
                                     <th scope="col" data-field="slug_id" data-visible="false" data-sortable="true" data-align="center">{{ __('Slug') }}</th>
                                     <th scope="col" data-field="address" data-align="center" data-sortable="false"> {{ __('Address') }}</th>
-                                    <th scope="col" data-field="category.category" data-align="center" data-sortable="true"> {{ __('Category') }}</th>
+                                    <th scope="col" data-field="category.category" data-align="center" data-sortable="false"> {{ __('Category') }}</th>
                                     <th scope="col" data-field="propery_type" data-formatter="propertyTypeFormatter" data-align="center" data-sortable="true"> {{ __('Type') }}</th>
                                     <th scope="col" data-field="edit_status" data-sortable="false" data-align="center" data-width="5%" data-formatter="enableDisableSwitchFormatter"> {{ __('Enable/Disable') }}</th>
                                     <th scope="col" data-field="status" data-align="center" data-sortable="false" data-formatter="statusFormatter"> {{ __('Status') }}</th>
@@ -152,7 +152,7 @@
                         <table class="table table-striped" id="customer_table_list" data-toggle="table" data-url="{{ url('customerList') }}" data-click-to-select="true" data-side-pagination="server" data-pagination="true" data-page-list="[5, 10, 20, 50, 100, 200]" data-search="true" data-show-columns="true" data-show-refresh="true" data-trim-on-search="false" data-responsive="true" data-sort-name="id" data-sort-order="desc" data-pagination-successively-size="3" data-query-params="customerqueryParams" data-show-export="true" data-export-options='{ "fileName": "data-list-<?= date(' d-m-y') ?>" }'>
                             <thead class="thead-dark">
                                 <tr>
-                                    <th scope="col" data-field="id" data-sortable="true" data-align="center"> {{ __('ID') }}</th>
+                                    <th scope="col" data-field="id" data-sortable="true"> {{ __('ID') }}</th>
                                     <th scope="col" data-field="profile" data-sortable="false" data-align="center" data-formatter="imageFormatter"> {{ __('Profile') }}</th>
                                     <th scope="col" data-field="name" data-sortable="true" data-align="center"> {{ __('Name') }}</th>
                                     <th scope="col" data-field="mobile" data-sortable="true" data-align="center"> {{ __('Number') }}</th>
@@ -184,7 +184,7 @@
         </div>
         {{-- End Gallery Images Modal --}}
 
-        {{-- Gallery Images Modal --}}
+        {{-- Documents Modal --}}
         <div id="documentsModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="documentsModalContent" aria-hidden="true">
             <div class="modal-dialog modal-xl">
                 <div class="modal-content">
@@ -199,9 +199,10 @@
             </div>
 
         </div>
+        {{-- End Documents Modal --}}
 
         {{-- Change Request Status Modal --}}
-        <div id="changeRequestStatusModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="changeRequestStatusModalContent" aria-hidden="true">
+        <div id="changeRequestStatusModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="changeRequestStatusModalContent" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -209,12 +210,12 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
 
-                    <form class="create-form" action="{{ route('update-property-request-status') }}" data-success-function="editFormSuccessFunction" method="POST">
+                    <form class="create-form" action="{{ route('update-property-request-status') }}" data-pre-submit-function="beforeSubmitFunction" data-success-function="editFormSuccessFunction" method="POST">
                         <div class="modal-body">
                             {{ csrf_field() }}
 
                             {!! Form::hidden('id', "", ['id' => 'edit-request-status-id']) !!}
-                            <div class="col-md-12 col-12  form-group  mandatory">
+                            <div class="col-md-12 col-12 form-group mandatory">
                                 <div class="row">
                                     {{ Form::label('', __('Status'), ['class' => 'form-label col-12 ']) }}
 
@@ -231,7 +232,7 @@
                                     </div>
 
                                     {{-- Reason for Reject --}}
-                                    <div class="col-12 mt-1 reject-reason-text-div form-group  mandatory" style="display: none">
+                                    <div class="col-12 mt-1 reject-reason-text-div" style="display: none">
                                         {{ Form::label('reject-reason-text', __('Reject Reason'), ['class' => 'form-label']) }}
                                         {!! Form::textarea('reject_reason', null, ["id" => "reject-reason-text", "class" => 'form-control', "placeholder" => trans('Reject Reason')]) !!}
                                     </div>
@@ -240,7 +241,7 @@
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary waves-effect" data-bs-dismiss="modal">{{ __('Close') }}</button>
+                            <button type="button" class="btn btn-secondary waves-effect close-btn" data-bs-dismiss="modal">{{ __('Close') }}</button>
                             <button type="submit" class="btn btn-primary waves-effect waves-light" id="btn_submit">{{ __('Update') }}</button>
                         </div>
                     </form>
@@ -280,9 +281,6 @@
             $('#table_list').bootstrapTable('refresh');
 
         });
-        $('#property-classification-filter').on('change', function() {
-            $('#table_list').bootstrapTable('refresh');
-        });
 
 
         $(document).ready(function() {
@@ -307,7 +305,6 @@
                 status: $('#status').val(),
                 category: $('#filter_category').val(),
                 property_type: $('#property-type-filter').val(),
-                property_classification: $('#property-classification-filter').val(),
                 property_added_by: $('#property-owner-filter').val(),
                 property_accessibility: $('#property-accessibility-filter').val(),
                 customerID: "{{ $customerID }}"
@@ -402,6 +399,15 @@
             setTimeout(function () {
                 $('#changeRequestStatusModal').modal('hide');
             }, 1000);
+            $('#changeRequestStatusModal').find('.btn-close').removeAttr('disabled');
+            $('#changeRequestStatusModal').find('.close-btn').removeAttr('disabled');
+        }
+
+        const beforeSubmitFunction = (formElement) => {
+            console.log('hello');
+
+            $('#changeRequestStatusModal').find('.btn-close').removeAttr('disabled');
+            $('#changeRequestStatusModal').find('.close-btn').removeAttr('disabled');
         }
     </script>
 @endsection

@@ -136,7 +136,7 @@ class ParameterController extends Controller
             $tempRow['svg_clr'] = !empty(system_setting('svg_clr')) ? system_setting('svg_clr') : 0;
 
             if (has_permissions('update', 'facility')) {
-                $operate = BootstrapTableService::editButton('', true, null, null, $row->id, 'setValue(this.id)');
+                $operate = BootstrapTableService::editButton('', true);
                 $tempRow['operate'] = $operate;
             }
             $rows[] = $tempRow;

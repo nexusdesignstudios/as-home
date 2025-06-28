@@ -5,11 +5,11 @@ namespace App\Models;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-
+use App\Traits\HasAppTimezone;
 class Slider extends Model
 {
-    use HasFactory;
-
+    use HasFactory, HasAppTimezone;
+    protected $dates = ['created_at', 'updated_at', 'deleted_at'];
     protected $fillable = [
         'type',
         'image',

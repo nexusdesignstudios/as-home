@@ -6,10 +6,11 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-
+use App\Traits\HasAppTimezone;
 class UserPackage extends Model
 {
-    use HasFactory;
+    use HasFactory, HasAppTimezone;
+    protected $dates = ['created_at', 'updated_at', 'deleted_at', 'start_date', 'end_date'];
     protected $hidden = array('created_at','updated_at','deleted_at');
     protected $fillable = array(
         'id',

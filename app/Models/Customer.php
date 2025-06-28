@@ -6,12 +6,13 @@ use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-
+use App\Traits\HasAppTimezone;
 
 // class Customer extends Authenticatable implements JWTSubject
 class Customer extends Authenticatable
 {
-    use HasApiTokens, HasFactory;
+    use HasApiTokens, HasFactory, HasAppTimezone;
+    protected $dates = ['created_at', 'updated_at', 'deleted_at'];
 
     /**
      * The attributes that are mass assignable.
@@ -46,7 +47,9 @@ class Customer extends Authenticatable
         'customer_type',
         'management_type',
         'bankDetails_id',
-        'company_id'
+        'company_id',
+        'created_at',
+        'updated_at'
     ];
 
     protected $hidden = [
@@ -80,6 +83,10 @@ class Customer extends Authenticatable
                         $chat->delete(); // This will trigger the deleting and deleted events in modal
                     }
                 }
+                user_reports::where('customer_id', $userId)->delete();
+                Usertokens::where('customer_id', $userId)->delete();
+                Favourite::where('user_id', $userId)->delete();
+                InterestedUser::where('customer_id', $userId)->delete();
             }
         });
     }
@@ -112,6 +119,10 @@ class Customer extends Authenticatable
     public function getTotalPropertiesAttribute()
     {
         return Property::where('added_by', $this->id)->get()->count();
+    }
+    public function getTotalProjectsAttribute()
+    {
+        return Projects::where('added_by', $this->id)->get()->count();
     }
     public function favourite()
     {

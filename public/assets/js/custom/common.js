@@ -64,7 +64,7 @@ $('#create-form,.create-form,.create-form-without-reset').on('submit', function 
             let preSubmitFunction = $(this).data('pre-submit-function');
             if (preSubmitFunction) {
                 //If custom function name is set in the Form tag then call that function using eval
-                eval(preSubmitFunction + "()");
+                eval(preSubmitFunction + "(formElement)");
             }
             let customSuccessFunction = $(this).data('success-function');
             // noinspection JSUnusedLocalSymbols

@@ -153,6 +153,7 @@ class ChatController extends Controller
         send_push_notification($fcm_id, $fcmMsg);
 
         $response['error'] = false;
+        $response['message'] = trans('Message Sent Successfully');
         return response()->json($response);
     }
 
@@ -162,38 +163,13 @@ class ChatController extends Controller
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
 
-        $current_user = Auth::user()->id;
-
-        $offset = 0;
-        $limit = 10;
-        $sort = 'id';
-        $order = 'DESC';
-
-        if (isset($_GET['offset'])) {
-            $offset = $_GET['offset'];
-        }
-
-        if (isset($_GET['limit'])) {
-            $limit = $_GET['limit'];
-        }
-
-        if (isset($_GET['sort'])) {
-            $sort = $_GET['sort'];
-        }
-
-        if (isset($_GET['order'])) {
-            $order = $_GET['order'];
-        }
-
-        $userListQuery = Chats::with(['sender', 'receiver', 'property'])
-            ->select('id', 'sender_id', 'receiver_id', 'property_id', 'message', 'created_at')
-            ->whereIn('id', function ($query) {
-                $query->selectRaw('MAX(id)')
-                    ->from('chats')
-                    ->where('sender_id', 0)
-                    ->orWhere('receiver_id', 0)
-                    ->groupBy(DB::raw('IF(sender_id < receiver_id, CONCAT(sender_id, "-", receiver_id), CONCAT(receiver_id, "-", sender_id))'), 'property_id');
-            })
+        $userListQuery = Chats::with(['sender:id,name,profile', 'receiver:id,name,profile', 'property:id,title,title_image'])
+            ->select('id', 'sender_id', 'receiver_id', 'property_id', 'message', 'created_at',
+                DB::raw('COUNT(CASE WHEN is_read = 0 AND receiver_id = 0 THEN 1 END) AS unread_count')
+            )
+            ->where('sender_id', 0)
+            ->orWhere('receiver_id', 0)
+            ->groupBy(DB::raw('IF(sender_id < receiver_id, CONCAT(sender_id, "-", receiver_id), CONCAT(receiver_id, "-", sender_id))'), 'property_id')
             ->orderBy('id', 'desc');
 
         // User's List with Blocked Status
@@ -214,7 +190,7 @@ class ChatController extends Controller
 
             $user->is_blocked_by_me = $isBlockedByMe ? 1 : 0;
             $user->is_blocked_by_user = $isBlockedByUser ? 1 : 0;
-
+            $user->unread_count = $user->receiver_id == 0 ? $user->unread_count : 0;
             return $user;
         });
 
@@ -231,7 +207,7 @@ class ChatController extends Controller
         $user_array = array_merge($sendersId, $receiversId);
 
         $otherUsers = Property::select('id', 'added_by', 'title', 'title_image')->with('customer', function ($q) use ($user_array) {
-            $q->whereNotIn('id', $user_array);
+            $q->whereNotIn('id', $user_array)->select('id', 'name', 'profile');
         })->orWhereNotIn('id', $propertiesId)->groupBy('added_by')->get();
 
         $tempRow = array();
@@ -281,15 +257,14 @@ class ChatController extends Controller
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         }
 
-        $property_id = $request->propert_id;
-        $offset = $request->offset ? $request->offset : 0;
-        $limit = $request->limit ? $request->limit : 10;
+        // Update is_read to true for Admin
+        Chats::where(['property_id' => $request->property_id, 'receiver_id' => 0, 'is_read' => false])->update(['is_read' => true]);
 
 
-        $chat = Chats::with('sender')->with('receiver')->with('property')->select('id', 'sender_id', 'receiver_id', 'message', 'audio', 'property_id', 'file', 'created_at')->where('property_id', $request->property_id)
+        $chat = Chats::with(['sender:id,name,profile', 'receiver:id,name,profile', 'property:id,title,title_image'])->select('id', 'sender_id', 'receiver_id', 'message', 'audio', 'property_id', 'file', 'created_at')->where('property_id', $request->property_id)
             ->where(function ($query) use ($request) {
-                $query->where('sender_id', $_GET['client_id'])
-                    ->orWhere('receiver_id', $_GET['client_id']);
+                $query->where('sender_id', $request->client_id)
+                    ->orWhere('receiver_id', $request->client_id);
             })->orderBy('id', 'DESC')->get();
 
 
@@ -299,12 +274,7 @@ class ChatController extends Controller
         foreach ($chat as $row) {
             if ($row->sender_id  == 0 || $row->receiver_id == 0) {
                 $tempRow['message'] = $row->message;
-
-                $current = Carbon::parse(date('Y/m/d h:i:s'), 'Asia/Kolkata');
-                $test = Carbon::parse(($row->created_at), 'Asia/Kolkata');
-
                 $tempRow['time_ago'] = $row->created_at->diffForHumans(now(), CarbonInterface::DIFF_RELATIVE_AUTO, true);
-
                 $tempRow['attachment'] = $row->file;
                 $tempRow['audio'] = !empty($row->audio) ? $row->audio : '';
 

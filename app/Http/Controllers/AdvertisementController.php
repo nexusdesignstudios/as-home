@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Exception;
+use Carbon\Carbon;
 use App\Models\Usertokens;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
@@ -101,6 +102,8 @@ class AdvertisementController extends Controller
                 $status = trans('Expired');
             }
             $tempRow['status'] = $status;
+            $tempRow['start_date'] = Carbon::parse($row->start_date)->format('d-m-Y H:i:s');
+            $tempRow['end_date'] = Carbon::parse($row->end_date)->format('d-m-Y H:i:s');
 
             $tempRow['operate'] = $operate;
             $rows[] = $tempRow;

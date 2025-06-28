@@ -80,7 +80,7 @@ class LanguageController extends Controller
         }
         if ($request->hasFile('file')) {
             $file = $request->file('file');
-            if ($file->getClientOriginalExtension() != 'json') {
+            if (strtolower($file->getClientOriginalExtension()) != 'json') {
                 return redirect()->back()->with('error', 'Invalid File');
             }
             $filename = $languageCode . '.' . strtolower($file->getClientOriginalExtension());
@@ -89,7 +89,7 @@ class LanguageController extends Controller
         }
         if ($request->hasFile('file_for_web')) {
             $file = $request->file('file_for_web');
-            if ($file->getClientOriginalExtension() != 'json') {
+            if (strtolower($file->getClientOriginalExtension()) != 'json') {
                 return redirect()->back()->with('error', 'Invalid File');
             }
             $filename = $languageCode . '.' . strtolower($file->getClientOriginalExtension());
@@ -98,7 +98,7 @@ class LanguageController extends Controller
         }
         if ($request->hasFile('file_for_panel')) {
             $file = $request->file('file_for_panel');
-            if ($file->getClientOriginalExtension() != 'json') {
+            if (strtolower($file->getClientOriginalExtension()) != 'json') {
                 return redirect()->back()->with('error', 'Invalid File');
             }
             $filename = $languageCode . '.' . strtolower($file->getClientOriginalExtension());
@@ -217,7 +217,7 @@ class LanguageController extends Controller
         if ($request->hasFile('edit_json_app')) {
             $file = $request->file('edit_json_app');
             $filename = $languageCode . '.' . strtolower($file->getClientOriginalExtension());
-            if ($file->getClientOriginalExtension() != 'json') {
+            if (strtolower($file->getClientOriginalExtension()) != 'json') {
                 return back()->with('error', 'Invalid File Type');
             }
             if (file_exists(base_path('public/languages/'.$languageCode))) {
@@ -231,7 +231,7 @@ class LanguageController extends Controller
         if ($request->hasFile('edit_json_admin')) {
             $file = $request->file('edit_json_admin');
             $filename = $languageCode . '.' . strtolower($file->getClientOriginalExtension());
-            if ($file->getClientOriginalExtension() != 'json') {
+            if (strtolower($file->getClientOriginalExtension()) != 'json') {
                 return redirect()->back()->with('success', 'Invalid File');
             }
             if (file_exists(base_path('resources/lang/'.$languageCode))) {
@@ -245,7 +245,7 @@ class LanguageController extends Controller
         if ($request->hasFile('edit_json_web')) {
             $file = $request->file('edit_json_web');
             $filename = $languageCode . '.' . strtolower($file->getClientOriginalExtension());
-            if ($file->getClientOriginalExtension() != 'json') {
+            if (strtolower($file->getClientOriginalExtension()) != 'json') {
                 return redirect()->back()->with('error', 'Invalid File Type');
             }
             if (file_exists(base_path('public/web_languages/'.$languageCode))) {

@@ -33,13 +33,20 @@
                                             onclick="setallMessage({{ $value->property_id }}, {{ $value->sender->id }}, {{ $value->is_blocked_by_me }}, {{ $value->is_blocked_by_user }});"
                                             style="display: flex;">
 
-                                            <img alt="" class="img-circle medium-image" src="{{ $value->sender->profile ? $value->sender->profile : url('assets/images/faces/2.jpg') }}">
+                                            <img alt="" class="img-circle medium-image user-image" src="{{ $value->sender->profile ? $value->sender->profile : url('assets/images/faces/2.jpg') }}">
 
                                             <div class="vcentered info-combo">
                                                 <h3 class="no-margin-bottom name"> <b>{{ $value->sender->name }}</b> </h3>
 
                                                 <h5> {{ $value->property->title }}</h5>
                                             </div>
+
+                                            {{-- Unread Count --}}
+                                            @if($value->unread_count > 0)
+                                                <div class="text-right unread-count">
+                                                    <span class="badge rounded-pill bg-primary">{{ $value->unread_count }}</span>
+                                                </div>
+                                            @endif
 
                                         </li>
                                     @endempty
@@ -52,14 +59,19 @@
                                             onclick="setallMessage({{ $value->property_id }}, {{ $value->receiver->id }}, {{ $value->is_blocked_by_me }}, {{ $value->is_blocked_by_user }});"
                                             style="display: flex;">
 
-                                            <img alt="" class="img-circle medium-image" src="{{ $value->receiver->profile ? $value->receiver->profile : url('assets/images/faces/2.jpg') }}">
+                                            <img alt="" class="img-circle medium-image user-image" src="{{ $value->receiver->profile ? $value->receiver->profile : url('assets/images/faces/2.jpg') }}">
 
                                             <div class="vcentered info-combo">
                                                 <h3 class="no-margin-bottom name"> <b>{{ $value->receiver->name }} </b></h3>
-
                                                 <h5> {{ $value->property->title }}</h5>
-
                                             </div>
+
+                                            @if($value->unread_count > 0)
+                                                {{-- Unread Count --}}
+                                                <div class="text-right unread-count">
+                                                    <span class="badge rounded-pill bg-primary">{{ $value->unread_count }}</span>
+                                                </div>
+                                            @endif
 
                                         </li>
                                     @endempty
@@ -70,15 +82,13 @@
                                         onclick="setallMessage({{ $value['proeperty_id'] }}, {{ $value['customer_id'] }},{{$value['is_blocked_by_me']}},{{$value['is_blocked_by_user']}});"
                                         style="display: flex;">
 
-                                        <img alt="" class="img-circle medium-image"
+                                        <img alt="" class="img-circle medium-image user-image"
                                             src="{{ $value['profile'] ? $value['profile'] : url('assets/images/faces/2.jpg') }}">
 
                                         <div class="vcentered info-combo">
                                             <h3 class="no-margin-bottom name"> <b>{{ $value['name'] }}</b> </h3>
                                             <h5> {{ $value['title'] }}</h5>
-
                                         </div>
-
                                     </li>
                                 @endforeach
                             </ul>
@@ -365,7 +375,7 @@
 
                                     html +=
                                         `<div class="message my-message">
-                                            <img alt="" class="img-circle medium-image" src="${adminProfileImage}">
+                                            <img alt="" class="img-circle medium-image user-image" src="${adminProfileImage}">
                                             <div class="message-body">
                                                 <div class="message-body-inner" style="border-radius: 4px;background-color: #f5f5f4;padding:16px;">
                                                     ${dataMessageDiv}
@@ -378,7 +388,7 @@
                                     profile = item.sendeprofile ? item.sendeprofile : adminProfileImage;
                                     html +=
                                        `<div class="message info">
-                                            <img alt="" class="img-circle medium-image" src="${profile}">
+                                            <img alt="" class="img-circle medium-image user-image" src="${profile}">
                                             <div class="message-body">
                                                 <div class="message-body-inner" style="border-radius: 4px;background-color: #ECF5F5;padding:16px;">
                                                     ${dataMessageDiv}
@@ -432,11 +442,10 @@
 
 
                 if (message == "" && attachment.length == 0 && audio == "") {
-                    alert('message not be empty');
-
-
+                    showErrorToast(window.trans['Message not be empty']);
                     $("#Onmessage").val("");
-                    submitButton.text('Send');
+                    submitButton.html(submitButtonText);
+                    submitButton.removeAttr('disabled');
                     return false;
                 }
 
@@ -478,12 +487,18 @@
                             submitButton.removeAttr('disabled');
                             $('#aud').val('');
                             $("#file-preview").hide();
+                            showSuccessToast(data.message);
                         }
                         if (data.error == true) {
                             submitButton.html(submitButtonText);
                             submitButton.removeAttr('disabled');
-                            alert(data.message);
+                            showErrorToast(data.message);
                         }
+                    },
+                    error: function(data) {
+                        submitButton.html(submitButtonText);
+                        submitButton.removeAttr('disabled');
+                        showErrorToast(data.responseJSON.message);
                     }
                 });
             }
@@ -536,14 +551,18 @@
                         })
                         if (data != '') {
                             // Get the active tab
-                            var activeTab = document.querySelector('#tabs' + c_id);
-
+                            var activeTab = $(document).find('#tabs' + c_id);
                             $('.list-unstyled.contacts li.active').css('borderRight',
                                 '3px solid var(--bs-primary)');
 
                             // Check if the active tab exists and contains the desired elements
-                            var username = activeTab.childNodes[3].childNodes[1].innerHTML;
-                            var img_src = activeTab.childNodes[1].src;
+                            var username = activeTab.find('.username').html();
+                            var img_src = activeTab.find('.user-image').attr('src');
+
+
+                            if(activeTab.find('.unread-count').length > 0){
+                                unread_count = activeTab.find('.unread-count').hide();
+                            }
 
 
 
@@ -552,11 +571,16 @@
                                 let url = `{{ route('block-user', ':id') }}`.replace(':id', c_id);
                                 chatHeader.innerHTML = `
                                     <div>
-                                        <img alt="" class="img-circle medium-image" src="${img_src ? img_src : ''}">
+                                        <img alt="" class="img-circle medium-image user-image" src="${img_src ? img_src : ''}">
                                         <span class="ms-2 me-auto">${username ? username : ''}</span>
                                     </div>
-                                    <div class="block-user" id="block-user" data-url="${url}">
-                                        <i class="fa fa-ban" aria-hidden="true"></i>
+                                    <div class="d-flex justify-content-end flex-direction-column">
+                                        <div class="refresh-chats badge bg-success" data-property_id="${property_id}" data-sender_id="${c_id}" data-is_blocked_by_me="${blockedByMe}" data-is_blocked_by_user="${blockedByUser}">
+                                            <i class="fa fa-refresh text-white" aria-hidden="true" title="{{ __('Refresh') }}"></i>
+                                        </div>
+                                        <div class="block-user badge bg-danger" data-url="${url}">
+                                            <i class="fa fa-ban text-white" aria-hidden="true" title="{{ __('Block') }}"></i>
+                                        </div>
                                     </div>
                                 `;
 
@@ -623,7 +647,7 @@
 
                                     html +=
                                         `<div class="message my-message">
-                                            <img alt="" class="img-circle medium-image" src="${adminProfileImage}">
+                                            <img alt="" class="img-circle medium-image user-image" src="${adminProfileImage}">
                                             <div class="message-body">
                                                 <div class="message-body-inner" style="border-radius: 4px;background-color: #f5f5f4;padding:16px;">
                                                     ${dataMessageDiv}
@@ -636,7 +660,7 @@
                                     profile = item.sendeprofile ? item.sendeprofile : adminProfileImage;
                                     html +=
                                        `<div class="message info">
-                                            <img alt="" class="img-circle medium-image" src="${profile}">
+                                            <img alt="" class="img-circle medium-image user-image" src="${profile}">
                                             <div class="message-body">
                                                 <div class="message-body-inner" style="border-radius: 4px;background-color: #ECF5F5;padding:16px;">
                                                     ${dataMessageDiv}
@@ -674,11 +698,16 @@
                                 let url = `{{ route('block-user', ':id') }}`.replace(':id', c_id);
                                 chatHeader.innerHTML = `
                                     <div>
-                                        <img alt="" class="img-circle medium-image" src="${img_src ? img_src : ''}">
+                                        <img alt="" class="img-circle medium-image user-image" src="${img_src ? img_src : ''}">
                                         <span class="ms-2 me-auto">${username ? username : ''}</span>
                                     </div>
-                                    <div class="block-user" id="block-user" data-url="${url}">
-                                        <i class="fa fa-ban" aria-hidden="true"></i>
+                                    <div class="d-flex justify-content-end flex-direction-column">
+                                        <div class="refresh-chats badge bg-success" data-property_id="${property_id}" data-sender_id="${c_id}" data-is_blocked_by_me="${blockedByMe}" data-is_blocked_by_user="${blockedByUser}">
+                                            <i class="fa fa-refresh text-white" aria-hidden="true" title="{{ __('Refresh') }}"></i>
+                                        </div>
+                                        <div class="block-user badge bg-danger" data-url="${url}">
+                                            <i class="fa fa-ban text-white" aria-hidden="true" title="{{ __('Block') }}"></i>
+                                        </div>
                                     </div>
                                 `;
                                 let unblockUrl = `{{ route('unblock-user', ':id') }}`.replace(':id', c_id);
@@ -741,7 +770,7 @@
                     }
                     if (payload.data.type == 'chat') {
                         html1 = `<div class="message info">
-                                    <img alt="" class="img-circle medium-image" src="${profile}">
+                                    <img alt="" class="img-circle medium-image user-image" src="${profile}">
                                     <div class="message-body">
                                         <div class="message-body-inner" style="border-radius: 4px;background-color: #ECF5F5;padding:16px;">
                                             <div class="message-text">
@@ -813,5 +842,13 @@
             return allowedTypes.includes(file.type);
         }
 
+
+        $(document).on('click', '.refresh-chats', function () {
+            property_id = $(this).data('property_id');
+            sender_id = $(this).data('sender_id');
+            is_blocked_by_me = $(this).data('is_blocked_by_me');
+            is_blocked_by_user = $(this).data('is_blocked_by_user');
+            setallMessage(property_id, sender_id, is_blocked_by_me, is_blocked_by_user)
+        });
         </script>
     @endsection

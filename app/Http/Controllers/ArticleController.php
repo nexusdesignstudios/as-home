@@ -40,7 +40,7 @@ class ArticleController extends Controller
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
         $category = Category::where('status', 1)->get();
-        $recent_articles = Article::with('category')->orderBy('id', 'DESC')->limit(5)->get();
+        $recent_articles = Article::with('category:id,category')->orderBy('id', 'DESC')->limit(5)->get();
         return view('article.create', ['category' => $category, 'recent_articles' => $recent_articles]);
     }
 
@@ -144,28 +144,6 @@ class ArticleController extends Controller
 
         $bulkData['rows'] = $rows;
         return response()->json($bulkData);
-
-        // $search = $request->search;
-        // $limit = $request->limit;
-
-        // $query = Article::query();
-        // if ($limit == "all") {
-        //     $query = $query;
-        // } else if (!empty($limit) && $limit != 1) {
-        //     $query->limit($limit);
-        // } else {
-        //     $query->limit(12);
-        // }
-
-        // if ($search !== null) {
-        //     $query->where('id', 'LIKE', "%$search%")
-        //         ->orWhere('title', 'LIKE', "%$search%")
-        //         ->orWhere('description', 'LIKE', "%$search%");
-        // }
-
-        // $articles = $query->get();
-
-        // return view('article.index', ['articles' => $articles]);
     }
 
 
@@ -182,7 +160,7 @@ class ArticleController extends Controller
         }
         $list = Article::where('id', $id)->first();
         $category = Category::all();
-        $recent_articles = Article::with('category')->orderBy('id', 'DESC')->limit(6)->get();
+        $recent_articles = Article::with('category:id,category')->orderBy('id', 'DESC')->limit(6)->get();
         return view('article.edit', compact('list', 'category', 'id', 'recent_articles'));
     }
 

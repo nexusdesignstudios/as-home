@@ -36,12 +36,12 @@
                                 data-query-params="queryParams">
                                 <thead class="thead-dark">
                                     <tr>
-                                        <th scope="col" data-field="id" data-align="center" data-sortable="true"> {{ __('ID') }}</th>
+                                        <th scope="col" data-field="id" data-sortable="true"> {{ __('ID') }}</th>
                                         <th scope="col" data-field="customer.name" data-align="false" data-sortable="false"> {{ __('Customer Name') }} </th>
                                         <th scope="col" data-field="package.name" data-sortable="false"> {{ __('Package Name') }} </th>
                                         <th scope="col" data-field="start_date" data-align="center" data-sortable="true"> {{ __('Start Date') }} </th>
                                         <th scope="col" data-field="end_date" data-align="center" data-sortable="true"> {{ __('End Date') }} </th>
-                                        <th scope="col" data-field="subscription_status" data-align="center" data-sortable="true" data-formatter="yesNoStatusFormatter"> {{ __('Subscription') }} </th>
+                                        <th scope="col" data-field="subscription_status" data-align="center" data-sortable="false" data-formatter="yesNoStatusFormatter"> {{ __('Subscription') }} </th>
                                     </tr>
                                 </thead>
                             </table>

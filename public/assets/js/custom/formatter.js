@@ -343,6 +343,12 @@ function paymentStatusFormatter(value){
     }else if(value == 'failed'){
         text =  window.trans["Failed"];
         classType = 'danger'
+    }else if(value == 'review'){
+        text =  window.trans["Review"] || 'Review';
+        classType = 'info'
+    }else if(value == 'rejected'){
+        text =  window.trans["Rejected"];
+        classType = 'secondary'
     }else{
         text =  window.trans["Pending"];
         classType = 'warning'
@@ -363,9 +369,13 @@ function advertisementTypeFormatter(value){
     return '<span class="badge rounded-pill bg-' + classType +'">' + text + '</span>';
 }
 
-function packagePriceFormatter(value){
+function packagePriceFormatter(value,row){
     if(value == null){
         return '<span class="badge rounded-pill bg-warning">' + window.trans["Free"] + '</span>';
     }
-    return value
+    return row.price_symbol + ' ' + value;
+}
+
+function paymentAmountFormatter(value,row){
+    return row.price_symbol + ' ' + value;
 }

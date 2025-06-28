@@ -5,6 +5,8 @@ use Exception;
 use Carbon\Carbon;
 use App\Models\Feature;
 use App\Models\Setting;
+use App\Models\Projects;
+use App\Models\Property;
 use App\Models\UserPackage;
 use Illuminate\Support\Str;
 use App\Models\PasswordReset;
@@ -418,8 +420,6 @@ class HelperService {
     }
 
     public static function getAllActivePackageIds($userId){
-        $currentDate = Carbon::now();
-
         // Retrieve user packages with end_time less than or equal to current date
         $packageIds = UserPackage::where('user_id', $userId)
             ->onlyActive()
@@ -427,8 +427,6 @@ class HelperService {
         return $packageIds;
     }
     public static function getActivePackage($userId, $packageId){
-        $currentDate = Carbon::now();
-
         // Retrieve user packages with end_time less than or equal to current date
         $userPackages = UserPackage::where('user_id', $userId)
             ->where('package_id', $packageId)
@@ -442,25 +440,25 @@ class HelperService {
             $featureQuery = Feature::query();
             switch ($type) {
                 case 'property_list':
-                    $featureQuery = $featureQuery->clone()->where('name',"Property List");
+                    $featureQuery = $featureQuery->clone()->where('name',config('constants.FEATURES.PROPERTY_LIST'));
                     break;
                 case 'project_list':
-                    $featureQuery = $featureQuery->clone()->where('name',"Project List");
+                    $featureQuery = $featureQuery->clone()->where('name',config('constants.FEATURES.PROJECT_LIST'));
                     break;
                 case 'property_feature':
-                    $featureQuery = $featureQuery->clone()->where('name',"Property Feature List");
+                    $featureQuery = $featureQuery->clone()->where('name',config('constants.FEATURES.PROPERTY_FEATURE'));
                     break;
                 case 'project_feature':
-                    $featureQuery = $featureQuery->clone()->where('name',"Project Feature List");
+                    $featureQuery = $featureQuery->clone()->where('name',config('constants.FEATURES.PROJECT_FEATURE'));
                     break;
                 case 'mortgage_calculator_detail':
-                    $featureQuery = $featureQuery->clone()->where('name',"Mortgage Calculator Detail Access");
+                    $featureQuery = $featureQuery->clone()->where('name',config('constants.FEATURES.MORTGAGE_CALCULATOR_DETAIL'));
                     break;
                 case 'premium_properties':
-                    $featureQuery = $featureQuery->clone()->where('name',"Premium Properties Access");
+                    $featureQuery = $featureQuery->clone()->where('name',config('constants.FEATURES.PREMIUM_PROPERTIES'));
                     break;
                 case 'project_access':
-                    $featureQuery = $featureQuery->clone()->where('name',"Project List Access");
+                    $featureQuery = $featureQuery->clone()->where('name',config('constants.FEATURES.PROJECT_ACCESS'));
                     break;
                 default:
                     Log::error('Type not allowed in getFeatureId function of HelperService');
@@ -564,19 +562,20 @@ class HelperService {
                     $userPackageIds = $userPackages->pluck('id');
 
                     $packageFeatureQuery = PackageFeature::where('feature_id', $featureId)->whereIn('package_id', $packageIds);
-                    $getPackageFeatureData = $packageFeatureQuery->clone()->first();
-
-                    if ($getPackageFeatureData) {
+                    $getPackageFeatureData = $packageFeatureQuery->clone()->get();
+                    if(collect($getPackageFeatureData)->isNotEmpty()){
                         $featureAvailable = true;
-                        if ($getPackageFeatureData->limit_type == 'unlimited') {
-                            $limitAvailable = true;
-                        } else if ($getPackageFeatureData->limit_type == 'limited') {
-                            $packageFeatureIds = $packageFeatureQuery->clone()->pluck('id');
-                            $userPackageLimit = UserPackageLimit::whereIn('user_package_id', $userPackageIds)->whereIn('package_feature_id', $packageFeatureIds)->get();
-                            if ($userPackageLimit) {
-                                foreach ($userPackageLimit as $package) {
-                                    if($package->total_limit > $package->used_limit){
-                                        $limitAvailable = true;
+                        foreach ($getPackageFeatureData as $packageFeatureData) {
+                            if($packageFeatureData->limit_type == 'unlimited'){
+                                $limitAvailable = true;
+                            }else if($packageFeatureData->limit_type == 'limited'){
+                                $packageFeatureIds = $packageFeatureQuery->clone()->pluck('id');
+                                $userPackageLimit = UserPackageLimit::whereIn('user_package_id', $userPackageIds)->whereIn('package_feature_id', $packageFeatureIds)->get();
+                                if (collect($userPackageLimit)->isNotEmpty()) {
+                                    foreach ($userPackageLimit as $package) {
+                                        if($package->total_limit > $package->used_limit){
+                                            $limitAvailable = true;
+                                        }
                                     }
                                 }
                             }
@@ -611,6 +610,25 @@ class HelperService {
             ApiResponseService::logErrorResponse($e, 'Issue in check package limit helper function');
         }
     }
+    public static function incrementTotalClick($type,$id = null,$slugId = null){
+        if($type == 'project'){
+            Projects::where('id',$id)->orWhere('slug_id',$slugId)->increment('total_click');
+        }else if($type == 'property'){
+            Property::where('id',$id)->orWhere('slug_id',$slugId)->increment('total_click');
+        }
+        return true;
+    }
+
+
+    // Convert a UTC datetime to app timezone
+    public static function toAppTimezone($dateTime)
+    {
+        $timezone = self::getSettingData('timezone');
+        if ($dateTime instanceof Carbon) {
+            $dateTime = Carbon::createFromFormat('Y-m-d H:i:s', $dateTime, 'UTC')->setTimezone($timezone);
+        }
+        return $dateTime;
+    }
 
     // public static function getIntervalOfDate($endDate){
     //     $startDate = Carbon::now();
@@ -633,7 +651,20 @@ class HelperService {
     //     return $interval ?? null;
     // }
 
+
+    public static function getFeatureNames(){
+        $featureNames = array(
+            config('constants.FEATURES.PROPERTY_LIST'),
+            config('constants.FEATURES.PROPERTY_FEATURE'),
+            config('constants.FEATURES.PROJECT_LIST'),
+            config('constants.FEATURES.PROJECT_FEATURE'),
+            config('constants.FEATURES.MORTGAGE_CALCULATOR_DETAIL'),
+            config('constants.FEATURES.PREMIUM_PROPERTIES'),
+            config('constants.FEATURES.PROJECT_ACCESS'),
+        );
+        return $featureNames;
+    }
+
 }
 
 ?>
-
