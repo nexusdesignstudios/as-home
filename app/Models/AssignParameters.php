@@ -49,6 +49,12 @@ class AssignParameters extends Model
         }
         return "";
     }
+
+    public function setValueAttribute($value)
+    {
+        $this->attributes['value'] = $value;
+    }
+
     //     public function getValueAttribute($value)
     // {
     //     // Try to decode JSON strings

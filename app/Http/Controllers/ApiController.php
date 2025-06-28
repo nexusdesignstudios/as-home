@@ -768,6 +768,7 @@ class ApiController extends Controller
             'description'       => 'required',
             'category_id'       => 'required',
             'property_type'     => 'required',
+            'property_classification' => 'nullable|integer|between:1,5',
             'address'           => 'required',
             'title_image'       => 'required|file|max:3000|mimes:jpeg,png,jpg',
             'three_d_image'     => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
@@ -837,6 +838,7 @@ class ApiController extends Controller
             $saveProperty->video_link = (isset($request->video_link)) ? $request->video_link : "";
             $saveProperty->package_id = $request->package_id;
             $saveProperty->post_type = 1;
+            $saveProperty->property_classification = (isset($request->property_classification)) ? $request->property_classification : null;
 
             $autoApproveStatus = $this->getAutoApproveStatus($loggedInUserId);
             if ($autoApproveStatus) {
@@ -1014,6 +1016,7 @@ class ApiController extends Controller
             'three_d_image'         => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
             'remove_three_d_image'  => 'nullable|in:0,1',
             'documents.*'           => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
+            'property_classification' => 'nullable|integer|between:1,5',
             'price'                 => ['required', 'numeric', 'min:1', 'max:9223372036854775807', function ($attribute, $value, $fail) {
                 if ($value >= 9223372036854775807) {
                     $fail("The Price must not exceed more than 9223372036854775807.");
@@ -1130,6 +1133,10 @@ class ApiController extends Controller
 
                     if (isset($request->video_link)) {
                         $property->video_link = $request->video_link;
+                    }
+
+                    if (isset($request->property_classification)) {
+                        $property->property_classification = $request->property_classification;
                     }
 
                     $property->meta_title = $request->meta_title ?? null;

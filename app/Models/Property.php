@@ -211,19 +211,32 @@ class Property extends Model
     }
     public function getTitleImageAttribute($image)
     {
-
         return $image != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_TITLE_IMG_PATH') . $image : '';
     }
 
+    public function setTitleImageAttribute($value)
+    {
+        $this->attributes['title_image'] = $value;
+    }
 
     public function getMetaImageAttribute($image)
     {
-
         return $image != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_SEO_IMG_PATH') . $image : '';
     }
+
+    public function setMetaImageAttribute($value)
+    {
+        $this->attributes['meta_image'] = $value;
+    }
+
     public function getThreeDImageAttribute($image)
     {
         return $image != '' ? url('') . config('global.IMG_PATH') . config('global.3D_IMG_PATH') . $image : '';
+    }
+
+    public function setThreeDImageAttribute($value)
+    {
+        $this->attributes['three_d_image'] = $value;
     }
 
     public function getProperyTypeAttribute($value)
@@ -237,6 +250,11 @@ class Property extends Model
         } elseif ($value == 3) {
             return "rented";
         }
+    }
+
+    public function setProperyTypeAttribute($value)
+    {
+        $this->attributes['propery_type'] = $value;
     }
 
     public function getPropertyClassificationAttribute($value)
