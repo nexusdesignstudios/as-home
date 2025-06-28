@@ -933,6 +933,210 @@
       "description": "Company management endpoints (now including bank details)"
     },
     {
+      "name": "Property Terms",
+      "item": [
+        {
+          "name": "Get All Property Terms",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/property-terms",
+              "host": ["{{base_url}}"],
+              "path": ["api", "property-terms"]
+            },
+            "description": "Get all property terms and conditions"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Property Term by ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/property-terms/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "property-terms", "1"]
+            },
+            "description": "Get property terms and conditions by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Terms by Classification",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/get-terms-by-classification/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get-terms-by-classification", "1"]
+            },
+            "description": "Get property terms and conditions by classification ID (1=Sell/Rent, 2=Commercial, 3=New Project, 4=Vacation Homes, 5=Hotel Booking)"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Property Term",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"classification_id\": 1,\n    \"terms_conditions\": \"<p>These are the terms and conditions for Sell/Rent properties.</p>\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/property-terms",
+              "host": ["{{base_url}}"],
+              "path": ["api", "property-terms"]
+            },
+            "description": "Create new property terms and conditions for a specific classification"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Property Term",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"terms_conditions\": \"<p>Updated terms and conditions for this property classification.</p>\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/property-terms/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "property-terms", "1"]
+            },
+            "description": "Update existing property terms and conditions by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Property Term",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/property-terms/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "property-terms", "1"]
+            },
+            "description": "Delete property terms and conditions by ID"
+          },
+          "response": []
+        }
+      ],
+      "description": "Property Terms and Conditions management endpoints"
+    },
+    {
       "name": "System Settings",
       "item": [
         {

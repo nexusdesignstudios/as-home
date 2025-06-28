@@ -16,13 +16,20 @@ class PropertyTermsController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('auth');
-        $this->middleware(function ($request, $next) {
-            if (!has_permissions('read', 'property')) {
-                return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
-            }
-            return $next($request);
-        });
+        // Check if the request is from API
+        if (request()->expectsJson()) {
+            // Use Sanctum authentication for API requests
+            $this->middleware('auth:sanctum');
+        } else {
+            // Use web authentication for web requests
+            $this->middleware('auth');
+            $this->middleware(function ($request, $next) {
+                if (!has_permissions('read', 'property')) {
+                    return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
+                }
+                return $next($request);
+            });
+        }
     }
 
     /**
@@ -35,13 +42,33 @@ class PropertyTermsController extends Controller
         try {
             // Check if the table exists first
             if (!Schema::hasTable('property_terms')) {
+                if (request()->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'The property_terms table doesn\'t exist. Please run the migration first.'
+                    ], 500);
+                }
                 return view('property_terms.index', ['propertyTerms' => [], 'tableNotExists' => true]);
             }
 
             $propertyTerms = PropertyTerms::all();
+
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $propertyTerms
+                ]);
+            }
+
             return view('property_terms.index', compact('propertyTerms'));
         } catch (QueryException $e) {
             // Handle database errors
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Database error: ' . $e->getMessage()
+                ], 500);
+            }
             return view('property_terms.index', ['propertyTerms' => [], 'error' => 'Database error: ' . $e->getMessage()]);
         }
     }
@@ -95,6 +122,12 @@ class PropertyTermsController extends Controller
         try {
             // Check if the table exists first
             if (!Schema::hasTable('property_terms')) {
+                if (request()->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'The property_terms table doesn\'t exist. Please run the migration first.'
+                    ], 500);
+                }
                 return redirect()->route('property-terms.index')
                     ->with('error', 'The property_terms table doesn\'t exist. Please run the migration first.');
             }
@@ -104,11 +137,25 @@ class PropertyTermsController extends Controller
                 'terms_conditions' => 'required'
             ]);
 
-            PropertyTerms::create($request->all());
+            $propertyTerm = PropertyTerms::create($request->all());
+
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Terms and conditions created successfully.',
+                    'data' => $propertyTerm
+                ], 201);
+            }
 
             return redirect()->route('property-terms.index')
                 ->with('success', 'Terms and conditions created successfully.');
         } catch (QueryException $e) {
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Database error: ' . $e->getMessage()
+                ], 500);
+            }
             return redirect()->route('property-terms.index')
                 ->with('error', 'Database error: ' . $e->getMessage());
         }
@@ -157,9 +204,23 @@ class PropertyTermsController extends Controller
             $propertyTerm = PropertyTerms::findOrFail($id);
             $propertyTerm->update($request->all());
 
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Terms and conditions updated successfully.',
+                    'data' => $propertyTerm
+                ]);
+            }
+
             return redirect()->route('property-terms.index')
                 ->with('success', 'Terms and conditions updated successfully.');
         } catch (\Exception $e) {
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error: ' . $e->getMessage()
+                ], 500);
+            }
             return redirect()->route('property-terms.index')
                 ->with('error', 'Error: ' . $e->getMessage());
         }
@@ -177,9 +238,22 @@ class PropertyTermsController extends Controller
             $propertyTerm = PropertyTerms::findOrFail($id);
             $propertyTerm->delete();
 
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Terms and conditions deleted successfully.'
+                ]);
+            }
+
             return redirect()->route('property-terms.index')
                 ->with('success', 'Terms and conditions deleted successfully.');
         } catch (\Exception $e) {
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error: ' . $e->getMessage()
+                ], 500);
+            }
             return redirect()->route('property-terms.index')
                 ->with('error', 'Error: ' . $e->getMessage());
         }

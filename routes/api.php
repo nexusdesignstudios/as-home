@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ApiController;
+use App\Http\Controllers\PropertyTermsController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -44,8 +45,8 @@ Route::get('get_languages', [ApiController::class, 'get_languages']);
 /*********************************************************************** */
 
 /** Only Declared */
-Route::match(array('GET', 'POST'),'app_payment_status', [ApiController::class, 'app_payment_status']);
-Route::match(array('GET', 'POST'),'flutterwave-payment-status', [ApiController::class, 'flutterwavePaymentStatus']);
+Route::match(array('GET', 'POST'), 'app_payment_status', [ApiController::class, 'app_payment_status']);
+Route::match(array('GET', 'POST'), 'flutterwave-payment-status', [ApiController::class, 'flutterwavePaymentStatus']);
 /*********************************************************************** */
 
 /** Confirmation needed */
@@ -67,7 +68,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::post('change-property-status', [ApiController::class, 'changePropertyStatus']);
     Route::get('get_favourite_property', [ApiController::class, 'get_favourite_property']);
     Route::get('get_property_inquiry', [ApiController::class, 'get_property_inquiry']);
-    Route::get('get-added-properties',[ApiController::class,'getAddedProperties']);
+    Route::get('get-added-properties', [ApiController::class, 'getAddedProperties']);
     /*********************************************************************** */
 
     /** Users */
@@ -81,8 +82,8 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     /** Chat */
     Route::post('send_message', [ApiController::class, 'send_message']);
     Route::post('delete_chat_message', [ApiController::class, 'delete_chat_message']);
-    Route::post('block-user',[ApiController::class,'blockChatUser']);
-    Route::post('unblock-user',[ApiController::class,'unBlockChatUser']);
+    Route::post('block-user', [ApiController::class, 'blockChatUser']);
+    Route::post('unblock-user', [ApiController::class, 'unBlockChatUser']);
     Route::get('get_messages', [ApiController::class, 'get_messages']);
     Route::get('get_chats', [ApiController::class, 'get_chats']);
     /*********************************************************************** */
@@ -110,15 +111,15 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::get('paypal', [ApiController::class, 'paypal']);
     Route::post('generate-razorpay-orderid', [ApiController::class, 'generateRazorpayOrderId']);
 
-    Route::post('create-payment-intent',[ApiController::class, 'getPaymentIntent']);
+    Route::post('create-payment-intent', [ApiController::class, 'getPaymentIntent']);
     Route::post('payment-transaction-fail', [ApiController::class, 'makePaymentTransactionFail']);
 
     // Payment Receipt
     Route::get('get-payment-receipt', [ApiController::class, 'getPaymentReceipt']);
 
     // Bank Transfer Apis
-    Route::post('initiate-bank-transfer',[ApiController::class,'initiateBankTransaction']);
-    Route::post('upload-bank-receipt-file',[ApiController::class,'uploadBankReceiptFile']);
+    Route::post('initiate-bank-transfer', [ApiController::class, 'initiateBankTransaction']);
+    Route::post('upload-bank-receipt-file', [ApiController::class, 'uploadBankReceiptFile']);
     // Other's APIs
     Route::get('get_notification_list', [ApiController::class, 'get_notification_list']);
     /*********************************************************************** */
@@ -157,7 +158,12 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     /*********************************************************************** */
 
     /** General Apis */
-    Route::get('get-featured-data',[ApiController::class, 'getFeaturedData']);
+    Route::get('get-featured-data', [ApiController::class, 'getFeaturedData']);
+
+    /** Property Terms */
+    Route::apiResource('property-terms', PropertyTermsController::class);
+    Route::get('get-terms-by-classification/{classificationId}', [PropertyTermsController::class, 'getTermsByClassification']);
+    /*********************************************************************** */
 });
 
 
@@ -166,8 +172,8 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
 /** Property */
 Route::get('get_property', [ApiController::class, 'get_property']);
 Route::get('get-property-list', [ApiController::class, 'getPropertyList']);
-Route::get('get-facilities-for-filter',[ApiController::class,'getFacilitiesForFilter']);
-Route::get('get-all-similar-properties',[ApiController::class, 'getAllSimilarProperties']);
+Route::get('get-facilities-for-filter', [ApiController::class, 'getFacilitiesForFilter']);
+Route::get('get-all-similar-properties', [ApiController::class, 'getAllSimilarProperties']);
 /*********************************************************************** */
 
 /** Projects */
@@ -213,4 +219,3 @@ Route::get('deep-link', [ApiController::class, 'deepLink']);
 // Temp
 Route::get('remove-account-temp', [ApiController::class, 'removeAccountTemp']);
 /*********************************************************************** */
-

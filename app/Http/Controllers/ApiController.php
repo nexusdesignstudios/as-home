@@ -7237,4 +7237,141 @@ class ApiController extends Controller
             ApiResponseService::errorResponse("Issue");
         }
     }
+
+    // Property Terms API Methods
+    public function getPropertyTerms()
+    {
+        try {
+            $propertyTerms = PropertyTerms::all();
+
+            return response()->json([
+                'success' => true,
+                'data' => $propertyTerms
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getPropertyTermById($id)
+    {
+        try {
+            $propertyTerm = PropertyTerms::findOrFail($id);
+
+            return response()->json([
+                'success' => true,
+                'data' => $propertyTerm
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getTermsByClassification($classificationId)
+    {
+        try {
+            $terms = PropertyTerms::where('classification_id', $classificationId)->first();
+
+            if ($terms) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $terms
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terms not found for this classification'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function createPropertyTerm(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'classification_id' => 'required|integer|unique:property_terms',
+                'terms_conditions' => 'required'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first()
+                ], 422);
+            }
+
+            $propertyTerm = PropertyTerms::create($request->all());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Terms and conditions created successfully',
+                'data' => $propertyTerm
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function updatePropertyTerm(Request $request, $id)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'terms_conditions' => 'required'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first()
+                ], 422);
+            }
+
+            $propertyTerm = PropertyTerms::findOrFail($id);
+            $propertyTerm->update($request->all());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Terms and conditions updated successfully',
+                'data' => $propertyTerm
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function deletePropertyTerm($id)
+    {
+        try {
+            $propertyTerm = PropertyTerms::findOrFail($id);
+            $propertyTerm->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Terms and conditions deleted successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
