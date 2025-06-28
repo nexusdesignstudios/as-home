@@ -425,48 +425,6 @@
                   "disabled": true
                 },
                 {
-                  "key": "bank_details[type_of_company]",
-                  "value": "LLC",
-                  "type": "text",
-                  "disabled": true
-                },
-                {
-                  "key": "bank_details[bank_branch]",
-                  "value": "Main Branch",
-                  "type": "text",
-                  "disabled": true
-                },
-                {
-                  "key": "bank_details[bank_address]",
-                  "value": "456 Bank St, City",
-                  "type": "text",
-                  "disabled": true
-                },
-                {
-                  "key": "bank_details[country]",
-                  "value": "United States",
-                  "type": "text",
-                  "disabled": true
-                },
-                {
-                  "key": "bank_details[bank_account_number]",
-                  "value": "123456789",
-                  "type": "text",
-                  "disabled": true
-                },
-                {
-                  "key": "bank_details[iban]",
-                  "value": "US123456789",
-                  "type": "text",
-                  "disabled": true
-                },
-                {
-                  "key": "bank_details[swift_code]",
-                  "value": "SWIFT123",
-                  "type": "text",
-                  "disabled": true
-                },
-                {
                   "key": "company[company_legal_name]",
                   "value": "Example Corp",
                   "type": "text",
@@ -489,6 +447,42 @@
                   "value": "company@example.com",
                   "type": "text",
                   "disabled": true
+                },
+                {
+                  "key": "company[bank_branch]",
+                  "value": "Main Branch",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "company[bank_address]",
+                  "value": "456 Bank St, City",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "company[country]",
+                  "value": "United States",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "company[bank_account_number]",
+                  "value": "123456789",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "company[iban]",
+                  "value": "US123456789",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "company[swift_code]",
+                  "value": "SWIFT123",
+                  "type": "text",
+                  "disabled": true
                 }
               ]
             },
@@ -497,7 +491,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "update_profile"]
             },
-            "description": "Update user profile with optional bank details and company information"
+            "description": "Update user profile with optional company information (including bank details)"
           },
           "response": []
         },
@@ -636,37 +630,52 @@
                   "type": "text"
                 },
                 {
-                  "key": "bank_details[type_of_company]",
+                  "key": "company[company_legal_name]",
+                  "value": "Individual Agent Company",
+                  "type": "text"
+                },
+                {
+                  "key": "company[manager_name]",
+                  "value": "Individual Agent",
+                  "type": "text"
+                },
+                {
+                  "key": "company[type_of_company]",
                   "value": "Individual",
                   "type": "text"
                 },
                 {
-                  "key": "bank_details[bank_branch]",
+                  "key": "company[email_address]",
+                  "value": "individual@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "company[bank_branch]",
                   "value": "Main Branch",
                   "type": "text"
                 },
                 {
-                  "key": "bank_details[bank_address]",
+                  "key": "company[bank_address]",
                   "value": "456 Bank St, City",
                   "type": "text"
                 },
                 {
-                  "key": "bank_details[country]",
+                  "key": "company[country]",
                   "value": "United States",
                   "type": "text"
                 },
                 {
-                  "key": "bank_details[bank_account_number]",
+                  "key": "company[bank_account_number]",
                   "value": "123456789",
                   "type": "text"
                 },
                 {
-                  "key": "bank_details[iban]",
+                  "key": "company[iban]",
                   "value": "US123456789",
                   "type": "text"
                 },
                 {
-                  "key": "bank_details[swift_code]",
+                  "key": "company[swift_code]",
                   "value": "SWIFT123",
                   "type": "text"
                 }
@@ -677,7 +686,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "update_profile"]
             },
-            "description": "Update user as individual agent with bank details"
+            "description": "Update user as individual agent with company and bank details"
           },
           "response": []
         },
@@ -716,41 +725,6 @@
                   "type": "text"
                 },
                 {
-                  "key": "bank_details[type_of_company]",
-                  "value": "LLC",
-                  "type": "text"
-                },
-                {
-                  "key": "bank_details[bank_branch]",
-                  "value": "Main Branch",
-                  "type": "text"
-                },
-                {
-                  "key": "bank_details[bank_address]",
-                  "value": "456 Bank St, City",
-                  "type": "text"
-                },
-                {
-                  "key": "bank_details[country]",
-                  "value": "United States",
-                  "type": "text"
-                },
-                {
-                  "key": "bank_details[bank_account_number]",
-                  "value": "123456789",
-                  "type": "text"
-                },
-                {
-                  "key": "bank_details[iban]",
-                  "value": "US123456789",
-                  "type": "text"
-                },
-                {
-                  "key": "bank_details[swift_code]",
-                  "value": "SWIFT123",
-                  "type": "text"
-                },
-                {
                   "key": "company[company_legal_name]",
                   "value": "Example Corp",
                   "type": "text"
@@ -769,6 +743,36 @@
                   "key": "company[email_address]",
                   "value": "company@example.com",
                   "type": "text"
+                },
+                {
+                  "key": "company[bank_branch]",
+                  "value": "Main Branch",
+                  "type": "text"
+                },
+                {
+                  "key": "company[bank_address]",
+                  "value": "456 Bank St, City",
+                  "type": "text"
+                },
+                {
+                  "key": "company[country]",
+                  "value": "United States",
+                  "type": "text"
+                },
+                {
+                  "key": "company[bank_account_number]",
+                  "value": "123456789",
+                  "type": "text"
+                },
+                {
+                  "key": "company[iban]",
+                  "value": "US123456789",
+                  "type": "text"
+                },
+                {
+                  "key": "company[swift_code]",
+                  "value": "SWIFT123",
+                  "type": "text"
                 }
               ]
             },
@@ -777,156 +781,12 @@
               "host": ["{{base_url}}"],
               "path": ["api", "update_profile"]
             },
-            "description": "Update user as company agent with bank details and company information"
+            "description": "Update user as company agent with company information including bank details"
           },
           "response": []
         }
       ],
       "description": "Customer management endpoints"
-    },
-    {
-      "name": "Bank Details",
-      "item": [
-        {
-          "name": "Create Bank Details",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{auth_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"type_of_company\": \"LLC\",\n    \"bank_branch\": \"Main Branch\",\n    \"bank_address\": \"456 Bank St, City\",\n    \"country\": \"United States\",\n    \"bank_account_number\": \"123456789\",\n    \"iban\": \"US123456789\",\n    \"swift_code\": \"SWIFT123\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/bank-details",
-              "host": ["{{base_url}}"],
-              "path": ["api", "bank-details"]
-            },
-            "description": "Create new bank details"
-          },
-          "response": []
-        },
-        {
-          "name": "Get Bank Details",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{auth_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/bank-details/{{bank_details_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "bank-details", "{{bank_details_id}}"]
-            },
-            "description": "Get bank details by ID"
-          },
-          "response": []
-        },
-        {
-          "name": "Update Bank Details",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{auth_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"type_of_company\": \"Updated LLC\",\n    \"bank_branch\": \"Updated Branch\",\n    \"bank_address\": \"Updated Address\",\n    \"country\": \"Canada\",\n    \"bank_account_number\": \"987654321\",\n    \"iban\": \"CA987654321\",\n    \"swift_code\": \"SWIFT987\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/bank-details/{{bank_details_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "bank-details", "{{bank_details_id}}"]
-            },
-            "description": "Update bank details by ID"
-          },
-          "response": []
-        },
-        {
-          "name": "Delete Bank Details",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{auth_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/bank-details/{{bank_details_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "bank-details", "{{bank_details_id}}"]
-            },
-            "description": "Delete bank details by ID"
-          },
-          "response": []
-        }
-      ],
-      "description": "Bank details management endpoints"
     },
     {
       "name": "Company",
@@ -959,14 +819,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"company_legal_name\": \"Example Corp\",\n    \"manager_name\": \"John Manager\",\n    \"type_of_company\": \"Real Estate\",\n    \"email_address\": \"company@example.com\"\n}"
+              "raw": "{\n    \"company_legal_name\": \"Example Corp\",\n    \"manager_name\": \"John Manager\",\n    \"type_of_company\": \"Real Estate\",\n    \"email_address\": \"company@example.com\",\n    \"bank_branch\": \"Main Branch\",\n    \"bank_address\": \"456 Bank St, City\",\n    \"country\": \"United States\",\n    \"bank_account_number\": \"123456789\",\n    \"iban\": \"US123456789\",\n    \"swift_code\": \"SWIFT123\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/companies",
               "host": ["{{base_url}}"],
               "path": ["api", "companies"]
             },
-            "description": "Create new company"
+            "description": "Create new company with bank details"
           },
           "response": []
         },
@@ -1028,14 +888,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"company_legal_name\": \"Updated Corp\",\n    \"manager_name\": \"Updated Manager\",\n    \"type_of_company\": \"Updated Real Estate\",\n    \"email_address\": \"updated@example.com\"\n}"
+              "raw": "{\n    \"company_legal_name\": \"Updated Corp\",\n    \"manager_name\": \"Updated Manager\",\n    \"type_of_company\": \"Updated Real Estate\",\n    \"email_address\": \"updated@example.com\",\n    \"bank_branch\": \"Updated Branch\",\n    \"bank_address\": \"Updated Address\",\n    \"country\": \"Canada\",\n    \"bank_account_number\": \"987654321\",\n    \"iban\": \"CA987654321\",\n    \"swift_code\": \"SWIFT987\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/companies/{{company_id}}",
               "host": ["{{base_url}}"],
               "path": ["api", "companies", "{{company_id}}"]
             },
-            "description": "Update company by ID"
+            "description": "Update company by ID including bank details"
           },
           "response": []
         },
@@ -1070,7 +930,7 @@
           "response": []
         }
       ],
-      "description": "Company management endpoints"
+      "description": "Company management endpoints (now including bank details)"
     },
     {
       "name": "System Settings",
