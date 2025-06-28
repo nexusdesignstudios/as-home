@@ -5,6 +5,7 @@ namespace App\Console;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use App\Console\Commands\SeedPropertyDataCommand;
 
 class Kernel extends ConsoleKernel
 {
@@ -39,8 +40,8 @@ class Kernel extends ConsoleKernel
      */
     protected function commands()
     {
-        $this->load(__DIR__.'/Commands');
-        $this->load(__DIR__.'/Commands/Demo');
+        $this->load(__DIR__ . '/Commands');
+        $this->load(__DIR__ . '/Commands/Demo');
 
         require base_path('routes/console.php');
     }

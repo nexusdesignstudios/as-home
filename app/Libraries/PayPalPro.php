@@ -33,7 +33,7 @@ namespace App\Libraries;
  */
 
 
-class PayPal_Pro
+class PayPalPro
 {
 
     var $APIUsername = '';
@@ -2649,5 +2649,5 @@ class PayPal_Pro
     }
 }
 
-/* End of file Paypal_pro.php */
-/* Location: ./system/application/libraries/Paypal_pro.php */
+/* End of file PayPalPro.php */
+/* Location: ./app/Libraries/PayPalPro.php */
