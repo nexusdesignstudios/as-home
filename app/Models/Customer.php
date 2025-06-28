@@ -180,15 +180,8 @@ class Customer extends Authenticatable
     }
 
     /**
-     * Get the bank details associated with the customer.
-     */
-    public function bankDetail()
-    {
-        return $this->belongsTo(BankDetail::class, 'bankDetails_id');
-    }
-
-    /**
      * Get the company associated with the customer.
+     * The company now includes bank details.
      */
     public function company()
     {

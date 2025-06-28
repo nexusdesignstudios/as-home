@@ -41,6 +41,12 @@ class CompanyController extends Controller
             'manager_name' => 'required|string|max:255',
             'type_of_company' => 'required|string|max:255',
             'email_address' => 'required|email|max:255',
+            'bank_branch' => 'nullable|string|max:255',
+            'bank_address' => 'nullable|string',
+            'country' => 'nullable|string|max:255',
+            'bank_account_number' => 'nullable|string|max:255',
+            'iban' => 'nullable|string|max:255',
+            'swift_code' => 'nullable|string|max:50',
         ]);
 
         if ($validator->fails()) {
@@ -98,6 +104,12 @@ class CompanyController extends Controller
             'manager_name' => 'sometimes|required|string|max:255',
             'type_of_company' => 'sometimes|required|string|max:255',
             'email_address' => 'sometimes|required|email|max:255',
+            'bank_branch' => 'nullable|string|max:255',
+            'bank_address' => 'nullable|string',
+            'country' => 'nullable|string|max:255',
+            'bank_account_number' => 'nullable|string|max:255',
+            'iban' => 'nullable|string|max:255',
+            'swift_code' => 'nullable|string|max:50',
         ]);
 
         if ($validator->fails()) {
@@ -157,7 +169,10 @@ class CompanyController extends Controller
             $sql->where('id', 'LIKE', "%$search%")
                 ->orWhere('company_legal_name', 'LIKE', "%$search%")
                 ->orWhere('manager_name', 'LIKE', "%$search%")
-                ->orWhere('email_address', 'LIKE', "%$search%");
+                ->orWhere('email_address', 'LIKE', "%$search%")
+                ->orWhere('bank_branch', 'LIKE', "%$search%")
+                ->orWhere('bank_account_number', 'LIKE', "%$search%")
+                ->orWhere('swift_code', 'LIKE', "%$search%");
         }
 
         $total = $sql->count();
