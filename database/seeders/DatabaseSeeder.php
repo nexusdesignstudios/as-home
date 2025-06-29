@@ -113,7 +113,7 @@ class DatabaseSeeder extends Seeder
                 ],
                 [
                     'type' => 'web_logo',
-                    'data' => 'logo.png',
+                    'data' => 'web_logo.png',
                 ],
                 [
                     'type' => 'favicon_icon',
@@ -125,7 +125,7 @@ class DatabaseSeeder extends Seeder
                 ],
                 [
                     'type' => 'web_footer_logo',
-                    'data' => 'logo.png',
+                    'data' => 'Logo_white.svg',
                 ],
                 [
                     'type' => 'web_placeholder_logo',
@@ -147,3 +147,4 @@ class DatabaseSeeder extends Seeder
         );
     }
 }
+
