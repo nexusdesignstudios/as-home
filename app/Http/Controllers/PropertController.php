@@ -46,7 +46,7 @@ class PropertController extends Controller
         } else {
             $customerID = $_GET['customer'] ?? null;
             $category = Category::all();
-            return view('property.index', compact('category','customerID'));
+            return view('property.index', compact('category', 'customerID'));
         }
     }
     /**
@@ -119,7 +119,7 @@ class PropertController extends Controller
                 $saveProperty = new Property();
                 $saveProperty->category_id = $request->category;
                 $saveProperty->title = $request->title;
-                $saveProperty->slug_id = $request->slug ?? generateUniqueSlug($request->title,1);
+                $saveProperty->slug_id = $request->slug ?? generateUniqueSlug($request->title, 1);
                 $saveProperty->description = $request->description;
                 $saveProperty->address = $request->address;
                 $saveProperty->client_address = $request->client_address;
@@ -220,7 +220,7 @@ class PropertController extends Controller
                     $documentsData = array();
                     foreach ($request->file('documents') as $file) {
                         $type = $file->extension();
-                        $name = microtime(true). '.' . $type;
+                        $name = microtime(true) . '.' . $type;
                         $file->move($destinationPath, $name);
 
                         $documentsData[] = array(
@@ -230,14 +230,14 @@ class PropertController extends Controller
                         );
                     }
 
-                    if(collect($documentsData)->isNotEmpty()){
+                    if (collect($documentsData)->isNotEmpty()) {
                         PropertiesDocument::insert($documentsData);
                     }
                 }
                 /// END :: UPLOAD DOCUMENT
 
                 // START :: ADD CITY DATA
-                if(isset($request->city) && !empty($request->city)){
+                if (isset($request->city) && !empty($request->city)) {
                     CityImage::updateOrCreate(array('city' => $request->city));
                 }
                 // END :: ADD CITY DATA
@@ -246,7 +246,7 @@ class PropertController extends Controller
                 ResponseService::successRedirectResponse('Data Created Successfully');
             } catch (Exception $e) {
                 DB::rollBack();
-                ResponseService::logErrorRedirectResponse($e,"Create Property Issue");
+                ResponseService::logErrorRedirectResponse($e, "Create Property Issue");
             }
         }
     }
@@ -266,8 +266,8 @@ class PropertController extends Controller
                 return [$item['id'] => $item['category']];
             });
             $category = Category::where('status', '1')->get();
-            $list = Property::with(['assignParameter' => function($q){
-                $q->with('parameter:id,name,type_of_parameter,type_values,is_required,image')->select('id','modal_type','modal_id','property_id','parameter_id','value');
+            $list = Property::with(['assignParameter' => function ($q) {
+                $q->with('parameter:id,name,type_of_parameter,type_values,is_required,image')->select('id', 'modal_type', 'modal_id', 'property_id', 'parameter_id', 'value');
             }])->where('id', $id)->get()->first();
 
             $categoryData = Category::find($list->category_id);
@@ -276,8 +276,8 @@ class PropertController extends Controller
 
             $parameters = parameter::all();
             $edit_parameters = parameter::with(['assigned_parameter' => function ($q) use ($id) {
-                $q->where('modal_id', $id)->select('id','modal_type','modal_id','property_id','parameter_id','value');
-            }])->whereIn('id',$categoryParameterTypeIds)->get();
+                $q->where('modal_id', $id)->select('id', 'modal_type', 'modal_id', 'property_id', 'parameter_id', 'value');
+            }])->whereIn('id', $categoryParameterTypeIds)->get();
 
             // Sort the collection by the order of IDs in $categoryParameterTypeIds.
             $edit_parameters = $edit_parameters->sortBy(function ($parameter) use ($categoryParameterTypeIds) {
@@ -291,7 +291,7 @@ class PropertController extends Controller
 
 
             $facility = OutdoorFacilities::with(['assign_facilities' => function ($q) use ($id) {
-                $q->where('property_id', $id)->select('id','property_id','facility_id','distance');
+                $q->where('property_id', $id)->select('id', 'property_id', 'facility_id', 'distance');
             }])->get();
 
             $assignFacility = AssignedOutdoorFacilities::where('property_id', $id)->get();
@@ -307,7 +307,7 @@ class PropertController extends Controller
             $currency_symbol = Setting::where('type', 'currency_symbol')->pluck('data')->first();
             $distanceValueDB = system_setting('distance_option');
             $distanceValue = isset($distanceValueDB) && !empty($distanceValueDB) ? $distanceValueDB : 'km';
-            return view('property.edit', compact('category', 'facility', 'assignFacility', 'edit_parameters', 'list', 'id', 'par_arr', 'parameters', 'par_id', 'currency_symbol','distanceValue'));
+            return view('property.edit', compact('category', 'facility', 'assignFacility', 'edit_parameters', 'list', 'id', 'par_arr', 'parameters', 'par_id', 'currency_symbol', 'distanceValue'));
         }
     }
 
@@ -324,7 +324,7 @@ class PropertController extends Controller
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         } else {
             $request->validate([
-                'slug'              => 'nullable|regex:/^[a-z0-9-]+$/|unique:propertys,slug_id,'.$id.',id',
+                'slug'              => 'nullable|regex:/^[a-z0-9-]+$/|unique:propertys,slug_id,' . $id . ',id',
                 'gallery_images.*'  => 'nullable|image|mimes:jpg,png,jpeg|max:2048',
                 'documents.*'       => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
                 'title_image'       => 'nullable|image|mimes:jpg,png,jpeg|max:2048',
@@ -352,11 +352,11 @@ class PropertController extends Controller
                         return $fail("The Video Link must be accessible.");
                     }
                 }]
-            ],[], [
+            ], [], [
                 'documents.*' => 'document :position'
             ]);
 
-            try{
+            try {
 
                 DB::beginTransaction();
                 $UpdateProperty = Property::with('assignparameter.parameter')->find($id);
@@ -366,7 +366,7 @@ class PropertController extends Controller
                 }
                 $UpdateProperty->category_id = $request->category;
                 $UpdateProperty->title = $request->title;
-                $UpdateProperty->slug_id = $request->slug ?? generateUniqueSlug($request->title,1,null,$id);
+                $UpdateProperty->slug_id = $request->slug ?? generateUniqueSlug($request->title, 1, null, $id);
                 $UpdateProperty->description = $request->description;
                 $UpdateProperty->address = $request->address;
                 $UpdateProperty->client_address = $request->client_address;
@@ -467,7 +467,7 @@ class PropertController extends Controller
                     $documentsData = array();
                     foreach ($request->file('documents') as $file) {
                         $type = $file->extension();
-                        $name = microtime(true). '.' . $type;
+                        $name = microtime(true) . '.' . $type;
                         $file->move($destinationPath, $name);
 
                         $documentsData[] = array(
@@ -477,14 +477,14 @@ class PropertController extends Controller
                         );
                     }
 
-                    if(collect($documentsData)->isNotEmpty()){
+                    if (collect($documentsData)->isNotEmpty()) {
                         PropertiesDocument::insert($documentsData);
                     }
                 }
                 /// END :: UPLOAD DOCUMENT
 
                 // START :: ADD CITY DATA
-                if(isset($request->city) && !empty($request->city)){
+                if (isset($request->city) && !empty($request->city)) {
                     CityImage::updateOrCreate(array('city' => $request->city));
                 }
                 // END :: ADD CITY DATA
@@ -493,7 +493,7 @@ class PropertController extends Controller
                 ResponseService::successRedirectResponse('Data Updated Successfully');
             } catch (Exception $e) {
                 DB::rollBack();
-                ResponseService::logErrorRedirectResponse($e,"Update Property Issue");
+                ResponseService::logErrorRedirectResponse($e, "Update Property Issue");
             }
         }
     }
@@ -545,9 +545,11 @@ class PropertController extends Controller
 
         $searchQuery = null;
         $propertyType = null;
+        $propertyClassification = null;
         $status = null;
         $categoryId = null;
         $propertyAddedBy = null;
+        $propertyAccessibility = null;
 
         // Extract and validate filters
         if (isset($_GET['search']) && !empty($_GET['search'])) {
@@ -598,7 +600,7 @@ class PropertController extends Controller
         }
 
         if (!empty($customerID)) {
-            $sql = $sql->where('added_by',$customerID);
+            $sql = $sql->where('added_by', $customerID);
         }
 
         if ($status !== null) {
@@ -610,16 +612,16 @@ class PropertController extends Controller
         }
 
         if ($propertyAddedBy !== null) {
-            if($propertyAddedBy == 0){
+            if ($propertyAddedBy == 0) {
                 $sql = $sql->where('added_by', 0);
-            }else{
+            } else {
                 $sql = $sql->whereNot('added_by', 0);
             }
         }
         if (isset($propertyAccessibility) && $propertyAccessibility !== null) {
-            if($propertyAccessibility == 1){
+            if ($propertyAccessibility == 1) {
                 $sql = $sql->where('is_premium', 1);
-            }else{
+            } else {
                 $sql = $sql->where('is_premium', 0);
             }
         }
@@ -645,18 +647,18 @@ class PropertController extends Controller
             $tempRow = $row->toArray();
             $tempRow['property_type_raw'] = $row->getRawOriginal('propery_type');
 
-            if($row->added_by == 0){
+            if ($row->added_by == 0) {
                 if (has_permissions('update', 'property')) {
                     $operate = BootstrapTableService::editButton(route('property.edit', $row->id), false);
                 }
                 if (has_permissions('delete', 'property')) {
                     $operate .= BootstrapTableService::deleteButton(route('property.destroy', $row->id));
                 }
-            }else{
+            } else {
                 if (has_permissions('update', 'property')) {
-                    $requestStatusButtonCustomClasses = ["btn","icon","btn-warning","btn-sm","rounded-pill","request-status-btn"];
+                    $requestStatusButtonCustomClasses = ["btn", "icon", "btn-warning", "btn-sm", "rounded-pill", "request-status-btn"];
                     $requestStatusButtonCustomAttributes = ["id" => $row->id, "title" => trans('Change Status'), "data-toggle" => "modal", "data-bs-target" => "#changeRequestStatusModal", "data-bs-toggle" => "modal"];
-                    $operate = BootstrapTableService::button('fa fa-exclamation-circle', '',$requestStatusButtonCustomClasses,$requestStatusButtonCustomAttributes);
+                    $operate = BootstrapTableService::button('fa fa-exclamation-circle', '', $requestStatusButtonCustomClasses, $requestStatusButtonCustomAttributes);
                 }
                 if (has_permissions('delete', 'property')) {
                     $operate .= BootstrapTableService::deleteButton(route('property.destroy', $row->id));
@@ -672,17 +674,17 @@ class PropertController extends Controller
             }
 
             $price = null;
-            if(!empty($row->propery_type) && $row->getRawOriginal('propery_type') == 1){
+            if (!empty($row->propery_type) && $row->getRawOriginal('propery_type') == 1) {
                 $price = !empty($row->rentduration) ?  $currency_symbol . '' . $row->price . '/' . $row->rentduration : $row->price;
-            }else{
-                $price = $currency_symbol . '' .$row->price;
+            } else {
+                $price = $currency_symbol . '' . $row->price;
             }
 
             $tempRow['total_interested_users'] = count($interested_users);
             $tempRow['promoted'] = $row->is_promoted;
-            if($row->added_by == 0 && $row->request_status == "approved"){
+            if ($row->added_by == 0 && $row->request_status == "approved") {
                 $tempRow['edit_status'] = $row->status;
-            }else{
+            } else {
                 $tempRow['edit_status'] = null;
             }
             $tempRow['edit_status_url'] = $row->added_by == 0 && $row->request_status == "approved" ? 'updatepropertystatus' : null;
@@ -692,7 +694,7 @@ class PropertController extends Controller
 
             if ($row->added_by != 0) {
                 $tempRow['added_by'] = $row->customer->name;
-                $tempRow['mobile'] = (env('DEMO_MODE') ? ( env('DEMO_MODE') == true && Auth::user()->email == 'superadmin@gmail.com' ? ( $row->customer->mobile ) : '****************************' ) : ( $row->customer->mobile ));
+                $tempRow['mobile'] = (env('DEMO_MODE') ? (env('DEMO_MODE') == true && Auth::user()->email == 'superadmin@gmail.com' ? ($row->customer->mobile) : '****************************') : ($row->customer->mobile));
             }
             if ($row->added_by == 0) {
                 $mobile = Setting::where('type', 'company_tel1')->pluck('data');
@@ -712,18 +714,18 @@ class PropertController extends Controller
             }
 
             // Gallery Images
-            $galleryButtonCustomClasses = ["btn","icon","btn-primary","btn-sm","rounded-pill","gallery-image-btn"];
+            $galleryButtonCustomClasses = ["btn", "icon", "btn-primary", "btn-sm", "rounded-pill", "gallery-image-btn"];
             $galleryButtonCustomAttributes = ["id" => $row->id, "title" => trans('Gallery Images'), "data-toggle" => "modal", "data-bs-target" => "#galleryImagesModal", "data-bs-toggle" => "modal"];
             $galleryImagesCount = count($row->gallery);
-            $galleryImagesButton = BootstrapTableService::button('bi bi-eye-fill ml-2', '',$galleryButtonCustomClasses,$galleryButtonCustomAttributes,$galleryImagesCount);
+            $galleryImagesButton = BootstrapTableService::button('bi bi-eye-fill ml-2', '', $galleryButtonCustomClasses, $galleryButtonCustomAttributes, $galleryImagesCount);
             $tempRow['gallery-images-btn'] = $galleryImagesButton;
 
 
             // Documents
-            $documentsButtonCustomClasses = ["btn","icon","btn-primary","btn-sm","rounded-pill","documents-btn"];
+            $documentsButtonCustomClasses = ["btn", "icon", "btn-primary", "btn-sm", "rounded-pill", "documents-btn"];
             $documentsButtonCustomAttributes = ["id" => $row->id, "title" => trans('Documents'), "data-toggle" => "modal", "data-bs-target" => "#documentsModal", "data-bs-toggle" => "modal"];
             $documentsCount = count($row->documents);
-            $documentsButton = BootstrapTableService::button('bi bi-eye-fill', '',$documentsButtonCustomClasses,$documentsButtonCustomAttributes,$documentsCount);
+            $documentsButton = BootstrapTableService::button('bi bi-eye-fill', '', $documentsButtonCustomClasses, $documentsButtonCustomAttributes, $documentsCount);
             $tempRow['documents-btn'] = $documentsButton;
 
 
@@ -865,14 +867,14 @@ class PropertController extends Controller
             if (count($row->advertisement)) {
                 if (has_permissions('update', 'property') && $row->added_by == 0) {
                     $operate = '<a  href="' . route('property.edit', $row->id) . '"  class="btn icon btn-primary btn-sm rounded-pill mt-2" id="edit_btn" title="Edit"><i class="fa fa-edit edit_icon"></i></a>';
-                }else{
+                } else {
                     $operate = "-";
                 }
                 $tempRow = $row->toArray();
                 $tempRow['type'] = ucfirst($row->propery_type);
-                if($row->added_by == 0 && $row->request_status == "approved"){
+                if ($row->added_by == 0 && $row->request_status == "approved") {
                     $tempRow['status'] = $row->status;
-                }else{
+                } else {
                     $tempRow['status'] = null;
                 }
                 $tempRow['edit_status_url'] = 'updatepropertystatus';
@@ -898,7 +900,8 @@ class PropertController extends Controller
         }
     }
 
-    public function generateAndCheckSlug(Request $request){
+    public function generateAndCheckSlug(Request $request)
+    {
         // Validation
         $validator = Validator::make($request->all(), [
             'title' => 'required',
@@ -911,12 +914,12 @@ class PropertController extends Controller
         try {
             $title = $request->title;
             $id = $request->has('id') && !empty($request->id) ? $request->id : null;
-            if($id){
-                $slug = generateUniqueSlug($title,1,null,$id);
-            }else{
-                $slug = generateUniqueSlug($title,1);
+            if ($id) {
+                $slug = generateUniqueSlug($title, 1, null, $id);
+            } else {
+                $slug = generateUniqueSlug($title, 1);
             }
-            ResponseService::successResponse("",$slug);
+            ResponseService::successResponse("", $slug);
         } catch (Exception $e) {
             ResponseService::logErrorResponse($e, "Property Slug Generation Error", "Something Went Wrong");
         }
@@ -932,7 +935,7 @@ class PropertController extends Controller
         } else {
             $id = $request->id;
             $getDocument = PropertiesDocument::where('id', $id)->first();
-            if($getDocument){
+            if ($getDocument) {
                 $file = $getDocument->getRawOriginal('name');
                 $propertyId =  $getDocument->property_id;
 
@@ -955,7 +958,8 @@ class PropertController extends Controller
     }
 
 
-    public function removeThreeDImage($id,Request $request){
+    public function removeThreeDImage($id, Request $request)
+    {
         if (!has_permissions('delete', 'property')) {
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         } else {
@@ -985,13 +989,13 @@ class PropertController extends Controller
             if (!has_permissions('update', 'property')) {
                 ResponseService::errorResponse(PERMISSION_ERROR_MSG);
             } else {
-                if($request->request_status == "rejected"){
+                if ($request->request_status == "rejected") {
                     RejectReason::create(array(
                         'property_id' => $request->id,
                         'reason' => $request->reject_reason
                     ));
                     $status = 0;
-                }else{
+                } else {
                     $status = 1;
                 }
                 Property::where('id', $request->id)->update(['request_status' => $request->request_status, 'status' => $status]);
@@ -999,8 +1003,8 @@ class PropertController extends Controller
 
                 // Send mail for property status
                 try {
-                    $propertyData = Property::where('id',$request->id)->select('id','title','request_status','added_by')->with('customer:id,name,email')->firstOrFail();
-                    if(!empty($propertyData->customer->email)){
+                    $propertyData = Property::where('id', $request->id)->select('id', 'title', 'request_status', 'added_by')->with('customer:id,name,email')->firstOrFail();
+                    if (!empty($propertyData->customer->email)) {
                         // Get Data of email type
                         $emailTypeData = HelperService::getEmailTemplatesTypes("property_status");
 
@@ -1015,10 +1019,10 @@ class PropertController extends Controller
                             'reject_reason' => $request->request_status == 'rejected' ? $request->reject_reason : null,
                             'email' => $propertyData->customer->email
                         );
-                        if(empty($propertyStatusTemplateData)){
+                        if (empty($propertyStatusTemplateData)) {
                             $propertyStatusTemplateData = "Property Status have been changed";
                         }
-                        $propertyStatusTemplate = HelperService::replaceEmailVariables($propertyStatusTemplateData,$variables);
+                        $propertyStatusTemplate = HelperService::replaceEmailVariables($propertyStatusTemplateData, $variables);
 
                         $data = array(
                             'email_template' => $propertyStatusTemplate,
@@ -1034,7 +1038,7 @@ class PropertController extends Controller
 
 
                 // Send Notification
-                $property = Property::with('customer:id,name,isActive,notification')->select('id','title','request_status','added_by')->find($request->id);
+                $property = Property::with('customer:id,name,isActive,notification')->select('id', 'title', 'request_status', 'added_by')->find($request->id);
                 $fcm_ids = array();
                 if ($property->customer->isActive == 1 && $property->customer->notification == 1) {
                     $user_token = Usertokens::where('customer_id', $property->customer->id)->pluck('fcm_id')->toArray();
