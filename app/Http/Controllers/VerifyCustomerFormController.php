@@ -19,14 +19,16 @@ use Illuminate\Support\Facades\Validator;
 
 class VerifyCustomerFormController extends Controller
 {
-    public function verifyCustomerFormIndex(){
+    public function verifyCustomerFormIndex()
+    {
         if (!has_permissions('read', 'verify_customer_form')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
         return view('verify-customer-form.verify_customer_form');
     }
 
-    public function verifyCustomerFormStore(Request $request){
+    public function verifyCustomerFormStore(Request $request)
+    {
         if (!has_permissions('create', 'verify_customer_form')) {
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         }
@@ -48,11 +50,11 @@ class VerifyCustomerFormController extends Controller
             $verifyCustomerForm = VerifyCustomerForm::create(['name' => $name, 'field_type' => $fieldType]);
 
             // Check if option data is available or not
-            if($request->has('option_data') && !empty($request->option_data)){
+            if ($request->has('option_data') && !empty($request->option_data)) {
                 $verifyCustomerFormValueData = array();
                 // Loop through
                 foreach ($request->option_data as $option) {
-                    if(!empty($option['option'])){
+                    if (!empty($option['option'])) {
                         $verifyCustomerFormValueData[] = array(
                             'verify_customer_form_id'   => $verifyCustomerForm->id,
                             'value'                     => $option['option'],
@@ -61,7 +63,7 @@ class VerifyCustomerFormController extends Controller
                         );
                     }
                 }
-                if(!empty($verifyCustomerFormValueData)){
+                if (!empty($verifyCustomerFormValueData)) {
                     VerifyCustomerFormValue::insert($verifyCustomerFormValueData);
                 }
             }
@@ -69,7 +71,7 @@ class VerifyCustomerFormController extends Controller
             ResponseService::successResponse(trans('Data Created Successfully'));
         } catch (Exception $e) {
             DB::rollback();
-            ResponseService::logErrorResponse($e,trans('Something Went Wrong'));
+            ResponseService::logErrorResponse($e, trans('Something Went Wrong'));
         }
     }
 
@@ -93,8 +95,8 @@ class VerifyCustomerFormController extends Controller
                     $query->where('id', 'LIKE', "%$search%")
                         ->orWhere('name', 'LIKE', "%$search%")
                         ->orWhere('field_type', 'LIKE', "%$search%")
-                        ->orWhereHas('form_fields_values',function($query) use($search){
-                            $query->where('value','LIKE',"%$search%");
+                        ->orWhereHas('form_fields_values', function ($query) use ($search) {
+                            $query->where('value', 'LIKE', "%$search%");
                         });
                 });
             });
@@ -124,13 +126,14 @@ class VerifyCustomerFormController extends Controller
         return response()->json($bulkData);
     }
 
-    public function verifyCustomerFormStatus(Request $request){
+    public function verifyCustomerFormStatus(Request $request)
+    {
         if (!has_permissions('update', 'verify_customer_form')) {
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         } else {
-            if($request->status == '1'){
+            if ($request->status == '1') {
                 $status = 'active';
-            }else{
+            } else {
                 $status = 'inactive';
             }
             VerifyCustomerForm::where('id', $request->id)->update(['status' => $status]);
@@ -138,7 +141,8 @@ class VerifyCustomerFormController extends Controller
         }
     }
 
-    public function verifyCustomerFormUpdate(Request $request){
+    public function verifyCustomerFormUpdate(Request $request)
+    {
         if (!has_permissions('update', 'verify_customer_form')) {
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         }
@@ -149,16 +153,17 @@ class VerifyCustomerFormController extends Controller
             ResponseService::validationError($validator->errors()->first());
         }
         try {
-            VerifyCustomerForm::where('id',$request->id)->update(['name' => $request->name]);
+            VerifyCustomerForm::where('id', $request->id)->update(['name' => $request->name]);
             ResponseService::successResponse(trans('Data Updated Successfully'));
         } catch (Exception $e) {
             DB::rollback();
-            ResponseService::logErrorResponse($e,trans('Something Went Wrong'));
+            ResponseService::logErrorResponse($e, trans('Something Went Wrong'));
         }
     }
 
 
-    public function verifyCustomerFormDestroy($id){
+    public function verifyCustomerFormDestroy($id)
+    {
         if (!has_permissions('delete', 'verify_customer_form')) {
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         }
@@ -166,39 +171,48 @@ class VerifyCustomerFormController extends Controller
             VerifyCustomerForm::where('id', $id)->delete();
             ResponseService::successResponse(trans('Data Deleted Successfully'));
         } catch (Exception $e) {
-            ResponseService::logErrorResponse($e,trans('Something Went Wrong'));
+            ResponseService::logErrorResponse($e, trans('Something Went Wrong'));
         }
     }
 
 
-    public function agentVerificationListIndex(){
+    public function agentVerificationListIndex()
+    {
         if (!has_permissions('read', 'approve_agent_verification')) {
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         }
 
         return view('verify-customer-form.agent_verification_list');
     }
-    public function agentVerificationList(){
+    public function agentVerificationList()
+    {
         $offset = request('offset', 0);
         $limit = request('limit', 10);
         $sort = request('sort', 'id');
         $order = request('order', 'DESC');
         $search = request('search');
+        $customerType = request('customer_type');
 
-        $sql = VerifyCustomer::with(['user' => function($query){
-            $query->select('id', 'name', 'profile')->withCount(['property', 'projects']);
-        }])->with(['verify_customer_values' => function($query){
-            $query->with('verify_form:id,name,field_type','verify_form.form_fields_values:id,verify_customer_form_id,value')->select('id','verify_customer_id','verify_customer_form_id','value');
+        $sql = VerifyCustomer::with(['user' => function ($query) {
+            $query->select('id', 'name', 'profile', 'customer_type')->withCount(['property', 'projects']);
+        }])->with(['verify_customer_values' => function ($query) {
+            $query->with('verify_form:id,name,field_type', 'verify_form.form_fields_values:id,verify_customer_form_id,value')->select('id', 'verify_customer_id', 'verify_customer_form_id', 'value');
         }]);
 
         if (isset($_GET['search']) && !empty($_GET['search'])) {
             $search = $_GET['search'];
             $sql = $sql->where('id', 'LIKE', "%$search%")->orWhere('status', 'LIKE', "%$search%")
-                            ->orWhereHas('user', function ($query) use ($search) {
-                                $query->where('id', 'LIKE', "%$search%")->orWhere('name', 'LIKE', "%$search%");
-                            });
+                ->orWhereHas('user', function ($query) use ($search) {
+                    $query->where('id', 'LIKE', "%$search%")->orWhere('name', 'LIKE', "%$search%");
+                });
         }
 
+        // Filter by customer type if provided
+        if (!empty($customerType)) {
+            $sql->whereHas('user', function ($query) use ($customerType) {
+                $query->where('customer_type', $customerType);
+            });
+        }
 
         $total = $sql->count();
 
@@ -210,7 +224,7 @@ class VerifyCustomerFormController extends Controller
         $no = 1;
         foreach ($res as $row) {
             // Check that is there any Values of forms by Customer
-            if(collect($row->verify_customer_values)->isEmpty()){
+            if (collect($row->verify_customer_values)->isEmpty()) {
                 $row->update(['status' => 'failed']);
             }
 
@@ -221,9 +235,9 @@ class VerifyCustomerFormController extends Controller
             $operate = BootstrapTableService::editButton('', true, null, null, $row->id, null);
             $tempRow['operate'] = $operate;
 
-            $viewFormClasses = ["btn","icon","btn-primary","btn-sm","rounded-pill","view-form-btn"];
+            $viewFormClasses = ["btn", "icon", "btn-primary", "btn-sm", "rounded-pill", "view-form-btn"];
             $viewFormAttributes = ["id" => $row->id, "title" => trans('Submitted Form Values')];
-            $viewFormButton = BootstrapTableService::button('bi bi-eye-fill ml-2', route('agent-verification.show-form',$row->id),$viewFormClasses,$viewFormAttributes);
+            $viewFormButton = BootstrapTableService::button('bi bi-eye-fill ml-2', route('agent-verification.show-form', $row->id), $viewFormClasses, $viewFormAttributes);
             $tempRow['view-form-btn'] = $viewFormButton;
             $rows[] = $tempRow;
         }
@@ -233,7 +247,8 @@ class VerifyCustomerFormController extends Controller
     }
 
 
-    public function getAgentSubmittedForm($id){
+    public function getAgentSubmittedForm($id)
+    {
         // Validate the ID
         $validator = Validator::make(['id' => $id], [
             'id' => 'required|exists:verify_customers,id'
@@ -245,25 +260,26 @@ class VerifyCustomerFormController extends Controller
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
 
-        $customerVerification = VerifyCustomer::where('id',$id)->with(['user' => function($query){
+        $customerVerification = VerifyCustomer::where('id', $id)->with(['user' => function ($query) {
             $query->select('id', 'name', 'profile');
-        }])->with(['verify_customer_values' => function($query){
-            $query->with('verify_form:id,name,field_type','verify_form.form_fields_values:id,verify_customer_form_id,value')->select('id','verify_customer_id','verify_customer_form_id','value');
+        }])->with(['verify_customer_values' => function ($query) {
+            $query->with('verify_form:id,name,field_type', 'verify_form.form_fields_values:id,verify_customer_form_id,value')->select('id', 'verify_customer_id', 'verify_customer_form_id', 'value');
         }])->first();
 
         // Process file type based on value
         foreach ($customerVerification->verify_customer_values as &$value) {
-            if($value->verify_form->field_type == 'file'){
+            if ($value->verify_form->field_type == 'file') {
                 $value->file_type = $this->getFileType($value->value);
-            }else{
+            } else {
                 $value->file_type = "other";
             }
         }
 
-        return view('verify-customer-form.view-form-details',compact('customerVerification'));
+        return view('verify-customer-form.view-form-details', compact('customerVerification'));
     }
 
-    public function updateVerificationStatus(Request $request){
+    public function updateVerificationStatus(Request $request)
+    {
         if (!has_permissions('update', 'approve_agent_verification')) {
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         }
@@ -319,7 +335,7 @@ class VerifyCustomerFormController extends Controller
             // Send mail for property status
             try {
                 // $verifyCustomerData
-                if($verifyCustomerData->user->email){
+                if ($verifyCustomerData->user->email) {
                     // Get Data of email type
                     $emailTypeData = HelperService::getEmailTemplatesTypes("agent_verification_status");
 
@@ -332,14 +348,14 @@ class VerifyCustomerFormController extends Controller
                         'status' => $statusText,
                         'email' => $verifyCustomerData->user->email
                     );
-                    if(empty($agentVerificationTemplateData)){
-                        $agentVerificationTemplateData = "Your Agent Verification Status is ".$variables['status'];
+                    if (empty($agentVerificationTemplateData)) {
+                        $agentVerificationTemplateData = "Your Agent Verification Status is " . $variables['status'];
                     }
-                    $agentVerificationTemplate = HelperService::replaceEmailVariables($agentVerificationTemplateData,$variables);
+                    $agentVerificationTemplate = HelperService::replaceEmailVariables($agentVerificationTemplateData, $variables);
 
                     $data = array(
                         'email_template' => $agentVerificationTemplate,
-                        'email' =>$verifyCustomerData->user->email,
+                        'email' => $verifyCustomerData->user->email,
                         'title' => $emailTypeData['title'],
                     );
                     HelperService::sendMail($data);
@@ -351,11 +367,12 @@ class VerifyCustomerFormController extends Controller
             ResponseService::successResponse(trans('Data Updated Successfully'));
         } catch (Exception $e) {
             DB::rollback();
-            ResponseService::logErrorResponse($e,trans('Something Went Wrong'));
+            ResponseService::logErrorResponse($e, trans('Something Went Wrong'));
         }
     }
 
-    public function autoApproveSettings(Request $request){
+    public function autoApproveSettings(Request $request)
+    {
         if (!has_permissions('update', 'verify_customer_form')) {
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         }
@@ -363,11 +380,12 @@ class VerifyCustomerFormController extends Controller
             Setting::updateOrCreate(['type' => 'auto_approve'], ['data' => $request->auto_approve]);
             ResponseService::successResponse(trans('Data Updated Successfully'));
         } catch (Exception $e) {
-            ResponseService::logErrorResponse($e,trans('Something Went Wrong'));
+            ResponseService::logErrorResponse($e, trans('Something Went Wrong'));
         }
     }
 
-    public function verificationRequiredForUserSettings(Request $request){
+    public function verificationRequiredForUserSettings(Request $request)
+    {
         if (!has_permissions('update', 'verify_customer_form')) {
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         }
@@ -375,11 +393,12 @@ class VerifyCustomerFormController extends Controller
             Setting::updateOrCreate(['type' => 'verification_required_for_user'], ['data' => $request->verification_required_for_user]);
             ResponseService::successResponse(trans('Data Updated Successfully'));
         } catch (Exception $e) {
-            ResponseService::logErrorResponse($e,trans('Something Went Wrong'));
+            ResponseService::logErrorResponse($e, trans('Something Went Wrong'));
         }
     }
 
-    private function getFileType($filePath) {
+    private function getFileType($filePath)
+    {
         $extension = pathinfo($filePath, PATHINFO_EXTENSION);
         $imageExtensions = ['jpg', 'jpeg', 'png'];
         $pdfExtensions = ['pdf'];

@@ -65,6 +65,18 @@
                 </div>
             </div>
             <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="customer_type_filter">{{ __('Filter by Customer Type') }}</label>
+                            <select id="customer_type_filter" class="form-select">
+                                <option value="">{{ __('All Types') }}</option>
+                                <option value="property_owner">{{ __('Property Owner') }}</option>
+                                <option value="agent">{{ __('Agent') }}</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
                 <div class="row">
                     <div class="col-12">
                         <table class="table-light" aria-describedby="mydesc" class='table-striped' id="table_list"
@@ -78,6 +90,7 @@
                                 <tr>
                                     <th scope="col" data-field="id" data-sortable="true">{{ __('ID') }}</th>
                                     <th scope="col" data-field="user" data-sortable="false" data-formatter="userNameProfileFormatter">{{ __('Agent Name') }}</th>
+                                    <th scope="col" data-field="user.customer_type" data-sortable="false" data-formatter="customerTypeFormatter">{{ __('Agent Type') }}</th>
                                     <th scope="col" data-field="user.property_count" data-sortable="false" data-width="5%" data-align="center">{{ __('Total Properties') }}</th>
                                     <th scope="col" data-field="user.projects_count" data-sortable="false" data-width="5%" data-align="center">{{ __('Total Projects') }}</th>
                                     <th scope="col" data-field="view-form-btn" data-align="center" data-sortable="false" data-width="5%"> {{ __('View Submitted Values') }}</th>
@@ -143,6 +156,10 @@
     <script>
 
         $(document).ready(function() {
+            // Customer type filter change event
+            $("#customer_type_filter").on('change', function() {
+                $('#table_list').bootstrapTable('refresh');
+            });
 
             // Change Event on Auto Approve Toggle
             let autoApproveState = $("#auto-approve-toggle").is(':checked');
@@ -242,7 +259,8 @@
                 order: p.order,
                 offset: p.offset,
                 limit: p.limit,
-                search: p.search
+                search: p.search,
+                customer_type: $("#customer_type_filter").val()
             };
         }
 
@@ -261,6 +279,19 @@
             setTimeout(function () {
                 $('#editModal').modal('hide');
             }, 1000);
+        }
+
+        // Format customer type for display
+        function customerTypeFormatter(value, row) {
+            if (!value) return 'N/A';
+
+            if (value === 'property_owner') {
+                return '<span class="badge bg-primary">Property Owner</span>';
+            } else if (value === 'agent') {
+                return '<span class="badge bg-success">Agent</span>';
+            } else {
+                return value;
+            }
         }
     </script>
 @endsection
