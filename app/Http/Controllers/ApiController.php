@@ -773,6 +773,9 @@ class ApiController extends Controller
             'title_image'       => 'required|file|max:3000|mimes:jpeg,png,jpg',
             'three_d_image'     => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
             'documents.*'       => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
+            'policy_data'       => 'required|mimes:pdf,doc,docx,txt|max:5120',
+            'weekend_commission' => 'nullable|numeric|min:0|max:100',
+            'identity_proof'    => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
             'price'             => ['required', 'numeric', 'min:1', 'max:9223372036854775807', function ($attribute, $value, $fail) {
                 if ($value >= 9223372036854775807) {
                     $fail("The Price must not exceed more than 9223372036854775807.");
@@ -839,6 +842,7 @@ class ApiController extends Controller
             $saveProperty->package_id = $request->package_id;
             $saveProperty->post_type = 1;
             $saveProperty->property_classification = (isset($request->property_classification)) ? $request->property_classification : null;
+            $saveProperty->weekend_commission = (isset($request->weekend_commission)) ? $request->weekend_commission : null;
 
             $autoApproveStatus = $this->getAutoApproveStatus($loggedInUserId);
             if ($autoApproveStatus) {
@@ -888,6 +892,29 @@ class ApiController extends Controller
                 $saveProperty->three_d_image  = '';
             }
 
+            // Policy Data
+            if ($request->hasFile('policy_data')) {
+                $destinationPath = public_path('images') . config('global.PROPERTY_DOCUMENT_PATH');
+                if (!is_dir($destinationPath)) {
+                    mkdir($destinationPath, 0777, true);
+                }
+                $file = $request->file('policy_data');
+                $imageName = microtime(true) . "." . $file->getClientOriginalExtension();
+                $policyDataName = handleFileUpload($request, 'policy_data', $destinationPath, $imageName);
+                $saveProperty->policy_data = $policyDataName;
+            }
+
+            // Identity Proof
+            if ($request->hasFile('identity_proof')) {
+                $destinationPath = public_path('images') . config('global.PROPERTY_IDENTITY_PROOF_PATH');
+                if (!is_dir($destinationPath)) {
+                    mkdir($destinationPath, 0777, true);
+                }
+                $file = $request->file('identity_proof');
+                $imageName = microtime(true) . "." . $file->getClientOriginalExtension();
+                $identityProofName = handleFileUpload($request, 'identity_proof', $destinationPath, $imageName);
+                $saveProperty->identity_proof = $identityProofName;
+            }
 
             $saveProperty->is_premium = isset($request->is_premium) ? ($request->is_premium == "true" ? 1 : 0) : 0;
             $saveProperty->save();
@@ -1016,6 +1043,9 @@ class ApiController extends Controller
             'three_d_image'         => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
             'remove_three_d_image'  => 'nullable|in:0,1',
             'documents.*'           => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
+            'policy_data'           => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
+            'weekend_commission'    => 'nullable|numeric|min:0|max:100',
+            'identity_proof'        => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
             'property_classification' => 'nullable|integer|between:1,5',
             'price'                 => ['required', 'numeric', 'min:1', 'max:9223372036854775807', function ($attribute, $value, $fail) {
                 if ($value >= 9223372036854775807) {
@@ -1139,6 +1169,10 @@ class ApiController extends Controller
                         $property->property_classification = $request->property_classification;
                     }
 
+                    if (isset($request->weekend_commission)) {
+                        $property->weekend_commission = $request->weekend_commission;
+                    }
+
                     $property->meta_title = $request->meta_title ?? null;
                     $property->meta_description = $request->meta_description ?? null;
                     $property->meta_keywords = $request->meta_keywords ?? null;
@@ -1244,6 +1278,40 @@ class ApiController extends Controller
                             }
                         }
                         $property->three_d_image = $imageName;
+                    }
+
+                    // Handle policy_data file
+                    if ($request->hasFile('policy_data')) {
+                        $destinationPath = public_path('images') . config('global.PROPERTY_DOCUMENT_PATH');
+                        if (!is_dir($destinationPath)) {
+                            mkdir($destinationPath, 0777, true);
+                        }
+                        $file = $request->file('policy_data');
+                        $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
+                        $file->move($destinationPath, $fileName);
+                        if ($property->getRawOriginal('policy_data') != '') {
+                            if (file_exists(public_path('images') . config('global.PROPERTY_DOCUMENT_PATH') . $property->getRawOriginal('policy_data'))) {
+                                unlink(public_path('images') . config('global.PROPERTY_DOCUMENT_PATH') . $property->getRawOriginal('policy_data'));
+                            }
+                        }
+                        $property->policy_data = $fileName;
+                    }
+
+                    // Handle identity_proof file
+                    if ($request->hasFile('identity_proof')) {
+                        $destinationPath = public_path('images') . config('global.PROPERTY_IDENTITY_PROOF_PATH');
+                        if (!is_dir($destinationPath)) {
+                            mkdir($destinationPath, 0777, true);
+                        }
+                        $file = $request->file('identity_proof');
+                        $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
+                        $file->move($destinationPath, $fileName);
+                        if ($property->getRawOriginal('identity_proof') != '') {
+                            if (file_exists(public_path('images') . config('global.PROPERTY_IDENTITY_PROOF_PATH') . $property->getRawOriginal('identity_proof'))) {
+                                unlink(public_path('images') . config('global.PROPERTY_IDENTITY_PROOF_PATH') . $property->getRawOriginal('identity_proof'));
+                            }
+                        }
+                        $property->identity_proof = $fileName;
                     }
 
                     if ($request->parameters) {

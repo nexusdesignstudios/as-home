@@ -27,4 +27,6 @@ return [
     'AGENT_VERIFICATION_DOC_PATH' => '/agent-verification/',
     'ADMIN_PROFILE_IMG_PATH' => '/admin_profile/',
     'BANK_RECEIPT_FILE_PATH' => '/bank_receipt_file/',
+    'PROPERTY_POLICY_PATH' => '/property_policy/',
+    'PROPERTY_IDENTITY_PROOF_PATH' => '/property_identity_proof/',
 ];

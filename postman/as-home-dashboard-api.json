@@ -933,6 +933,403 @@
       "description": "Company management endpoints (now including bank details)"
     },
     {
+      "name": "Properties",
+      "item": [
+        {
+          "name": "Post Property",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Luxury Apartment",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Beautiful luxury apartment with amazing views",
+                  "type": "text"
+                },
+                {
+                  "key": "category_id",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "property_type",
+                  "value": "0",
+                  "description": "0: Sell, 1: Rent",
+                  "type": "text"
+                },
+                {
+                  "key": "property_classification",
+                  "value": "1",
+                  "description": "1: Sell/Rent, 2: Commercial, 3: New Project, 4: Vacation Homes, 5: Hotel Booking",
+                  "type": "text"
+                },
+                {
+                  "key": "address",
+                  "value": "123 Main St, City",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "500000",
+                  "type": "text"
+                },
+                {
+                  "key": "title_image",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "policy_data",
+                  "description": "Required document file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "weekend_commission",
+                  "value": "5.5",
+                  "description": "Optional percentage value",
+                  "type": "text"
+                },
+                {
+                  "key": "identity_proof",
+                  "description": "Optional image file",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "three_d_image",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "gallery_images[]",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "gallery_images[]",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "documents[]",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "country",
+                  "value": "United States",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "California",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "Los Angeles",
+                  "type": "text"
+                },
+                {
+                  "key": "latitude",
+                  "value": "34.052235",
+                  "type": "text"
+                },
+                {
+                  "key": "longitude",
+                  "value": "-118.243683",
+                  "type": "text"
+                },
+                {
+                  "key": "is_premium",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "video_link",
+                  "value": "https://www.youtube.com/watch?v=example",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "package_id",
+                  "value": "1",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/post_property",
+              "host": ["{{base_url}}"],
+              "path": ["api", "post_property"]
+            },
+            "description": "Create a new property listing with all required fields including the new policy_data (required), weekend_commission (optional), and identity_proof (optional)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Property",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "id",
+                  "value": "{{property_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "action_type",
+                  "value": "0",
+                  "description": "0: Update, 1: Delete",
+                  "type": "text"
+                },
+                {
+                  "key": "title",
+                  "value": "Updated Luxury Apartment",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Updated description for luxury apartment",
+                  "type": "text"
+                },
+                {
+                  "key": "category_id",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "property_type",
+                  "value": "0",
+                  "description": "0: Sell, 1: Rent",
+                  "type": "text"
+                },
+                {
+                  "key": "property_classification",
+                  "value": "1",
+                  "description": "1: Sell/Rent, 2: Commercial, 3: New Project, 4: Vacation Homes, 5: Hotel Booking",
+                  "type": "text"
+                },
+                {
+                  "key": "address",
+                  "value": "123 Main St, City",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "550000",
+                  "type": "text"
+                },
+                {
+                  "key": "title_image",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "policy_data",
+                  "description": "Document file",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "weekend_commission",
+                  "value": "7.5",
+                  "description": "Optional percentage value",
+                  "type": "text"
+                },
+                {
+                  "key": "identity_proof",
+                  "description": "Optional image file",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "three_d_image",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "gallery_images[]",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "documents[]",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "country",
+                  "value": "United States",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "California",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "Los Angeles",
+                  "type": "text"
+                },
+                {
+                  "key": "latitude",
+                  "value": "34.052235",
+                  "type": "text"
+                },
+                {
+                  "key": "longitude",
+                  "value": "-118.243683",
+                  "type": "text"
+                },
+                {
+                  "key": "is_premium",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "video_link",
+                  "value": "https://www.youtube.com/watch?v=updated",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/update_post_property",
+              "host": ["{{base_url}}"],
+              "path": ["api", "update_post_property"]
+            },
+            "description": "Update an existing property with all fields including the new policy_data, weekend_commission, and identity_proof fields"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Property",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/get_property?id={{property_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get_property"],
+              "query": [
+                {
+                  "key": "id",
+                  "value": "{{property_id}}",
+                  "description": "Property ID"
+                }
+              ]
+            },
+            "description": "Get property details by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Property",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "id",
+                  "value": "{{property_id}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/delete_property",
+              "host": ["{{base_url}}"],
+              "path": ["api", "delete_property"]
+            },
+            "description": "Delete a property by ID"
+          },
+          "response": []
+        }
+      ],
+      "description": "Property management endpoints including the new fields: policy_data (required document), weekend_commission (optional percentage), and identity_proof (optional image)"
+    },
+    {
       "name": "Property Terms",
       "item": [
         {

@@ -33,7 +33,10 @@ class Property extends Model
         'longitude',
         'three_d_image',
         'is_premium',
-        'property_classification'
+        'property_classification',
+        'policy_data',
+        'weekend_commission',
+        'identity_proof'
     ];
     protected $hidden = [
         'updated_at',
@@ -237,6 +240,26 @@ class Property extends Model
     public function setThreeDImageAttribute($value)
     {
         $this->attributes['three_d_image'] = $value;
+    }
+
+    public function getPolicyDataAttribute($value)
+    {
+        return $value != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_POLICY_PATH') . $value : '';
+    }
+
+    public function setPolicyDataAttribute($value)
+    {
+        $this->attributes['policy_data'] = $value;
+    }
+
+    public function getIdentityProofAttribute($value)
+    {
+        return $value != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_IDENTITY_PATH') . $value : '';
+    }
+
+    public function setIdentityProofAttribute($value)
+    {
+        $this->attributes['identity_proof'] = $value;
     }
 
     public function getProperyTypeAttribute($value)
