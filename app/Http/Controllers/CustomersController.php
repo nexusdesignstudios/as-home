@@ -76,10 +76,10 @@ class CustomersController extends Controller
                 // If it's a company agent, handle company details
                 if ($request->has('company')) {
                     $companyValidator = Validator::make($request->company, [
-                        'company_legal_name' => 'required|string|max:255',
-                        'manager_name' => 'required|string|max:255',
-                        'type_of_company' => 'required|string|max:255',
-                        'email_address' => 'required|email|max:255',
+                        'company_legal_name' => 'nullable|string|max:255',
+                        'manager_name' => 'nullable|string|max:255',
+                        'type_of_company' => 'nullable|string|max:255',
+                        'email_address' => 'nullable|email|max:255',
                         'bank_branch' => 'nullable|string|max:255',
                         'bank_address' => 'nullable|string',
                         'country' => 'nullable|string|max:255',

@@ -37,10 +37,10 @@ class CompanyController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'company_legal_name' => 'required|string|max:255',
-            'manager_name' => 'required|string|max:255',
-            'type_of_company' => 'required|string|max:255',
-            'email_address' => 'required|email|max:255',
+            'company_legal_name' => 'nullable|string|max:255',
+            'manager_name' => 'nullable|string|max:255',
+            'type_of_company' => 'nullable|string|max:255',
+            'email_address' => 'nullable|email|max:255',
             'bank_branch' => 'nullable|string|max:255',
             'bank_address' => 'nullable|string',
             'country' => 'nullable|string|max:255',
@@ -54,10 +54,11 @@ class CompanyController extends Controller
         }
 
         try {
+            // Create company with available data
             $company = Company::create($request->all());
             return ResponseService::successResponse('Company created successfully', $company);
         } catch (\Exception $e) {
-            return ResponseService::errorResponse($e->getMessage());
+            return ResponseService::errorResponse('Error creating company: ' . $e->getMessage());
         }
     }
 
@@ -100,10 +101,10 @@ class CompanyController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'company_legal_name' => 'sometimes|required|string|max:255',
-            'manager_name' => 'sometimes|required|string|max:255',
-            'type_of_company' => 'sometimes|required|string|max:255',
-            'email_address' => 'sometimes|required|email|max:255',
+            'company_legal_name' => 'nullable|string|max:255',
+            'manager_name' => 'nullable|string|max:255',
+            'type_of_company' => 'nullable|string|max:255',
+            'email_address' => 'nullable|email|max:255',
             'bank_branch' => 'nullable|string|max:255',
             'bank_address' => 'nullable|string',
             'country' => 'nullable|string|max:255',
