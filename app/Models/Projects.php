@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\HasAppTimezone;
+
 class Projects extends Model
 {
     use HasFactory, HasAppTimezone;
-    protected $dates = ['created_at', 'updated_at', 'deleted_at'];
+    protected $dates = ['created_at', 'updated_at', 'deleted_at', 'release_date'];
     protected $fillable = array(
         'title',
         'slug_id',
@@ -31,16 +32,18 @@ class Projects extends Model
         'meta_image',
         'status',
         'request_status',
-        'total_click'
+        'total_click',
+        'release_date',
     );
     protected $appends = [
         'is_promoted',
         'is_feature_available'
     ];
-    protected static function boot() {
+    protected static function boot()
+    {
         parent::boot();
         static::deleting(static function ($project) {
-            if(collect($project)->isNotEmpty()){
+            if (collect($project)->isNotEmpty()) {
                 // before delete() method call this
 
                 // Delete Title Image
@@ -53,31 +56,31 @@ class Projects extends Model
                 }
 
                 // Delete Gallery Image
-                if(isset($project->gallery) && collect($project->gallery)->isNotEmpty()){
+                if (isset($project->gallery) && collect($project->gallery)->isNotEmpty()) {
                     foreach ($project->gallery as $row) {
                         if (ProjectDocuments::where('id', $row->id)->delete()) {
                             $image = $row->getRawOriginal('name');
-                            if (file_exists(public_path('images') . config('global.PROJECT_DOCUMENT_PATH') . "/" .$image)) {
-                                unlink(public_path('images') . config('global.PROJECT_DOCUMENT_PATH') . "/" .$image );
+                            if (file_exists(public_path('images') . config('global.PROJECT_DOCUMENT_PATH') . "/" . $image)) {
+                                unlink(public_path('images') . config('global.PROJECT_DOCUMENT_PATH') . "/" . $image);
                             }
                         }
                     }
                 }
 
                 // Delete Documents
-                if(isset($project->documents) && collect($project->documents)->isNotEmpty()){
+                if (isset($project->documents) && collect($project->documents)->isNotEmpty()) {
                     foreach ($project->documents as $row) {
                         if (ProjectDocuments::where('id', $row->id)->delete()) {
                             $file = $row->getRawOriginal('name');
-                            if (file_exists(public_path('images') . config('global.PROJECT_DOCUMENT_PATH') . "/" .$file)) {
-                                unlink(public_path('images') . config('global.PROJECT_DOCUMENT_PATH') . "/" .$file );
+                            if (file_exists(public_path('images') . config('global.PROJECT_DOCUMENT_PATH') . "/" . $file)) {
+                                unlink(public_path('images') . config('global.PROJECT_DOCUMENT_PATH') . "/" . $file);
                             }
                         }
                     }
                 }
 
                 // Delete Floor Plans
-                if(isset($project->floor_plans) && collect($project->floor_plans)->isNotEmpty()){
+                if (isset($project->floor_plans) && collect($project->floor_plans)->isNotEmpty()) {
                     foreach ($project->floor_plans as $row) {
                         unlink_image($row->document);
                         ProjectPlans::where('id', $row->id)->delete();
@@ -95,8 +98,9 @@ class Projects extends Model
     {
         return $this->hasOne(Customer::class, 'id', 'added_by');
     }
-    public function project_documetns(){
-        return $this->hasMany(ProjectDocuments::class,'project_id');
+    public function project_documetns()
+    {
+        return $this->hasMany(ProjectDocuments::class, 'project_id');
     }
     public function gallary_images()
     {
@@ -111,13 +115,14 @@ class Projects extends Model
         return $this->hasMany(ProjectPlans::class, 'project_id');
     }
 
-    public function reject_reason(){
-        return $this->hasMany(RejectReason::class,'project_id');
+    public function reject_reason()
+    {
+        return $this->hasMany(RejectReason::class, 'project_id');
     }
 
     public function advertisement()
     {
-        return $this->hasMany(Advertisement::class,'project_id','id')->where('for','project');
+        return $this->hasMany(Advertisement::class, 'project_id', 'id')->where('for', 'project');
     }
 
     public function getImageAttribute($image, $fullUrl = true)
@@ -128,7 +133,8 @@ class Projects extends Model
             return $image;
         }
     }
-    public function getMetaImageAttribute($image, $fullUrl = true) {
+    public function getMetaImageAttribute($image, $fullUrl = true)
+    {
         if ($fullUrl) {
             return $image != '' ? url('') . config('global.IMG_PATH') . config('global.PROJECT_SEO_IMG_PATH') . $image : '';
         } else {
@@ -137,16 +143,19 @@ class Projects extends Model
     }
 
 
-    public function getGallaryImagesDirectlyAttribute(){
-        return $this->project_documetns()->where('type','image');
+    public function getGallaryImagesDirectlyAttribute()
+    {
+        return $this->project_documetns()->where('type', 'image');
     }
-    public function getDocumentsDirectlyAttribute(){
-        return $this->project_documetns()->where('type','doc');
+    public function getDocumentsDirectlyAttribute()
+    {
+        return $this->project_documetns()->where('type', 'doc');
     }
 
-    public function getIsPromotedAttribute() {
+    public function getIsPromotedAttribute()
+    {
         $id = $this->id;
-        return $this->whereHas('advertisement',function($query) use($id){
+        return $this->whereHas('advertisement', function ($query) use ($id) {
             $query->where(['project_id' => $id, 'status' => 0, 'is_enable' => 1, 'for' => 'project']);
         })->count() ? true : false;
     }
@@ -172,4 +181,3 @@ class Projects extends Model
         return $isProjectTypeValid && $hasExpiredAdvertisement && !$hasOtherStatusAdvertisement;
     }
 }
-

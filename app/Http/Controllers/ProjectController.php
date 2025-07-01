@@ -38,10 +38,11 @@ class ProjectController extends Controller
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
         $category = Category::all();
-        return view('project.index',compact('category'));
+        return view('project.index', compact('category'));
     }
 
-    public function create(){
+    public function create()
+    {
         if (!has_permissions('create', 'project')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
@@ -50,7 +51,8 @@ class ProjectController extends Controller
         return view('project.create', compact('category', 'currency_symbol'));
     }
 
-    public function store(Request $request){
+    public function store(Request $request)
+    {
         if (!has_permissions('create', 'project')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
@@ -82,7 +84,8 @@ class ProjectController extends Controller
                 if (!$headers || strpos($headers[0], '200') === false) {
                     return $fail("The Video Link must be accessible.");
                 }
-            }]
+            }],
+            'release_date' => 'nullable|date'
         ]);
         if ($validator->fails()) {
             ResponseService::errorResponse($validator->errors()->first());
@@ -111,6 +114,7 @@ class ProjectController extends Controller
             $project->longitude = $request->longitude;
             $project->video_link = $request->video_link;
             $project->type = $request->project_type;
+            $project->release_date = $request->release_date;
             if ($request->hasFile('image')) {
                 $project->image = store_image($request->file('image'), 'PROJECT_TITLE_IMG_PATH');
             }
@@ -131,7 +135,7 @@ class ProjectController extends Controller
                         'updated_at' => now(),
                     );
                 }
-                if(!empty($gallaryImages)){
+                if (!empty($gallaryImages)) {
                     ProjectDocuments::insert($gallaryImages);
                 }
             }
@@ -147,7 +151,7 @@ class ProjectController extends Controller
                         'updated_at' => now(),
                     );
                 }
-                if(!empty($projectDocuments)){
+                if (!empty($projectDocuments)) {
                     ProjectDocuments::insert($projectDocuments);
                 }
             }
@@ -165,7 +169,7 @@ class ProjectController extends Controller
                     );
                 }
 
-                if(!empty($projectPlan)){
+                if (!empty($projectPlan)) {
                     ProjectPlans::insert($projectPlan);
                 }
             }
@@ -231,30 +235,30 @@ class ProjectController extends Controller
         $currency_symbol = Setting::where('type', 'currency_symbol')->pluck('data')->first();
 
         foreach ($res as $row) {
-            $documentsButtonCustomClasses = ["btn","icon","btn-primary","btn-sm","rounded-pill","documents-btn"];
+            $documentsButtonCustomClasses = ["btn", "icon", "btn-primary", "btn-sm", "rounded-pill", "documents-btn"];
             $documentsButtonCustomAttributes = ["id" => $row->id, "title" => trans('Documents'), "data-toggle" => "modal", "data-bs-target" => "#documentsModal", "data-bs-toggle" => "modal"];
-            $documentAction = BootstrapTableService::button('bi bi-eye-fill', '',$documentsButtonCustomClasses,$documentsButtonCustomAttributes);
+            $documentAction = BootstrapTableService::button('bi bi-eye-fill', '', $documentsButtonCustomClasses, $documentsButtonCustomAttributes);
 
             $operate = null;
-            if($row->is_admin_listing == true){
+            if ($row->is_admin_listing == true) {
                 if (has_permissions('update', 'project')) {
                     $operate = BootstrapTableService::editButton(route('project.edit', $row->id), false);
                 }
                 if (has_permissions('delete', 'project')) {
                     $operate .= BootstrapTableService::deleteAjaxButton(route('project.destroy', $row->id));
                 }
-            }else{
-                $requestStatusButtonCustomClasses = ["btn","icon","btn-warning","btn-sm","rounded-pill","request-status-btn"];
+            } else {
+                $requestStatusButtonCustomClasses = ["btn", "icon", "btn-warning", "btn-sm", "rounded-pill", "request-status-btn"];
                 $requestStatusButtonCustomAttributes = ["id" => $row->id, "title" => trans('Change Status'), "data-toggle" => "modal", "data-bs-target" => "#changeRequestStatusModal", "data-bs-toggle" => "modal"];
-                $operate = BootstrapTableService::button('fa fa-exclamation-circle', '',$requestStatusButtonCustomClasses,$requestStatusButtonCustomAttributes);
+                $operate = BootstrapTableService::button('fa fa-exclamation-circle', '', $requestStatusButtonCustomClasses, $requestStatusButtonCustomAttributes);
             }
 
             $tempRow = $row->toArray();
             $tempRow['owner_name'] = $row->is_admin_listing == true ? "Admin" : $row->customer->name;
-            if($row->is_admin_listing == true && $row->request_status == "approved"){
+            if ($row->is_admin_listing == true && $row->request_status == "approved") {
                 $tempRow['edit_status'] = $row->status;
                 $tempRow['edit_status_url'] = 'updateProjectStatus';
-            }else{
+            } else {
                 $tempRow['edit_status'] = null;
                 $tempRow['edit_status_url'] = null;
             }
@@ -271,19 +275,21 @@ class ProjectController extends Controller
         return response()->json($bulkData);
     }
 
-    public function edit($id){
+    public function edit($id)
+    {
         if (!has_permissions('update', 'project')) {
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         }
         // $project = Projects::where('id',$id)->with('gallary_images','documents','plans')->first();
-        $project = Projects::where('id',$id)->with('plans:id,title,project_id,document')->first();
+        $project = Projects::where('id', $id)->with('plans:id,title,project_id,document')->first();
         $project['gallary_images'] = $project->gallary_images_directly->get();
         $project['documents'] = $project->documents_directly->get();
         $category = Category::where('status', '1')->get();
-        return view('project.edit',compact('project','category'));
+        return view('project.edit', compact('project', 'category'));
     }
 
-    public function update($id,Request $request){
+    public function update($id, Request $request)
+    {
         if (!has_permissions('create', 'project')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
@@ -315,7 +321,8 @@ class ProjectController extends Controller
                 if (!$headers || strpos($headers[0], '200') === false) {
                     return $fail("The Video Link must be accessible.");
                 }
-            }]
+            }],
+            'release_date' => 'nullable|date'
         ]);
         if ($validator->fails()) {
             ResponseService::errorResponse($validator->errors()->first());
@@ -326,7 +333,7 @@ class ProjectController extends Controller
 
             $project = Projects::find($id);
             $project->title = $request->title;
-            $project->slug_id = generateUniqueSlug($slugData, 4,null,$id);
+            $project->slug_id = generateUniqueSlug($slugData, 4, null, $id);
             $project->category_id = $request->category_id;
             $project->description = $request->description;
             $project->location = $request->address;
@@ -342,6 +349,7 @@ class ProjectController extends Controller
             $project->longitude = $request->longitude;
             $project->video_link = $request->video_link;
             $project->type = $request->project_type;
+            $project->release_date = $request->release_date;
             if ($request->hasFile('image')) {
                 $project->image = store_image($request->file('image'), 'PROJECT_TITLE_IMG_PATH');
             }
@@ -362,7 +370,7 @@ class ProjectController extends Controller
                         'updated_at' => now(),
                     );
                 }
-                if(!empty($gallaryImages)){
+                if (!empty($gallaryImages)) {
                     ProjectDocuments::insert($gallaryImages);
                 }
             }
@@ -378,7 +386,7 @@ class ProjectController extends Controller
                         'updated_at' => now(),
                     );
                 }
-                if(!empty($projectDocuments)){
+                if (!empty($projectDocuments)) {
                     ProjectDocuments::insert($projectDocuments);
                 }
             }
@@ -392,16 +400,16 @@ class ProjectController extends Controller
                         'title' => $plan->title,
                         'project_id' => $project->id,
                     );
-                    if(!empty($plan->floor_image)){
+                    if (!empty($plan->floor_image)) {
                         $projectPlan[$key]['document'] = store_image($plan->floor_image, 'PROJECT_DOCUMENT_PATH');
                     }
                 }
 
-                if(!empty($projectPlan)){
-                    if(!empty($plan->floor_image)){
-                        ProjectPlans::upsert($projectPlan,['id'],['title','project_id','document']);
-                    }else{
-                        ProjectPlans::upsert($projectPlan,['id'],['title','project_id']);
+                if (!empty($projectPlan)) {
+                    if (!empty($plan->floor_image)) {
+                        ProjectPlans::upsert($projectPlan, ['id'], ['title', 'project_id', 'document']);
+                    } else {
+                        ProjectPlans::upsert($projectPlan, ['id'], ['title', 'project_id']);
                     }
                 }
             }
@@ -414,7 +422,8 @@ class ProjectController extends Controller
         }
     }
 
-    public function destroy($id){
+    public function destroy($id)
+    {
         if (!has_permissions('delete', 'project')) {
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         }
@@ -425,7 +434,7 @@ class ProjectController extends Controller
             DB::commit();
             if ($project->delete()) {
                 ResponseService::successResponse("Data Deleted Successfully");
-            }else{
+            } else {
                 ResponseService::errorResponse("Something Went Wrong");
             }
         } catch (Exception $e) {
@@ -521,7 +530,8 @@ class ProjectController extends Controller
             ResponseService::successResponse($request->status ? "Project Activated Successfully" : "Project Deactivated Successfully");
         }
     }
-    public function generateAndCheckSlug(Request $request){
+    public function generateAndCheckSlug(Request $request)
+    {
         // Validation
         $validator = Validator::make($request->all(), [
             'title' => 'required',
@@ -534,12 +544,12 @@ class ProjectController extends Controller
         try {
             $title = $request->title;
             $id = $request->has('id') && !empty($request->id) ? $request->id : null;
-            if($id){
-                $slug = generateUniqueSlug($title,4,null,$id);
-            }else{
-                $slug = generateUniqueSlug($title,4);
+            if ($id) {
+                $slug = generateUniqueSlug($title, 4, null, $id);
+            } else {
+                $slug = generateUniqueSlug($title, 4);
             }
-            ResponseService::successResponse("",$slug);
+            ResponseService::successResponse("", $slug);
         } catch (Exception $e) {
             ResponseService::logErrorResponse($e, "Project Slug Generation Error", "Something Went Wrong");
         }
@@ -592,7 +602,8 @@ class ProjectController extends Controller
         }
     }
 
-    public function removeFloorPlan($id){
+    public function removeFloorPlan($id)
+    {
         if (!has_permissions('delete', 'project')) {
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         } else {
@@ -629,7 +640,7 @@ class ProjectController extends Controller
             if (!has_permissions('update', 'project')) {
                 ResponseService::errorResponse(PERMISSION_ERROR_MSG);
             } else {
-                if($request->request_status == "rejected"){
+                if ($request->request_status == "rejected") {
                     RejectReason::create(array(
                         'project_id' => $request->id,
                         'reason' => $request->reject_reason
@@ -640,8 +651,8 @@ class ProjectController extends Controller
 
                 // Send mail for project status
                 try {
-                    $projectData = Projects::where('id',$request->id)->select('id','title','request_status','added_by')->with('customer:id,name,email')->firstOrFail();
-                    if(!empty($projectData->customer->email)){
+                    $projectData = Projects::where('id', $request->id)->select('id', 'title', 'request_status', 'added_by')->with('customer:id,name,email')->firstOrFail();
+                    if (!empty($projectData->customer->email)) {
                         // Get Data of email type
                         $emailTypeData = HelperService::getEmailTemplatesTypes("project_status");
 
@@ -656,10 +667,10 @@ class ProjectController extends Controller
                             'reject_reason' => $request->request_status == 'rejected' ? $request->reject_reason : null,
                             'email' => $projectData->customer->email
                         );
-                        if(empty($projectStatusTemplateData)){
+                        if (empty($projectStatusTemplateData)) {
                             $projectStatusTemplateData = "Project Status have been changed";
                         }
-                        $projectStatusTemplate = HelperService::replaceEmailVariables($projectStatusTemplateData,$variables);
+                        $projectStatusTemplate = HelperService::replaceEmailVariables($projectStatusTemplateData, $variables);
 
                         $data = array(
                             'email_template' => $projectStatusTemplate,
@@ -675,7 +686,7 @@ class ProjectController extends Controller
 
 
                 // Send Notification
-                $project = Projects::with('customer:id,name,isActive,notification')->select('id','title','request_status','added_by')->find($request->id);
+                $project = Projects::with('customer:id,name,isActive,notification')->select('id', 'title', 'request_status', 'added_by')->find($request->id);
                 $fcm_ids = array();
                 if ($project->customer->isActive == 1 && $project->customer->notification == 1) {
                     $user_token = Usertokens::where('customer_id', $project->customer->id)->pluck('fcm_id')->toArray();

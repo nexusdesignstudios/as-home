@@ -3401,6 +3401,7 @@ class ApiController extends Controller
         if ($request->has('id')) {
             $validator = Validator::make($request->all(), [
                 'title' => 'required',
+                'release_date' => 'nullable|date',
             ]);
         } else {
             $validator = Validator::make($request->all(), [
@@ -3411,6 +3412,7 @@ class ApiController extends Controller
                 'city'          => 'required',
                 'state'         => 'required',
                 'country'       => 'required',
+                'release_date'  => 'nullable|date',
                 'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
                     // Regular expression to validate YouTube URLs
                     $youtubePattern = '/^(https?\:\/\/)?(www\.youtube\.com|youtu\.be)\/.+$/';
@@ -3508,6 +3510,9 @@ class ApiController extends Controller
             }
             if ($request->type) {
                 $project->type = $request->type;
+            }
+            if ($request->release_date) {
+                $project->release_date = $request->release_date;
             }
             if ($request->id) {
                 if ($project->title !== $request->title) {

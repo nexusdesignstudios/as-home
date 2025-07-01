@@ -89,6 +89,12 @@
                             </div>
                         </div>
                     </div>
+
+                    {{-- Release Date --}}
+                    <div class="col-md-12 col-12 form-group">
+                        {{ Form::label('release_date', __('Release Date'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::date('release_date', '', [ 'class' => 'form-control', 'placeholder' => __('Release Date'), 'id' => 'release_date' ]) }}
+                    </div>
                 </div>
             </div>
         </div>
