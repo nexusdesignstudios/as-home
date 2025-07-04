@@ -87,6 +87,8 @@ class PropertController extends Controller
                 'documents.*'       => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
                 'title_image'       => 'required|image|mimes:jpg,png,jpeg|max:2048',
                 'meta_image'        => 'nullable|image|mimes:jpg,png,jpeg|max:5120',
+                'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
+                'available_dates'   => 'nullable|json|required_if:property_classification,4',
                 'price'             => 'required|numeric|min:1|max:9223372036854775807',
                 'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
                     // Regular expression to validate YouTube URLs
@@ -141,6 +143,12 @@ class PropertController extends Controller
                 $saveProperty->meta_keywords = $request->keywords;
                 $saveProperty->rentduration = $request->price_duration;
                 $saveProperty->is_premium = $request->is_premium;
+
+                // Set vacation home specific fields if property classification is vacation_homes (4)
+                if (isset($request->property_classification) && $request->property_classification == 4) {
+                    $saveProperty->availability_type = $request->availability_type;
+                    $saveProperty->available_dates = $request->available_dates;
+                }
 
                 if ($request->hasFile('title_image')) {
                     $saveProperty->title_image = store_image($request->file('title_image'), 'PROPERTY_TITLE_IMG_PATH');
@@ -330,6 +338,8 @@ class PropertController extends Controller
                 'title_image'       => 'nullable|image|mimes:jpg,png,jpeg|max:2048',
                 'meta_image'        => 'nullable|image|mimes:jpg,png,jpeg|max:5120',
                 'property_classification' => 'required|integer|min:1|max:5',
+                'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
+                'available_dates'   => 'nullable|json|required_if:property_classification,4',
                 'price'             => 'required|numeric|min:1|max:9223372036854775807',
                 'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
                     // Regular expression to validate YouTube URLs
@@ -387,6 +397,13 @@ class PropertController extends Controller
                 $UpdateProperty->meta_keywords = (isset($request->Keywords)) ? $request->Keywords : '';
 
                 $UpdateProperty->rentduration = $request->price_duration;
+
+                // Set vacation home specific fields if property classification is vacation_homes (4)
+                if (isset($request->property_classification) && $request->property_classification == 4) {
+                    $UpdateProperty->availability_type = $request->availability_type;
+                    $UpdateProperty->available_dates = $request->available_dates;
+                }
+
                 if ($request->hasFile('title_image')) {
                     \unlink_image($UpdateProperty->title_image);
                     $UpdateProperty->title_image = \store_image($request->file('title_image'), 'PROPERTY_TITLE_IMG_PATH');

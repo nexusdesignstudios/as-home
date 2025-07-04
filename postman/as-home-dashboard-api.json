@@ -987,6 +987,20 @@
                   "type": "text"
                 },
                 {
+                  "key": "availability_type",
+                  "value": "1",
+                  "description": "1: Available Days, 2: Busy Days (Required when property_classification is 4)",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "available_dates",
+                  "value": "[{\"from\":\"2023-07-01\",\"to\":\"2023-07-15\"},{\"from\":\"2023-08-01\",\"to\":\"2023-08-15\"}]",
+                  "description": "JSON array of date ranges (Required when property_classification is 4)",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
                   "key": "address",
                   "value": "123 Main St, City",
                   "type": "text"
@@ -1159,6 +1173,20 @@
                   "type": "text"
                 },
                 {
+                  "key": "availability_type",
+                  "value": "1",
+                  "description": "1: Available Days, 2: Busy Days (Required when property_classification is 4)",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "available_dates",
+                  "value": "[{\"from\":\"2023-07-01\",\"to\":\"2023-07-15\"},{\"from\":\"2023-08-01\",\"to\":\"2023-08-15\"}]",
+                  "description": "JSON array of date ranges (Required when property_classification is 4)",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
                   "key": "address",
                   "value": "123 Main St, City",
                   "type": "text"
@@ -1325,9 +1353,309 @@
             "description": "Delete a property by ID"
           },
           "response": []
+        },
+        {
+          "name": "Post Vacation Home Property",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Beachfront Vacation Villa",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Beautiful beachfront vacation villa with private pool",
+                  "type": "text"
+                },
+                {
+                  "key": "category_id",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "property_type",
+                  "value": "1",
+                  "description": "0: Sell, 1: Rent",
+                  "type": "text"
+                },
+                {
+                  "key": "property_classification",
+                  "value": "4",
+                  "description": "4: Vacation Homes",
+                  "type": "text"
+                },
+                {
+                  "key": "availability_type",
+                  "value": "1",
+                  "description": "1: Available Days, 2: Busy Days",
+                  "type": "text"
+                },
+                {
+                  "key": "available_dates",
+                  "value": "[{\"from\":\"2023-07-01\",\"to\":\"2023-07-15\"},{\"from\":\"2023-08-01\",\"to\":\"2023-08-15\"}]",
+                  "description": "JSON array of date ranges",
+                  "type": "text"
+                },
+                {
+                  "key": "address",
+                  "value": "456 Beach Rd, Coastal City",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "250",
+                  "description": "Price per night",
+                  "type": "text"
+                },
+                {
+                  "key": "title_image",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "policy_data",
+                  "description": "Required document file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "weekend_commission",
+                  "value": "10",
+                  "description": "Optional percentage value",
+                  "type": "text"
+                },
+                {
+                  "key": "identity_proof",
+                  "description": "Optional image file",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "three_d_image",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "gallery_images[]",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "documents[]",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "country",
+                  "value": "United States",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "Florida",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "Miami",
+                  "type": "text"
+                },
+                {
+                  "key": "latitude",
+                  "value": "25.7617",
+                  "type": "text"
+                },
+                {
+                  "key": "longitude",
+                  "value": "-80.1918",
+                  "type": "text"
+                },
+                {
+                  "key": "is_premium",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "video_link",
+                  "value": "https://www.youtube.com/watch?v=example",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "package_id",
+                  "value": "1",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/post_property",
+              "host": ["{{base_url}}"],
+              "path": ["api", "post_property"]
+            },
+            "description": "Create a new vacation home property listing with availability_type and available_dates fields"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Vacation Home Property",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "id",
+                  "value": "{{property_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "action_type",
+                  "value": "0",
+                  "description": "0: Update, 1: Delete",
+                  "type": "text"
+                },
+                {
+                  "key": "title",
+                  "value": "Updated Beachfront Vacation Villa",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Updated description for beachfront vacation villa",
+                  "type": "text"
+                },
+                {
+                  "key": "category_id",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "property_type",
+                  "value": "1",
+                  "description": "0: Sell, 1: Rent",
+                  "type": "text"
+                },
+                {
+                  "key": "property_classification",
+                  "value": "4",
+                  "description": "4: Vacation Homes",
+                  "type": "text"
+                },
+                {
+                  "key": "availability_type",
+                  "value": "2",
+                  "description": "1: Available Days, 2: Busy Days",
+                  "type": "text"
+                },
+                {
+                  "key": "available_dates",
+                  "value": "[{\"from\":\"2023-09-01\",\"to\":\"2023-09-15\"},{\"from\":\"2023-10-01\",\"to\":\"2023-10-15\"}]",
+                  "description": "JSON array of date ranges",
+                  "type": "text"
+                },
+                {
+                  "key": "address",
+                  "value": "456 Beach Rd, Coastal City",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "300",
+                  "description": "Price per night",
+                  "type": "text"
+                },
+                {
+                  "key": "country",
+                  "value": "United States",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "Florida",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "Miami",
+                  "type": "text"
+                },
+                {
+                  "key": "latitude",
+                  "value": "25.7617",
+                  "type": "text"
+                },
+                {
+                  "key": "longitude",
+                  "value": "-80.1918",
+                  "type": "text"
+                },
+                {
+                  "key": "is_premium",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "weekend_commission",
+                  "value": "12",
+                  "description": "Optional percentage value",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/update_post_property",
+              "host": ["{{base_url}}"],
+              "path": ["api", "update_post_property"]
+            },
+            "description": "Update an existing vacation home property with availability_type and available_dates fields"
+          },
+          "response": []
         }
       ],
-      "description": "Property management endpoints including the new fields: policy_data (required document), weekend_commission (optional percentage), and identity_proof (optional image)"
+      "description": "Property management endpoints including the new fields: policy_data (required document), weekend_commission (optional percentage), identity_proof (optional image), and vacation home fields (availability_type and available_dates)"
     },
     {
       "name": "Property Terms",

@@ -36,7 +36,9 @@ class Property extends Model
         'property_classification',
         'policy_data',
         'weekend_commission',
-        'identity_proof'
+        'identity_proof',
+        'availability_type',
+        'available_dates'
     ];
     protected $hidden = [
         'updated_at',
@@ -436,11 +438,39 @@ class Property extends Model
         return $isPropertyTypeValid && $hasExpiredAdvertisement;
     }
 
+    public function getAvailabilityTypeAttribute($value)
+    {
+        switch ($value) {
+            case 1:
+                return "available_days";
+            case 2:
+                return "busy_days";
+            default:
+                return null;
+        }
+    }
+
+    public function setAvailabilityTypeAttribute($value)
+    {
+        $this->attributes['availability_type'] = $value;
+    }
+
+    public function getAvailableDatesAttribute($value)
+    {
+        return $value ? json_decode($value, true) : [];
+    }
+
+    public function setAvailableDatesAttribute($value)
+    {
+        $this->attributes['available_dates'] = is_array($value) ? json_encode($value) : $value;
+    }
 
     protected $casts = [
         'category_id' => 'integer',
         'status' => 'integer',
-        'property_classification' => 'integer'
+        'property_classification' => 'integer',
+        'availability_type' => 'integer',
+        'available_dates' => 'json'
     ];
 
     /**

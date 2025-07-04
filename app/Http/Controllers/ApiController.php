@@ -776,6 +776,8 @@ class ApiController extends Controller
             'policy_data'       => 'required|mimes:pdf,doc,docx,txt|max:5120',
             'weekend_commission' => 'nullable|numeric|min:0|max:100',
             'identity_proof'    => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
+            'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
+            'available_dates'   => 'nullable|json|required_if:property_classification,4',
             'price'             => ['required', 'numeric', 'min:1', 'max:9223372036854775807', function ($attribute, $value, $fail) {
                 if ($value >= 9223372036854775807) {
                     $fail("The Price must not exceed more than 9223372036854775807.");
@@ -843,6 +845,12 @@ class ApiController extends Controller
             $saveProperty->post_type = 1;
             $saveProperty->property_classification = (isset($request->property_classification)) ? $request->property_classification : null;
             $saveProperty->weekend_commission = (isset($request->weekend_commission)) ? $request->weekend_commission : null;
+
+            // Set vacation home specific fields if property classification is vacation_homes (4)
+            if (isset($request->property_classification) && $request->property_classification == 4) {
+                $saveProperty->availability_type = $request->availability_type;
+                $saveProperty->available_dates = $request->available_dates;
+            }
 
             $autoApproveStatus = $this->getAutoApproveStatus($loggedInUserId);
             if ($autoApproveStatus) {
@@ -1047,6 +1055,8 @@ class ApiController extends Controller
             'weekend_commission'    => 'nullable|numeric|min:0|max:100',
             'identity_proof'        => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
             'property_classification' => 'nullable|integer|between:1,5',
+            'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
+            'available_dates'   => 'nullable|json|required_if:property_classification,4',
             'price'                 => ['required', 'numeric', 'min:1', 'max:9223372036854775807', function ($attribute, $value, $fail) {
                 if ($value >= 9223372036854775807) {
                     $fail("The Price must not exceed more than 9223372036854775807.");
