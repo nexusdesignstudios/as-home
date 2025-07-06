@@ -464,6 +464,13 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['availability_type'] = $row->availability_type;
         $tempRow['available_dates'] = $row->available_dates;
 
+        // Add hotel-specific fields
+        if ($row->getRawOriginal('property_classification') == 5) {
+            $tempRow['hotel_name'] = $row->hotel_name;
+            $tempRow['refund_policy'] = $row->refund_policy;
+            $tempRow['hotel_rooms'] = $row->hotel_rooms;
+        }
+
         // Get Property Inquiry Data on the basis of current user and status is completed
         $inquiry = PropertysInquiry::where('customers_id', $current_user)->where('propertys_id', $row->id)->where('status', 2)->first();
         if ($inquiry) {

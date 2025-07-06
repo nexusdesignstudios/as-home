@@ -38,7 +38,9 @@ class Property extends Model
         'weekend_commission',
         'identity_proof',
         'availability_type',
-        'available_dates'
+        'available_dates',
+        'hotel_name',
+        'refund_policy'
     ];
     protected $hidden = [
         'updated_at',
@@ -48,7 +50,8 @@ class Property extends Model
     protected $appends = [
         'gallery',
         'documents',
-        'is_favourite'
+        'is_favourite',
+        'hotel_rooms'
     ];
 
     protected static function boot()
@@ -123,6 +126,9 @@ class Property extends Model
                 user_reports::where('property_id', $property->id)->delete();
                 InterestedUser::where('property_id', $property->id)->delete();
 
+                // Delete hotel rooms
+                HotelRoom::where('property_id', $property->id)->delete();
+
                 // Delete The Data with modal boot events
                 $chats = Chats::where('property_id', $property->id)->get();
                 if (collect($chats)->isNotEmpty()) {
@@ -187,10 +193,7 @@ class Property extends Model
     {
         return $this->hasMany(InterestedUser::class, 'property_id');
     }
-    // public function assign_parameter()
-    // {
-    //     return $this->hasMany(AssignParameters::class);
-    // }
+
     public function advertisement()
     {
         return $this->hasMany(Advertisement::class)->where('for', 'property');
@@ -199,6 +202,27 @@ class Property extends Model
     public function reject_reason()
     {
         return $this->hasMany(RejectReason::class, 'property_id');
+    }
+
+    /**
+     * Get the hotel rooms for this property.
+     */
+    public function hotelRooms()
+    {
+        return $this->hasMany(HotelRoom::class);
+    }
+
+    /**
+     * Get hotel rooms attribute for API response
+     */
+    public function getHotelRoomsAttribute()
+    {
+        // Only return hotel rooms if this is a hotel property
+        if ($this->getRawOriginal('property_classification') == 5) {
+            return $this->hotelRooms()->with('roomType')->get();
+        }
+
+        return null;
     }
 
     public function getGalleryAttribute()

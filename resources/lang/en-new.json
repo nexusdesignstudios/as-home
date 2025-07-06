@@ -573,7 +573,16 @@
     "Only SVG is allowed": "Only SVG is allowed",
     "Message not be empty": "Message not be empty",
     "Select Property Owner": "Select Property Owner",
-    "Email Templates": "Email Templates"
+    "Email Templates": "Email Templates",
+    "Homepage Sections": "Homepage Sections",
+    "Min Radius Range": "Min Radius Range",
+    "Max Radius Range": "Max Radius Range",
+    "Minimum Radius Range for Homepage Location Data": "Minimum Radius Range for Homepage Location Data",
+    "Maximum Radius Range for Homepage Location Data": "Maximum Radius Range for Homepage Location Data",
+    "Section already exists": "Section already exists",
+    "Message Sent Successfully": "Message Sent Successfully",
+    "Auto Approve Edited Listings": "Auto Approve Edited Listings",
+    "Edited Listings will be automatically approved after editing": "Edited Listings will be automatically approved after editing"
 }
 
 

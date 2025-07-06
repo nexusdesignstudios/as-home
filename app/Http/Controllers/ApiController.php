@@ -93,6 +93,9 @@ use App\Services\PDF\PaymentReceiptService;
 use Twilio\Rest\Client as TwilioRestClient;
 use KingFlamez\Rave\Facades\Rave as Flutterwave;
 use Illuminate\Support\Facades\Request as FacadesRequest;
+use App\Models\HotelRoom;
+use App\Models\HotelRoomType;
+use App\Models\PropertyTerms;
 
 class ApiController extends Controller
 {
@@ -778,6 +781,14 @@ class ApiController extends Controller
             'identity_proof'    => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
             'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
             'available_dates'   => 'nullable|json|required_if:property_classification,4',
+            'hotel_name'        => 'required_if:property_classification,5',
+            'refund_policy'     => 'nullable|in:flexible,non-refundable',
+            'hotel_rooms'       => 'nullable|array',
+            'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
+            'hotel_rooms.*.room_number' => 'required_with:hotel_rooms',
+            'hotel_rooms.*.price_per_night' => 'required_with:hotel_rooms|numeric|min:0',
+            'hotel_rooms.*.discount_percentage' => 'nullable|numeric|min:0|max:100',
+            'hotel_rooms.*.refund_policy' => 'nullable|in:flexible,non-refundable',
             'price'             => ['required', 'numeric', 'min:1', 'max:9223372036854775807', function ($attribute, $value, $fail) {
                 if ($value >= 9223372036854775807) {
                     $fail("The Price must not exceed more than 9223372036854775807.");
@@ -850,6 +861,12 @@ class ApiController extends Controller
             if (isset($request->property_classification) && $request->property_classification == 4) {
                 $saveProperty->availability_type = $request->availability_type;
                 $saveProperty->available_dates = $request->available_dates;
+            }
+
+            // Set hotel specific fields if property classification is hotel (5)
+            if (isset($request->property_classification) && $request->property_classification == 5) {
+                $saveProperty->hotel_name = $request->hotel_name;
+                $saveProperty->refund_policy = $request->refund_policy;
             }
 
             $autoApproveStatus = $this->getAutoApproveStatus($loggedInUserId);
@@ -1023,6 +1040,45 @@ class ApiController extends Controller
             }
             // END :: ADD CITY DATA
 
+            // START :: ADD HOTEL ROOMS
+            if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->hotel_rooms) && !empty($request->hotel_rooms)) {
+                try {
+                    \Log::info('Processing hotel rooms for property ID: ' . $saveProperty->id);
+                    \Log::info('Hotel rooms data: ' . json_encode($request->hotel_rooms));
+
+                    foreach ($request->hotel_rooms as $index => $room) {
+                        \Log::info('Processing room index: ' . $index);
+                        \Log::info('Room data: ' . json_encode($room));
+
+                        try {
+                            // Make sure both room_type_id and room_type have the same value
+                            $roomTypeId = $room['room_type_id'];
+
+                            $hotelRoom = HotelRoom::create([
+                                'property_id' => $saveProperty->id,
+                                'room_type_id' => $roomTypeId,
+                                'room_number' => $room['room_number'],
+                                'price_per_night' => (float)$room['price_per_night'],
+                                'discount_percentage' => isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : 0,
+                                'refund_policy' => $room['refund_policy'] ?? 'flexible',
+                                'description' => $room['description'] ?? null,
+                                'status' => $room['status'] ?? 1
+                            ]);
+                            \Log::info('Room created successfully: ' . $hotelRoom->id);
+                        } catch (\Exception $roomEx) {
+                            \Log::error('Error creating room: ' . $roomEx->getMessage());
+                            \Log::error('Error trace: ' . $roomEx->getTraceAsString());
+                            throw $roomEx;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Error processing hotel rooms: ' . $e->getMessage());
+                    \Log::error('Error trace: ' . $e->getTraceAsString());
+                    throw $e;
+                }
+            }
+            // END :: ADD HOTEL ROOMS
+
             $result = Property::with('customer')->with('category:id,category,image')->with('assignfacilities.outdoorfacilities')->with('favourite')->with('parameters')->with('interested_users')->where('id', $saveProperty->id)->get();
             $property_details = get_property_details($result);
 
@@ -1057,6 +1113,14 @@ class ApiController extends Controller
             'property_classification' => 'nullable|integer|between:1,5',
             'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
             'available_dates'   => 'nullable|json|required_if:property_classification,4',
+            'hotel_name'        => 'required_if:property_classification,5',
+            'refund_policy'     => 'nullable|in:flexible,non-refundable',
+            'hotel_rooms'       => 'nullable|array',
+            'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
+            'hotel_rooms.*.room_number' => 'required_with:hotel_rooms',
+            'hotel_rooms.*.price_per_night' => 'required_with:hotel_rooms|numeric|min:0',
+            'hotel_rooms.*.discount_percentage' => 'nullable|numeric|min:0|max:100',
+            'hotel_rooms.*.refund_policy' => 'nullable|in:flexible,non-refundable',
             'price'                 => ['required', 'numeric', 'min:1', 'max:9223372036854775807', function ($attribute, $value, $fail) {
                 if ($value >= 9223372036854775807) {
                     $fail("The Price must not exceed more than 9223372036854775807.");
@@ -1478,6 +1542,64 @@ class ApiController extends Controller
                     }
                     // END :: ADD CITY DATA
 
+                    // START :: UPDATE HOTEL ROOMS
+                    if (isset($request->property_classification) && $request->property_classification == 5) {
+                        // Update hotel specific fields
+                        if (isset($request->hotel_name)) {
+                            $property->hotel_name = $request->hotel_name;
+                        }
+
+                        if (isset($request->refund_policy)) {
+                            $property->refund_policy = $request->refund_policy;
+                        }
+
+                        // Handle hotel rooms
+                        if (isset($request->hotel_rooms) && !empty($request->hotel_rooms)) {
+                            // Process added/updated rooms
+                            foreach ($request->hotel_rooms as $room) {
+                                if (isset($room['id']) && !empty($room['id'])) {
+                                    // Update existing room
+                                    $hotelRoom = HotelRoom::find($room['id']);
+                                    if ($hotelRoom && $hotelRoom->property_id == $property->id) {
+                                        $hotelRoom->room_type_id = $room['room_type_id'];
+                                        $hotelRoom->room_number = $room['room_number'];
+                                        $hotelRoom->price_per_night = $room['price_per_night'];
+                                        $hotelRoom->discount_percentage = $room['discount_percentage'] ?? $hotelRoom->discount_percentage;
+                                        $hotelRoom->refund_policy = $room['refund_policy'] ?? $hotelRoom->refund_policy;
+                                        $hotelRoom->description = $room['description'] ?? $hotelRoom->description;
+                                        $hotelRoom->status = $room['status'] ?? $hotelRoom->status;
+                                        $hotelRoom->save();
+                                    }
+                                } else {
+                                    // Create new room
+                                    HotelRoom::create([
+                                        'property_id' => $property->id,
+                                        'room_type_id' => $room['room_type_id'],
+                                        'room_number' => $room['room_number'],
+                                        'price_per_night' => $room['price_per_night'],
+                                        'discount_percentage' => $room['discount_percentage'] ?? 0,
+                                        'refund_policy' => $room['refund_policy'] ?? 'flexible',
+                                        'description' => $room['description'] ?? null,
+                                        'status' => $room['status'] ?? 1
+                                    ]);
+                                }
+                            }
+
+                            // Process deleted rooms
+                            if (isset($request->deleted_room_ids) && !empty($request->deleted_room_ids)) {
+                                foreach ($request->deleted_room_ids as $roomId) {
+                                    $roomToDelete = HotelRoom::where('id', $roomId)
+                                        ->where('property_id', $property->id)
+                                        ->first();
+
+                                    if ($roomToDelete) {
+                                        $roomToDelete->delete();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // END :: UPDATE HOTEL ROOMS
 
                     $current_user = Auth::user()->id;
                     $property_details = get_property_details($update_property, $current_user, true);
@@ -1616,7 +1738,7 @@ class ApiController extends Controller
             $response['message'] = 'Delete Successfully';
             return response()->json($response);
         } catch (Exception $e) {
-            DB::rollBack();
+            DB::rollback();
             $response = array(
                 'error' => true,
                 'message' => 'Something Went Wrong'
@@ -2232,7 +2354,7 @@ class ApiController extends Controller
             // Render paypal form
             $paypal->paypal_auto_form();
         } catch (Exception $e) {
-            DB::rollBack();
+            DB::rollback();
             ApiResponseService::errorResponse();
         }
     }
@@ -5236,52 +5358,6 @@ class ApiController extends Controller
     }
 
 
-    // public function getPropertyDetail(Request $request){
-    //     $validator = Validator::make($request->all(), [
-    //         'id'        => 'required_without:slug_id',
-    //         'slug_id'   => 'required_without:id',
-    //     ]);
-    //     if ($validator->fails()) {
-    //         return response()->json([
-    //             'error' => true,
-    //             'message' => $validator->errors()->first(),
-    //         ]);
-    //     }
-    //     try{
-    //         $propertyQuery = Property::where('status', 1)->whereIn('propery_type',array(0,1))->with(['customer','user', 'category:id,category,image,slug_id','favourite','interested_users' => function ($query){
-    //             $query->has('customer')->with('customer:id,name');
-    //         }]);
-
-    //         if($request->has('id') && !empty($request->id)){
-    //             $propertyQuery = $propertyQuery->clone()->where(['id' => $request->id,'status' => 1]);
-    //         } else {
-    //             $propertyQuery = $propertyQuery->clone()->where(['slug_id' => $request->slug_id,'status' => 1]);
-    //         }
-    //         $propertyData = $propertyQuery->first();
-
-    //         if ($propertyData) {
-    //             $propertyData->is_premium = $propertyData->is_premium == 1 ? true : false;
-    //             $propertyData->property_type = $propertyData->propery_type;
-    //             $propertyData->assign_facilities = $propertyData->assign_facilities;
-    //             $propertyData->parameters = $propertyData->parameters;
-    //             unset($propertyData->propery_type);
-    //         }
-
-    //         $response = array(
-    //             'error' => false,
-    //             'data' => $propertyData,
-    //             'message' => 'Data fetched Successfully'
-    //         );
-    //         return response()->json($response);
-    //     } catch (Exception $e) {
-    //         return response()->json([
-    //             'error' => true,
-    //             'message' => $e->getMessage()
-    //         ], 500);
-    //     }
-    // }
-
-
     public function getAgentVerificationFormFields(Request $request)
     {
         $data = VerifyCustomerForm::where('status', 'active')->with('form_fields_values:id,verify_customer_form_id,value')->select('id', 'name', 'field_type')->get();
@@ -6142,7 +6218,6 @@ class ApiController extends Controller
                 'Failed',
                 'Mail',
                 'Mailer',
-                'MailManager',
                 "Connection could not be established"
             ])) {
                 ApiResponseService::validationError("There is issue with mail configuration, kindly contact admin regarding this");

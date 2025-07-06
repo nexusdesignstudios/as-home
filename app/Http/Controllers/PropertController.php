@@ -89,6 +89,8 @@ class PropertController extends Controller
                 'meta_image'        => 'nullable|image|mimes:jpg,png,jpeg|max:5120',
                 'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
                 'available_dates'   => 'nullable|json|required_if:property_classification,4',
+                'hotel_name'        => 'nullable|required_if:property_classification,5',
+                'refund_policy'     => 'nullable|in:flexible,non-refundable',
                 'price'             => 'required|numeric|min:1|max:9223372036854775807',
                 'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
                     // Regular expression to validate YouTube URLs
@@ -148,6 +150,12 @@ class PropertController extends Controller
                 if (isset($request->property_classification) && $request->property_classification == 4) {
                     $saveProperty->availability_type = $request->availability_type;
                     $saveProperty->available_dates = $request->available_dates;
+                }
+
+                // Set hotel specific fields if property classification is hotel_booking (5)
+                if (isset($request->property_classification) && $request->property_classification == 5) {
+                    $saveProperty->hotel_name = $request->hotel_name;
+                    $saveProperty->refund_policy = $request->refund_policy ?? 'flexible';
                 }
 
                 if ($request->hasFile('title_image')) {
@@ -340,6 +348,8 @@ class PropertController extends Controller
                 'property_classification' => 'required|integer|min:1|max:5',
                 'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
                 'available_dates'   => 'nullable|json|required_if:property_classification,4',
+                'hotel_name'        => 'nullable|required_if:property_classification,5',
+                'refund_policy'     => 'nullable|in:flexible,non-refundable',
                 'price'             => 'required|numeric|min:1|max:9223372036854775807',
                 'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
                     // Regular expression to validate YouTube URLs
@@ -402,6 +412,12 @@ class PropertController extends Controller
                 if (isset($request->property_classification) && $request->property_classification == 4) {
                     $UpdateProperty->availability_type = $request->availability_type;
                     $UpdateProperty->available_dates = $request->available_dates;
+                }
+
+                // Set hotel specific fields if property classification is hotel_booking (5)
+                if (isset($request->property_classification) && $request->property_classification == 5) {
+                    $UpdateProperty->hotel_name = $request->hotel_name;
+                    $UpdateProperty->refund_policy = $request->refund_policy ?? 'flexible';
                 }
 
                 if ($request->hasFile('title_image')) {

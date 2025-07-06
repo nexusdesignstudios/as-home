@@ -37,6 +37,7 @@ use App\Http\Controllers\VerifyCustomerFormController;
 use App\Http\Controllers\PropertyTermsController;
 use App\Http\Controllers\BankDetailController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\HotelRoomTypeController;
 
 
 /*
@@ -209,10 +210,10 @@ Route::middleware(['language'])->group(function () {
         /// START :: PACKAGE ROUTE
 
         Route::post('package-features/status-update', [PackageFeatureController::class, 'updateStatus'])->name('package-features.status-update');
-        Route::resource('package-features',PackageFeatureController::class);
+        Route::resource('package-features', PackageFeatureController::class);
 
         Route::post('package-status', [PackageController::class, 'updatestatus'])->name('package.updatestatus');
-        Route::get('user-packages', [PackageController::class,'userPackageIndex'])->name('user-packages.index');
+        Route::get('user-packages', [PackageController::class, 'userPackageIndex'])->name('user-packages.index');
         Route::get('user-package-list', [PackageController::class, 'getUserPackageList'])->name('user-packages.list');
         Route::resource('package', PackageController::class);
 
@@ -265,6 +266,11 @@ Route::middleware(['language'])->group(function () {
         Route::get('updateFCMID', [UserController::class, 'updateFCMID']);
         /// END :: PROPERTY ROUTE
 
+        /// START :: HOTEL ROOM TYPES ROUTE
+        Route::resource('hotel_room_types', HotelRoomTypeController::class);
+        Route::get('hotel_room_types_list', [HotelRoomTypeController::class, 'getRoomTypeList'])->name('hotel_room_types.list');
+        /// END :: HOTEL ROOM TYPES ROUTE
+
         /// START :: PROPERTY TERMS & CONDITIONS
         Route::resource('property-terms', PropertyTermsController::class);
         Route::get('get-terms-by-classification/{classificationId}', [PropertyTermsController::class, 'getTermsByClassification'])->name('property-terms.get-by-classification');
@@ -293,8 +299,8 @@ Route::middleware(['language'])->group(function () {
         Route::get('get-chat-list', [ChatController::class, 'getChats'])->name('get-chat-list');
         Route::post('store_chat', [ChatController::class, 'store']);
         Route::get('getAllMessage', [ChatController::class, 'getAllMessage']);
-        Route::post('block-user/{c_id}', [ChatController::class,'blockUser'])->name('block-user');
-        Route::post('unblock-user/{c_id}', [ChatController::class,'unBlockUser'])->name('unblock-user');
+        Route::post('block-user/{c_id}', [ChatController::class, 'blockUser'])->name('block-user');
+        Route::post('unblock-user/{c_id}', [ChatController::class, 'unBlockUser'])->name('unblock-user');
         /// END :: CHAT ROUTE
 
 
@@ -346,7 +352,7 @@ Route::middleware(['language'])->group(function () {
 
 
         /// Start :: User Verification Form
-        Route::prefix('verify-customer')->group(function(){
+        Route::prefix('verify-customer')->group(function () {
             Route::get('/custom-form', [VerifyCustomerFormController::class, 'verifyCustomerFormIndex'])->name('verify-customer.form');
             Route::post('/save-custom-form', [VerifyCustomerFormController::class, 'verifyCustomerFormStore'])->name('verify-customer-form.store');
             Route::get('/list-custom-form', [VerifyCustomerFormController::class, 'verifyCustomerFormShow'])->name('verify-customer-form.show');
@@ -359,19 +365,18 @@ Route::middleware(['language'])->group(function () {
             Route::get('/', [VerifyCustomerFormController::class, 'agentVerificationListIndex'])->name('agent-verification.index');
             Route::get('/list', [VerifyCustomerFormController::class, 'agentVerificationList'])->name('agent-verification.list');
             Route::get('/submitted-form/{id}', [VerifyCustomerFormController::class, 'getAgentSubmittedForm'])->name('agent-verification.show-form');
-            Route::post('/update-verification-status', [VerifyCustomerFormController::class,'updateVerificationStatus'])->name('agent-verification.change-status');
-            Route::post('/auto-approve-settings', [VerifyCustomerFormController::class,'autoApproveSettings'])->name('agent-verification.auto-approve');
-            Route::post('/verification-required-for-user-settings', [VerifyCustomerFormController::class,'verificationRequiredForUserSettings'])->name('agent-verification.verification-required-for-user');
+            Route::post('/update-verification-status', [VerifyCustomerFormController::class, 'updateVerificationStatus'])->name('agent-verification.change-status');
+            Route::post('/auto-approve-settings', [VerifyCustomerFormController::class, 'autoApproveSettings'])->name('agent-verification.auto-approve');
+            Route::post('/verification-required-for-user-settings', [VerifyCustomerFormController::class, 'verificationRequiredForUserSettings'])->name('agent-verification.verification-required-for-user');
         });
-
     });
 
-    Route::get('get-currency-symbol',[SettingController::class, 'getCurrencySymbol'])->name('get-currency-symbol');
+    Route::get('get-currency-symbol', [SettingController::class, 'getCurrencySymbol'])->name('get-currency-symbol');
     // Reset Password
-    Route::get('reset-password',[CustomersController::class, 'resetPasswordIndex']);
-    Route::post('change-password',[CustomersController::class, 'resetPassword'])->name('customer.reset-password');
+    Route::get('reset-password', [CustomersController::class, 'resetPasswordIndex']);
+    Route::post('change-password', [CustomersController::class, 'resetPassword'])->name('customer.reset-password');
 });
-Route::get('deep-link', function(){
+Route::get('deep-link', function () {
     return view('settings.deep-link');
 });
 // Local Language Values for JS
@@ -383,7 +388,7 @@ Route::get('/js/lang', static function () {
         $files = resource_path('lang/' . $lang . '.json');
         return File::get($files);
     });
-    echo('window.trans = ' . $labels);
+    echo ('window.trans = ' . $labels);
     exit();
 })->name('assets.lang');
 
@@ -416,14 +421,14 @@ Route::get('/clear', function () {
     return redirect()->back();
 });
 
-Route::get('/add-url', function(){
+Route::get('/add-url', function () {
     $envUpdates = [
         'APP_URL' => Request::root(),
     ];
     updateEnv($envUpdates);
 })->name('add-url-in-env');
 
-Route::get('/seed-demo-data', function(){
+Route::get('/seed-demo-data', function () {
     Artisan::call('db:seed', ['--class' => 'DemoDataSeeder']);
     $output = Artisan::output();
     echo nl2br($output); // Convert newlines to <br> for better readability in HTML

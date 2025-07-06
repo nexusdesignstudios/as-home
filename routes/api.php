@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\PropertyTermsController;
+use App\Http\Controllers\HotelRoomTypeController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -36,6 +37,7 @@ Route::get('get-slider', [ApiController::class, 'getSlider']);
 Route::get('get_facilities', [ApiController::class, 'get_facilities']);
 Route::get('get_seo_settings', [ApiController::class, 'get_seo_settings']);
 Route::get('get_report_reasons', [ApiController::class, 'get_report_reasons']);
+Route::get('get-active-room-types', [HotelRoomTypeController::class, 'getActiveRoomTypes']);
 /*********************************************************************** */
 
 /** Extra */
@@ -164,6 +166,10 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::apiResource('property-terms', PropertyTermsController::class);
     Route::get('get-terms-by-classification/{classificationId}', [PropertyTermsController::class, 'getTermsByClassification']);
     /*********************************************************************** */
+
+    /** Hotel Room Types */
+    Route::apiResource('hotel-room-types', HotelRoomTypeController::class);
+    /*********************************************************************** */
 });
 
 
@@ -199,6 +205,7 @@ Route::get('agent-properties', [ApiController::class, 'getAgentProperties']);
 /** Settings */
 Route::get('web-settings', [ApiController::class, 'getWebSettings']);
 Route::get('app-settings', [ApiController::class, 'getAppSettings']);
+Route::get('get-active-room-types', [HotelRoomTypeController::class, 'getActiveRoomTypes']);
 /*********************************************************************** */
 
 /** Mortgage Calculator */

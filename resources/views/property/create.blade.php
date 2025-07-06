@@ -92,7 +92,7 @@
                     {{-- Property Classification --}}
                     <div class="col-md-12 col-12 form-group mandatory">
                         {{ Form::label('property_classification', __('Property Classification'), ['class' => 'form-label col-12 ']) }}
-                        <select name="property_classification" class="form-select form-control-sm" data-parsley-minSelect='1' required>
+                        <select name="property_classification" id="property_classification" class="form-select form-control-sm" data-parsley-minSelect='1' required>
                             <option value="" selected>{{ __('Choose Classification') }}</option>
                             <option value="1">{{ __('Sell/Long Term Rent') }}</option>
                             <option value="2">{{ __('Commercial') }}</option>
@@ -100,6 +100,23 @@
                             <option value="4">{{ __('Vacation Homes') }}</option>
                             <option value="5">{{ __('Hotel Booking') }}</option>
                         </select>
+                    </div>
+
+                    {{-- Hotel Specific Fields --}}
+                    <div class="col-md-12 hotel-fields" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6 form-group mandatory">
+                                {{ Form::label('hotel_name', __('Hotel Name'), ['class' => 'form-label col-12']) }}
+                                {{ Form::text('hotel_name', '', ['class' => 'form-control', 'placeholder' => __('Hotel Name')]) }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('refund_policy', __('Refund Policy'), ['class' => 'form-label col-12']) }}
+                                <select name="refund_policy" class="form-select form-control-sm">
+                                    <option value="flexible">{{ __('Flexible Booking') }}</option>
+                                    <option value="non-refundable">{{ __('Non-Refundable') }}</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     {{-- Duration --}}
@@ -592,6 +609,78 @@
             }else{
                 slugElement.removeAttr('readonly', true).val("")
             }
+        });
+
+        // Handle property classification change
+        function handlePropertyClassification() {
+            var propertyClassification = $('#property_classification').val();
+
+            // Hide all specific fields first
+            $('.vacation-home-fields').hide();
+            $('.hotel-fields').hide();
+            $('.hotel-rooms').hide();
+
+            // Show fields based on classification
+            if (propertyClassification == 4) { // Vacation Homes
+                $('.vacation-home-fields').show();
+            } else if (propertyClassification == 5) { // Hotel Booking
+                $('.hotel-fields').show();
+                $('.hotel-rooms').show();
+            }
+        }
+
+        // Call on page load
+        handlePropertyClassification();
+
+        // Call when classification changes
+        $('#property_classification').on('change', function() {
+            handlePropertyClassification();
+        });
+
+        // Room management
+        var roomIndex = 0;
+
+        // Add new room
+        $('#add-room-btn').on('click', function() {
+            var newRow = `
+                <tr class="room-row">
+                    <td>
+                        <input type="text" class="form-control" name="hotel_rooms[${roomIndex}][room_number]" required>
+                    </td>
+                    <td>
+                        <select class="form-control" name="hotel_rooms[${roomIndex}][room_type_id]" required>
+                            @foreach(App\Models\HotelRoomType::where('status', 1)->get() as $roomType)
+                                <option value="{{ $roomType->id }}">{{ $roomType->name }}</option>
+                            @endforeach
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][price_per_night]" min="0" step="0.01" required>
+                    </td>
+                    <td>
+                        <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][discount_percentage]" value="0" min="0" max="100" step="0.01">
+                    </td>
+                    <td>
+                        <select class="form-control" name="hotel_rooms[${roomIndex}][refund_policy]">
+                            <option value="flexible">{{ __('Flexible') }}</option>
+                            <option value="non-refundable">{{ __('Non-Refundable') }}</option>
+                        </select>
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-danger btn-sm remove-room">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+
+            $('#rooms-container').append(newRow);
+            roomIndex++;
+        });
+
+        // Remove room
+        $(document).on('click', '.remove-room', function() {
+            $(this).closest('tr').remove();
         });
     </script>
 @endsection

@@ -1653,105 +1653,9 @@
             "description": "Update an existing vacation home property with availability_type and available_dates fields"
           },
           "response": []
-        }
-      ],
-      "description": "Property management endpoints including the new fields: policy_data (required document), weekend_commission (optional percentage), identity_proof (optional image), and vacation home fields (availability_type and available_dates)"
-    },
-    {
-      "name": "Property Terms",
-      "item": [
-        {
-          "name": "Get All Property Terms",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{auth_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/property-terms",
-              "host": ["{{base_url}}"],
-              "path": ["api", "property-terms"]
-            },
-            "description": "Get all property terms and conditions"
-          },
-          "response": []
         },
         {
-          "name": "Get Property Term by ID",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{auth_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/property-terms/1",
-              "host": ["{{base_url}}"],
-              "path": ["api", "property-terms", "1"]
-            },
-            "description": "Get property terms and conditions by ID"
-          },
-          "response": []
-        },
-        {
-          "name": "Get Terms by Classification",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{auth_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/get-terms-by-classification/1",
-              "host": ["{{base_url}}"],
-              "path": ["api", "get-terms-by-classification", "1"]
-            },
-            "description": "Get property terms and conditions by classification ID (1=Sell/Rent, 2=Commercial, 3=New Project, 4=Vacation Homes, 5=Hotel Booking)"
-          },
-          "response": []
-        },
-        {
-          "name": "Create Property Term",
+          "name": "Post Hotel Property",
           "request": {
             "auth": {
               "type": "bearer",
@@ -1769,28 +1673,198 @@
                 "key": "Accept",
                 "value": "application/json",
                 "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
               }
             ],
             "body": {
-              "mode": "raw",
-              "raw": "{\n    \"classification_id\": 1,\n    \"terms_conditions\": \"<p>These are the terms and conditions for Sell/Rent properties.</p>\"\n}"
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Luxury Hotel",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Luxury hotel with amazing amenities and views",
+                  "type": "text"
+                },
+                {
+                  "key": "category_id",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "property_type",
+                  "value": "1",
+                  "description": "0: Sell, 1: Rent",
+                  "type": "text"
+                },
+                {
+                  "key": "property_classification",
+                  "value": "5",
+                  "description": "5: Hotel Booking",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_name",
+                  "value": "Grand Luxury Hotel",
+                  "description": "Required when property_classification is 5",
+                  "type": "text"
+                },
+                {
+                  "key": "refund_policy",
+                  "value": "flexible",
+                  "description": "flexible or non-refundable",
+                  "type": "text"
+                },
+                {
+                  "key": "address",
+                  "value": "789 Hotel Blvd, Resort City",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "0",
+                  "description": "Base price (individual room prices are defined in hotel_rooms)",
+                  "type": "text"
+                },
+                {
+                  "key": "title_image",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "policy_data",
+                  "description": "Required document file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "weekend_commission",
+                  "value": "8.5",
+                  "description": "Optional percentage value",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[0][room_type_id]",
+                  "value": "1",
+                  "description": "ID of the room type",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[0][room_number]",
+                  "value": "101",
+                  "description": "Room number/identifier",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[0][price_per_night]",
+                  "value": "150",
+                  "description": "Price per night for this room",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[0][discount_percentage]",
+                  "value": "0",
+                  "description": "Discount percentage (0-100)",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[0][refund_policy]",
+                  "value": "flexible",
+                  "description": "flexible or non-refundable",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[0][description]",
+                  "value": "Standard room with one queen bed",
+                  "description": "Room description",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[1][room_type_id]",
+                  "value": "2",
+                  "description": "ID of the room type",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[1][room_number]",
+                  "value": "201",
+                  "description": "Room number/identifier",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[1][price_per_night]",
+                  "value": "250",
+                  "description": "Price per night for this room",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[1][discount_percentage]",
+                  "value": "10",
+                  "description": "Discount percentage (0-100)",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[1][refund_policy]",
+                  "value": "non-refundable",
+                  "description": "flexible or non-refundable",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[1][description]",
+                  "value": "Deluxe room with king bed and ocean view",
+                  "description": "Room description",
+                  "type": "text"
+                },
+                {
+                  "key": "country",
+                  "value": "United States",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "Nevada",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "Las Vegas",
+                  "type": "text"
+                },
+                {
+                  "key": "latitude",
+                  "value": "36.1699",
+                  "type": "text"
+                },
+                {
+                  "key": "longitude",
+                  "value": "-115.1398",
+                  "type": "text"
+                },
+                {
+                  "key": "is_premium",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "package_id",
+                  "value": "1",
+                  "type": "text"
+                }
+              ]
             },
             "url": {
-              "raw": "{{base_url}}/api/property-terms",
+              "raw": "{{base_url}}/api/post_property",
               "host": ["{{base_url}}"],
-              "path": ["api", "property-terms"]
+              "path": ["api", "post_property"]
             },
-            "description": "Create new property terms and conditions for a specific classification"
+            "description": "Create a new hotel property listing with multiple room types and rooms"
           },
           "response": []
         },
         {
-          "name": "Update Property Term",
+          "name": "Update Hotel Property",
           "request": {
             "auth": {
               "type": "bearer",
@@ -1802,64 +1876,193 @@
                 }
               ]
             },
-            "method": "PUT",
+            "method": "POST",
             "header": [
               {
                 "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
                 "value": "application/json",
                 "type": "text"
               }
             ],
             "body": {
-              "mode": "raw",
-              "raw": "{\n    \"terms_conditions\": \"<p>Updated terms and conditions for this property classification.</p>\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/property-terms/1",
-              "host": ["{{base_url}}"],
-              "path": ["api", "property-terms", "1"]
-            },
-            "description": "Update existing property terms and conditions by ID"
-          },
-          "response": []
-        },
-        {
-          "name": "Delete Property Term",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
+              "mode": "formdata",
+              "formdata": [
                 {
-                  "key": "token",
-                  "value": "{{auth_token}}",
-                  "type": "string"
+                  "key": "id",
+                  "value": "{{property_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "action_type",
+                  "value": "0",
+                  "description": "0: Update, 1: Delete",
+                  "type": "text"
+                },
+                {
+                  "key": "title",
+                  "value": "Updated Luxury Hotel",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Updated luxury hotel with premium amenities",
+                  "type": "text"
+                },
+                {
+                  "key": "category_id",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "property_type",
+                  "value": "1",
+                  "description": "0: Sell, 1: Rent",
+                  "type": "text"
+                },
+                {
+                  "key": "property_classification",
+                  "value": "5",
+                  "description": "5: Hotel Booking",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_name",
+                  "value": "Updated Grand Luxury Hotel",
+                  "description": "Required when property_classification is 5",
+                  "type": "text"
+                },
+                {
+                  "key": "refund_policy",
+                  "value": "non-refundable",
+                  "description": "flexible or non-refundable",
+                  "type": "text"
+                },
+                {
+                  "key": "address",
+                  "value": "789 Hotel Blvd, Resort City",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[0][id]",
+                  "value": "1",
+                  "description": "ID of existing room (required for updating)",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[0][room_type_id]",
+                  "value": "1",
+                  "description": "ID of the room type",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[0][room_number]",
+                  "value": "101A",
+                  "description": "Updated room number/identifier",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[0][price_per_night]",
+                  "value": "175",
+                  "description": "Updated price per night",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[0][discount_percentage]",
+                  "value": "5",
+                  "description": "Updated discount percentage",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[0][refund_policy]",
+                  "value": "flexible",
+                  "description": "flexible or non-refundable",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[1][room_type_id]",
+                  "value": "3",
+                  "description": "ID of the room type (new room)",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[1][room_number]",
+                  "value": "301",
+                  "description": "Room number/identifier (new room)",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[1][price_per_night]",
+                  "value": "350",
+                  "description": "Price per night (new room)",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[1][discount_percentage]",
+                  "value": "15",
+                  "description": "Discount percentage (new room)",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[1][refund_policy]",
+                  "value": "non-refundable",
+                  "description": "flexible or non-refundable (new room)",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[1][description]",
+                  "value": "Presidential suite with multiple rooms and balcony",
+                  "description": "Room description (new room)",
+                  "type": "text"
+                },
+                {
+                  "key": "country",
+                  "value": "United States",
+                  "type": "text"
+                },
+                {
+                  "key": "state",
+                  "value": "Nevada",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "Las Vegas",
+                  "type": "text"
+                },
+                {
+                  "key": "latitude",
+                  "value": "36.1699",
+                  "type": "text"
+                },
+                {
+                  "key": "longitude",
+                  "value": "-115.1398",
+                  "type": "text"
+                },
+                {
+                  "key": "is_premium",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "weekend_commission",
+                  "value": "10",
+                  "description": "Optional percentage value",
+                  "type": "text"
                 }
               ]
             },
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
             "url": {
-              "raw": "{{base_url}}/api/property-terms/1",
+              "raw": "{{base_url}}/api/update_post_property",
               "host": ["{{base_url}}"],
-              "path": ["api", "property-terms", "1"]
+              "path": ["api", "update_post_property"]
             },
-            "description": "Delete property terms and conditions by ID"
+            "description": "Update an existing hotel property with room modifications and additions"
           },
           "response": []
         }
       ],
-      "description": "Property Terms and Conditions management endpoints"
+      "description": "Property management endpoints including the new fields: policy_data (required document), weekend_commission (optional percentage), identity_proof (optional image), vacation home fields (availability_type and available_dates), and hotel booking fields (hotel_name, refund_policy, hotel_rooms)"
     },
     {
       "name": "System Settings",
@@ -1886,6 +2089,170 @@
         }
       ],
       "description": "System settings endpoints"
+    },
+    {
+      "name": "Hotel Room Types",
+      "item": [
+        {
+          "name": "Get Active Room Types",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/get-active-room-types",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get-active-room-types"]
+            },
+            "description": "Get all active hotel room types"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Room Type",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Deluxe Suite\",\n    \"description\": \"Spacious suite with separate living area and premium amenities\",\n    \"status\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/hotel-room-types",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hotel-room-types"]
+            },
+            "description": "Create a new hotel room type (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Room Types",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/hotel-room-types",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hotel-room-types"]
+            },
+            "description": "Get all hotel room types (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Room Type",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Deluxe Suite\",\n    \"description\": \"Updated description for deluxe suite\",\n    \"status\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/hotel-room-types/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hotel-room-types", "1"]
+            },
+            "description": "Update an existing hotel room type (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Room Type",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/hotel-room-types/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hotel-room-types", "1"]
+            },
+            "description": "Delete a hotel room type (requires authentication)"
+          },
+          "response": []
+        }
+      ],
+      "description": "Hotel room type management endpoints for creating, reading, updating, and deleting room types"
     }
   ],
   "event": [
