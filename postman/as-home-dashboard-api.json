@@ -1706,12 +1706,6 @@
                   "type": "text"
                 },
                 {
-                  "key": "hotel_name",
-                  "value": "Grand Luxury Hotel",
-                  "description": "Required when property_classification is 5",
-                  "type": "text"
-                },
-                {
                   "key": "refund_policy",
                   "value": "flexible",
                   "description": "flexible or non-refundable",
@@ -1735,15 +1729,17 @@
                 },
                 {
                   "key": "policy_data",
-                  "description": "Required document file",
+                  "description": "Not required for hotel properties (property_classification=5)",
                   "type": "file",
-                  "src": []
+                  "src": [],
+                  "disabled": true
                 },
                 {
                   "key": "weekend_commission",
                   "value": "8.5",
-                  "description": "Optional percentage value",
-                  "type": "text"
+                  "description": "Not required for hotel properties (property_classification=5)",
+                  "type": "text",
+                  "disabled": true
                 },
                 {
                   "key": "hotel_rooms[0][room_type_id]",
@@ -1859,7 +1855,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "post_property"]
             },
-            "description": "Create a new hotel property listing with multiple room types and rooms"
+            "description": "Create a new hotel property listing with multiple room types and rooms. For hotel properties, policy_data and weekend_commission are not required."
           },
           "response": []
         },
@@ -1923,12 +1919,6 @@
                   "key": "property_classification",
                   "value": "5",
                   "description": "5: Hotel Booking",
-                  "type": "text"
-                },
-                {
-                  "key": "hotel_name",
-                  "value": "Updated Grand Luxury Hotel",
-                  "description": "Required when property_classification is 5",
                   "type": "text"
                 },
                 {
@@ -2047,8 +2037,9 @@
                 {
                   "key": "weekend_commission",
                   "value": "10",
-                  "description": "Optional percentage value",
-                  "type": "text"
+                  "description": "Not required for hotel properties (property_classification=5)",
+                  "type": "text",
+                  "disabled": true
                 }
               ]
             },
@@ -2057,12 +2048,12 @@
               "host": ["{{base_url}}"],
               "path": ["api", "update_post_property"]
             },
-            "description": "Update an existing hotel property with room modifications and additions"
+            "description": "Update an existing hotel property with room modifications and additions. For hotel properties, policy_data and weekend_commission are not required."
           },
           "response": []
         }
       ],
-      "description": "Property management endpoints including the new fields: policy_data (required document), weekend_commission (optional percentage), identity_proof (optional image), vacation home fields (availability_type and available_dates), and hotel booking fields (hotel_name, refund_policy, hotel_rooms)"
+      "description": "Property management endpoints including the new fields: policy_data (required document except for hotel properties), weekend_commission (optional percentage except for hotel properties), identity_proof (optional image), vacation home fields (availability_type and available_dates), and hotel booking fields (refund_policy, hotel_rooms)"
     },
     {
       "name": "System Settings",
