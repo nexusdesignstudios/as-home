@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('hotel_rooms', function (Blueprint $table) {
-            $table->enum('refund_policy', ['flexible', 'non-refundable'])->default('flexible')->after('discount_percentage');
+            if (!Schema::hasColumn('hotel_rooms', 'refund_policy')) {
+                $table->enum('refund_policy', ['flexible', 'non-refundable'])->default('flexible')->after('discount_percentage');
+            }
         });
     }
 
