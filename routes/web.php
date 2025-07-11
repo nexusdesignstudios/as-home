@@ -38,6 +38,7 @@ use App\Http\Controllers\PropertyTermsController;
 use App\Http\Controllers\BankDetailController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\HotelRoomTypeController;
+use App\Http\Controllers\HotelPropertiesController;
 
 
 /*
@@ -270,6 +271,11 @@ Route::middleware(['language'])->group(function () {
         Route::resource('hotel_room_types', HotelRoomTypeController::class);
         Route::get('hotel_room_types_list', [HotelRoomTypeController::class, 'getRoomTypeList'])->name('hotel_room_types.list');
         /// END :: HOTEL ROOM TYPES ROUTE
+
+        /// START :: HOTEL PROPERTIES ROUTE
+        Route::get('hotel_properties', [HotelPropertiesController::class, 'index'])->name('hotel_properties.index');
+        Route::get('hotel_properties_list', [HotelPropertiesController::class, 'getHotelPropertiesList'])->name('hotel_properties.list');
+        /// END :: HOTEL PROPERTIES ROUTE
 
         /// START :: PROPERTY TERMS & CONDITIONS
         Route::resource('property-terms', PropertyTermsController::class);

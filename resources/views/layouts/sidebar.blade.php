@@ -107,6 +107,16 @@
                     </li>
                 @endif
 
+                {{-- Hotel Properties --}}
+                @if (has_permissions('read', 'hotel_properties'))
+                    <li class="sidebar-item">
+                        <a href="{{ route('hotel_properties.index') }}" class='sidebar-link'>
+                            <i class="bi bi-building-fill"></i>
+                            <span class="menu-item">{{ __('Hotel Properties') }}</span>
+                        </a>
+                    </li>
+                @endif
+
                 {{-- City Images--}}
                 @if (has_permissions('read', 'city_images'))
                     <li class="sidebar-item">
