@@ -788,10 +788,12 @@ class ApiController extends Controller
             'hotel_rooms.*.price_per_night' => 'required_with:hotel_rooms|numeric|min:0',
             'hotel_rooms.*.discount_percentage' => 'nullable|numeric|min:0|max:100',
             'hotel_rooms.*.refund_policy' => 'nullable|in:flexible,non-refundable',
-            'price'             => ['required_unless:property_classification,5', 'numeric', 'min:1', 'max:9223372036854775807', function ($attribute, $value, $fail) {
-                if ($value >= 9223372036854775807) {
+            'price'             => ['required_unless:property_classification,5', 'nullable', 'numeric', 'min:0', 'max:9223372036854775807', function ($attribute, $value, $fail) {
+                if ($value !== null && $value >= 9223372036854775807) {
                     $fail("The Price must not exceed more than 9223372036854775807.");
                 }
+
+                return true;
             }],
             'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
                 // Regular expression to validate YouTube URLs
@@ -839,7 +841,7 @@ class ApiController extends Controller
             $saveProperty->address = $request->address;
             $saveProperty->client_address = (isset($request->client_address)) ? $request->client_address : '';
             $saveProperty->propery_type = $request->property_type;
-            $saveProperty->price = $request->price;
+            $saveProperty->price =  (isset($request->price)) ? $request->price : "";
             $saveProperty->country = (isset($request->country)) ? $request->country : '';
             $saveProperty->state = (isset($request->state)) ? $request->state : '';
             $saveProperty->city = (isset($request->city)) ? $request->city : '';
@@ -1092,7 +1094,10 @@ class ApiController extends Controller
             DB::rollback();
             $response = array(
                 'error' => true,
-                'message' => 'Something Went Wrong'
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
             );
             return response()->json($response, 500);
         }
