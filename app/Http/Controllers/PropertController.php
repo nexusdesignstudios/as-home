@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Services\BootstrapTableService;
 use App\Models\AssignedOutdoorFacilities;
 use Illuminate\Support\Facades\Validator;
+use App\Models\HotelRoom;
 
 
 class PropertController extends Controller
@@ -82,38 +83,25 @@ class PropertController extends Controller
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         } else {
             $request->validate([
-                'slug'              => 'nullable|regex:/^[a-z0-9-]+$/|unique:propertys,slug_id',
-                'gallery_images.*'  => 'required|image|mimes:jpg,png,jpeg|max:2048',
+                'title'             => 'required',
+                'description'       => 'required',
+                'category'          => 'required',
+                'property_type'     => 'required',
+                'property_classification' => 'nullable|integer|between:1,5',
+                'address'           => 'required',
+                'title_image'       => 'required|file|max:3000|mimes:jpeg,png,jpg',
+                '3d_image'          => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
                 'documents.*'       => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
-                'title_image'       => 'required|image|mimes:jpg,png,jpeg|max:2048',
-                'meta_image'        => 'nullable|image|mimes:jpg,png,jpeg|max:5120',
-                'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
-                'available_dates'   => 'nullable|json|required_if:property_classification,4',
-                'refund_policy'     => 'nullable|in:flexible,non-refundable',
                 'policy_data'       => 'required_unless:property_classification,5|mimes:pdf,doc,docx,txt|max:5120',
                 'price'             => 'required_unless:property_classification,5|numeric|min:1|max:9223372036854775807',
                 'weekend_commission' => 'nullable|numeric|min:0|max:100|required_unless:property_classification,5',
-                'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
-                    // Regular expression to validate YouTube URLs
-                    $youtubePattern = '/^(https?\:\/\/)?(www\.youtube\.com|youtu\.be)\/.+$/';
-
-                    if (!preg_match($youtubePattern, $value)) {
-                        return $fail("The Video Link must be a valid YouTube URL.");
-                    }
-
-                    // Transform youtu.be short URL to full YouTube URL for validation
-                    if (strpos($value, 'youtu.be') !== false) {
-                        $value = 'https://www.youtube.com/watch?v=' . substr(parse_url($value, PHP_URL_PATH), 1);
-                    }
-
-                    // Get the headers of the URL
-                    $headers = @get_headers($value);
-
-                    // Check if the URL is accessible
-                    if (!$headers || strpos($headers[0], '200') === false) {
-                        return $fail("The Video Link must be accessible.");
-                    }
-                }]
+                'refund_policy'     => 'nullable|in:flexible,non-refundable',
+                'hotel_rooms'       => 'nullable|array',
+                'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
+                'hotel_rooms.*.room_number' => 'required_with:hotel_rooms',
+                'hotel_rooms.*.price_per_night' => 'required_with:hotel_rooms|numeric|min:0',
+                'hotel_rooms.*.discount_percentage' => 'nullable|numeric|min:0|max:100',
+                'hotel_rooms.*.refund_policy' => 'nullable|in:flexible,non-refundable',
             ], [], [
                 'documents.*' => 'document :position'
             ]);
@@ -258,6 +246,27 @@ class PropertController extends Controller
                     CityImage::updateOrCreate(array('city' => $request->city));
                 }
                 // END :: ADD CITY DATA
+
+                // START :: ADD HOTEL ROOMS
+                if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->hotel_rooms) && !empty($request->hotel_rooms)) {
+                    try {
+                        foreach ($request->hotel_rooms as $room) {
+                            HotelRoom::create([
+                                'property_id' => $saveProperty->id,
+                                'room_type_id' => $room['room_type_id'],
+                                'room_number' => $room['room_number'],
+                                'price_per_night' => (float)$room['price_per_night'],
+                                'discount_percentage' => isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : 0,
+                                'refund_policy' => $room['refund_policy'] ?? 'flexible',
+                                'description' => $room['description'] ?? null,
+                                'status' => $room['status'] ?? 1
+                            ]);
+                        }
+                    } catch (\Exception $e) {
+                        throw $e;
+                    }
+                }
+                // END :: ADD HOTEL ROOMS
 
                 DB::commit();
                 ResponseService::successRedirectResponse('Data Created Successfully');

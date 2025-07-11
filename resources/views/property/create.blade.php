@@ -110,6 +110,35 @@
                         </div>
                     </div>
 
+                    {{-- Hotel Rooms Section --}}
+                    <div class="col-md-12 hotel-fields" style="display: none;">
+                        <div class="form-group">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5>{{ __('Hotel Rooms') }}</h5>
+                                <button type="button" class="btn btn-sm btn-primary" id="add-room-btn">
+                                    <i class="bi bi-plus"></i> {{ __('Add Room') }}
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>{{ __('Room Number') }}</th>
+                                            <th>{{ __('Room Type') }}</th>
+                                            <th>{{ __('Price/Night') }}</th>
+                                            <th>{{ __('Discount %') }}</th>
+                                            <th>{{ __('Refund Policy') }}</th>
+                                            <th>{{ __('Action') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rooms-container">
+                                        <!-- Room rows will be added here dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                     {{-- Duration --}}
                     <div class="col-md-12 col-12 form-group mandatory" id='duration'>
                         {{ Form::label('Duration', __('Duration For Price'), ['class' => 'form-label col-12 ']) }}
@@ -635,6 +664,13 @@
             } else if (propertyClassification == 5) { // Hotel Booking
                 $('.hotel-fields').show();
                 $('.hotel-rooms').show();
+                $('.policy-data-field').hide(); // Hide policy data for hotels
+                $('.price-field').hide(); // Hide price for hotels
+                $('#price').removeAttr('required');
+            } else {
+                $('.policy-data-field').show(); // Show policy data for non-hotels
+                $('.price-field').show(); // Show price for non-hotels
+                $('#price').attr('required', 'true');
             }
         }
 
