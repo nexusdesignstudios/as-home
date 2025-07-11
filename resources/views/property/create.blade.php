@@ -104,18 +104,9 @@
 
                     {{-- Hotel Specific Fields --}}
                     <div class="col-md-12 hotel-fields" style="display: none;">
-                        <div class="row">
-                            <div class="col-md-6 form-group mandatory">
-                                {{ Form::label('hotel_name', __('Hotel Name'), ['class' => 'form-label col-12']) }}
-                                {{ Form::text('hotel_name', '', ['class' => 'form-control', 'placeholder' => __('Hotel Name')]) }}
-                            </div>
-                            <div class="col-md-6 form-group">
-                                {{ Form::label('refund_policy', __('Refund Policy'), ['class' => 'form-label col-12']) }}
-                                <select name="refund_policy" class="form-select form-control-sm">
-                                    <option value="flexible">{{ __('Flexible Booking') }}</option>
-                                    <option value="non-refundable">{{ __('Non-Refundable') }}</option>
-                                </select>
-                            </div>
+                        <div class="form-group">
+                            {{ Form::label('refund_policy', __('Refund Policy'), ['class' => 'form-label col-12']) }}
+                            {{ Form::select('refund_policy', ['flexible' => __('Flexible'), 'non-refundable' => __('Non-Refundable')], null, ['class' => 'form-control select2', 'placeholder' => __('Select Refund Policy')]) }}
                         </div>
                     </div>
 
@@ -132,9 +123,21 @@
                     </div>
 
                     {{-- Price --}}
-                    <div class="control-label col-12 form-group mt-2 mandatory">
+                    <div class="control-label col-12 form-group mandatory price-field">
                         {{ Form::label('price', __('Price') . '(' . $currency_symbol . ')', ['class' => 'form-label col-12 ']) }}
-                        {{ Form::number('price', '', [ 'class' => 'form-control mt-1 ', 'placeholder' => trans('Price'), 'required' => 'true', 'min' => '1', 'id' => 'price', 'max' => '9223372036854775807' ]) }}
+                        {{ Form::number('price', '', ['class' => 'form-control ', 'placeholder' => __('Price'), 'min' => '1', 'max' => '9223372036854775807', 'id' => 'price']) }}
+                    </div>
+
+                    {{-- Weekend Commission --}}
+                    <div class="control-label col-12 form-group price-field">
+                        {{ Form::label('weekend_commission', __('Weekend Commission (%)'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::number('weekend_commission', '', ['class' => 'form-control', 'placeholder' => __('Weekend Commission'), 'min' => '0', 'max' => '100', 'step' => '0.01', 'id' => 'weekend_commission']) }}
+                    </div>
+
+                    {{-- Corresponding Day --}}
+                    <div class="control-label col-12 form-group">
+                        {{ Form::label('corresponding_day', __('Corresponding Day'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::text('corresponding_day', '', ['class' => 'form-control', 'placeholder' => __('Corresponding Day')]) }}
                     </div>
                 </div>
             </div>
@@ -305,6 +308,12 @@
                         <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3">
                             {{ Form::label('documents', __('Documents'), ['class' => 'form-label ']) }}
                             <input type="file" class="filepond" id="documents" name="documents[]" multiple accept="application/pdf,application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                        </div>
+
+                        {{-- Policy Data (hidden for hotel properties) --}}
+                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 policy-data-field">
+                            {{ Form::label('policy_data', __('Policy Data'), ['class' => 'form-label']) }}
+                            <input type="file" class="filepond" id="policy_data" name="policy_data" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
                         </div>
 
                         {{-- Video Link --}}
@@ -682,5 +691,30 @@
         $(document).on('click', '.remove-room', function() {
             $(this).closest('tr').remove();
         });
+
+        // Handle property classification change
+        $('#property_classification').on('change', function() {
+            var classification = $(this).val();
+
+            // Hide all classification-specific fields first
+            $('.vacation-fields, .hotel-fields').hide();
+
+            // Show fields based on classification
+            if (classification == 4) { // Vacation Homes
+                $('.vacation-fields').show();
+            } else if (classification == 5) { // Hotel Booking
+                $('.hotel-fields').show();
+                $('.policy-data-field').hide(); // Hide policy data for hotels
+                $('.price-field').hide(); // Hide price for hotels
+                $('#price').removeAttr('required');
+            } else {
+                $('.policy-data-field').show(); // Show policy data for non-hotels
+                $('.price-field').show(); // Show price for non-hotels
+                $('#price').attr('required', 'true');
+            }
+        });
+
+        // Trigger change event on page load to set initial state
+        $('#property_classification').trigger('change');
     </script>
 @endsection

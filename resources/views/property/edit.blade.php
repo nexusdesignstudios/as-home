@@ -109,18 +109,12 @@
 
                     {{-- Hotel Specific Fields --}}
                     <div class="col-md-12 hotel-fields" style="display: none;">
-                        <div class="row">
-                            <div class="col-md-6 form-group mandatory">
-                                {{ Form::label('hotel_name', __('Hotel Name'), ['class' => 'form-label col-12']) }}
-                                {{ Form::text('hotel_name', $list->hotel_name ?? '', ['class' => 'form-control', 'placeholder' => __('Hotel Name')]) }}
-                            </div>
-                            <div class="col-md-6 form-group">
-                                {{ Form::label('refund_policy', __('Refund Policy'), ['class' => 'form-label col-12']) }}
-                                <select name="refund_policy" class="form-select form-control-sm">
-                                    <option value="flexible" {{ isset($list->refund_policy) && $list->refund_policy == 'flexible' ? 'selected' : '' }}>{{ __('Flexible Booking') }}</option>
-                                    <option value="non-refundable" {{ isset($list->refund_policy) && $list->refund_policy == 'non-refundable' ? 'selected' : '' }}>{{ __('Non-Refundable') }}</option>
-                                </select>
-                            </div>
+                        <div class="form-group mandatory">
+                            {{ Form::label('refund_policy', __('Refund Policy'), ['class' => 'form-label col-12']) }}
+                            <select name="refund_policy" class="form-select form-control-sm">
+                                <option value="flexible" {{ isset($list->refund_policy) && $list->refund_policy == 'flexible' ? 'selected' : '' }}>{{ __('Flexible Booking') }}</option>
+                                <option value="non-refundable" {{ isset($list->refund_policy) && $list->refund_policy == 'non-refundable' ? 'selected' : '' }}>{{ __('Non-Refundable') }}</option>
+                            </select>
                         </div>
                     </div>
 
@@ -137,9 +131,21 @@
                     </div>
 
                     {{-- Price --}}
-                    <div class="control-label col-12 form-group mandatory">
+                    <div class="control-label col-12 form-group mandatory price-field">
                         {{ Form::label('price', __('Price') . '(' . $currency_symbol . ')', ['class' => 'form-label col-12 ']) }}
-                        {{ Form::number('price', isset($list->price) ? $list->price : '', ['class' => 'form-control ', 'placeholder' => __('Price'), 'required' => 'true', 'min' => '1', 'max' => '9223372036854775807', 'id' => 'price']) }}
+                        {{ Form::number('price', isset($list->price) ? $list->price : '', ['class' => 'form-control ', 'placeholder' => __('Price'), 'min' => '1', 'max' => '9223372036854775807', 'id' => 'price']) }}
+                    </div>
+
+                    {{-- Weekend Commission --}}
+                    <div class="control-label col-12 form-group price-field">
+                        {{ Form::label('weekend_commission', __('Weekend Commission (%)'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::number('weekend_commission', isset($list->weekend_commission) ? $list->weekend_commission : '', ['class' => 'form-control', 'placeholder' => __('Weekend Commission'), 'min' => '0', 'max' => '100', 'step' => '0.01', 'id' => 'weekend_commission']) }}
+                    </div>
+
+                    {{-- Corresponding Day --}}
+                    <div class="control-label col-12 form-group">
+                        {{ Form::label('corresponding_day', __('Corresponding Day'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::text('corresponding_day', isset($list->corresponding_day) ? $list->corresponding_day : '', ['class' => 'form-control', 'placeholder' => __('Corresponding Day')]) }}
                     </div>
                 </div>
             </div>
@@ -485,26 +491,36 @@
 
 
                         {{-- Documents Images --}}
-                        <div class="col-md-3 col-sm-12 card">
+                        <div class="col-md-6 form-group">
                             {{ Form::label('edit-documents', __('Documents'), ['class' => 'form-label col-12 ']) }}
                             <input type="file" class="doc-filepond" id="edit-documents" name="documents[]" multiple>
                             <div class="row mt-0 stored-documents-div">
                                 @if (!empty($list->documents))
                                     @foreach ($list->documents as $row)
-                                        <div class="properties_docs_main_div">
-                                            <div class="doc_icon">
-                                                <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 512 512" height="30" width="30" xmlns="http://www.w3.org/2000/svg"><path fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M208 64h66.75a32 32 0 0122.62 9.37l141.26 141.26a32 32 0 019.37 22.62V432a48 48 0 01-48 48H192a48 48 0 01-48-48V304"></path><path fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M288 72v120a32 32 0 0032 32h120"></path><path fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="32" d="M160 80v152a23.69 23.69 0 01-24 24c-12 0-24-9.1-24-24V88c0-30.59 16.57-56 48-56s48 24.8 48 55.38v138.75c0 43-27.82 77.87-72 77.87s-72-34.86-72-77.87V144"></path></svg>
-                                            </div>
-                                            <div class="doc_title">
-                                                <a href="{{ $row->file }}" target="_blank"><span title="{{ $row->file_name }}"> {{ $row->file_name }} </span></a>
-                                            </div>
-                                            <div>
-                                                <button class="btn btn-danger btn-sm removeDocument" data-id={{ $row->id }}>X</button>
-                                            </div>
+                                        <div class="col-md-2 col-sm-12 text-center mb-3">
+                                            @if ($row->type == 'pdf')
+                                                <a href="{{ $row->file }}" target="_blank"><img src="{{ url('images/pdf.png') }}" alt="" height="70px" width="70px"></a>
+                                            @else
+                                                <a href="{{ $row->file }}" target="_blank"><img src="{{ url('images/doc.png') }}" alt="" height="70px" width="70px"></a>
+                                            @endif
+                                            <button class="btn btn-danger btn-sm removeDocument" data-id={{ $row->id }}>X</button>
                                         </div>
                                     @endforeach
                                 @endif
                             </div>
+                        </div>
+
+                        {{-- Policy Data (hidden for hotel properties) --}}
+                        <div class="col-md-6 form-group policy-data-field">
+                            {{ Form::label('policy_data', __('Policy Data'), ['class' => 'form-label col-12']) }}
+                            <input type="file" class="filepond" id="policy_data" name="policy_data" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
+                            @if (!empty($list->policy_data))
+                                <div class="mt-2">
+                                    <a href="{{ $list->policy_data }}" target="_blank" class="btn btn-sm btn-info">
+                                        <i class="bi bi-file-earmark"></i> {{ __('View Policy Document') }}
+                                    </a>
+                                </div>
+                            @endif
                         </div>
 
                         <div class="col-md-3">
@@ -694,10 +710,12 @@
                 $('#duration').hide();
                 $('#price_duration').removeAttr('required');
                 $('#price_duration').val('');
+                $('.price-field').hide();
             } else {
                 $('#duration').show();
                 $('#price_duration').attr('required', 'true');
                 $('#price_duration').val('');
+                $('.price-field').show();
             }
             getWordCount("edit_meta_title", "edit_meta_title_count", "19.9px arial");
             getWordCount("edit_meta_description", "edit_meta_description_count", "12.9px arial");
@@ -712,9 +730,12 @@
             if (selectedType == 1) {
                 $('#duration').show();
                 $('#price_duration').attr('required', 'true');
+                $('.price-field').show();
             } else {
                 $('#duration').hide();
                 $('#price_duration').removeAttr('required');
+                $('#price_duration').val('');
+                $('.price-field').hide();
             }
         });
         $(".RemoveBtngallary").click(function(e) {
@@ -920,13 +941,23 @@
                 $('.vacation-home-fields').hide();
                 $('.hotel-fields').hide();
                 $('.hotel-rooms').hide();
+                $('.policy-data-field').hide(); // Hide policy data field
 
                 // Show fields based on classification
                 if (propertyClassification == 4) { // Vacation Homes
                     $('.vacation-home-fields').show();
+                    $('.price-field').show(); // Show price for vacation homes
+                    $('#price').attr('required', 'true');
                 } else if (propertyClassification == 5) { // Hotel Booking
                     $('.hotel-fields').show();
                     $('.hotel-rooms').show();
+                    $('.policy-data-field').hide(); // Hide policy data for hotels
+                    $('.price-field').hide(); // Hide price for hotels
+                    $('#price').removeAttr('required');
+                } else {
+                    $('.policy-data-field').show(); // Show policy data for non-hotels
+                    $('.price-field').show(); // Show price for non-hotels
+                    $('#price').attr('required', 'true');
                 }
             }
 

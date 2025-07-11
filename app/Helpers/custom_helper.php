@@ -463,10 +463,11 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['is_verified'] = $row->is_user_verified;
         $tempRow['availability_type'] = $row->availability_type;
         $tempRow['available_dates'] = $row->available_dates;
+        $tempRow['corresponding_day'] = $row->corresponding_day;
 
         // Add hotel-specific fields
         if ($row->getRawOriginal('property_classification') == 5) {
-            $tempRow['hotel_name'] = $row->hotel_name;
+            // Hotel name field removed
             $tempRow['refund_policy'] = $row->refund_policy;
             $tempRow['hotel_rooms'] = $row->hotel_rooms;
         }

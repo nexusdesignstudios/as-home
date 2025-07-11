@@ -89,9 +89,10 @@ class PropertController extends Controller
                 'meta_image'        => 'nullable|image|mimes:jpg,png,jpeg|max:5120',
                 'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
                 'available_dates'   => 'nullable|json|required_if:property_classification,4',
-                'hotel_name'        => 'nullable|required_if:property_classification,5',
                 'refund_policy'     => 'nullable|in:flexible,non-refundable',
-                'price'             => 'required|numeric|min:1|max:9223372036854775807',
+                'policy_data'       => 'required_unless:property_classification,5|mimes:pdf,doc,docx,txt|max:5120',
+                'price'             => 'required_unless:property_classification,5|numeric|min:1|max:9223372036854775807',
+                'weekend_commission' => 'nullable|numeric|min:0|max:100|required_unless:property_classification,5',
                 'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
                     // Regular expression to validate YouTube URLs
                     $youtubePattern = '/^(https?\:\/\/)?(www\.youtube\.com|youtu\.be)\/.+$/';
@@ -145,6 +146,7 @@ class PropertController extends Controller
                 $saveProperty->meta_keywords = $request->keywords;
                 $saveProperty->rentduration = $request->price_duration;
                 $saveProperty->is_premium = $request->is_premium;
+                $saveProperty->corresponding_day = $request->corresponding_day;
 
                 // Set vacation home specific fields if property classification is vacation_homes (4)
                 if (isset($request->property_classification) && $request->property_classification == 4) {
@@ -154,7 +156,6 @@ class PropertController extends Controller
 
                 // Set hotel specific fields if property classification is hotel_booking (5)
                 if (isset($request->property_classification) && $request->property_classification == 5) {
-                    $saveProperty->hotel_name = $request->hotel_name;
                     $saveProperty->refund_policy = $request->refund_policy ?? 'flexible';
                 }
 
@@ -348,9 +349,10 @@ class PropertController extends Controller
                 'property_classification' => 'required|integer|min:1|max:5',
                 'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
                 'available_dates'   => 'nullable|json|required_if:property_classification,4',
-                'hotel_name'        => 'nullable|required_if:property_classification,5',
                 'refund_policy'     => 'nullable|in:flexible,non-refundable',
-                'price'             => 'required|numeric|min:1|max:9223372036854775807',
+                'policy_data'       => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
+                'price'             => 'required_unless:property_classification,5|numeric|min:1|max:9223372036854775807',
+                'weekend_commission' => 'nullable|numeric|min:0|max:100|required_unless:property_classification,5',
                 'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
                     // Regular expression to validate YouTube URLs
                     $youtubePattern = '/^(https?\:\/\/)?(www\.youtube\.com|youtu\.be)\/.+$/';
@@ -407,6 +409,7 @@ class PropertController extends Controller
                 $UpdateProperty->meta_keywords = (isset($request->Keywords)) ? $request->Keywords : '';
 
                 $UpdateProperty->rentduration = $request->price_duration;
+                $UpdateProperty->corresponding_day = $request->corresponding_day;
 
                 // Set vacation home specific fields if property classification is vacation_homes (4)
                 if (isset($request->property_classification) && $request->property_classification == 4) {
@@ -416,7 +419,6 @@ class PropertController extends Controller
 
                 // Set hotel specific fields if property classification is hotel_booking (5)
                 if (isset($request->property_classification) && $request->property_classification == 5) {
-                    $UpdateProperty->hotel_name = $request->hotel_name;
                     $UpdateProperty->refund_policy = $request->refund_policy ?? 'flexible';
                 }
 

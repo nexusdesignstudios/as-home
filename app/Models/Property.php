@@ -39,8 +39,8 @@ class Property extends Model
         'identity_proof',
         'availability_type',
         'available_dates',
-        'hotel_name',
-        'refund_policy'
+        'refund_policy',
+        'corresponding_day'
     ];
     protected $hidden = [
         'updated_at',

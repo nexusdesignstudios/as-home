@@ -776,12 +776,11 @@ class ApiController extends Controller
             'title_image'       => 'required|file|max:3000|mimes:jpeg,png,jpg',
             'three_d_image'     => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
             'documents.*'       => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
-            'policy_data'       => 'required|mimes:pdf,doc,docx,txt|max:5120',
-            'weekend_commission' => 'nullable|numeric|min:0|max:100',
+            'policy_data'       => 'required_unless:property_classification,5|mimes:pdf,doc,docx,txt|max:5120',
+            'weekend_commission' => 'nullable|numeric|min:0|max:100|required_unless:property_classification,5',
             'identity_proof'    => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
             'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
             'available_dates'   => 'nullable|json|required_if:property_classification,4',
-            'hotel_name'        => 'required_if:property_classification,5',
             'refund_policy'     => 'nullable|in:flexible,non-refundable',
             'hotel_rooms'       => 'nullable|array',
             'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
@@ -789,7 +788,7 @@ class ApiController extends Controller
             'hotel_rooms.*.price_per_night' => 'required_with:hotel_rooms|numeric|min:0',
             'hotel_rooms.*.discount_percentage' => 'nullable|numeric|min:0|max:100',
             'hotel_rooms.*.refund_policy' => 'nullable|in:flexible,non-refundable',
-            'price'             => ['required', 'numeric', 'min:1', 'max:9223372036854775807', function ($attribute, $value, $fail) {
+            'price'             => ['required_unless:property_classification,5', 'numeric', 'min:1', 'max:9223372036854775807', function ($attribute, $value, $fail) {
                 if ($value >= 9223372036854775807) {
                     $fail("The Price must not exceed more than 9223372036854775807.");
                 }
@@ -856,6 +855,7 @@ class ApiController extends Controller
             $saveProperty->post_type = 1;
             $saveProperty->property_classification = (isset($request->property_classification)) ? $request->property_classification : null;
             $saveProperty->weekend_commission = (isset($request->weekend_commission)) ? $request->weekend_commission : null;
+            $saveProperty->corresponding_day = (isset($request->corresponding_day)) ? $request->corresponding_day : null;
 
             // Set vacation home specific fields if property classification is vacation_homes (4)
             if (isset($request->property_classification) && $request->property_classification == 4) {
@@ -865,7 +865,6 @@ class ApiController extends Controller
 
             // Set hotel specific fields if property classification is hotel (5)
             if (isset($request->property_classification) && $request->property_classification == 5) {
-                $saveProperty->hotel_name = $request->hotel_name;
                 $saveProperty->refund_policy = $request->refund_policy;
             }
 
@@ -927,6 +926,9 @@ class ApiController extends Controller
                 $imageName = microtime(true) . "." . $file->getClientOriginalExtension();
                 $policyDataName = handleFileUpload($request, 'policy_data', $destinationPath, $imageName);
                 $saveProperty->policy_data = $policyDataName;
+            } else if ($request->property_classification != 5) {
+                // For non-hotel properties, policy_data is required
+                throw new Exception("Policy data is required for non-hotel properties");
             }
 
             // Identity Proof
@@ -1113,7 +1115,6 @@ class ApiController extends Controller
             'property_classification' => 'nullable|integer|between:1,5',
             'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
             'available_dates'   => 'nullable|json|required_if:property_classification,4',
-            'hotel_name'        => 'required_if:property_classification,5',
             'refund_policy'     => 'nullable|in:flexible,non-refundable',
             'hotel_rooms'       => 'nullable|array',
             'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
@@ -1121,7 +1122,7 @@ class ApiController extends Controller
             'hotel_rooms.*.price_per_night' => 'required_with:hotel_rooms|numeric|min:0',
             'hotel_rooms.*.discount_percentage' => 'nullable|numeric|min:0|max:100',
             'hotel_rooms.*.refund_policy' => 'nullable|in:flexible,non-refundable',
-            'price'                 => ['required', 'numeric', 'min:1', 'max:9223372036854775807', function ($attribute, $value, $fail) {
+            'price'                 => ['required_unless:property_classification,5', 'numeric', 'min:1', 'max:9223372036854775807', function ($attribute, $value, $fail) {
                 if ($value >= 9223372036854775807) {
                     $fail("The Price must not exceed more than 9223372036854775807.");
                 }
@@ -1245,6 +1246,10 @@ class ApiController extends Controller
 
                     if (isset($request->weekend_commission)) {
                         $property->weekend_commission = $request->weekend_commission;
+                    }
+
+                    if (isset($request->corresponding_day)) {
+                        $property->corresponding_day = $request->corresponding_day;
                     }
 
                     $property->meta_title = $request->meta_title ?? null;
@@ -1545,10 +1550,6 @@ class ApiController extends Controller
                     // START :: UPDATE HOTEL ROOMS
                     if (isset($request->property_classification) && $request->property_classification == 5) {
                         // Update hotel specific fields
-                        if (isset($request->hotel_name)) {
-                            $property->hotel_name = $request->hotel_name;
-                        }
-
                         if (isset($request->refund_policy)) {
                             $property->refund_policy = $request->refund_policy;
                         }
