@@ -2480,6 +2480,7 @@ class ApiController extends Controller
         $chat->receiver_id = $request->receiver_id;
         $chat->property_id = $request->property_id;
         $chat->message = $request->message;
+        $chat->approval_status = isset($request->approval_status) ? $request->approval_status : 'pending';
 
         $destinationPath = public_path('images') . config('global.CHAT_FILE');
         if (!is_dir($destinationPath)) {
@@ -2638,6 +2639,7 @@ class ApiController extends Controller
                     $chat['chat_message_type'] = $chat_message_type;
                     $chat['user_profile'] = $currentUser->profile;
                     $chat['time_ago'] = $chat->created_at->diffForHumans();
+                    $chat['approval_status'] = $chat->approval_status;
                 });
 
                 $response['error'] = false;
@@ -2671,6 +2673,7 @@ class ApiController extends Controller
                 'receiver_id',
                 'property_id',
                 'created_at',
+                'approval_status',
                 DB::raw('LEAST(sender_id, receiver_id) as user1_id'),
                 DB::raw('GREATEST(sender_id, receiver_id) as user2_id'),
                 DB::raw('COUNT(CASE WHEN receiver_id = ' . $current_user . ' AND is_read = 0 THEN 1 END) AS unread_count')
@@ -2699,6 +2702,7 @@ class ApiController extends Controller
                 $tempRow['date'] = $row->created_at;
                 $tempRow['property_id'] = $row->property_id;
                 $tempRow['unread_count'] = $row->unread_count;
+                $tempRow['approval_status'] = $row->approval_status;
                 if (!$row->receiver || !$row->sender) {
                     $user = Customer::where('id', $row->sender_id)->orWhere('id', $row->receiver_id)->select('id')->first();
 
@@ -7532,5 +7536,76 @@ class ApiController extends Controller
                 'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    public function updateChatApprovalStatus(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'chat_id' => 'required|exists:chats,id',
+            'approval_status' => 'required|in:pending,approved,rejected'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'error' => true,
+                'message' => $validator->errors()->first(),
+            ]);
+        }
+
+        $chat = Chats::find($request->chat_id);
+        if (!$chat) {
+            return response()->json([
+                'error' => true,
+                'message' => 'Chat message not found',
+            ]);
+        }
+
+        $chat->approval_status = $request->approval_status;
+        $chat->save();
+
+        // Get the sender and receiver details for notification
+        $sender = Customer::select('id', 'name', 'profile')->find($chat->sender_id);
+        $receiver = Customer::select('id', 'name', 'profile')->with(['usertokens' => function ($q) {
+            $q->select('fcm_id', 'id', 'customer_id');
+        }])->find($chat->receiver_id);
+
+        // Send notification to the sender about approval status change
+        if ($sender && isset($sender->usertokens)) {
+            $fcm_ids = [];
+            foreach ($sender->usertokens as $usertoken) {
+                array_push($fcm_ids, $usertoken->fcm_id);
+            }
+
+            if (!empty($fcm_ids)) {
+                $statusMessage = '';
+                if ($request->approval_status == 'approved') {
+                    $statusMessage = 'Your message has been approved';
+                } elseif ($request->approval_status == 'rejected') {
+                    $statusMessage = 'Your message has been rejected';
+                }
+
+                $fcmMsg = array(
+                    'title' => 'Chat Status Update',
+                    'message' => $statusMessage,
+                    'type' => 'chat_approval',
+                    'body' => $statusMessage,
+                    'chat_id' => $chat->id,
+                    'approval_status' => $request->approval_status,
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    'sound' => 'default'
+                );
+
+                send_push_notification($fcm_ids, $fcmMsg);
+            }
+        }
+
+        return response()->json([
+            'error' => false,
+            'message' => 'Chat approval status updated successfully',
+            'data' => [
+                'chat_id' => $chat->id,
+                'approval_status' => $chat->approval_status
+            ]
+        ]);
     }
 }

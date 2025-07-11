@@ -86,6 +86,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::post('delete_chat_message', [ApiController::class, 'delete_chat_message']);
     Route::post('block-user', [ApiController::class, 'blockChatUser']);
     Route::post('unblock-user', [ApiController::class, 'unBlockChatUser']);
+    Route::post('update-chat-approval', [ApiController::class, 'updateChatApprovalStatus']);
     Route::get('get_messages', [ApiController::class, 'get_messages']);
     Route::get('get_chats', [ApiController::class, 'get_chats']);
     /*********************************************************************** */

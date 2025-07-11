@@ -12,13 +12,14 @@ class Chats extends Model
     use HasFactory, HasAppTimezone;
     protected $dates = ['created_at', 'updated_at'];
     protected $table = 'chats';
-    protected $fillable = ['sender_id', 'receiver_id', 'property_id', 'message', 'is_read', 'file', 'audio', 'created_at','updated_at'];
+    protected $fillable = ['sender_id', 'receiver_id', 'property_id', 'message', 'is_read', 'approval_status', 'file', 'audio', 'created_at', 'updated_at'];
 
 
-    protected static function boot() {
+    protected static function boot()
+    {
         parent::boot();
         static::deleting(static function ($chat) {
-            if(collect($chat)->isNotEmpty()){
+            if (collect($chat)->isNotEmpty()) {
                 // before delete() method call this
 
                 // Delete File
@@ -49,7 +50,7 @@ class Chats extends Model
     {
         return $this->belongsTo(Customer::class, 'receiver_id');
     }
-       public function property()
+    public function property()
     {
         return $this->belongsTo(Property::class, 'property_id');
     }
@@ -62,13 +63,14 @@ class Chats extends Model
         return $value != "" ? url('') . config('global.IMG_PATH') . config('global.CHAT_AUDIO') . $value : '';
     }
 
-    public function setMessageAttribute($value) {
+    public function setMessageAttribute($value)
+    {
         $this->attributes['message'] = htmlspecialchars($value);
     }
 
-    public function getMessageAttribute($value){
+    public function getMessageAttribute($value)
+    {
         // e() functions is used to print message in plain text
         return e(htmlspecialchars_decode($value));
     }
-
 }

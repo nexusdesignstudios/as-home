@@ -7,6 +7,449 @@
   },
   "item": [
     {
+      "name": "Messaging",
+      "item": [
+        {
+          "name": "Send Message",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "sender_id",
+                  "value": "{{user_id}}",
+                  "type": "text",
+                  "description": "ID of the sender (current user)"
+                },
+                {
+                  "key": "receiver_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "ID of the message recipient"
+                },
+                {
+                  "key": "property_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "ID of the property related to this message"
+                },
+                {
+                  "key": "message",
+                  "value": "Hello, I'm interested in this property.",
+                  "type": "text",
+                  "description": "Message content"
+                },
+                {
+                  "key": "approval_status",
+                  "value": "pending",
+                  "type": "text",
+                  "description": "Message approval status (pending, approved, rejected)"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional file attachment (image, PDF, document)",
+                  "disabled": true
+                },
+                {
+                  "key": "audio",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional audio attachment",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/send_message",
+              "host": ["{{base_url}}"],
+              "path": ["api", "send_message"]
+            },
+            "description": "Send a new message with approval status (pending by default)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Message Approval Status (Approve)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "chat_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "ID of the chat message to update"
+                },
+                {
+                  "key": "approval_status",
+                  "value": "approved",
+                  "type": "text",
+                  "description": "New approval status (approved)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/update-chat-approval",
+              "host": ["{{base_url}}"],
+              "path": ["api", "update-chat-approval"]
+            },
+            "description": "Approve a pending message"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Message Approval Status (Reject)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "chat_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "ID of the chat message to update"
+                },
+                {
+                  "key": "approval_status",
+                  "value": "rejected",
+                  "type": "text",
+                  "description": "New approval status (rejected)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/update-chat-approval",
+              "host": ["{{base_url}}"],
+              "path": ["api", "update-chat-approval"]
+            },
+            "description": "Reject a pending message"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Message Approval Status (Reset to Pending)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "chat_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "ID of the chat message to update"
+                },
+                {
+                  "key": "approval_status",
+                  "value": "pending",
+                  "type": "text",
+                  "description": "New approval status (pending)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/update-chat-approval",
+              "host": ["{{base_url}}"],
+              "path": ["api", "update-chat-approval"]
+            },
+            "description": "Reset a message status to pending"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Messages",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/get_messages?property_id=1&user_id=2&per_page=15&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get_messages"],
+              "query": [
+                {
+                  "key": "property_id",
+                  "value": "1",
+                  "description": "ID of the property"
+                },
+                {
+                  "key": "user_id",
+                  "value": "2",
+                  "description": "ID of the other user in the conversation"
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Number of messages per page"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                }
+              ]
+            },
+            "description": "Get messages for a specific property and user conversation. Response includes approval_status for each message."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Chats",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/get_chats?per_page=15&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get_chats"],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Number of chats per page"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                }
+              ]
+            },
+            "description": "Get all chat conversations for the current user. Response includes approval_status for each chat."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Chat Message",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "ID of the chat message to delete"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/delete_chat_message",
+              "host": ["{{base_url}}"],
+              "path": ["api", "delete_chat_message"]
+            },
+            "description": "Delete a chat message by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Block User",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "user_id",
+                  "value": "2",
+                  "type": "text",
+                  "description": "ID of the user to block"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/block-user",
+              "host": ["{{base_url}}"],
+              "path": ["api", "block-user"]
+            },
+            "description": "Block a user from sending messages"
+          },
+          "response": []
+        },
+        {
+          "name": "Unblock User",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "user_id",
+                  "value": "2",
+                  "type": "text",
+                  "description": "ID of the user to unblock"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/unblock-user",
+              "host": ["{{base_url}}"],
+              "path": ["api", "unblock-user"]
+            },
+            "description": "Unblock a previously blocked user"
+          },
+          "response": []
+        }
+      ],
+      "description": "Messaging endpoints including sending messages, updating message approval status (pending, approved, rejected), and retrieving messages/chats"
+    },
+    {
       "name": "Authentication",
       "item": [
         {
@@ -358,6 +801,449 @@
         }
       ],
       "description": "Authentication endpoints including registration, login, OTP verification, and password reset"
+    },
+    {
+      "name": "Messaging",
+      "item": [
+        {
+          "name": "Send Message",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "sender_id",
+                  "value": "{{user_id}}",
+                  "type": "text",
+                  "description": "ID of the sender (current user)"
+                },
+                {
+                  "key": "receiver_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "ID of the message recipient"
+                },
+                {
+                  "key": "property_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "ID of the property related to this message"
+                },
+                {
+                  "key": "message",
+                  "value": "Hello, I'm interested in this property.",
+                  "type": "text",
+                  "description": "Message content"
+                },
+                {
+                  "key": "approval_status",
+                  "value": "pending",
+                  "type": "text",
+                  "description": "Message approval status (pending, approved, rejected)"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional file attachment (image, PDF, document)",
+                  "disabled": true
+                },
+                {
+                  "key": "audio",
+                  "type": "file",
+                  "src": [],
+                  "description": "Optional audio attachment",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/send_message",
+              "host": ["{{base_url}}"],
+              "path": ["api", "send_message"]
+            },
+            "description": "Send a new message with approval status (pending by default)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Message Approval Status (Approve)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "chat_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "ID of the chat message to update"
+                },
+                {
+                  "key": "approval_status",
+                  "value": "approved",
+                  "type": "text",
+                  "description": "New approval status (approved)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/update-chat-approval",
+              "host": ["{{base_url}}"],
+              "path": ["api", "update-chat-approval"]
+            },
+            "description": "Approve a pending message"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Message Approval Status (Reject)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "chat_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "ID of the chat message to update"
+                },
+                {
+                  "key": "approval_status",
+                  "value": "rejected",
+                  "type": "text",
+                  "description": "New approval status (rejected)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/update-chat-approval",
+              "host": ["{{base_url}}"],
+              "path": ["api", "update-chat-approval"]
+            },
+            "description": "Reject a pending message"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Message Approval Status (Reset to Pending)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "chat_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "ID of the chat message to update"
+                },
+                {
+                  "key": "approval_status",
+                  "value": "pending",
+                  "type": "text",
+                  "description": "New approval status (pending)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/update-chat-approval",
+              "host": ["{{base_url}}"],
+              "path": ["api", "update-chat-approval"]
+            },
+            "description": "Reset a message status to pending"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Messages",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/get_messages?property_id=1&user_id=2&per_page=15&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get_messages"],
+              "query": [
+                {
+                  "key": "property_id",
+                  "value": "1",
+                  "description": "ID of the property"
+                },
+                {
+                  "key": "user_id",
+                  "value": "2",
+                  "description": "ID of the other user in the conversation"
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Number of messages per page"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                }
+              ]
+            },
+            "description": "Get messages for a specific property and user conversation. Response includes approval_status for each message."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Chats",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/get_chats?per_page=15&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get_chats"],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Number of chats per page"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                }
+              ]
+            },
+            "description": "Get all chat conversations for the current user. Response includes approval_status for each chat."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Chat Message",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "ID of the chat message to delete"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/delete_chat_message",
+              "host": ["{{base_url}}"],
+              "path": ["api", "delete_chat_message"]
+            },
+            "description": "Delete a chat message by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Block User",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "user_id",
+                  "value": "2",
+                  "type": "text",
+                  "description": "ID of the user to block"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/block-user",
+              "host": ["{{base_url}}"],
+              "path": ["api", "block-user"]
+            },
+            "description": "Block a user from sending messages"
+          },
+          "response": []
+        },
+        {
+          "name": "Unblock User",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "user_id",
+                  "value": "2",
+                  "type": "text",
+                  "description": "ID of the user to unblock"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/unblock-user",
+              "host": ["{{base_url}}"],
+              "path": ["api", "unblock-user"]
+            },
+            "description": "Unblock a previously blocked user"
+          },
+          "response": []
+        }
+      ],
+      "description": "Messaging endpoints including sending messages, updating message approval status (pending, approved, rejected), and retrieving messages/chats"
     },
     {
       "name": "Customer Management",
