@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('chats', function (Blueprint $table) {
-            $table->enum('approval_status', ['pending', 'approved', 'rejected'])->default('pending')->after('is_read');
+            if (!Schema::hasColumn('chats', 'approval_status')) {
+                $table->enum('approval_status', ['pending', 'approved', 'rejected'])->default('pending')->after('is_read');
+            }
         });
     }
 
