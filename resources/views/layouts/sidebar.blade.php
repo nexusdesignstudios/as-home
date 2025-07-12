@@ -248,18 +248,20 @@
                             {{-- Payment --}}
                             @if (has_permissions('read', 'payment'))
                                 <li class="submenu-item">
-                                    <a href="{{ route('payment.index') }}">{{ __('Payment') }}</a>
+                                    <a href="{{ url('payment') }}">{{ __('Payment') }}</a>
                                 </li>
                             @endif
-
-                            {{-- Transactions --}}
-                            @if (has_permissions('read', 'payment'))
-                                <li class="submenu-item">
-                                    <a href="{{ route('transactions.index') }}">{{ __('Transactions') }}</a>
-                                </li>
-                            @endif
-
                         </ul>
+                    </li>
+                @endif
+
+                {{-- Transactions --}}
+                @if (has_permissions('read', 'payment'))
+                    <li class="sidebar-item">
+                        <a href="{{ url('transactions') }}" class='sidebar-link'>
+                            <i class="bi bi-cash-stack"></i>
+                            <span class="menu-item">{{ __('Transactions') }}</span>
+                        </a>
                     </li>
                 @endif
 

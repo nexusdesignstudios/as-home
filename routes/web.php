@@ -39,6 +39,7 @@ use App\Http\Controllers\BankDetailController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\HotelRoomTypeController;
 use App\Http\Controllers\HotelPropertiesController;
+use App\Http\Controllers\TransactionsController;
 
 
 /*
@@ -158,6 +159,12 @@ Route::middleware(['language'])->group(function () {
         Route::post('payment-status', [PaymentController::class, 'updateStatus'])->name('payment.status');
         Route::get('payment-receipt/{id}/view', [PaymentController::class, 'viewReceipt'])->name('payment.receipt.view');
         /// END :: PAYMENT ROUTE
+
+        /// START :: TRANSACTIONS ROUTE
+        Route::get('transactions', [TransactionsController::class, 'index'])->name('transactions.index');
+        Route::get('transactions-list', [TransactionsController::class, 'transactionsList'])->name('transactions.list');
+        Route::get('transactions-receipt/{id}/view', [TransactionsController::class, 'viewReceipt'])->name('transactions.receipt.view');
+        /// END :: TRANSACTIONS ROUTE
 
         /// START :: USER ROUTE
 
