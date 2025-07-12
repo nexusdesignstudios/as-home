@@ -43,6 +43,7 @@ Route::get('get-active-room-types', [HotelRoomTypeController::class, 'getActiveR
 /** Extra */
 Route::get('get_articles', [ApiController::class, 'get_articles']);
 Route::get('get_categories', [ApiController::class, 'get_categories']);
+Route::get('get_categories_by_classification', [ApiController::class, 'get_categories_by_classification']);
 Route::get('get_languages', [ApiController::class, 'get_languages']);
 Route::get('get_category_classifications', [ApiController::class, 'get_category_classifications']);
 /*********************************************************************** */

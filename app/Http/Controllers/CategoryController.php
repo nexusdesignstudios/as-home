@@ -192,7 +192,7 @@ class CategoryController extends Controller
                 }
             }
             $tempRow['type'] = implode(',', $arr);
-            $tempRow['property_classification_text'] = $row->property_classification_text;
+            $tempRow['property_classification_text'] = $row->property_classification;
 
             $ids = isset($row->parameter_types) ? $row->parameter_types : '';
 

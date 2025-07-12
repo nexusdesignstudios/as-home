@@ -60,7 +60,11 @@ class PropertController extends Controller
         if (!has_permissions('create', 'property')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         } else {
-            $category = Category::where('status', '1')->get();
+            // Get all categories with their classification
+            $category = Category::where('status', '1')
+                ->select('id', 'category', 'parameter_types', 'property_classification')
+                ->get();
+
             $parameters = parameter::all();
             $currency_symbol = Setting::where('type', 'currency_symbol')->pluck('data')->first();
             $facility = OutdoorFacilities::all();

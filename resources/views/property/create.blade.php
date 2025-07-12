@@ -38,14 +38,27 @@
                 <input type="hidden" id="default-latitude" value="{{ system_setting('latitude') }}">
                 <input type="hidden" id="default-longitude" value="{{ system_setting('longitude') }}">
 
-                {{-- Category --}}
+                {{-- Property Classification --}}
                 <div class="card-body">
+                    <div class="col-md-12 col-12 form-group mandatory">
+                        {{ Form::label('property_classification', __('Property Classification'), ['class' => 'form-label col-12 ']) }}
+                        <select name="property_classification" id="property_classification" class="form-select form-control-sm" data-parsley-minSelect='1' required>
+                            <option value="" selected>{{ __('Choose Classification') }}</option>
+                            <option value="1">{{ __('Sell/Long Term Rent') }}</option>
+                            <option value="2">{{ __('Commercial') }}</option>
+                            <option value="3">{{ __('New Project') }}</option>
+                            <option value="4">{{ __('Vacation Homes') }}</option>
+                            <option value="5">{{ __('Hotel Booking') }}</option>
+                        </select>
+                    </div>
+
+                    {{-- Category --}}
                     <div class="col-md-12 col-12 form-group mandatory">
                         {{ Form::label('category', __('Category'), ['class' => 'form-label col-12 ']) }}
                         <select name="category" class="form-select form-control-sm" data-parsley-minSelect='1' id="category" required>
                             <option value="" selected>{{ __('Choose Category') }}</option>
                             @foreach ($category as $row)
-                                <option value="{{ $row->id }}" data-parametertypes='{{ $row->parameter_types }}'>
+                                <option value="{{ $row->id }}" data-parametertypes='{{ $row->parameter_types }}' data-classification='{{ $row->property_classification }}'>
                                     {{ $row->category }}
                                 </option>
                             @endforeach
@@ -89,18 +102,7 @@
                         </div>
                     </div>
 
-                    {{-- Property Classification --}}
-                    <div class="col-md-12 col-12 form-group mandatory">
-                        {{ Form::label('property_classification', __('Property Classification'), ['class' => 'form-label col-12 ']) }}
-                        <select name="property_classification" id="property_classification" class="form-select form-control-sm" data-parsley-minSelect='1' required>
-                            <option value="" selected>{{ __('Choose Classification') }}</option>
-                            <option value="1">{{ __('Sell/Long Term Rent') }}</option>
-                            <option value="2">{{ __('Commercial') }}</option>
-                            <option value="3">{{ __('New Project') }}</option>
-                            <option value="4">{{ __('Vacation Homes') }}</option>
-                            <option value="5">{{ __('Hotel Booking') }}</option>
-                        </select>
-                    </div>
+
 
                     {{-- Hotel Specific Fields --}}
                     <div class="col-md-12 hotel-fields" style="display: none;">
@@ -395,6 +397,66 @@
             $('#duration').hide();
             $('#price_duration').removeAttr('required');
 
+            // Store all categories for filtering
+            var allCategories = $('#category option').clone();
+
+                        // Filter categories based on selected classification
+            $('#property_classification').on('change', function() {
+                var selectedClassification = $(this).val();
+                console.log("Selected classification:", selectedClassification);
+
+                // Reset categories
+                $('#category').empty().append('<option value="" selected>{{ __("Choose Category") }}</option>');
+
+                // If no classification selected, show all categories
+                if (!selectedClassification) {
+                    $('#category').append(allCategories);
+                    return;
+                }
+
+                // Use AJAX to get categories by classification
+                console.log("Fetching categories for classification:", selectedClassification);
+                $.ajax({
+                    url: '{{ url("api/get_categories_by_classification") }}',
+                    type: 'GET',
+                    data: {
+                        classification: selectedClassification
+                    },
+                    success: function(response) {
+                        console.log("API response:", response);
+                        if (!response.error && response.data && response.data.length > 0) {
+                            console.log("Found " + response.data.length + " categories");
+                            $.each(response.data, function(index, category) {
+                                $('#category').append(
+                                    $('<option></option>')
+                                        .attr('value', category.id)
+                                        .attr('data-parametertypes', category.parameter_types)
+                                        .attr('data-classification', category.property_classification)
+                                        .text(category.category)
+                                );
+                            });
+                        } else {
+                            console.log("No categories found in API response, using fallback");
+                            // Fallback to client-side filtering if API returns no data
+                            allCategories.each(function() {
+                                if ($(this).val() === "" || $(this).data('classification') == selectedClassification) {
+                                    $('#category').append($(this).clone());
+                                }
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error fetching categories:', error);
+                        // Fallback to client-side filtering on error
+                        allCategories.each(function() {
+                            if ($(this).val() === "" || $(this).data('classification') == selectedClassification) {
+                                $('#category').append($(this).clone());
+                            }
+                        });
+                    }
+                });
+            });
+
             // Event handler for radio button change
             $('input[name="property_type"]').change(function() {
                 // Get the selected value
@@ -674,12 +736,20 @@
             }
         }
 
-        // Call on page load
-        handlePropertyClassification();
-
         // Call when classification changes
         $('#property_classification').on('change', function() {
             handlePropertyClassification();
+        });
+
+        // Call on page load
+        $(document).ready(function() {
+            handlePropertyClassification();
+
+            // If classification is already selected, trigger the change event to load categories
+            var initialClassification = $('#property_classification').val();
+            if (initialClassification) {
+                $('#property_classification').trigger('change');
+            }
         });
 
         // Room management

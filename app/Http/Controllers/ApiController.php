@@ -471,6 +471,67 @@ class ApiController extends Controller
             'data' => $result
         ]);
     }
+
+    public function get_categories_by_classification(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'classification' => 'required|integer|min:1|max:5',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'error' => true,
+                'message' => $validator->errors()->first(),
+            ]);
+        }
+
+        $classification = $request->classification;
+        $offset = isset($request->offset) ? $request->offset : 0;
+        $limit = isset($request->limit) ? $request->limit : 100; // Increased limit to get all categories
+
+        $categories = Category::select('id', 'category', 'image', 'parameter_types', 'meta_title', 'meta_description', 'meta_keywords', 'slug_id', 'property_classification')
+            ->where('status', '1');
+
+        // Only filter by classification if it's a valid value
+        if ($classification >= 1 && $classification <= 5) {
+            $categories->where('property_classification', $classification);
+        }
+
+        if (isset($request->search) && !empty($request->search)) {
+            $search = $request->search;
+            $categories->where('category', 'LIKE', "%$search%");
+        }
+
+        $total = $categories->count();
+        $result = $categories->orderBy('id', 'ASC')->skip($offset)->take($limit)->get();
+
+        $result->map(function ($result) {
+            $result['meta_image'] = $result->image;
+        });
+
+        if (!$result->isEmpty()) {
+            $response['error'] = false;
+            $response['message'] = "Data Fetch Successfully";
+            foreach ($result as $row) {
+                $parameterData = $row->parameters;
+                if (collect($parameterData)->isNotEmpty()) {
+                    $parameterData = $parameterData->map(function ($item) {
+                        unset($item->assigned_parameter);
+                        return $item;
+                    });
+                }
+                $row->parameter_types = $parameterData;
+            }
+
+            $response['total'] = $total;
+            $response['data'] = $result;
+        } else {
+            $response['error'] = false;
+            $response['message'] = "No data found!";
+            $response['data'] = [];
+        }
+        return response()->json($response);
+    }
     //* END :: get_category_classifications   *//
 
     //* START :: about_meofile   *//
