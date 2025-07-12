@@ -874,6 +874,7 @@ class ApiController extends Controller
             'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
             'available_dates'   => 'nullable|json|required_if:property_classification,4',
             'refund_policy'     => 'nullable|in:flexible,non-refundable',
+            'corresponding_day' => 'nullable|date:d-m-Y',
             'hotel_rooms'       => 'nullable|array',
             'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
             'hotel_rooms.*.room_number' => 'required_with:hotel_rooms',

@@ -1910,7 +1910,13 @@
                 {
                   "key": "weekend_commission",
                   "value": "5.5",
-                  "description": "Optional percentage value",
+                  "description": "Optional percentage value (0-100)",
+                  "type": "text"
+                },
+                {
+                  "key": "corresponding_day",
+                  "value": "20-03-2024",
+                  "description": "Date for weekend commission (format: d-m-Y)",
                   "type": "text"
                 },
                 {
@@ -2658,6 +2664,24 @@
                   "type": "text"
                 },
                 {
+                  "key": "hotel_rooms[0][availability_type]",
+                  "value": "1",
+                  "description": "1: Available Days, 2: Busy Days",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[0][available_dates]",
+                  "value": "[{\"from\":\"2023-07-01\",\"to\":\"2023-07-15\"}]",
+                  "description": "JSON array of date ranges",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[0][weekend_commission]",
+                  "value": "5.5",
+                  "description": "Optional percentage value (0-100)",
+                  "type": "text"
+                },
+                {
                   "key": "hotel_rooms[0][description]",
                   "value": "Standard room with one queen bed",
                   "description": "Room description",
@@ -2691,6 +2715,24 @@
                   "key": "hotel_rooms[1][refund_policy]",
                   "value": "non-refundable",
                   "description": "flexible or non-refundable",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[1][availability_type]",
+                  "value": "2",
+                  "description": "1: Available Days, 2: Busy Days",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[1][available_dates]",
+                  "value": "[{\"from\":\"2023-08-01\",\"to\":\"2023-08-15\"}]",
+                  "description": "JSON array of date ranges",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_rooms[1][weekend_commission]",
+                  "value": "7.5",
+                  "description": "Optional percentage value (0-100)",
                   "type": "text"
                 },
                 {
