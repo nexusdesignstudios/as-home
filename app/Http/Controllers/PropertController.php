@@ -106,6 +106,9 @@ class PropertController extends Controller
                 'hotel_rooms.*.price_per_night' => 'required_with:hotel_rooms|numeric|min:0',
                 'hotel_rooms.*.discount_percentage' => 'nullable|numeric|min:0|max:100',
                 'hotel_rooms.*.refund_policy' => 'nullable|in:flexible,non-refundable',
+                'hotel_rooms.*.availability_type' => 'nullable|integer|in:1,2',
+                'hotel_rooms.*.available_dates' => 'nullable|json',
+                'hotel_rooms.*.weekend_commission' => 'nullable|numeric|min:0|max:100',
             ], [], [
                 'documents.*' => 'document :position'
             ]);
@@ -262,6 +265,9 @@ class PropertController extends Controller
                                 'price_per_night' => (float)$room['price_per_night'],
                                 'discount_percentage' => isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : 0,
                                 'refund_policy' => $room['refund_policy'] ?? 'flexible',
+                                'availability_type' => isset($room['availability_type']) ? (int)$room['availability_type'] : null,
+                                'available_dates' => isset($room['available_dates']) ? $room['available_dates'] : null,
+                                'weekend_commission' => isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : null,
                                 'description' => $room['description'] ?? null,
                                 'status' => $room['status'] ?? 1
                             ]);

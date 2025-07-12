@@ -130,6 +130,8 @@
                                             <th>{{ __('Price/Night') }}</th>
                                             <th>{{ __('Discount %') }}</th>
                                             <th>{{ __('Refund Policy') }}</th>
+                                            <th>{{ __('Weekend Commission') }}</th>
+                                            <th>{{ __('Availability Type') }}</th>
                                             <th>{{ __('Action') }}</th>
                                         </tr>
                                     </thead>
@@ -762,6 +764,17 @@
                             <option value="flexible">{{ __('Flexible') }}</option>
                             <option value="non-refundable">{{ __('Non-Refundable') }}</option>
                         </select>
+                    </td>
+                    <td>
+                        <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][weekend_commission]" value="" min="0" max="100" step="0.01">
+                    </td>
+                    <td>
+                        <select class="form-control" name="hotel_rooms[${roomIndex}][availability_type]">
+                            <option value="">{{ __('None') }}</option>
+                            <option value="1">{{ __('Available Days') }}</option>
+                            <option value="2">{{ __('Busy Days') }}</option>
+                        </select>
+                        <input type="hidden" name="hotel_rooms[${roomIndex}][available_dates]" value="[]">
                     </td>
                     <td>
                         <button type="button" class="btn btn-danger btn-sm remove-room">
