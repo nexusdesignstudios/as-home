@@ -1917,7 +1917,7 @@
                   "key": "corresponding_day",
                   "value": "20-03-2024",
                   "description": "Date for weekend commission (format: d-m-Y)",
-                  "type": "text"
+                  "type": "date"
                 },
                 {
                   "key": "identity_proof",
@@ -2286,6 +2286,12 @@
                   "type": "text"
                 },
                 {
+                  "key": "corresponding_day",
+                  "value": "20-03-2024",
+                  "description": "Date for weekend commission (format: d-m-Y)",
+                  "type": "date"
+                },
+                {
                   "key": "property_type",
                   "value": "1",
                   "description": "0: Sell, 1: Rent",
@@ -2471,6 +2477,12 @@
                   "type": "text"
                 },
                 {
+                  "key": "corresponding_day",
+                  "value": "20-03-2024",
+                  "description": "Date for weekend commission (format: d-m-Y)",
+                  "type": "date"
+                },
+                {
                   "key": "property_classification",
                   "value": "4",
                   "description": "4: Vacation Homes",
@@ -2613,6 +2625,12 @@
                   "value": "0",
                   "description": "Base price (individual room prices are defined in hotel_rooms)",
                   "type": "text"
+                },
+                {
+                  "key": "corresponding_day",
+                  "value": "20-03-2024",
+                  "description": "Date for weekend commission (format: d-m-Y)",
+                  "type": "date"
                 },
                 {
                   "key": "title_image",
@@ -2826,6 +2844,12 @@
                   "key": "title",
                   "value": "Updated Luxury Hotel",
                   "type": "text"
+                },
+                {
+                  "key": "corresponding_day",
+                  "value": "20-03-2024",
+                  "description": "Date for weekend commission (format: d-m-Y)",
+                  "type": "date"
                 },
                 {
                   "key": "description",
