@@ -562,16 +562,17 @@
     <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=places&key={{ env('PLACE_API_KEY') }}&callback=initMap" async defer></script>
     <script>
         function initMap() {
-            var latitude = parseFloat($('#latitude').val());
-            var longitude = parseFloat($('#longitude').val());
-            var map = new google.maps.Map(document.getElementById('map'), {
+            // Properly parse latitude and longitude as floats, with fallback values
+            var latitude = parseFloat($('#latitude').val()) || 20.593684;
+            var longitude = parseFloat($('#longitude').val()) || 78.96288;
 
+            console.log("Map initialization with coordinates:", latitude, longitude);
+
+            var map = new google.maps.Map(document.getElementById('map'), {
                 center: {
                     lat: latitude,
                     lng: longitude
                 },
-
-
                 zoom: 13
             });
             var marker = new google.maps.Marker({
@@ -794,24 +795,13 @@
         jQuery(document).ready(function() {
             initMap();
 
-            $('#map').append('<iframe src="https://maps.google.com/maps?q=' + $('#latitude').val() + ',' + $(
-                    '#longitude').val() +
-                '&hl=en&amp;z=18&amp;output=embed" height="375px" width="800px"></iframe>');
-        });
-        $(document).ready(function() {
+            // Don't add iframe here - it's causing conflicts with the Google Maps API
             $('.parsley-error filled,.parsley-required').attr("aria-hidden", "true");
             $('.parsley-error filled,.parsley-required').hide();
 
-        });
-        $(document).ready(function() {
-
-
-
+            // Add back the is_premium_switch functionality
             $("#is_premium_switch").on('change', function() {
-                $("#is_premium_switch").is(':checked') ? $("#is_premium")
-                    .val(1) : $(
-                        "#is_premium")
-                    .val(0);
+                $("#is_premium_switch").is(':checked') ? $("#is_premium").val(1) : $("#is_premium").val(0);
             });
 
             FilePond.registerPlugin(FilePondPluginImagePreview, FilePondPluginFileValidateSize,

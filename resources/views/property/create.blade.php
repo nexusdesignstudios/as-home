@@ -400,7 +400,7 @@
             // Store all categories for filtering
             var allCategories = $('#category option').clone();
 
-                        // Filter categories based on selected classification
+            // Filter categories based on selected classification
             $('#property_classification').on('change', function() {
                 var selectedClassification = $(this).val();
                 console.log("Selected classification:", selectedClassification);
@@ -476,36 +476,12 @@
             });
         });
 
-        jQuery(document).ready(function() {
-
-            initMap();
-
-            $('#map').append('<iframe src="https://maps.google.com/maps?q=' + 20.593684 + ',' + 78.96288 +
-                '&hl=en&amp;z=18&amp;output=embed" height="375px" width="800px"></iframe>');
-
-
-            // $('.select2').prepend('<option value="" selected></option>');
-        });
-
-        $(document).ready(function() {
-            $("#is_premium_switch").on('change', function() {
-                $("#is_premium_switch").is(':checked') ? $("#is_premium").val(1) : $(
-                        "#is_premium")
-                    .val(0);
-            });
-            getWordCount("meta_title", "meta_title_count", "19.9px arial");
-            getWordCount("meta_description", "meta_description_count", "12.9px arial");
-
-            // your code that uses .rules() function
-        });
-
-
-
-
-
         function initMap() {
-            let defaultLatitude = parseInt($("#default-latitude").val() ?? -33.8688);
-            let defaultLongitude = parseInt($("#default-longitude").val() ?? 151.2195);
+            // Properly parse latitude and longitude as floats, with fallback values
+            let defaultLatitude = parseFloat($("#default-latitude").val()) || 20.593684;
+            let defaultLongitude = parseFloat($("#default-longitude").val()) || 78.96288;
+
+            console.log("Map initialization with coordinates:", defaultLatitude, defaultLongitude);
 
             var map = new google.maps.Map(document.getElementById('map'), {
                 center: {
@@ -522,7 +498,6 @@
             var infowindow = new google.maps.InfoWindow();
             var marker = new google.maps.Marker({
                 draggable: true,
-
                 position: {
                     lat: defaultLatitude,
                     lng: defaultLongitude
@@ -638,11 +613,11 @@
 
             });
         }
-        jQuery(document).ready(function() {
 
-            initMap();
-            $('#map').append('<iframe src="https://maps.google.com/maps?q=' + 20.593684 + ',' + 78.96288 +
-                '&hl=en&amp;z=18&amp;output=embed" height="375px" width="800px"></iframe>');
+        // Remove duplicate initMap call and iframe append
+        $(document).ready(function() {
+            // Don't add the iframe here - it's causing conflicts with the Google Maps API
+            // The map will be initialized by the callback in the script tag
 
             $('.select2').prepend('<option value="" selected></option>');
             $facility = $.parseJSON($('#facilities').val());
@@ -662,6 +637,13 @@
                 });
             });
 
+            // Add back the is_premium_switch functionality
+            $("#is_premium_switch").on('change', function() {
+                $("#is_premium_switch").is(':checked') ? $("#is_premium").val(1) : $("#is_premium").val(0);
+            });
+
+            getWordCount("meta_title", "meta_title_count", "19.9px arial");
+            getWordCount("meta_description", "meta_description_count", "12.9px arial");
         });
         $(document).ready(function() {
 

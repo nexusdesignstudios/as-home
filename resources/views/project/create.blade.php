@@ -279,8 +279,9 @@
     <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=places&key={{ env('PLACE_API_KEY') }}&callback=initMap" async defer></script>
     <script type="text/javascript">
         jQuery(document).ready(function() {
-            initMap();
-            $('#map').append('<iframe src="https://maps.google.com/maps?q=' + 20.593684 + ',' + 78.96288 + '&hl=en&amp;z=18&amp;output=embed" height="375px" width="800px"></iframe>');
+            // Don't initialize map here, it will be done by the callback
+            // Don't add iframe here - it's causing conflicts with the Google Maps API
+            $('.select2').prepend('<option value="" selected></option>');
         });
 
         $(document).ready(function() {
@@ -289,8 +290,11 @@
         });
 
         function initMap() {
-            let defaultLatitude = parseInt($("#default-latitude").val() ?? -33.8688);
-            let defaultLongitude = parseInt($("#default-longitude").val() ?? 151.2195);
+            // Properly parse latitude and longitude as floats, with fallback values
+            let defaultLatitude = parseFloat($("#default-latitude").val()) || 20.593684;
+            let defaultLongitude = parseFloat($("#default-longitude").val()) || 78.96288;
+
+            console.log("Map initialization with coordinates:", defaultLatitude, defaultLongitude);
 
             var map = new google.maps.Map(document.getElementById('map'), {
                 center: {
@@ -307,7 +311,6 @@
             var infowindow = new google.maps.InfoWindow();
             var marker = new google.maps.Marker({
                 draggable: true,
-
                 position: {
                     lat: defaultLatitude,
                     lng: defaultLongitude
@@ -422,10 +425,9 @@
             });
         }
         jQuery(document).ready(function() {
-            initMap();
-            $('#map').append('<iframe src="https://maps.google.com/maps?q=' + 20.593684 + ',' + 78.96288 + '&hl=en&amp;z=18&amp;output=embed" height="375px" width="800px"></iframe>');
+            // Don't initialize map here, it will be done by the callback
+            // Don't add iframe here - it's causing conflicts with the Google Maps API
             $('.select2').prepend('<option value="" selected></option>');
-
         });
         $(document).ready(function() {
             FilePond.registerPlugin(FilePondPluginImagePreview, FilePondPluginFileValidateSize,FilePondPluginFileValidateType);

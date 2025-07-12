@@ -252,6 +252,13 @@
                                 </li>
                             @endif
 
+                            {{-- Transactions --}}
+                            @if (has_permissions('read', 'payment'))
+                                <li class="submenu-item">
+                                    <a href="{{ route('transactions.index') }}">{{ __('Transactions') }}</a>
+                                </li>
+                            @endif
+
                         </ul>
                     </li>
                 @endif
