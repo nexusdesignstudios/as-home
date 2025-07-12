@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\HasAppTimezone;
+
 class Category extends Model
 {
     use HasFactory, HasAppTimezone;
@@ -39,11 +40,11 @@ class Category extends Model
 
     public function parameter()
     {
-        return $this->hasMany(parameter::class,'id','parameter_types');
+        return $this->hasMany(parameter::class, 'id', 'parameter_types');
     }
     public function properties()
     {
-        return $this->hasMany(Property::class,'category_id','id');
+        return $this->hasMany(Property::class, 'category_id', 'id');
     }
 
     public function getImageAttribute($image)
@@ -62,6 +63,19 @@ class Category extends Model
         ];
 
         return isset($classifications[$value]) ? $classifications[$value] : '';
+    }
+
+    public function getPropertyClassificationTextAttribute()
+    {
+        $classifications = [
+            1 => 'Sell/Long Term Rent',
+            2 => 'Commercial',
+            3 => 'New Project',
+            4 => 'Vacation Homes',
+            5 => 'Hotel Booking'
+        ];
+
+        return isset($classifications[$this->property_classification]) ? $classifications[$this->property_classification] : '';
     }
 
     public function scopeClassification($query, $classification)

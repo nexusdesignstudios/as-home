@@ -273,6 +273,10 @@
             $('#table_list').bootstrapTable('refresh');
 
         });
+        $('#property-classification-filter').on('change', function() {
+            $('#table_list').bootstrapTable('refresh');
+
+        });
         $('#property-owner-filter').on('change', function() {
             $('#table_list').bootstrapTable('refresh');
 
@@ -285,11 +289,17 @@
 
         $(document).ready(function() {
             var params = new window.URLSearchParams(window.location.search);
-            if (params.get('status') != 'null') {
+            if (params.get('status') != 'null' && params.get('status')) {
                 $('#status').val(params.get('status')).trigger('change');
             }
-            if (params.get('type') != 'null') {
+            if (params.get('type') != 'null' && params.get('type')) {
                 $('#type').val(params.get('type'));
+            }
+            if (params.get('property_classification') != 'null' && params.get('property_classification')) {
+                $('#property-classification-filter').val(params.get('property_classification')).trigger('change');
+            }
+            if (params.get('category') != 'null' && params.get('category')) {
+                $('#filter_category').val(params.get('category')).trigger('change');
             }
         });
 
@@ -305,6 +315,7 @@
                 status: $('#status').val(),
                 category: $('#filter_category').val(),
                 property_type: $('#property-type-filter').val(),
+                property_classification: $('#property-classification-filter').val(),
                 property_added_by: $('#property-owner-filter').val(),
                 property_accessibility: $('#property-accessibility-filter').val(),
                 customerID: "{{ $customerID }}"

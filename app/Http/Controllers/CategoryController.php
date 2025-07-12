@@ -43,25 +43,25 @@ class CategoryController extends Controller
                 'category'  => 'required',
                 'slug'      => 'nullable|regex:/^[a-z0-9-]+$/|unique:categories,slug_id',
                 'image'     => 'required|image|mimes:svg|max:2048',
+                'property_classification' => 'nullable|integer|min:1|max:5',
             ]);
-            $saveCategories = new Category();
-
-
+            $categoryData = [
+                'category' => ($request->category) ? $request->category : '',
+                'parameter_types' => ($request->parameter_type) ? implode(',', $request->parameter_type) : '',
+                'property_classification' => $request->property_classification ?? 1,
+                'slug_id' => $request->slug ?? generateUniqueSlug($request->title, 3),
+                'meta_title' => $request->meta_title,
+                'meta_description' => $request->meta_description,
+                'meta_keywords' => $request->meta_keywords
+            ];
 
             if ($request->hasFile('image')) {
-                $saveCategories->image = store_image($request->file('image'), 'CATEGORY_IMG_PATH');
+                $categoryData['image'] = store_image($request->file('image'), 'CATEGORY_IMG_PATH');
             } else {
-                $saveCategories->image  = '';
+                $categoryData['image'] = '';
             }
 
-            $saveCategories->category = ($request->category) ? $request->category : '';
-            $saveCategories->parameter_types = ($request->parameter_type) ? implode(',', $request->parameter_type) : '';
-            $saveCategories->property_classification = $request->property_classification ?? 1;
-            $saveCategories->slug_id = $request->slug ?? generateUniqueSlug($request->title, 3);
-            $saveCategories->meta_title = $request->meta_title;
-            $saveCategories->meta_description = $request->meta_description;
-            $saveCategories->meta_keywords = $request->meta_keywords;
-            $saveCategories->save();
+            Category::create($categoryData);
             ResponseService::successRedirectResponse('Data Created Successfully');
         }
     }
@@ -81,9 +81,9 @@ class CategoryController extends Controller
         } else {
             $request->validate([
                 'image' => 'mimes:svg|max:2048', // Adjust max size as needed
-                'slug'  => 'nullable|regex:/^[a-z0-9-]+$/|unique:categories,slug_id,'.$request->edit_id.',id',
+                'slug'  => 'nullable|regex:/^[a-z0-9-]+$/|unique:categories,slug_id,' . $request->edit_id . ',id',
+                'edit_property_classification' => 'nullable|integer|min:1|max:5',
             ], [
-
                 'image.image' => 'The uploaded file must be an image.',
                 'image.mimes' => 'The image must be a PNG, JPG, JPEG, or SVG file.',
                 'image.max' => 'The image size should not exceed 2MB.', // Adjust as needed
@@ -110,7 +110,7 @@ class CategoryController extends Controller
 
 
             $Category->category = $request->edit_category;
-            $Category->slug_id = $request->slug ?? generateUniqueSlug($request->title,3,null,$request->edit_id);
+            $Category->slug_id = $request->slug ?? generateUniqueSlug($request->title, 3, null, $request->edit_id);
             $Category->meta_title = $request->edit_meta_title;
             $Category->meta_description = $request->edit_meta_description;
             $Category->meta_keywords = $request->edit_keywords;
@@ -192,12 +192,12 @@ class CategoryController extends Controller
                 }
             }
             $tempRow['type'] = implode(',', $arr);
-            $tempRow['property_classification_text'] = $row->property_classification;
+            $tempRow['property_classification_text'] = $row->property_classification_text;
 
             $ids = isset($row->parameter_types) ? $row->parameter_types : '';
 
             $operate = null;
-            if(has_permissions('update', 'categories')){
+            if (has_permissions('update', 'categories')) {
                 $operate = BootstrapTableService::editButton('', true, null, null, $row->id, null, $ids);
             }
             $tempRow['operate'] = $operate;
@@ -222,7 +222,8 @@ class CategoryController extends Controller
         }
     }
 
-    public function generateAndCheckSlug(Request $request){
+    public function generateAndCheckSlug(Request $request)
+    {
         // Validation
         $validator = Validator::make($request->all(), [
             'category' => 'required',
@@ -235,12 +236,12 @@ class CategoryController extends Controller
         try {
             $category = $request->category;
             $id = $request->has('id') && !empty($request->id) ? $request->id : null;
-            if($id){
-                $slug = generateUniqueSlug($category,3,null,$id);
-            }else{
-                $slug = generateUniqueSlug($category,3);
+            if ($id) {
+                $slug = generateUniqueSlug($category, 3, null, $id);
+            } else {
+                $slug = generateUniqueSlug($category, 3);
             }
-            ResponseService::successResponse("",$slug);
+            ResponseService::successResponse("", $slug);
         } catch (Exception $e) {
             ResponseService::logErrorResponse($e, "Category Slug Generation Error", "Something Went Wrong");
         }

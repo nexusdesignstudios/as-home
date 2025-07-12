@@ -378,7 +378,7 @@ class ApiController extends Controller
         $latitude = $request->has('latitude') ? $request->latitude : null;
         $longitude = $request->has('longitude') ? $request->longitude : null;
 
-        $categories = Category::select('id', 'category', 'image', 'parameter_types', 'meta_title', 'meta_description', 'meta_keywords', 'slug_id')->where('status', '1');
+        $categories = Category::select('id', 'category', 'image', 'parameter_types', 'meta_title', 'meta_description', 'meta_keywords', 'slug_id', 'property_classification')->where('status', '1');
 
         if ($request->has('has_property') && $request->has_property == true) {
             $categories = $categories->clone()->whereHas('properties', function ($query) use ($latitude, $longitude) {
@@ -406,6 +406,11 @@ class ApiController extends Controller
         if (isset($request->slug_id) && !empty($request->slug_id)) {
             $id = $request->slug_id;
             $categories->where('slug_id', $request->slug_id);
+        }
+
+        // Filter by property classification if provided
+        if (isset($request->property_classification) && !empty($request->property_classification)) {
+            $categories->where('property_classification', $request->property_classification);
         }
 
         $total = $categories->get()->count();
@@ -441,6 +446,32 @@ class ApiController extends Controller
     }
     //* END :: get_slider   *//
 
+    //* START :: get_category_classifications   *//
+    public function get_category_classifications(Request $request)
+    {
+        $classifications = [
+            1 => 'Sell/Long Term Rent',
+            2 => 'Commercial',
+            3 => 'New Project',
+            4 => 'Vacation Homes',
+            5 => 'Hotel Booking'
+        ];
+
+        $result = [];
+        foreach ($classifications as $key => $value) {
+            $result[] = [
+                'id' => $key,
+                'name' => $value
+            ];
+        }
+
+        return response()->json([
+            'error' => false,
+            'message' => 'Data Fetch Successfully',
+            'data' => $result
+        ]);
+    }
+    //* END :: get_category_classifications   *//
 
     //* START :: about_meofile   *//
     public function update_profile(Request $request)
