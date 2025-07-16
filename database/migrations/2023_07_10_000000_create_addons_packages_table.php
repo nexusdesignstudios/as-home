@@ -13,23 +13,27 @@ class CreateAddonsPackagesTable extends Migration
      */
     public function up()
     {
-        Schema::create('addons_packages', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->text('description')->nullable();
-            $table->unsignedBigInteger('property_id');
-            $table->enum('status', ['active', 'inactive'])->default('active');
-            $table->timestamps();
-            $table->softDeletes();
+        if (!Schema::hasTable('addons_packages')) {
+            Schema::create('addons_packages', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->text('description')->nullable();
+                $table->unsignedBigInteger('property_id');
+                $table->enum('status', ['active', 'inactive'])->default('active');
+                $table->timestamps();
+                $table->softDeletes();
 
-            $table->foreign('property_id')->references('id')->on('propertys')->onDelete('cascade');
-        });
+                $table->foreign('property_id')->references('id')->on('propertys')->onDelete('cascade');
+            });
+        }
 
-        // Add package_id to property_hotel_addon_values table
-        Schema::table('property_hotel_addon_values', function (Blueprint $table) {
-            $table->unsignedBigInteger('package_id')->nullable()->after('multiply_price');
-            $table->foreign('package_id')->references('id')->on('addons_packages')->onDelete('set null');
-        });
+        // Add package_id to property_hotel_addon_values table if it doesn't exist
+        if (Schema::hasTable('property_hotel_addon_values') && !Schema::hasColumn('property_hotel_addon_values', 'package_id')) {
+            Schema::table('property_hotel_addon_values', function (Blueprint $table) {
+                $table->unsignedBigInteger('package_id')->nullable()->after('multiply_price');
+                $table->foreign('package_id')->references('id')->on('addons_packages')->onDelete('set null');
+            });
+        }
     }
 
     /**
@@ -39,10 +43,12 @@ class CreateAddonsPackagesTable extends Migration
      */
     public function down()
     {
-        Schema::table('property_hotel_addon_values', function (Blueprint $table) {
-            $table->dropForeign(['package_id']);
-            $table->dropColumn('package_id');
-        });
+        if (Schema::hasTable('property_hotel_addon_values') && Schema::hasColumn('property_hotel_addon_values', 'package_id')) {
+            Schema::table('property_hotel_addon_values', function (Blueprint $table) {
+                $table->dropForeign(['package_id']);
+                $table->dropColumn('package_id');
+            });
+        }
 
         Schema::dropIfExists('addons_packages');
     }
