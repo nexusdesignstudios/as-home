@@ -29,5 +29,8 @@ return [
     'BANK_RECEIPT_FILE_PATH' => '/bank_receipt_file/',
     'PROPERTY_POLICY_PATH' => '/property_policy/',
     'PROPERTY_IDENTITY_PROOF_PATH' => '/property_identity_proof/',
+    'PROPERTY_NATIONAL_ID_PATH' => '/property_national_id/',
+    'PROPERTY_UTILITIES_PATH' => '/property_utilities_bills/',
+    'PROPERTY_POA_PATH' => '/property_power_of_attorney/',
     'HOTEL_ADDON_PATH' => '/hotel_addon/',
 ];

@@ -2006,6 +2006,27 @@
                   "disabled": true
                 },
                 {
+                  "key": "national_id_passport",
+                  "description": "Optional National ID or Passport document",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "utilities_bills",
+                  "description": "Optional Utilities Bills document",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "power_of_attorney",
+                  "description": "Optional Power of Attorney document",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
                   "key": "three_d_image",
                   "type": "file",
                   "src": [],
@@ -2189,6 +2210,27 @@
                 {
                   "key": "identity_proof",
                   "description": "Optional image file",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "national_id_passport",
+                  "description": "Optional National ID or Passport document",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "utilities_bills",
+                  "description": "Optional Utilities Bills document",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "power_of_attorney",
+                  "description": "Optional Power of Attorney document",
                   "type": "file",
                   "src": [],
                   "disabled": true
@@ -2425,6 +2467,27 @@
                 {
                   "key": "identity_proof",
                   "description": "Optional image file",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "national_id_passport",
+                  "description": "Optional National ID or Passport document",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "utilities_bills",
+                  "description": "Optional Utilities Bills document",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "power_of_attorney",
+                  "description": "Optional Power of Attorney document",
                   "type": "file",
                   "src": [],
                   "disabled": true

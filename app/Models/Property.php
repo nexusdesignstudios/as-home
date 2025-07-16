@@ -36,6 +36,9 @@ class Property extends Model
         'property_classification',
         'policy_data',
         'identity_proof',
+        'national_id_passport',
+        'utilities_bills',
+        'power_of_attorney',
         'weekend_commission',
         'availability_type',
         'available_dates',
@@ -287,6 +290,36 @@ class Property extends Model
     public function setIdentityProofAttribute($value)
     {
         $this->attributes['identity_proof'] = $value;
+    }
+
+    public function getNationalIdPassportAttribute($value)
+    {
+        return $value != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_NATIONAL_ID_PATH') . $value : '';
+    }
+
+    public function setNationalIdPassportAttribute($value)
+    {
+        $this->attributes['national_id_passport'] = $value;
+    }
+
+    public function getUtilitiesBillsAttribute($value)
+    {
+        return $value != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_UTILITIES_PATH') . $value : '';
+    }
+
+    public function setUtilitiesBillsAttribute($value)
+    {
+        $this->attributes['utilities_bills'] = $value;
+    }
+
+    public function getPowerOfAttorneyAttribute($value)
+    {
+        return $value != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_POA_PATH') . $value : '';
+    }
+
+    public function setPowerOfAttorneyAttribute($value)
+    {
+        $this->attributes['power_of_attorney'] = $value;
     }
 
     public function getProperyTypeAttribute($value)

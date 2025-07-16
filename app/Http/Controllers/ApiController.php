@@ -875,6 +875,9 @@ class ApiController extends Controller
             'policy_data'       => 'required_unless:property_classification,5|mimes:pdf,doc,docx,txt|max:5120',
             'weekend_commission' => 'nullable|numeric|min:0|max:100|required_unless:property_classification,5',
             'identity_proof'    => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
+            'national_id_passport' => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
+            'utilities_bills'   => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
+            'power_of_attorney' => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
             'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
             'available_dates'   => 'nullable|json|required_if:property_classification,4',
             'refund_policy'     => 'nullable|in:flexible,non-refundable',
@@ -1056,6 +1059,42 @@ class ApiController extends Controller
                 $imageName = microtime(true) . "." . $file->getClientOriginalExtension();
                 $identityProofName = handleFileUpload($request, 'identity_proof', $destinationPath, $imageName);
                 $saveProperty->identity_proof = $identityProofName;
+            }
+
+            // National ID/Passport
+            if ($request->hasFile('national_id_passport')) {
+                $destinationPath = public_path('images') . config('global.PROPERTY_NATIONAL_ID_PATH');
+                if (!is_dir($destinationPath)) {
+                    mkdir($destinationPath, 0777, true);
+                }
+                $file = $request->file('national_id_passport');
+                $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
+                $nationalIdName = handleFileUpload($request, 'national_id_passport', $destinationPath, $fileName);
+                $saveProperty->national_id_passport = $nationalIdName;
+            }
+
+            // Utilities Bills
+            if ($request->hasFile('utilities_bills')) {
+                $destinationPath = public_path('images') . config('global.PROPERTY_UTILITIES_PATH');
+                if (!is_dir($destinationPath)) {
+                    mkdir($destinationPath, 0777, true);
+                }
+                $file = $request->file('utilities_bills');
+                $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
+                $utilitiesBillsName = handleFileUpload($request, 'utilities_bills', $destinationPath, $fileName);
+                $saveProperty->utilities_bills = $utilitiesBillsName;
+            }
+
+            // Power of Attorney
+            if ($request->hasFile('power_of_attorney')) {
+                $destinationPath = public_path('images') . config('global.PROPERTY_POA_PATH');
+                if (!is_dir($destinationPath)) {
+                    mkdir($destinationPath, 0777, true);
+                }
+                $file = $request->file('power_of_attorney');
+                $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
+                $poaName = handleFileUpload($request, 'power_of_attorney', $destinationPath, $fileName);
+                $saveProperty->power_of_attorney = $poaName;
             }
 
             $saveProperty->is_premium = isset($request->is_premium) ? ($request->is_premium == "true" ? 1 : 0) : 0;
@@ -1295,6 +1334,9 @@ class ApiController extends Controller
             'policy_data'           => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
             'weekend_commission'    => 'nullable|numeric|min:0|max:100',
             'identity_proof'        => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
+            'national_id_passport'  => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
+            'utilities_bills'       => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
+            'power_of_attorney'     => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
             'property_classification' => 'nullable|integer|between:1,5',
             'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
             'available_dates'   => 'nullable|json|required_if:property_classification,4',
@@ -1577,6 +1619,57 @@ class ApiController extends Controller
                             }
                         }
                         $property->identity_proof = $fileName;
+                    }
+
+                    // Handle national_id_passport file
+                    if ($request->hasFile('national_id_passport')) {
+                        $destinationPath = public_path('images') . config('global.PROPERTY_NATIONAL_ID_PATH');
+                        if (!is_dir($destinationPath)) {
+                            mkdir($destinationPath, 0777, true);
+                        }
+                        $file = $request->file('national_id_passport');
+                        $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
+                        $file->move($destinationPath, $fileName);
+                        if ($property->getRawOriginal('national_id_passport') != '') {
+                            if (file_exists(public_path('images') . config('global.PROPERTY_NATIONAL_ID_PATH') . $property->getRawOriginal('national_id_passport'))) {
+                                unlink(public_path('images') . config('global.PROPERTY_NATIONAL_ID_PATH') . $property->getRawOriginal('national_id_passport'));
+                            }
+                        }
+                        $property->national_id_passport = $fileName;
+                    }
+
+                    // Handle utilities_bills file
+                    if ($request->hasFile('utilities_bills')) {
+                        $destinationPath = public_path('images') . config('global.PROPERTY_UTILITIES_PATH');
+                        if (!is_dir($destinationPath)) {
+                            mkdir($destinationPath, 0777, true);
+                        }
+                        $file = $request->file('utilities_bills');
+                        $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
+                        $file->move($destinationPath, $fileName);
+                        if ($property->getRawOriginal('utilities_bills') != '') {
+                            if (file_exists(public_path('images') . config('global.PROPERTY_UTILITIES_PATH') . $property->getRawOriginal('utilities_bills'))) {
+                                unlink(public_path('images') . config('global.PROPERTY_UTILITIES_PATH') . $property->getRawOriginal('utilities_bills'));
+                            }
+                        }
+                        $property->utilities_bills = $fileName;
+                    }
+
+                    // Handle power_of_attorney file
+                    if ($request->hasFile('power_of_attorney')) {
+                        $destinationPath = public_path('images') . config('global.PROPERTY_POA_PATH');
+                        if (!is_dir($destinationPath)) {
+                            mkdir($destinationPath, 0777, true);
+                        }
+                        $file = $request->file('power_of_attorney');
+                        $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
+                        $file->move($destinationPath, $fileName);
+                        if ($property->getRawOriginal('power_of_attorney') != '') {
+                            if (file_exists(public_path('images') . config('global.PROPERTY_POA_PATH') . $property->getRawOriginal('power_of_attorney'))) {
+                                unlink(public_path('images') . config('global.PROPERTY_POA_PATH') . $property->getRawOriginal('power_of_attorney'));
+                            }
+                        }
+                        $property->power_of_attorney = $fileName;
                     }
 
                     if ($request->parameters) {
