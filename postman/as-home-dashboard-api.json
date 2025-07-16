@@ -3348,6 +3348,16 @@
         {
           "name": "Get Hotel Addon Fields",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "GET",
             "header": [
               {
@@ -3361,12 +3371,37 @@
               "host": ["{{base_url}}"],
               "path": ["api", "get-hotel-addon-fields"]
             },
-            "description": "Get all active hotel addon fields with their values"
+            "description": "Get all active hotel addon fields with their values. This endpoint returns fields with their types and associated values including pricing options (static_price and multiply_price)."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/get-hotel-addon-fields",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "get-hotel-addon-fields"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n    \"error\": false,\n    \"message\": \"Data Fetched Successfully\",\n    \"data\": [\n        {\n            \"id\": 1,\n            \"name\": \"Breakfast Included\",\n            \"field_type\": \"radio\",\n            \"field_values\": [\n                {\n                    \"id\": 1,\n                    \"hotel_addon_field_id\": 1,\n                    \"value\": \"Yes\",\n                    \"static_price\": 15,\n                    \"multiply_price\": null\n                },\n                {\n                    \"id\": 2,\n                    \"hotel_addon_field_id\": 1,\n                    \"value\": \"No\",\n                    \"static_price\": 0,\n                    \"multiply_price\": null\n                }\n            ]\n        },\n        {\n            \"id\": 2,\n            \"name\": \"Room Service\",\n            \"field_type\": \"dropdown\",\n            \"field_values\": [\n                {\n                    \"id\": 3,\n                    \"hotel_addon_field_id\": 2,\n                    \"value\": \"Standard\",\n                    \"static_price\": 0,\n                    \"multiply_price\": 1.0\n                },\n                {\n                    \"id\": 4,\n                    \"hotel_addon_field_id\": 2,\n                    \"value\": \"Premium\",\n                    \"static_price\": 50,\n                    \"multiply_price\": 1.2\n                }\n            ]\n        },\n        {\n            \"id\": 3,\n            \"name\": \"Special Requests\",\n            \"field_type\": \"textarea\",\n            \"field_values\": []\n        }\n    ]\n}"
+            }
+          ]
         }
       ],
-      "description": "Hotel addon fields endpoints for retrieving custom fields for hotel properties"
+      "description": "Hotel addon fields endpoints for retrieving custom fields for hotel properties. These fields can be used to add additional options and pricing to hotel properties."
     },
     {
       "name": "Hotel Rooms",
