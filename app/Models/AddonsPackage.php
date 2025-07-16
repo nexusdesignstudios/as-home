@@ -17,6 +17,7 @@ class AddonsPackage extends Model
         'description',
         'property_id',
         'status',
+        'price',
         'created_at',
         'updated_at',
     ];

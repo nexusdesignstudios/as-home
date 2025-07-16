@@ -2862,6 +2862,12 @@
                   "type": "text"
                 },
                 {
+                  "key": "addons_packages[0][price]",
+                  "value": "99.99",
+                  "description": "Optional price for the entire addon package",
+                  "type": "text"
+                },
+                {
                   "key": "addons_packages[0][addon_values][0][hotel_addon_field_id]",
                   "value": "1",
                   "description": "ID of the hotel addon field",
@@ -2907,6 +2913,12 @@
                   "key": "addons_packages[1][description]",
                   "value": "Basic amenities package for budget-conscious guests",
                   "description": "Description of the addon package",
+                  "type": "text"
+                },
+                {
+                  "key": "addons_packages[1][price]",
+                  "value": "49.99",
+                  "description": "Optional price for the entire addon package",
                   "type": "text"
                 },
                 {
@@ -3145,6 +3157,12 @@
                   "type": "text"
                 },
                 {
+                  "key": "addons_packages[0][price]",
+                  "value": "129.99",
+                  "description": "Optional price for the entire addon package",
+                  "type": "text"
+                },
+                {
                   "key": "addons_packages[0][addon_values][0][id]",
                   "value": "1",
                   "description": "ID of existing addon value (required for updating)",
@@ -3202,6 +3220,12 @@
                   "key": "addons_packages[1][description]",
                   "value": "New basic amenities package",
                   "description": "Description of the new addon package",
+                  "type": "text"
+                },
+                {
+                  "key": "addons_packages[1][price]",
+                  "value": "49.99",
+                  "description": "Optional price for the entire addon package",
                   "type": "text"
                 },
                 {

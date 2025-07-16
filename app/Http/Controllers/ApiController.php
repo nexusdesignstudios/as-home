@@ -892,6 +892,7 @@ class ApiController extends Controller
             'addons_packages.*.name' => 'required_with:addons_packages',
             'addons_packages.*.description' => 'nullable|string',
             'addons_packages.*.status' => 'nullable|in:active,inactive',
+            'addons_packages.*.price' => 'nullable|numeric|min:0',
             'addons_packages.*.addon_values' => 'required_with:addons_packages|array',
             'addons_packages.*.addon_values.*.hotel_addon_field_id' => 'required|exists:hotel_addon_fields,id',
             'addons_packages.*.addon_values.*.value' => 'required',
@@ -1205,6 +1206,7 @@ class ApiController extends Controller
                         $addonsPackage->description = $package['description'] ?? null;
                         $addonsPackage->property_id = $saveProperty->id;
                         $addonsPackage->status = $package['status'] ?? 'active';
+                        $addonsPackage->price = isset($package['price']) ? $package['price'] : null;
                         $addonsPackage->save();
 
                         // Process addon values for this package
@@ -1813,6 +1815,7 @@ class ApiController extends Controller
                                         $addonsPackage->name = $package['name'];
                                         $addonsPackage->description = $package['description'] ?? $addonsPackage->description;
                                         $addonsPackage->status = $package['status'] ?? $addonsPackage->status;
+                                        $addonsPackage->price = isset($package['price']) ? $package['price'] : $addonsPackage->price;
                                         $addonsPackage->save();
 
                                         // Handle addon values for this package
@@ -1891,6 +1894,7 @@ class ApiController extends Controller
                                     $addonsPackage->description = $package['description'] ?? null;
                                     $addonsPackage->property_id = $property->id;
                                     $addonsPackage->status = $package['status'] ?? 'active';
+                                    $addonsPackage->price = isset($package['price']) ? $package['price'] : null;
                                     $addonsPackage->save();
 
                                     // Handle addon values for this package
