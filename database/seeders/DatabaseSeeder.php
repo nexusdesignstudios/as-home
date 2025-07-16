@@ -16,6 +16,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run()
     {
+        // Call the Hotel Addon Field Permission Seeder
+        $this->call(HotelAddonFieldPermissionSeeder::class);
         // Duplicate the file
         $sourceFile = resource_path('lang/en.json');
         $destinationFile = resource_path('lang/en-new.json');
@@ -147,4 +149,3 @@ class DatabaseSeeder extends Seeder
         );
     }
 }
-

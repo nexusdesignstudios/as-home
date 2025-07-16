@@ -51,7 +51,8 @@ class Property extends Model
         'gallery',
         'documents',
         'is_favourite',
-        'hotel_rooms'
+        'hotel_rooms',
+        'hotel_addons'
     ];
 
     protected static function boot()
@@ -515,6 +516,52 @@ class Property extends Model
     public function terms()
     {
         return PropertyTerms::where('classification_id', $this->property_classification)->first();
+    }
+
+    /**
+     * Get the hotel addon values for this property.
+     */
+    public function hotelAddonValues()
+    {
+        return $this->hasMany(PropertyHotelAddonValue::class);
+    }
+
+    /**
+     * Get hotel addon fields as an attribute for API response
+     */
+    public function getHotelAddonsAttribute()
+    {
+        // Only return hotel addons if this is a hotel property
+        if ($this->getRawOriginal('property_classification') == 5) {
+            $addonValues = $this->hotelAddonValues()
+                ->with('hotel_addon_field:id,name,field_type')
+                ->get();
+
+            if ($addonValues->isNotEmpty()) {
+                $addons = [];
+                foreach ($addonValues as $addonValue) {
+                    $fieldType = $addonValue->hotel_addon_field->field_type;
+                    $value = $addonValue->value;
+
+                    // Process value based on field type
+                    if ($fieldType == 'file') {
+                        $value = url('') . config('global.IMG_PATH') . config('global.HOTEL_ADDON_PATH') . '/' . $value;
+                    } elseif ($fieldType == 'checkbox') {
+                        $value = json_decode($value, true);
+                    }
+
+                    $addons[] = [
+                        'id' => $addonValue->hotel_addon_field_id,
+                        'name' => $addonValue->hotel_addon_field->name,
+                        'field_type' => $fieldType,
+                        'value' => $value,
+                    ];
+                }
+                return $addons;
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -105,6 +105,10 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::post('apply-agent-verification', [ApiController::class, 'applyAgentVerification']);
     /*********************************************************************** */
 
+    /** Hotel Addons */
+    Route::get('get-hotel-addon-fields', [ApiController::class, 'getHotelAddonFields']);
+    /*********************************************************************** */
+
     /** Others */
 
     // Payment

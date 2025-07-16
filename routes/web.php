@@ -372,6 +372,14 @@ Route::middleware(['language'])->group(function () {
             Route::post('/update-custom-form', [VerifyCustomerFormController::class, 'verifyCustomerFormUpdate'])->name('verify-customer-form.update');
             Route::post('/status-custom-form', [VerifyCustomerFormController::class, 'verifyCustomerFormStatus'])->name('verify-customer-form.status');
             Route::delete('/delete-custom-form/{id}', [VerifyCustomerFormController::class, 'verifyCustomerFormDestroy'])->name('verify-customer-form.delete');
+
+            // Hotel Addon Fields
+            Route::get('hotel-addon-field', [App\Http\Controllers\HotelAddonFieldController::class, 'index'])->name('hotel-addon-field.index');
+            Route::post('hotel-addon-field', [App\Http\Controllers\HotelAddonFieldController::class, 'store'])->name('hotel-addon-field.store');
+            Route::get('hotel-addon-field-show', [App\Http\Controllers\HotelAddonFieldController::class, 'show'])->name('hotel-addon-field.show');
+            Route::post('hotel-addon-field-status', [App\Http\Controllers\HotelAddonFieldController::class, 'status'])->name('hotel-addon-field.status');
+            Route::post('hotel-addon-field-update', [App\Http\Controllers\HotelAddonFieldController::class, 'update'])->name('hotel-addon-field.update');
+            Route::get('hotel-addon-field-delete/{id}', [App\Http\Controllers\HotelAddonFieldController::class, 'destroy'])->name('hotel-addon-field.delete');
         });
 
         Route::prefix('agent-verification')->group(function () {
