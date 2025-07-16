@@ -2408,6 +2408,42 @@
                   "key": "package_id",
                   "value": "1",
                   "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[0][hotel_addon_field_id]",
+                  "value": "1",
+                  "description": "ID of the hotel addon field",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[0][value]",
+                  "value": "Yes",
+                  "description": "Value for the hotel addon field",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[1][hotel_addon_field_id]",
+                  "value": "2",
+                  "description": "ID of the hotel addon field",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[1][value]",
+                  "value": "Option 1",
+                  "description": "Value for the hotel addon field (for dropdown/radio/checkbox)",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[2][hotel_addon_field_id]",
+                  "value": "3",
+                  "description": "ID of the hotel addon field",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[2][value]",
+                  "value": "This is a text area value",
+                  "description": "Value for the hotel addon field (for textarea)",
+                  "type": "text"
                 }
               ]
             },
@@ -2542,10 +2578,35 @@
                   "type": "text"
                 },
                 {
-                  "key": "weekend_commission",
-                  "value": "12",
-                  "description": "Optional percentage value",
+                  "key": "hotel_addon_values[0][hotel_addon_field_id]",
+                  "value": "1",
+                  "description": "ID of the hotel addon field",
                   "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[0][value]",
+                  "value": "No",
+                  "description": "Updated value for the hotel addon field",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[1][hotel_addon_field_id]",
+                  "value": "2",
+                  "description": "ID of the hotel addon field",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[1][value]",
+                  "value": "Option 2",
+                  "description": "Updated value for the hotel addon field (for dropdown/radio/checkbox)",
+                  "type": "text"
+                },
+                {
+                  "key": "weekend_commission",
+                  "value": "10",
+                  "description": "Not required for hotel properties (property_classification=5)",
+                  "type": "text",
+                  "disabled": true
                 }
               ]
             },
@@ -3196,6 +3257,32 @@
         }
       ],
       "description": "Hotel room type management endpoints for creating, reading, updating, and deleting room types"
+    },
+    {
+      "name": "Hotel Addon Fields",
+      "item": [
+        {
+          "name": "Get Hotel Addon Fields",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/get-hotel-addon-fields",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get-hotel-addon-fields"]
+            },
+            "description": "Get all active hotel addon fields with their values"
+          },
+          "response": []
+        }
+      ],
+      "description": "Hotel addon fields endpoints for retrieving custom fields for hotel properties"
     }
   ],
   "event": [
