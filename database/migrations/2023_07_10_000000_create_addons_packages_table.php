@@ -22,7 +22,7 @@ class CreateAddonsPackagesTable extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreign('property_id')->references('id')->on('properties')->onDelete('cascade');
+            $table->foreign('property_id')->references('id')->on('propertys')->onDelete('cascade');
         });
 
         // Add package_id to property_hotel_addon_values table
