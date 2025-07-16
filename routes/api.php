@@ -3,6 +3,7 @@
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\PropertyTermsController;
 use App\Http\Controllers\HotelRoomTypeController;
+use App\Http\Controllers\HotelRoomController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -176,6 +177,9 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
 
     /** Hotel Room Types */
     Route::apiResource('hotel-room-types', HotelRoomTypeController::class);
+
+    /** Hotel Rooms */
+    Route::apiResource('hotel-rooms', HotelRoomController::class);
     /*********************************************************************** */
 });
 
@@ -233,3 +237,6 @@ Route::get('deep-link', [ApiController::class, 'deepLink']);
 // Temp
 Route::get('remove-account-temp', [ApiController::class, 'removeAccountTemp']);
 /*********************************************************************** */
+
+/** Hotel Room */
+Route::get('search-available-rooms', [HotelRoomController::class, 'searchAvailableRooms']);

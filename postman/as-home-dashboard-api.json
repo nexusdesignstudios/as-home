@@ -3367,6 +3367,222 @@
         }
       ],
       "description": "Hotel addon fields endpoints for retrieving custom fields for hotel properties"
+    },
+    {
+      "name": "Hotel Rooms",
+      "item": [
+        {
+          "name": "Search Available Rooms",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/search-available-rooms?from_date=2023-07-01&to_date=2023-07-10&room_type_id=1&property_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "search-available-rooms"],
+              "query": [
+                {
+                  "key": "from_date",
+                  "value": "2023-07-01",
+                  "description": "Start date for availability search (format: YYYY-MM-DD)"
+                },
+                {
+                  "key": "to_date",
+                  "value": "2023-07-10",
+                  "description": "End date for availability search (format: YYYY-MM-DD)"
+                },
+                {
+                  "key": "room_type_id",
+                  "value": "1",
+                  "description": "Optional: Filter by room type ID"
+                },
+                {
+                  "key": "property_id",
+                  "value": "1",
+                  "description": "Optional: Filter by property ID"
+                }
+              ]
+            },
+            "description": "Search for available hotel rooms based on date range, room type, and property. The endpoint handles two types of availability: 'available_days' (dates when the room is available) and 'busy_days' (dates when the room is NOT available)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Hotel Rooms",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/hotel-rooms",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hotel-rooms"]
+            },
+            "description": "Get all hotel rooms (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Hotel Room",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/hotel-rooms/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hotel-rooms", "1"]
+            },
+            "description": "Get a specific hotel room by ID (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Hotel Room",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"property_id\": 1,\n    \"room_type_id\": 1,\n    \"room_number\": \"101\",\n    \"price_per_night\": 150.00,\n    \"discount_percentage\": 0,\n    \"refund_policy\": \"flexible\",\n    \"description\": \"Standard room with one queen bed\",\n    \"status\": true,\n    \"availability_type\": 1,\n    \"available_dates\": [\n        {\n            \"from\": \"2023-07-01\",\n            \"to\": \"2023-07-15\"\n        },\n        {\n            \"from\": \"2023-08-01\",\n            \"to\": \"2023-08-15\"\n        }\n    ],\n    \"weekend_commission\": 5.5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/hotel-rooms",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hotel-rooms"]
+            },
+            "description": "Create a new hotel room (requires authentication). The available_dates field uses date ranges in the format [{\"from\":\"YYYY-MM-DD\",\"to\":\"YYYY-MM-DD\"}]."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Hotel Room",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"property_id\": 1,\n    \"room_type_id\": 1,\n    \"room_number\": \"101A\",\n    \"price_per_night\": 175.00,\n    \"discount_percentage\": 5,\n    \"refund_policy\": \"flexible\",\n    \"description\": \"Updated standard room with one queen bed\",\n    \"status\": true,\n    \"availability_type\": 1,\n    \"available_dates\": [\n        {\n            \"from\": \"2023-09-01\",\n            \"to\": \"2023-09-15\"\n        },\n        {\n            \"from\": \"2023-10-01\",\n            \"to\": \"2023-10-15\"\n        }\n    ],\n    \"weekend_commission\": 7.5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/hotel-rooms/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hotel-rooms", "1"]
+            },
+            "description": "Update an existing hotel room (requires authentication). The available_dates field uses date ranges in the format [{\"from\":\"YYYY-MM-DD\",\"to\":\"YYYY-MM-DD\"}]."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Hotel Room",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/hotel-rooms/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hotel-rooms", "1"]
+            },
+            "description": "Delete a hotel room by ID (requires authentication)"
+          },
+          "response": []
+        }
+      ],
+      "description": "Hotel room management endpoints including search, create, read, update, and delete operations. The search endpoint allows finding available rooms based on date range, room type, and property."
     }
   ],
   "event": [
