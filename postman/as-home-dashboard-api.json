@@ -1822,6 +1822,85 @@
       "name": "Properties",
       "item": [
         {
+          "name": "Get Property List",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/get-property-list?property_classification=5&page=1&per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get-property-list"],
+              "query": [
+                {
+                  "key": "property_classification",
+                  "value": "5",
+                  "description": "Filter by property classification (1: Sell/Rent, 2: Commercial, 3: New Project, 4: Vacation Homes, 5: Hotel Booking)"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination"
+                },
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Number of properties per page"
+                },
+                {
+                  "key": "category_id",
+                  "value": "",
+                  "description": "Filter by category ID",
+                  "disabled": true
+                },
+                {
+                  "key": "property_type",
+                  "value": "",
+                  "description": "Filter by property type (0: Sell, 1: Rent)",
+                  "disabled": true
+                },
+                {
+                  "key": "min_price",
+                  "value": "",
+                  "description": "Filter by minimum price",
+                  "disabled": true
+                },
+                {
+                  "key": "max_price",
+                  "value": "",
+                  "description": "Filter by maximum price",
+                  "disabled": true
+                },
+                {
+                  "key": "country",
+                  "value": "",
+                  "description": "Filter by country",
+                  "disabled": true
+                },
+                {
+                  "key": "state",
+                  "value": "",
+                  "description": "Filter by state",
+                  "disabled": true
+                },
+                {
+                  "key": "city",
+                  "value": "",
+                  "description": "Filter by city",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get a list of properties with optional filtering by property_classification and other parameters. Supports pagination."
+          },
+          "response": []
+        },
+        {
           "name": "Post Property",
           "request": {
             "auth": {
