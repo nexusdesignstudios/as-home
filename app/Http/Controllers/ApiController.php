@@ -99,6 +99,7 @@ use App\Models\PropertyTerms;
 use App\Models\HotelAddonField;
 use App\Models\HotelAddonFieldValue;
 use App\Models\PropertyHotelAddonValue;
+use App\Models\AddonsPackage;
 
 class ApiController extends Controller
 {
@@ -887,11 +888,15 @@ class ApiController extends Controller
             'hotel_rooms.*.availability_type' => 'nullable|integer|in:1,2',
             'hotel_rooms.*.available_dates' => 'nullable|json',
             'hotel_rooms.*.weekend_commission' => 'nullable|numeric|min:0|max:100',
-            'hotel_addon_values'      => 'nullable|array',
-            'hotel_addon_values.*.hotel_addon_field_id' => 'required_with:hotel_addon_values|exists:hotel_addon_fields,id',
-            'hotel_addon_values.*.value' => 'required_with:hotel_addon_values',
-            'hotel_addon_values.*.static_price' => 'nullable|numeric|min:0',
-            'hotel_addon_values.*.multiply_price' => 'nullable|numeric|min:0',
+            'addons_packages'       => 'nullable|array',
+            'addons_packages.*.name' => 'required_with:addons_packages',
+            'addons_packages.*.description' => 'nullable|string',
+            'addons_packages.*.status' => 'nullable|in:active,inactive',
+            'addons_packages.*.addon_values' => 'required_with:addons_packages|array',
+            'addons_packages.*.addon_values.*.hotel_addon_field_id' => 'required|exists:hotel_addon_fields,id',
+            'addons_packages.*.addon_values.*.value' => 'required',
+            'addons_packages.*.addon_values.*.static_price' => 'nullable|numeric|min:0',
+            'addons_packages.*.addon_values.*.multiply_price' => 'nullable|numeric|min:0',
             'price'             => ['required_unless:property_classification,5', 'nullable', 'numeric', 'min:0', 'max:9223372036854775807', function ($attribute, $value, $fail) {
                 if ($value !== null && $value >= 9223372036854775807) {
                     $fail("The Price must not exceed more than 9223372036854775807.");
@@ -923,10 +928,9 @@ class ApiController extends Controller
 
         ], [], [
             'documents.*' => 'document :position',
-            'hotel_addon_values.*.hotel_addon_field_id' => 'hotel addon field :position',
-            'hotel_addon_values.*.value' => 'hotel addon value :position',
-            'hotel_addon_values.*.static_price' => 'static price :position',
-            'hotel_addon_values.*.multiply_price' => 'multiply price :position'
+            'addons_packages.*.name' => 'package name :position',
+            'addons_packages.*.addon_values.*.hotel_addon_field_id' => 'package addon field :position',
+            'addons_packages.*.addon_values.*.value' => 'package addon value :position'
         ]);
         if ($validator->fails()) {
             return response()->json([
@@ -1184,8 +1188,8 @@ class ApiController extends Controller
             }
             // END :: ADD HOTEL ROOMS
 
-            // START :: ADD HOTEL ADDON VALUES
-            if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->hotel_addon_values) && !empty($request->hotel_addon_values)) {
+            // START :: ADD ADDONS PACKAGES
+            if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->addons_packages) && !empty($request->addons_packages)) {
                 try {
                     // Create destination path for hotel addon files
                     $addonFolderPath = public_path('images') . config('global.HOTEL_ADDON_PATH');
@@ -1193,53 +1197,67 @@ class ApiController extends Controller
                         mkdir($addonFolderPath, 0777, true);
                     }
 
-                    // Process hotel addons
-                    foreach ($request->hotel_addon_values as $key => $addon) {
-                        // Get the addon field to check its type
-                        $addonField = HotelAddonField::where('id', $addon['hotel_addon_field_id'])->where('status', 'active')->first();
+                    // Process each package
+                    foreach ($request->addons_packages as $packageIndex => $package) {
+                        // Create the package
+                        $addonsPackage = new AddonsPackage();
+                        $addonsPackage->name = $package['name'];
+                        $addonsPackage->description = $package['description'] ?? null;
+                        $addonsPackage->property_id = $saveProperty->id;
+                        $addonsPackage->status = $package['status'] ?? 'active';
+                        $addonsPackage->save();
 
-                        if (!$addonField) {
-                            continue; // Skip inactive or non-existent fields
-                        }
+                        // Process addon values for this package
+                        if (isset($package['addon_values']) && !empty($package['addon_values'])) {
+                            foreach ($package['addon_values'] as $addonIndex => $addon) {
+                                // Get the addon field to check its type
+                                $addonField = HotelAddonField::where('id', $addon['hotel_addon_field_id'])->where('status', 'active')->first();
 
-                        $value = $addon['value'];
+                                if (!$addonField) {
+                                    continue; // Skip inactive or non-existent fields
+                                }
 
-                        // Handle file uploads
-                        if ($addonField->field_type == 'file' && $request->hasFile('hotel_addon_values.' . $key . '.value')) {
-                            $file = $request->file('hotel_addon_values.' . $key . '.value');
-                            $fileName = microtime(true) . '.' . $file->extension();
-                            $file->move($addonFolderPath, $fileName);
-                            $value = $fileName;
-                        }
-                        // Handle checkbox values (convert array to JSON)
-                        else if ($addonField->field_type == 'checkbox' && is_array($value)) {
-                            $value = json_encode($value);
-                        }
-                        // Handle radio and dropdown values (validate against available options)
-                        else if (in_array($addonField->field_type, ['radio', 'dropdown'])) {
-                            $validValue = HotelAddonFieldValue::where('hotel_addon_field_id', $addon['hotel_addon_field_id'])
-                                ->where('value', $value)
-                                ->exists();
+                                $value = $addon['value'];
 
-                            if (!$validValue) {
-                                continue; // Skip invalid values
+                                // Handle file uploads
+                                if ($addonField->field_type == 'file' && $request->hasFile('addons_packages.' . $packageIndex . '.addon_values.' . $addonIndex . '.value')) {
+                                    $file = $request->file('addons_packages.' . $packageIndex . '.addon_values.' . $addonIndex . '.value');
+                                    $fileName = microtime(true) . '.' . $file->extension();
+                                    $file->move($addonFolderPath, $fileName);
+                                    $value = $fileName;
+                                }
+                                // Handle checkbox values (convert array to JSON)
+                                else if ($addonField->field_type == 'checkbox' && is_array($value)) {
+                                    $value = json_encode($value);
+                                }
+                                // Handle radio and dropdown values (validate against available options)
+                                else if (in_array($addonField->field_type, ['radio', 'dropdown'])) {
+                                    $validValue = HotelAddonFieldValue::where('hotel_addon_field_id', $addon['hotel_addon_field_id'])
+                                        ->where('value', $value)
+                                        ->exists();
+
+                                    if (!$validValue) {
+                                        continue; // Skip invalid values
+                                    }
+                                }
+
+                                // Save the addon value with user-provided price fields
+                                PropertyHotelAddonValue::create([
+                                    'property_id' => $saveProperty->id,
+                                    'hotel_addon_field_id' => $addon['hotel_addon_field_id'],
+                                    'value' => $value,
+                                    'static_price' => isset($addon['static_price']) ? $addon['static_price'] : null,
+                                    'multiply_price' => isset($addon['multiply_price']) ? $addon['multiply_price'] : null,
+                                    'package_id' => $addonsPackage->id // Link to the package
+                                ]);
                             }
                         }
-
-                        // Save the addon value with user-provided price fields
-                        PropertyHotelAddonValue::create([
-                            'property_id' => $saveProperty->id,
-                            'hotel_addon_field_id' => $addon['hotel_addon_field_id'],
-                            'value' => $value,
-                            'static_price' => isset($addon['static_price']) ? $addon['static_price'] : null,
-                            'multiply_price' => isset($addon['multiply_price']) ? $addon['multiply_price'] : null
-                        ]);
                     }
                 } catch (\Exception $e) {
                     throw $e;
                 }
             }
-            // END :: ADD HOTEL ADDON VALUES
+            // END :: ADD ADDONS PACKAGES
 
             $result = Property::with('customer')->with('category:id,category,image')->with('assignfacilities.outdoorfacilities')->with('favourite')->with('parameters')->with('interested_users')->where('id', $saveProperty->id)->get();
             $property_details = get_property_details($result);
@@ -1773,6 +1791,161 @@ class ApiController extends Controller
                         }
                     }
                     // END :: UPDATE HOTEL ROOMS
+
+                    // START :: UPDATE HOTEL ADDON VALUES AND PACKAGES
+                    if (isset($request->property_classification) && $request->property_classification == 5) {
+                        // Create destination path for hotel addon files
+                        $addonFolderPath = public_path('images') . config('global.HOTEL_ADDON_PATH');
+                        if (!is_dir($addonFolderPath)) {
+                            mkdir($addonFolderPath, 0777, true);
+                        }
+
+                        // We only use packages now - individual addon values are not supported
+
+                        // Handle addons packages
+                        if (isset($request->addons_packages) && !empty($request->addons_packages)) {
+                            foreach ($request->addons_packages as $packageIndex => $package) {
+                                // Check if this is an update or new package
+                                if (isset($package['id']) && !empty($package['id'])) {
+                                    // Update existing package
+                                    $addonsPackage = AddonsPackage::find($package['id']);
+                                    if ($addonsPackage && $addonsPackage->property_id == $property->id) {
+                                        $addonsPackage->name = $package['name'];
+                                        $addonsPackage->description = $package['description'] ?? $addonsPackage->description;
+                                        $addonsPackage->status = $package['status'] ?? $addonsPackage->status;
+                                        $addonsPackage->save();
+
+                                        // Handle addon values for this package
+                                        if (isset($package['addon_values']) && !empty($package['addon_values'])) {
+                                            foreach ($package['addon_values'] as $addonIndex => $addon) {
+                                                // Check if this is an update or new addon value
+                                                if (isset($addon['id']) && !empty($addon['id'])) {
+                                                    // Update existing addon value
+                                                    $addonValue = PropertyHotelAddonValue::find($addon['id']);
+                                                    if ($addonValue && $addonValue->property_id == $property->id && $addonValue->package_id == $addonsPackage->id) {
+                                                        // Get the addon field to check its type
+                                                        $addonField = HotelAddonField::where('id', $addon['hotel_addon_field_id'])->where('status', 'active')->first();
+                                                        if (!$addonField) continue;
+
+                                                        $value = $addon['value'];
+
+                                                        // Handle file uploads
+                                                        if ($addonField->field_type == 'file' && $request->hasFile('addons_packages.' . $packageIndex . '.addon_values.' . $addonIndex . '.value')) {
+                                                            // Delete old file if exists
+                                                            if (!empty($addonValue->value) && file_exists($addonFolderPath . '/' . $addonValue->value)) {
+                                                                unlink($addonFolderPath . '/' . $addonValue->value);
+                                                            }
+
+                                                            $file = $request->file('addons_packages.' . $packageIndex . '.addon_values.' . $addonIndex . '.value');
+                                                            $fileName = microtime(true) . '.' . $file->extension();
+                                                            $file->move($addonFolderPath, $fileName);
+                                                            $value = $fileName;
+                                                        }
+                                                        // Handle checkbox values
+                                                        else if ($addonField->field_type == 'checkbox' && is_array($value)) {
+                                                            $value = json_encode($value);
+                                                        }
+
+                                                        // Update the addon value
+                                                        $addonValue->value = $value;
+                                                        $addonValue->static_price = isset($addon['static_price']) ? $addon['static_price'] : null;
+                                                        $addonValue->multiply_price = isset($addon['multiply_price']) ? $addon['multiply_price'] : null;
+                                                        $addonValue->save();
+                                                    }
+                                                } else {
+                                                    // Create new addon value
+                                                    $addonField = HotelAddonField::where('id', $addon['hotel_addon_field_id'])->where('status', 'active')->first();
+                                                    if (!$addonField) continue;
+
+                                                    $value = $addon['value'];
+
+                                                    // Handle file uploads
+                                                    if ($addonField->field_type == 'file' && $request->hasFile('addons_packages.' . $packageIndex . '.addon_values.' . $addonIndex . '.value')) {
+                                                        $file = $request->file('addons_packages.' . $packageIndex . '.addon_values.' . $addonIndex . '.value');
+                                                        $fileName = microtime(true) . '.' . $file->extension();
+                                                        $file->move($addonFolderPath, $fileName);
+                                                        $value = $fileName;
+                                                    }
+                                                    // Handle checkbox values
+                                                    else if ($addonField->field_type == 'checkbox' && is_array($value)) {
+                                                        $value = json_encode($value);
+                                                    }
+
+                                                    // Create the addon value
+                                                    PropertyHotelAddonValue::create([
+                                                        'property_id' => $property->id,
+                                                        'hotel_addon_field_id' => $addon['hotel_addon_field_id'],
+                                                        'value' => $value,
+                                                        'static_price' => isset($addon['static_price']) ? $addon['static_price'] : null,
+                                                        'multiply_price' => isset($addon['multiply_price']) ? $addon['multiply_price'] : null,
+                                                        'package_id' => $addonsPackage->id
+                                                    ]);
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // Create new package
+                                    $addonsPackage = new AddonsPackage();
+                                    $addonsPackage->name = $package['name'];
+                                    $addonsPackage->description = $package['description'] ?? null;
+                                    $addonsPackage->property_id = $property->id;
+                                    $addonsPackage->status = $package['status'] ?? 'active';
+                                    $addonsPackage->save();
+
+                                    // Handle addon values for this package
+                                    if (isset($package['addon_values']) && !empty($package['addon_values'])) {
+                                        foreach ($package['addon_values'] as $addonIndex => $addon) {
+                                            $addonField = HotelAddonField::where('id', $addon['hotel_addon_field_id'])->where('status', 'active')->first();
+                                            if (!$addonField) continue;
+
+                                            $value = $addon['value'];
+
+                                            // Handle file uploads
+                                            if ($addonField->field_type == 'file' && $request->hasFile('addons_packages.' . $packageIndex . '.addon_values.' . $addonIndex . '.value')) {
+                                                $file = $request->file('addons_packages.' . $packageIndex . '.addon_values.' . $addonIndex . '.value');
+                                                $fileName = microtime(true) . '.' . $file->extension();
+                                                $file->move($addonFolderPath, $fileName);
+                                                $value = $fileName;
+                                            }
+                                            // Handle checkbox values
+                                            else if ($addonField->field_type == 'checkbox' && is_array($value)) {
+                                                $value = json_encode($value);
+                                            }
+
+                                            // Create the addon value
+                                            PropertyHotelAddonValue::create([
+                                                'property_id' => $property->id,
+                                                'hotel_addon_field_id' => $addon['hotel_addon_field_id'],
+                                                'value' => $value,
+                                                'static_price' => isset($addon['static_price']) ? $addon['static_price'] : null,
+                                                'multiply_price' => isset($addon['multiply_price']) ? $addon['multiply_price'] : null,
+                                                'package_id' => $addonsPackage->id
+                                            ]);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Handle deleted packages
+                        if (isset($request->deleted_package_ids) && !empty($request->deleted_package_ids)) {
+                            foreach ($request->deleted_package_ids as $packageId) {
+                                $packageToDelete = AddonsPackage::where('id', $packageId)
+                                    ->where('property_id', $property->id)
+                                    ->first();
+
+                                if ($packageToDelete) {
+                                    // Delete associated addon values first
+                                    PropertyHotelAddonValue::where('package_id', $packageToDelete->id)->delete();
+
+                                    // Then delete the package
+                                    $packageToDelete->delete();
+                                }
+                            }
+                        }
+                    }
+                    // END :: UPDATE HOTEL ADDON VALUES AND PACKAGES
 
                     $current_user = Auth::user()->id;
                     $property_details = get_property_details($update_property, $current_user, true);

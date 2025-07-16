@@ -18,6 +18,7 @@ class PropertyHotelAddonValue extends Model
         'value',
         'static_price',
         'multiply_price',
+        'package_id',
         'created_at',
         'updated_at',
     ];
@@ -36,5 +37,13 @@ class PropertyHotelAddonValue extends Model
     public function hotel_addon_field()
     {
         return $this->belongsTo(HotelAddonField::class, 'hotel_addon_field_id');
+    }
+
+    /**
+     * Get the package that owns this addon value
+     */
+    public function package()
+    {
+        return $this->belongsTo(AddonsPackage::class, 'package_id');
     }
 }

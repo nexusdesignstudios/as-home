@@ -140,3 +140,4 @@ GET /api/search-available-rooms?from_date=2023-01-01&to_date=2023-01-05&property
 - The response includes related room type and property details.
 - Dates must be in YYYY-MM-DD format.
 - The to_date must be equal to or after from_date. 
+ 

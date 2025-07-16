@@ -2844,49 +2844,79 @@
                   "type": "text"
                 },
                 {
-                  "key": "hotel_addon_values[0][hotel_addon_field_id]",
+                  "key": "addons_packages[0][name]",
+                  "value": "Premium Package",
+                  "description": "Name of the addon package",
+                  "type": "text"
+                },
+                {
+                  "key": "addons_packages[0][description]",
+                  "value": "Premium amenities package for discerning guests",
+                  "description": "Description of the addon package",
+                  "type": "text"
+                },
+                {
+                  "key": "addons_packages[0][status]",
+                  "value": "active",
+                  "description": "Status of the addon package (active or inactive)",
+                  "type": "text"
+                },
+                {
+                  "key": "addons_packages[0][addon_values][0][hotel_addon_field_id]",
                   "value": "1",
                   "description": "ID of the hotel addon field",
                   "type": "text"
                 },
                 {
-                  "key": "hotel_addon_values[0][value]",
+                  "key": "addons_packages[0][addon_values][0][value]",
                   "value": "Yes",
                   "description": "Value for the hotel addon field",
                   "type": "text"
                 },
                 {
-                  "key": "hotel_addon_values[1][hotel_addon_field_id]",
+                  "key": "addons_packages[0][addon_values][1][hotel_addon_field_id]",
                   "value": "2",
                   "description": "ID of the hotel addon field (dropdown/radio/checkbox)",
                   "type": "text"
                 },
                 {
-                  "key": "hotel_addon_values[1][value]",
+                  "key": "addons_packages[0][addon_values][1][value]",
                   "value": "Option 1",
                   "description": "Value for the hotel addon field (for dropdown/radio/checkbox)",
                   "type": "text"
                 },
                 {
-                  "key": "hotel_addon_values[1][static_price]",
+                  "key": "addons_packages[0][addon_values][1][static_price]",
                   "value": "50",
                   "description": "Optional static price for this option",
                   "type": "text"
                 },
                 {
-                  "key": "hotel_addon_values[1][multiply_price]",
+                  "key": "addons_packages[0][addon_values][1][multiply_price]",
                   "value": "1.5",
                   "description": "Optional multiply price for this option",
                   "type": "text"
                 },
                 {
-                  "key": "hotel_addon_values[2][hotel_addon_field_id]",
+                  "key": "addons_packages[1][name]",
+                  "value": "Basic Package",
+                  "description": "Name of the addon package",
+                  "type": "text"
+                },
+                {
+                  "key": "addons_packages[1][description]",
+                  "value": "Basic amenities package for budget-conscious guests",
+                  "description": "Description of the addon package",
+                  "type": "text"
+                },
+                {
+                  "key": "addons_packages[1][addon_values][0][hotel_addon_field_id]",
                   "value": "3",
                   "description": "ID of the hotel addon field",
                   "type": "text"
                 },
                 {
-                  "key": "hotel_addon_values[2][value]",
+                  "key": "addons_packages[1][addon_values][0][value]",
                   "value": "This is a text area value",
                   "description": "Value for the hotel addon field (for textarea)",
                   "type": "text"
@@ -2898,7 +2928,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "post_property"]
             },
-            "description": "Create a new hotel property listing with multiple room types and rooms. Includes hotel addon fields with custom pricing options. For hotel properties, policy_data and weekend_commission are not required."
+            "description": "Create a new hotel property listing with multiple room types and rooms. Includes addon packages that group related addon fields with custom pricing options. For hotel properties, policy_data and weekend_commission are not required."
           },
           "response": []
         },
@@ -3091,51 +3121,105 @@
                   "disabled": true
                 },
                 {
-                  "key": "hotel_addon_values[0][hotel_addon_field_id]",
+                  "key": "addons_packages[0][id]",
+                  "value": "1",
+                  "description": "ID of existing package (required for updating)",
+                  "type": "text"
+                },
+                {
+                  "key": "addons_packages[0][name]",
+                  "value": "Updated Premium Package",
+                  "description": "Updated name of the addon package",
+                  "type": "text"
+                },
+                {
+                  "key": "addons_packages[0][description]",
+                  "value": "Updated premium amenities package for discerning guests",
+                  "description": "Updated description of the addon package",
+                  "type": "text"
+                },
+                {
+                  "key": "addons_packages[0][status]",
+                  "value": "active",
+                  "description": "Status of the addon package (active or inactive)",
+                  "type": "text"
+                },
+                {
+                  "key": "addons_packages[0][addon_values][0][id]",
+                  "value": "1",
+                  "description": "ID of existing addon value (required for updating)",
+                  "type": "text"
+                },
+                {
+                  "key": "addons_packages[0][addon_values][0][hotel_addon_field_id]",
                   "value": "1",
                   "description": "ID of the hotel addon field",
                   "type": "text"
                 },
                 {
-                  "key": "hotel_addon_values[0][value]",
+                  "key": "addons_packages[0][addon_values][0][value]",
                   "value": "No",
                   "description": "Updated value for the hotel addon field",
                   "type": "text"
                 },
                 {
-                  "key": "hotel_addon_values[1][hotel_addon_field_id]",
+                  "key": "addons_packages[0][addon_values][1][id]",
+                  "value": "2",
+                  "description": "ID of existing addon value (required for updating)",
+                  "type": "text"
+                },
+                {
+                  "key": "addons_packages[0][addon_values][1][hotel_addon_field_id]",
                   "value": "2",
                   "description": "ID of the hotel addon field (dropdown/radio/checkbox)",
                   "type": "text"
                 },
                 {
-                  "key": "hotel_addon_values[1][value]",
+                  "key": "addons_packages[0][addon_values][1][value]",
                   "value": "Option 2",
                   "description": "Updated value for the hotel addon field (for dropdown/radio/checkbox)",
                   "type": "text"
                 },
                 {
-                  "key": "hotel_addon_values[1][static_price]",
+                  "key": "addons_packages[0][addon_values][1][static_price]",
                   "value": "75",
                   "description": "Optional static price for this option",
                   "type": "text"
                 },
                 {
-                  "key": "hotel_addon_values[1][multiply_price]",
+                  "key": "addons_packages[0][addon_values][1][multiply_price]",
                   "value": "2.0",
                   "description": "Optional multiply price for this option",
                   "type": "text"
                 },
                 {
-                  "key": "hotel_addon_values[2][hotel_addon_field_id]",
+                  "key": "addons_packages[1][name]",
+                  "value": "New Basic Package",
+                  "description": "Name of the new addon package",
+                  "type": "text"
+                },
+                {
+                  "key": "addons_packages[1][description]",
+                  "value": "New basic amenities package",
+                  "description": "Description of the new addon package",
+                  "type": "text"
+                },
+                {
+                  "key": "addons_packages[1][addon_values][0][hotel_addon_field_id]",
                   "value": "3",
                   "description": "ID of the hotel addon field",
                   "type": "text"
                 },
                 {
-                  "key": "hotel_addon_values[2][value]",
-                  "value": "Updated text area value",
+                  "key": "addons_packages[1][addon_values][0][value]",
+                  "value": "New text area value",
                   "description": "Value for the hotel addon field (for textarea)",
+                  "type": "text"
+                },
+                {
+                  "key": "deleted_package_ids[]",
+                  "value": "2",
+                  "description": "IDs of packages to delete",
                   "type": "text"
                 }
               ]
@@ -3145,7 +3229,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "update_post_property"]
             },
-            "description": "Update an existing hotel property with room modifications and hotel addon fields including static_price and multiply_price options. Hotel addon values allow users to provide their own pricing for addon options."
+            "description": "Update an existing hotel property with room modifications and addon packages. Each package contains grouped addon fields with custom pricing options. Supports updating existing packages, creating new ones, and deleting packages via deleted_package_ids array."
           },
           "response": []
         }
@@ -3618,6 +3702,187 @@
         }
       ],
       "description": "Hotel room management endpoints including search, create, read, update, and delete operations. The search endpoint allows finding available rooms based on date range, room type, and property."
+    },
+    {
+      "name": "Addons Packages",
+      "item": [
+        {
+          "name": "Get All Addons Packages",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/addons-packages?property_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "addons-packages"],
+              "query": [
+                {
+                  "key": "property_id",
+                  "value": "1",
+                  "description": "Optional: Filter packages by property ID"
+                }
+              ]
+            },
+            "description": "Get all addons packages with their addon values. Can be filtered by property_id."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Addons Package",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/addons-packages/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "addons-packages", "1"]
+            },
+            "description": "Get a specific addons package by ID with its addon values"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Addons Package",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Luxury Package\",\n    \"description\": \"Premium amenities for luxury experience\",\n    \"property_id\": 1,\n    \"status\": \"active\",\n    \"addon_values\": [\n        {\n            \"hotel_addon_field_id\": 1,\n            \"value\": \"Yes\",\n            \"static_price\": 15\n        },\n        {\n            \"hotel_addon_field_id\": 2,\n            \"value\": \"Premium\",\n            \"static_price\": 50,\n            \"multiply_price\": 1.2\n        },\n        {\n            \"hotel_addon_field_id\": 3,\n            \"value\": \"Special requests for luxury package\"\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/addons-packages",
+              "host": ["{{base_url}}"],
+              "path": ["api", "addons-packages"]
+            },
+            "description": "Create a new addons package with addon values. Each addon value must reference a valid hotel addon field."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Addons Package",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Luxury Package\",\n    \"description\": \"Updated premium amenities for luxury experience\",\n    \"status\": \"active\",\n    \"addon_values\": [\n        {\n            \"id\": 1,\n            \"hotel_addon_field_id\": 1,\n            \"value\": \"Yes\",\n            \"static_price\": 20\n        },\n        {\n            \"id\": 2,\n            \"hotel_addon_field_id\": 2,\n            \"value\": \"Premium\",\n            \"static_price\": 60,\n            \"multiply_price\": 1.5\n        },\n        {\n            \"hotel_addon_field_id\": 3,\n            \"value\": \"New special requests for luxury package\"\n        }\n    ],\n    \"delete_missing_values\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/addons-packages/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "addons-packages", "1"]
+            },
+            "description": "Update an existing addons package. Can update package details and addon values. Set delete_missing_values to true to remove addon values not included in the request."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Addons Package",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/addons-packages/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "addons-packages", "1"]
+            },
+            "description": "Delete an addons package and its associated addon values"
+          },
+          "response": []
+        }
+      ],
+      "description": "Addons packages endpoints for creating, reading, updating, and deleting packages of hotel addon options. Each package contains a set of addon values that can be applied to hotel properties."
     }
   ],
   "event": [

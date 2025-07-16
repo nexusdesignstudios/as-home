@@ -4,6 +4,7 @@ use App\Http\Controllers\ApiController;
 use App\Http\Controllers\PropertyTermsController;
 use App\Http\Controllers\HotelRoomTypeController;
 use App\Http\Controllers\HotelRoomController;
+use App\Http\Controllers\AddonsPackageController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -180,6 +181,9 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
 
     /** Hotel Rooms */
     Route::apiResource('hotel-rooms', HotelRoomController::class);
+
+    /** Addons Packages */
+    Route::apiResource('addons-packages', AddonsPackageController::class);
     /*********************************************************************** */
 });
 
