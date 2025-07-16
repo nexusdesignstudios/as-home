@@ -2408,42 +2408,6 @@
                   "key": "package_id",
                   "value": "1",
                   "type": "text"
-                },
-                {
-                  "key": "hotel_addon_values[0][hotel_addon_field_id]",
-                  "value": "1",
-                  "description": "ID of the hotel addon field",
-                  "type": "text"
-                },
-                {
-                  "key": "hotel_addon_values[0][value]",
-                  "value": "Yes",
-                  "description": "Value for the hotel addon field",
-                  "type": "text"
-                },
-                {
-                  "key": "hotel_addon_values[1][hotel_addon_field_id]",
-                  "value": "2",
-                  "description": "ID of the hotel addon field",
-                  "type": "text"
-                },
-                {
-                  "key": "hotel_addon_values[1][value]",
-                  "value": "Option 1",
-                  "description": "Value for the hotel addon field (for dropdown/radio/checkbox)",
-                  "type": "text"
-                },
-                {
-                  "key": "hotel_addon_values[2][hotel_addon_field_id]",
-                  "value": "3",
-                  "description": "ID of the hotel addon field",
-                  "type": "text"
-                },
-                {
-                  "key": "hotel_addon_values[2][value]",
-                  "value": "This is a text area value",
-                  "description": "Value for the hotel addon field (for textarea)",
-                  "type": "text"
                 }
               ]
             },
@@ -2592,13 +2556,37 @@
                 {
                   "key": "hotel_addon_values[1][hotel_addon_field_id]",
                   "value": "2",
-                  "description": "ID of the hotel addon field",
+                  "description": "ID of the hotel addon field (dropdown/radio/checkbox)",
                   "type": "text"
                 },
                 {
                   "key": "hotel_addon_values[1][value]",
                   "value": "Option 2",
                   "description": "Updated value for the hotel addon field (for dropdown/radio/checkbox)",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[1][static_price]",
+                  "value": "75",
+                  "description": "Optional static price for this option",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[1][multiply_price]",
+                  "value": "2.0",
+                  "description": "Optional multiply price for this option",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[2][hotel_addon_field_id]",
+                  "value": "3",
+                  "description": "ID of the hotel addon field",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[2][value]",
+                  "value": "This is a text area value",
+                  "description": "Value for the hotel addon field (for textarea)",
                   "type": "text"
                 },
                 {
@@ -2611,11 +2599,11 @@
               ]
             },
             "url": {
-              "raw": "{{base_url}}/api/update_post_property",
+              "raw": "{{base_url}}/api/post_property",
               "host": ["{{base_url}}"],
-              "path": ["api", "update_post_property"]
+              "path": ["api", "post_property"]
             },
-            "description": "Update an existing vacation home property with availability_type and available_dates fields"
+            "description": "Create a new vacation home property listing with availability_type and available_dates fields"
           },
           "response": []
         },
@@ -2854,6 +2842,54 @@
                   "key": "package_id",
                   "value": "1",
                   "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[0][hotel_addon_field_id]",
+                  "value": "1",
+                  "description": "ID of the hotel addon field",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[0][value]",
+                  "value": "Yes",
+                  "description": "Value for the hotel addon field",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[1][hotel_addon_field_id]",
+                  "value": "2",
+                  "description": "ID of the hotel addon field (dropdown/radio/checkbox)",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[1][value]",
+                  "value": "Option 1",
+                  "description": "Value for the hotel addon field (for dropdown/radio/checkbox)",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[1][static_price]",
+                  "value": "50",
+                  "description": "Optional static price for this option",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[1][multiply_price]",
+                  "value": "1.5",
+                  "description": "Optional multiply price for this option",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[2][hotel_addon_field_id]",
+                  "value": "3",
+                  "description": "ID of the hotel addon field",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[2][value]",
+                  "value": "This is a text area value",
+                  "description": "Value for the hotel addon field (for textarea)",
+                  "type": "text"
                 }
               ]
             },
@@ -2862,7 +2898,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "post_property"]
             },
-            "description": "Create a new hotel property listing with multiple room types and rooms. For hotel properties, policy_data and weekend_commission are not required."
+            "description": "Create a new hotel property listing with multiple room types and rooms. Includes hotel addon fields with custom pricing options. For hotel properties, policy_data and weekend_commission are not required."
           },
           "response": []
         },
@@ -3053,6 +3089,54 @@
                   "description": "Not required for hotel properties (property_classification=5)",
                   "type": "text",
                   "disabled": true
+                },
+                {
+                  "key": "hotel_addon_values[0][hotel_addon_field_id]",
+                  "value": "1",
+                  "description": "ID of the hotel addon field",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[0][value]",
+                  "value": "No",
+                  "description": "Updated value for the hotel addon field",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[1][hotel_addon_field_id]",
+                  "value": "2",
+                  "description": "ID of the hotel addon field (dropdown/radio/checkbox)",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[1][value]",
+                  "value": "Option 2",
+                  "description": "Updated value for the hotel addon field (for dropdown/radio/checkbox)",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[1][static_price]",
+                  "value": "75",
+                  "description": "Optional static price for this option",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[1][multiply_price]",
+                  "value": "2.0",
+                  "description": "Optional multiply price for this option",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[2][hotel_addon_field_id]",
+                  "value": "3",
+                  "description": "ID of the hotel addon field",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_addon_values[2][value]",
+                  "value": "Updated text area value",
+                  "description": "Value for the hotel addon field (for textarea)",
+                  "type": "text"
                 }
               ]
             },
@@ -3061,7 +3145,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "update_post_property"]
             },
-            "description": "Update an existing hotel property with room modifications and additions. For hotel properties, policy_data and weekend_commission are not required."
+            "description": "Update an existing hotel property with room modifications and hotel addon fields including static_price and multiply_price options. Hotel addon values allow users to provide their own pricing for addon options."
           },
           "response": []
         }

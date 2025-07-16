@@ -16,6 +16,8 @@ class PropertyHotelAddonValue extends Model
         'property_id',
         'hotel_addon_field_id',
         'value',
+        'static_price',
+        'multiply_price',
         'created_at',
         'updated_at',
     ];

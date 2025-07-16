@@ -887,9 +887,11 @@ class ApiController extends Controller
             'hotel_rooms.*.availability_type' => 'nullable|integer|in:1,2',
             'hotel_rooms.*.available_dates' => 'nullable|json',
             'hotel_rooms.*.weekend_commission' => 'nullable|numeric|min:0|max:100',
-            'hotel_addons'      => 'nullable|array',
-            'hotel_addons.*.id' => 'required_with:hotel_addons|exists:hotel_addon_fields,id',
-            'hotel_addons.*.value' => 'required_with:hotel_addons',
+            'hotel_addon_values'      => 'nullable|array',
+            'hotel_addon_values.*.hotel_addon_field_id' => 'required_with:hotel_addon_values|exists:hotel_addon_fields,id',
+            'hotel_addon_values.*.value' => 'required_with:hotel_addon_values',
+            'hotel_addon_values.*.static_price' => 'nullable|numeric|min:0',
+            'hotel_addon_values.*.multiply_price' => 'nullable|numeric|min:0',
             'price'             => ['required_unless:property_classification,5', 'nullable', 'numeric', 'min:0', 'max:9223372036854775807', function ($attribute, $value, $fail) {
                 if ($value !== null && $value >= 9223372036854775807) {
                     $fail("The Price must not exceed more than 9223372036854775807.");
@@ -921,8 +923,10 @@ class ApiController extends Controller
 
         ], [], [
             'documents.*' => 'document :position',
-            'hotel_addons.*.id' => 'hotel addon field :position',
-            'hotel_addons.*.value' => 'hotel addon value :position'
+            'hotel_addon_values.*.hotel_addon_field_id' => 'hotel addon field :position',
+            'hotel_addon_values.*.value' => 'hotel addon value :position',
+            'hotel_addon_values.*.static_price' => 'static price :position',
+            'hotel_addon_values.*.multiply_price' => 'multiply price :position'
         ]);
         if ($validator->fails()) {
             return response()->json([
@@ -1181,7 +1185,7 @@ class ApiController extends Controller
             // END :: ADD HOTEL ROOMS
 
             // START :: ADD HOTEL ADDON VALUES
-            if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->hotel_addons) && !empty($request->hotel_addons)) {
+            if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->hotel_addon_values) && !empty($request->hotel_addon_values)) {
                 try {
                     // Create destination path for hotel addon files
                     $addonFolderPath = public_path('images') . config('global.HOTEL_ADDON_PATH');
@@ -1190,9 +1194,9 @@ class ApiController extends Controller
                     }
 
                     // Process hotel addons
-                    foreach ($request->hotel_addons as $key => $addon) {
+                    foreach ($request->hotel_addon_values as $key => $addon) {
                         // Get the addon field to check its type
-                        $addonField = HotelAddonField::where('id', $addon['id'])->where('status', 'active')->first();
+                        $addonField = HotelAddonField::where('id', $addon['hotel_addon_field_id'])->where('status', 'active')->first();
 
                         if (!$addonField) {
                             continue; // Skip inactive or non-existent fields
@@ -1201,8 +1205,8 @@ class ApiController extends Controller
                         $value = $addon['value'];
 
                         // Handle file uploads
-                        if ($addonField->field_type == 'file' && $request->hasFile('hotel_addons.' . $key . '.value')) {
-                            $file = $request->file('hotel_addons.' . $key . '.value');
+                        if ($addonField->field_type == 'file' && $request->hasFile('hotel_addon_values.' . $key . '.value')) {
+                            $file = $request->file('hotel_addon_values.' . $key . '.value');
                             $fileName = microtime(true) . '.' . $file->extension();
                             $file->move($addonFolderPath, $fileName);
                             $value = $fileName;
@@ -1213,7 +1217,7 @@ class ApiController extends Controller
                         }
                         // Handle radio and dropdown values (validate against available options)
                         else if (in_array($addonField->field_type, ['radio', 'dropdown'])) {
-                            $validValue = HotelAddonFieldValue::where('hotel_addon_field_id', $addon['id'])
+                            $validValue = HotelAddonFieldValue::where('hotel_addon_field_id', $addon['hotel_addon_field_id'])
                                 ->where('value', $value)
                                 ->exists();
 
@@ -1222,11 +1226,13 @@ class ApiController extends Controller
                             }
                         }
 
-                        // Save the addon value
+                        // Save the addon value with user-provided price fields
                         PropertyHotelAddonValue::create([
                             'property_id' => $saveProperty->id,
-                            'hotel_addon_field_id' => $addon['id'],
-                            'value' => $value
+                            'hotel_addon_field_id' => $addon['hotel_addon_field_id'],
+                            'value' => $value,
+                            'static_price' => isset($addon['static_price']) ? $addon['static_price'] : null,
+                            'multiply_price' => isset($addon['multiply_price']) ? $addon['multiply_price'] : null
                         ]);
                     }
                 } catch (\Exception $e) {
