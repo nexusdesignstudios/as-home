@@ -32,7 +32,7 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col-12">
-                                {!! Form::open(['url' => route('hotel_room_types.store'), 'data-parsley-validate', 'class' => 'create-form']) !!}
+                                {!! Form::open(['url' => route('hotel-room-types.store'), 'data-parsley-validate', 'class' => 'create-form']) !!}
                                 @csrf
 
                                 <div class="row">
@@ -83,7 +83,7 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-12">
-                            <table class="table table-striped" id="room_types_table" data-toggle="table" data-url="{{ route('hotel_room_types.show') }}" data-click-to-select="true" data-side-pagination="server" data-pagination="true" data-page-list="[5, 10, 20, 50, 100, 200]" data-search="true" data-show-columns="true" data-show-refresh="true" data-trim-on-search="false" data-sort-name="id" data-sort-order="desc" data-mobile-responsive="true" data-toolbar="" data-show-export="true" data-maintain-selected="true" data-export-types='["txt","excel"]' data-query-params="queryParams">
+                            <table class="table table-striped" id="room_types_table" data-toggle="table" data-url="{{ route('hotel-room-types.list') }}" data-click-to-select="true" data-side-pagination="server" data-pagination="true" data-page-list="[5, 10, 20, 50, 100, 200]" data-search="true" data-show-columns="true" data-show-refresh="true" data-trim-on-search="false" data-sort-name="id" data-sort-order="desc" data-mobile-responsive="true" data-toolbar="" data-show-export="true" data-maintain-selected="true" data-export-types='["txt","excel"]' data-query-params="queryParams">
                                 <thead>
                                     <tr>
                                         <th data-field="id" data-sortable="true">{{ __('ID') }}</th>
@@ -111,7 +111,7 @@
                     <h5 class="modal-title" id="editModalLabel">{{ __('Edit Room Type') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form action="{{ route('hotel_room_types.update') }}" method="POST" id="editForm">
+                <form action="{{ route('hotel-room-types.update', ['hotel_room_type' => ':id']) }}" method="POST" id="editForm">
                     @csrf
                     <input type="hidden" name="id" id="edit_id">
                     <div class="modal-body">
@@ -167,7 +167,7 @@
                 let id = row.id;
 
                 $.ajax({
-                    url: "{{ route('hotel_room_types.status') }}",
+                    url: "{{ route('hotel-room-types.status') }}",
                     type: "POST",
                     data: {
                         id: id,
@@ -243,7 +243,7 @@
 
             // Fetch room type data
             $.ajax({
-                url: "{{ route('hotel_room_types.show') }}",
+                url: "{{ route('hotel-room-types.show') }}",
                 type: "GET",
                 data: {
                     id: id
