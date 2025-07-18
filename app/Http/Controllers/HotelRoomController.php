@@ -23,7 +23,7 @@ class HotelRoomController extends Controller
             'room_type_id' => 'nullable|exists:hotel_room_types,id',
             'from_date' => 'required|date_format:Y-m-d',
             'to_date' => 'required|date_format:Y-m-d|after_or_equal:from_date',
-            'property_id' => 'nullable|exists:properties,id'
+            'property_id' => 'nullable|exists:propertys,id'
         ]);
 
         if ($validator->fails()) {
@@ -130,7 +130,7 @@ class HotelRoomController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'property_id' => 'required|exists:properties,id',
+            'property_id' => 'required|exists:propertys,id',
             'room_type_id' => 'required|exists:hotel_room_types,id',
             'room_number' => 'required|string|max:50',
             'price_per_night' => 'required|numeric|min:0',
@@ -201,7 +201,7 @@ class HotelRoomController extends Controller
     public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'property_id' => 'nullable|exists:properties,id',
+            'property_id' => 'nullable|exists:propertys,id',
             'room_type_id' => 'nullable|exists:hotel_room_types,id',
             'room_number' => 'nullable|string|max:50',
             'price_per_night' => 'nullable|numeric|min:0',

@@ -25,7 +25,7 @@ class AddonsPackageController extends Controller
         // Validate property_id if provided
         if ($propertyId) {
             $validator = Validator::make(['property_id' => $propertyId], [
-                'property_id' => 'exists:properties,id'
+                'property_id' => 'exists:propertys,id'
             ]);
 
             if ($validator->fails()) {
@@ -65,7 +65,7 @@ class AddonsPackageController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'property_id' => 'required|exists:properties,id',
+            'property_id' => 'required|exists:propertys,id',
             'status' => 'nullable|in:active,inactive',
             'addon_values' => 'required|array',
             'addon_values.*.hotel_addon_field_id' => 'required|exists:hotel_addon_fields,id',
