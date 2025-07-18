@@ -130,9 +130,19 @@
                 {{-- Hotel Room Types --}}
                 @if (has_permissions('read', 'hotel_room_types'))
                     <li class="sidebar-item">
-                        <a href="{{ route('hotel_room_types.index') }}" class='sidebar-link'>
+                        <a href="{{ route('hotel-room-types.index') }}" class='sidebar-link'>
                             <i class="bi bi-building-fill-check"></i>
                             <span class="menu-item">{{ __('Hotel Room Types') }}</span>
+                        </a>
+                    </li>
+                @endif
+
+                {{-- Hotel Apartment Types --}}
+                @if (has_permissions('read', 'hotel_apartment_types'))
+                    <li class="sidebar-item">
+                        <a href="{{ route('hotel-apartment-types.index') }}" class='sidebar-link'>
+                            <i class="bi bi-building-fill-gear"></i>
+                            <span class="menu-item">{{ __('Hotel Apartment Types') }}</span>
                         </a>
                     </li>
                 @endif
