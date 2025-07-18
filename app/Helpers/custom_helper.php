@@ -464,12 +464,15 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['availability_type'] = $row->availability_type;
         $tempRow['available_dates'] = $row->available_dates;
         $tempRow['corresponding_day'] = $row->corresponding_day;
+        $tempRow['rent_package'] = $row->rent_package;
 
         // Add hotel-specific fields
         if ($row->getRawOriginal('property_classification') == 5) {
             // Hotel name field removed
             $tempRow['refund_policy'] = $row->refund_policy;
             $tempRow['hotel_rooms'] = $row->hotel_rooms;
+            $tempRow['hotel_apartment_type'] = $row->hotel_apartment_type;
+            $tempRow['addons_packages'] = $row->addons_packages;
         }
 
         // Get Property Inquiry Data on the basis of current user and status is completed

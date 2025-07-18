@@ -40,6 +40,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\HotelRoomTypeController;
 use App\Http\Controllers\HotelPropertiesController;
 use App\Http\Controllers\TransactionsController;
+use App\Http\Controllers\HotelApartmentTypeController;
 
 
 /*
@@ -275,13 +276,15 @@ Route::middleware(['language'])->group(function () {
         /// END :: PROPERTY ROUTE
 
         /// START :: HOTEL ROOM TYPES ROUTE
-        Route::get('hotel_room_types', [HotelRoomTypeController::class, 'index'])->name('hotel_room_types.index');
-        Route::post('hotel_room_types', [HotelRoomTypeController::class, 'store'])->name('hotel_room_types.store');
-        Route::get('hotel_room_types/show', [HotelRoomTypeController::class, 'show'])->name('hotel_room_types.show');
-        Route::post('hotel_room_types/update', [HotelRoomTypeController::class, 'update'])->name('hotel_room_types.update');
-        Route::post('hotel_room_types/status', [HotelRoomTypeController::class, 'status'])->name('hotel_room_types.status');
-        Route::get('hotel_room_types/destroy/{id}', [HotelRoomTypeController::class, 'destroy'])->name('hotel_room_types.destroy');
+        Route::resource('hotel-room-types', HotelRoomTypeController::class);
+        Route::get('hotel-room-types-list', [HotelRoomTypeController::class, 'getRoomTypesList'])->name('hotel-room-types.list');
+        Route::post('hotel-room-types/status', [HotelRoomTypeController::class, 'updateStatus'])->name('hotel-room-types.status');
         /// END :: HOTEL ROOM TYPES ROUTE
+
+        /// START :: HOTEL APARTMENT TYPES ROUTE
+        Route::resource('hotel-apartment-types', HotelApartmentTypeController::class);
+        Route::get('hotel-apartment-types-list', [HotelApartmentTypeController::class, 'getApartmentTypesList'])->name('hotel-apartment-types.list');
+        /// END :: HOTEL APARTMENT TYPES ROUTE
 
         /// START :: HOTEL PROPERTIES ROUTE
         Route::get('hotel_properties', [HotelPropertiesController::class, 'index'])->name('hotel_properties.index');

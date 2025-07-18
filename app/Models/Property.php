@@ -43,7 +43,9 @@ class Property extends Model
         'availability_type',
         'available_dates',
         'refund_policy',
-        'corresponding_day'
+        'corresponding_day',
+        'hotel_apartment_type_id',
+        'rent_package'
     ];
     protected $hidden = [
         'updated_at',
@@ -55,7 +57,8 @@ class Property extends Model
         'documents',
         'is_favourite',
         'hotel_rooms',
-        'hotel_addons'
+        'hotel_addons',
+        'hotel_apartment_type'
     ];
 
     protected static function boot()
@@ -598,6 +601,27 @@ class Property extends Model
     }
 
     /**
+     * Get the hotel apartment type for this property.
+     */
+    public function hotelApartmentType()
+    {
+        return $this->belongsTo(HotelApartmentType::class);
+    }
+
+    /**
+     * Get hotel apartment type attribute for API response
+     */
+    public function getHotelApartmentTypeAttribute()
+    {
+        // Only return hotel apartment type if this is a hotel property
+        if ($this->getRawOriginal('property_classification') == 5) {
+            return $this->hotelApartmentType()->select('id', 'name', 'description')->first();
+        }
+
+        return null;
+    }
+
+    /**
      * Get terms and conditions for a specific classification.
      *
      * @param int $classificationId
@@ -606,5 +630,32 @@ class Property extends Model
     public static function getTermsByClassification($classificationId)
     {
         return PropertyTerms::where('classification_id', $classificationId)->first();
+    }
+
+    /**
+     * Get the rent package attribute.
+     *
+     * @param  string|null  $value
+     * @return string|null
+     */
+    public function getRentPackageAttribute($value)
+    {
+        return $value;
+    }
+
+    /**
+     * Set the rent package attribute.
+     *
+     * @param  string|null  $value
+     * @return void
+     */
+    public function setRentPackageAttribute($value)
+    {
+        // Ensure value is either 'basic' or 'premium'
+        if ($value && !in_array($value, ['basic', 'premium'])) {
+            $value = 'basic'; // Default to basic if invalid value
+        }
+
+        $this->attributes['rent_package'] = $value;
     }
 }

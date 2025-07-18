@@ -739,6 +739,16 @@ class ApiController extends Controller
             $property = $property->where('category_id', $request->category_id);
         }
 
+        // If Rent Package is Passed
+        if ($request->has('rent_package') && !empty($request->rent_package)) {
+            $property = $property->where('rent_package', $request->rent_package);
+        }
+
+        // If Hotel Apartment Type ID is Passed
+        if ($request->has('hotel_apartment_type_id') && !empty($request->hotel_apartment_type_id)) {
+            $property = $property->where('hotel_apartment_type_id', $request->hotel_apartment_type_id);
+        }
+
         // If Id is passed
         if ($request->has('id') && !empty($request->id)) {
             $property = $property->where('id', $request->id);
@@ -891,6 +901,8 @@ class ApiController extends Controller
             'hotel_rooms.*.availability_type' => 'nullable|integer|in:1,2',
             'hotel_rooms.*.available_dates' => 'nullable|json',
             'hotel_rooms.*.weekend_commission' => 'nullable|numeric|min:0|max:100',
+            'hotel_apartment_type_id' => 'nullable|exists:hotel_apartment_types,id|required_if:property_classification,5',
+            'rent_package' => 'nullable|in:basic,premium',
             'addons_packages'       => 'nullable|array',
             'addons_packages.*.name' => 'required_with:addons_packages',
             'addons_packages.*.description' => 'nullable|string',
@@ -972,6 +984,7 @@ class ApiController extends Controller
             $saveProperty->package_id = $request->package_id;
             $saveProperty->post_type = 1;
             $saveProperty->property_classification = (isset($request->property_classification)) ? $request->property_classification : null;
+            $saveProperty->rent_package = (isset($request->rent_package)) ? $request->rent_package : null;
             $saveProperty->weekend_commission = (isset($request->weekend_commission)) ? $request->weekend_commission : null;
             $saveProperty->corresponding_day = (isset($request->corresponding_day)) ? $request->corresponding_day : null;
 
@@ -984,6 +997,7 @@ class ApiController extends Controller
             // Set hotel specific fields if property classification is hotel (5)
             if (isset($request->property_classification) && $request->property_classification == 5) {
                 $saveProperty->refund_policy = $request->refund_policy;
+                $saveProperty->hotel_apartment_type_id = $request->hotel_apartment_type_id;
             }
 
             $autoApproveStatus = $this->getAutoApproveStatus($loggedInUserId);
@@ -1350,6 +1364,8 @@ class ApiController extends Controller
             'hotel_rooms.*.availability_type' => 'nullable|integer|in:1,2',
             'hotel_rooms.*.available_dates' => 'nullable|json',
             'hotel_rooms.*.weekend_commission' => 'nullable|numeric|min:0|max:100',
+            'hotel_apartment_type_id' => 'nullable|exists:hotel_apartment_types,id',
+            'rent_package' => 'nullable|in:basic,premium',
             'price'                 => ['required_unless:property_classification,5', 'numeric', 'min:1', 'max:9223372036854775807', function ($attribute, $value, $fail) {
                 if ($value >= 9223372036854775807) {
                     $fail("The Price must not exceed more than 9223372036854775807.");
@@ -1470,6 +1486,10 @@ class ApiController extends Controller
 
                     if (isset($request->property_classification)) {
                         $property->property_classification = $request->property_classification;
+                    }
+
+                    if (isset($request->rent_package)) {
+                        $property->rent_package = $request->rent_package;
                     }
 
                     if (isset($request->weekend_commission)) {
@@ -1831,6 +1851,11 @@ class ApiController extends Controller
                         // Update hotel specific fields
                         if (isset($request->refund_policy)) {
                             $property->refund_policy = $request->refund_policy;
+                        }
+
+                        // Update hotel apartment type
+                        if (isset($request->hotel_apartment_type_id)) {
+                            $property->hotel_apartment_type_id = $request->hotel_apartment_type_id;
                         }
 
                         // Handle hotel rooms
@@ -5638,11 +5663,21 @@ class ApiController extends Controller
             // If Property Classification Passed
             if ($request->has('property_classification') && !empty($request->property_classification)) {
                 $propertyQuery = $propertyQuery->clone()->where('property_classification', $request->property_classification);
+
+                // If hotel apartment type is passed and property classification is hotel (5)
+                if ($request->property_classification == 5 && $request->has('hotel_apartment_type_id') && !empty($request->hotel_apartment_type_id)) {
+                    $propertyQuery = $propertyQuery->clone()->where('hotel_apartment_type_id', $request->hotel_apartment_type_id);
+                }
             }
 
             // If Category Id is Passed
             if ($request->has('category_id') && !empty($request->category_id)) {
                 $propertyQuery = $propertyQuery->clone()->where('category_id', $request->category_id);
+            }
+
+            // If Rent Package is Passed
+            if ($request->has('rent_package') && !empty($request->rent_package)) {
+                $propertyQuery = $propertyQuery->clone()->where('rent_package', $request->rent_package);
             }
 
             // If parameter id passed
@@ -5746,7 +5781,7 @@ class ApiController extends Controller
             // Get properties list data
             $propertiesData = $propertyQuery->clone()
                 ->with('category:id,category,image,slug_id')
-                ->select('id', 'slug_id', 'propery_type', 'title_image', 'category_id', 'title', 'price', 'city', 'state', 'country', 'rentduration', 'added_by', 'is_premium', 'property_classification', 'latitude', 'longitude', 'total_click')
+                ->select('id', 'slug_id', 'propery_type', 'title_image', 'category_id', 'title', 'price', 'city', 'state', 'country', 'rentduration', 'added_by', 'is_premium', 'property_classification', 'rent_package', 'latitude', 'longitude', 'total_click')
                 ->withCount('favourite');
 
             // Latitude and Longitude
@@ -5779,6 +5814,7 @@ class ApiController extends Controller
                     $property->assign_facilities = $property->assign_facilities;
                     $property->parameters = $property->parameters;
                     $property->property_classification = $property->property_classification;
+                    $property->rent_package = $property->rent_package;
                     // Keep property_classification as is
                     unset($property->propery_type);
                     return $property;

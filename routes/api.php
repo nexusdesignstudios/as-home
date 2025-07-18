@@ -5,6 +5,7 @@ use App\Http\Controllers\PropertyTermsController;
 use App\Http\Controllers\HotelRoomTypeController;
 use App\Http\Controllers\HotelRoomController;
 use App\Http\Controllers\AddonsPackageController;
+use App\Http\Controllers\HotelApartmentTypeController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -40,6 +41,7 @@ Route::get('get_facilities', [ApiController::class, 'get_facilities']);
 Route::get('get_seo_settings', [ApiController::class, 'get_seo_settings']);
 Route::get('get_report_reasons', [ApiController::class, 'get_report_reasons']);
 Route::get('get-active-room-types', [HotelRoomTypeController::class, 'getActiveRoomTypes']);
+Route::get('get-hotel-apartment-types', [HotelApartmentTypeController::class, 'getHotelApartmentTypes']);
 /*********************************************************************** */
 
 /** Extra */

@@ -1976,6 +1976,12 @@
                   "type": "text"
                 },
                 {
+                  "key": "rent_package",
+                  "value": "basic",
+                  "description": "Property rent package (basic or premium)",
+                  "type": "text"
+                },
+                {
                   "key": "title_image",
                   "type": "file",
                   "src": []
@@ -2186,6 +2192,12 @@
                 {
                   "key": "price",
                   "value": "550000",
+                  "type": "text"
+                },
+                {
+                  "key": "rent_package",
+                  "value": "premium",
+                  "description": "Property rent package (basic or premium)",
                   "type": "text"
                 },
                 {
@@ -2448,6 +2460,12 @@
                   "type": "text"
                 },
                 {
+                  "key": "rent_package",
+                  "value": "premium",
+                  "description": "Property rent package (basic or premium)",
+                  "type": "text"
+                },
+                {
                   "key": "title_image",
                   "type": "file",
                   "src": []
@@ -2654,6 +2672,12 @@
                   "type": "text"
                 },
                 {
+                  "key": "rent_package",
+                  "value": "premium",
+                  "description": "Property rent package (basic or premium)",
+                  "type": "text"
+                },
+                {
                   "key": "country",
                   "value": "United States",
                   "type": "text"
@@ -2798,6 +2822,18 @@
                   "key": "property_classification",
                   "value": "5",
                   "description": "5: Hotel Booking",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_apartment_type_id",
+                  "value": "1",
+                  "description": "ID of the hotel apartment type",
+                  "type": "text"
+                },
+                {
+                  "key": "rent_package",
+                  "value": "premium",
+                  "description": "Property rent package (basic or premium)",
                   "type": "text"
                 },
                 {
@@ -3152,6 +3188,18 @@
                   "key": "property_classification",
                   "value": "5",
                   "description": "5: Hotel Booking",
+                  "type": "text"
+                },
+                {
+                  "key": "hotel_apartment_type_id",
+                  "value": "1",
+                  "description": "ID of the hotel apartment type",
+                  "type": "text"
+                },
+                {
+                  "key": "rent_package",
+                  "value": "premium",
+                  "description": "Property rent package (basic or premium)",
                   "type": "text"
                 },
                 {
@@ -3591,6 +3639,200 @@
         }
       ],
       "description": "Hotel room type management endpoints for creating, reading, updating, and deleting room types"
+    },
+    {
+      "name": "Hotel Apartment Types",
+      "item": [
+        {
+          "name": "Get All Hotel Apartment Types",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/get-hotel-apartment-types",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get-hotel-apartment-types"]
+            },
+            "description": "Get all hotel apartment types"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Hotel Apartment Types (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/hotel-apartment-types",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hotel-apartment-types"]
+            },
+            "description": "Get all hotel apartment types (requires authentication)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Hotel Apartment Type",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/hotel-apartment-types/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hotel-apartment-types", "1"]
+            },
+            "description": "Get a specific hotel apartment type by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Hotel Apartment Type",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Penthouse\",\n    \"description\": \"Luxury apartment located on the top floor with premium amenities\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/hotel-apartment-types",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hotel-apartment-types"]
+            },
+            "description": "Create a new hotel apartment type"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Hotel Apartment Type",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Penthouse\",\n    \"description\": \"Updated description for luxury penthouse apartment\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/hotel-apartment-types/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hotel-apartment-types", "1"]
+            },
+            "description": "Update an existing hotel apartment type"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Hotel Apartment Type",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/hotel-apartment-types/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "hotel-apartment-types", "1"]
+            },
+            "description": "Delete a hotel apartment type"
+          },
+          "response": []
+        }
+      ],
+      "description": "Hotel apartment type management endpoints for creating, reading, updating, and deleting apartment types"
     },
     {
       "name": "Hotel Addon Fields",
