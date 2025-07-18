@@ -49,7 +49,7 @@ class CategoryController extends Controller
                 'category' => ($request->category) ? $request->category : '',
                 'parameter_types' => ($request->parameter_type) ? implode(',', $request->parameter_type) : '',
                 'property_classification' => $request->property_classification ?? 1,
-                'slug_id' => $request->slug ?? generateUniqueSlug($request->title, 3),
+                'slug_id' => $request->slug ?? generateUniqueSlug($request->category, 3),
                 'meta_title' => $request->meta_title,
                 'meta_description' => $request->meta_description,
                 'meta_keywords' => $request->meta_keywords
@@ -110,7 +110,7 @@ class CategoryController extends Controller
 
 
             $Category->category = $request->edit_category;
-            $Category->slug_id = $request->slug ?? generateUniqueSlug($request->title, 3, null, $request->edit_id);
+            $Category->slug_id = $request->slug ?? generateUniqueSlug($request->edit_category, 3, null, $request->edit_id);
             $Category->meta_title = $request->edit_meta_title;
             $Category->meta_description = $request->edit_meta_description;
             $Category->meta_keywords = $request->edit_keywords;

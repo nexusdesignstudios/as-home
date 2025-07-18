@@ -19,7 +19,8 @@ class Category extends Model
         'status',
         'sequence',
         'parameter_types',
-        'property_classification'
+        'property_classification',
+        'slug_id'
     ];
     protected $hidden = [
         'updated_at'
