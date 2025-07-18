@@ -275,8 +275,12 @@ Route::middleware(['language'])->group(function () {
         /// END :: PROPERTY ROUTE
 
         /// START :: HOTEL ROOM TYPES ROUTE
-        Route::resource('hotel_room_types', HotelRoomTypeController::class);
-        Route::get('hotel_room_types_list', [HotelRoomTypeController::class, 'getRoomTypeList'])->name('hotel_room_types.list');
+        Route::get('hotel_room_types', [HotelRoomTypeController::class, 'index'])->name('hotel_room_types.index');
+        Route::post('hotel_room_types', [HotelRoomTypeController::class, 'store'])->name('hotel_room_types.store');
+        Route::get('hotel_room_types/show', [HotelRoomTypeController::class, 'show'])->name('hotel_room_types.show');
+        Route::post('hotel_room_types/update', [HotelRoomTypeController::class, 'update'])->name('hotel_room_types.update');
+        Route::post('hotel_room_types/status', [HotelRoomTypeController::class, 'status'])->name('hotel_room_types.status');
+        Route::get('hotel_room_types/destroy/{id}', [HotelRoomTypeController::class, 'destroy'])->name('hotel_room_types.destroy');
         /// END :: HOTEL ROOM TYPES ROUTE
 
         /// START :: HOTEL PROPERTIES ROUTE

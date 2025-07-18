@@ -127,6 +127,16 @@
                     </li>
                 @endif
 
+                {{-- Hotel Room Types --}}
+                @if (has_permissions('read', 'hotel_room_types'))
+                    <li class="sidebar-item">
+                        <a href="{{ route('hotel_room_types.index') }}" class='sidebar-link'>
+                            <i class="bi bi-building-fill-check"></i>
+                            <span class="menu-item">{{ __('Hotel Room Types') }}</span>
+                        </a>
+                    </li>
+                @endif
+
                 {{-- City Images--}}
                 @if (has_permissions('read', 'city_images'))
                     <li class="sidebar-item">
