@@ -83,16 +83,16 @@ class HotelRoomTypeController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request)
+    public function update(Request $request, HotelRoomType $hotelRoomType)
     {
         if (!has_permissions('update', 'hotel_room_types')) {
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         }
 
         $validator = Validator::make($request->all(), [
-            'id' => 'required|exists:hotel_room_types,id',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'status' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -100,10 +100,10 @@ class HotelRoomTypeController extends Controller
         }
 
         try {
-            $roomType = HotelRoomType::findOrFail($request->id);
-            $roomType->name = $request->name;
-            $roomType->description = $request->description;
-            $roomType->save();
+            $hotelRoomType->name = $request->name;
+            $hotelRoomType->description = $request->description;
+            $hotelRoomType->status = $request->has('status') ? 1 : 0;
+            $hotelRoomType->save();
 
             ResponseService::successResponse('Room Type Updated Successfully');
         } catch (\Exception $e) {
@@ -153,7 +153,7 @@ class HotelRoomTypeController extends Controller
 
             // Check if the room type is being used
             if ($row->rooms()->count() == 0) {
-                $operate .= '<button type="button" class="btn btn-sm btn-danger change-status" data-status="0" data-id="' . $row->id . '"><i class="bi bi-trash-fill"></i></button>';
+                $operate .= '<button type="button" class="btn btn-sm btn-danger delete-room-type" data-id="' . $row->id . '"><i class="bi bi-trash-fill"></i></button>';
             }
 
             $operate .= '</div>';

@@ -111,8 +111,9 @@
                     <h5 class="modal-title" id="editModalLabel">{{ __('Edit Room Type') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form action="{{ route('hotel-room-types.update', ['hotel_room_type' => ':id']) }}" method="POST" id="editForm">
+                <form method="POST" id="editForm">
                     @csrf
+                    @method('PUT')
                     <input type="hidden" name="id" id="edit_id">
                     <div class="modal-body">
                         <div class="form-group">
@@ -122,6 +123,13 @@
                         <div class="form-group">
                             <label for="edit_description">{{ __('Description') }}</label>
                             <textarea class="form-control" id="edit_description" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="form-group mt-3">
+                            <label for="edit_status">{{ __('Status') }}</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="edit_status" name="status" value="1">
+                                <label class="form-check-label" for="edit_status">{{ __('Active') }}</label>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -160,29 +168,33 @@
                 $('#edit_id').val(row.id);
                 $('#edit_name').val(row.name);
                 $('#edit_description').val(row.description);
+                $('#edit_status').prop('checked', row.status == 1);
+                // Set the form action URL with the actual ID
+                var updateUrl = "{{ route('hotel-room-types.update', ':id') }}".replace(':id', row.id);
+                $('#editForm').attr('action', updateUrl);
                 $('#editModal').modal('show');
             },
-            'click .change-status': function(e, value, row, index) {
-                let status = $(e.target).data('status');
-                let id = row.id;
-
-                $.ajax({
-                    url: "{{ route('hotel-room-types.status') }}",
-                    type: "POST",
-                    data: {
-                        id: id,
-                        status: status,
-                        _token: "{{ csrf_token() }}"
-                    },
-                    success: function(response) {
-                        if (!response.error) {
-                            showSuccessToast(response.message);
-                            $('#room_types_table').bootstrapTable('refresh');
-                        } else {
-                            showErrorToast(response.message);
+            'click .delete-room-type': function(e, value, row, index) {
+                if (confirm('Are you sure you want to delete this room type?')) {
+                    $.ajax({
+                        url: '{{ route("hotel-room-types.destroy", ":id") }}'.replace(':id', row.id),
+                        type: 'DELETE',
+                        data: {
+                            _token: '{{ csrf_token() }}'
+                        },
+                        success: function(response) {
+                            if (!response.error) {
+                                showSuccessToast(response.message);
+                                $('#room_types_table').bootstrapTable('refresh');
+                            } else {
+                                showErrorToast(response.message);
+                            }
+                        },
+                        error: function(xhr) {
+                            showErrorToast(xhr.responseJSON ? xhr.responseJSON.message : 'Error deleting room type');
                         }
-                    }
-                });
+                    });
+                }
             }
         };
 
@@ -220,7 +232,7 @@
 
                 $.ajax({
                     url: form.attr('action'),
-                    type: 'POST',
+                    type: 'PUT',
                     data: form.serialize(),
                     success: function(response) {
                         if (!response.error) {
@@ -241,8 +253,9 @@
         function editRoomType(url, isAjax, id) {
             $('#edit_id').val(id);
 
-            // Update the form action URL
-            $('#editForm').attr('action', '{{ route("hotel-room-types.update", ":id") }}'.replace(':id', id));
+            // Update the form action URL with the actual ID
+            var updateUrl = "{{ route('hotel-room-types.update', ':id') }}".replace(':id', id);
+            $('#editForm').attr('action', updateUrl);
 
             // Fetch room type data
             $.ajax({
