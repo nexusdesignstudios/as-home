@@ -54,8 +54,25 @@ class HotelApartmentTypeController extends Controller
 
         $bulkData = array();
         $bulkData['total'] = $total;
-        $bulkData['rows'] = $res;
+        $rows = array();
 
+        foreach ($res as $row) {
+            $operate = '<div class="btn-group" role="group">';
+            $operate .= '<button type="button" class="btn btn-sm btn-primary edit-apartment-type" data-id="' . $row->id . '"><i class="bi bi-pencil-fill"></i></button>';
+
+            // Check if the apartment type is being used by any properties
+            if ($row->properties()->count() == 0) {
+                $operate .= '<button type="button" class="btn btn-sm btn-danger delete-apartment-type" data-id="' . $row->id . '"><i class="bi bi-trash-fill"></i></button>';
+            }
+
+            $operate .= '</div>';
+
+            $tempRow = $row->toArray();
+            $tempRow['operate'] = $operate;
+            $rows[] = $tempRow;
+        }
+
+        $bulkData['rows'] = $rows;
         return response()->json($bulkData);
     }
 

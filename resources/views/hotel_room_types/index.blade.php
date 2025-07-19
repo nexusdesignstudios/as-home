@@ -241,21 +241,19 @@
         function editRoomType(url, isAjax, id) {
             $('#edit_id').val(id);
 
+            // Update the form action URL
+            $('#editForm').attr('action', '{{ route("hotel-room-types.update", ":id") }}'.replace(':id', id));
+
             // Fetch room type data
             $.ajax({
-                url: "{{ route('hotel-room-types.show') }}",
+                url: "{{ route('hotel-room-types.show', ':id') }}".replace(':id', id),
                 type: "GET",
-                data: {
-                    id: id
-                },
                 success: function(response) {
-                    if (response && response.rows && response.rows.length > 0) {
-                        let roomType = response.rows.find(item => item.id == id);
-                        if (roomType) {
-                            $('#edit_name').val(roomType.name);
-                            $('#edit_description').val(roomType.description);
-                            $('#editModal').modal('show');
-                        }
+                    if (response && !response.error) {
+                        var roomType = response.data;
+                        $('#edit_name').val(roomType.name);
+                        $('#edit_description').val(roomType.description);
+                        $('#editModal').modal('show');
                     }
                 }
             });

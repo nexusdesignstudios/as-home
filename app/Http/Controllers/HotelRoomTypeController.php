@@ -61,51 +61,20 @@ class HotelRoomTypeController extends Controller
     /**
      * Display the specified resource.
      *
+     * @param  \App\Models\HotelRoomType  $hotelRoomType
      * @return \Illuminate\Http\Response
      */
-    public function show()
+    public function show(HotelRoomType $hotelRoomType)
     {
         if (!has_permissions('read', 'hotel_room_types')) {
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
         }
 
-        $offset = request('offset', 0);
-        $limit = request('limit', 10);
-        $sort = request('sort', 'id');
-        $order = request('order', 'DESC');
-        $search = request('search');
-
-        $sql = HotelRoomType::when($search, function ($query) use ($search) {
-            $query->where(function ($query) use ($search) {
-                $query->where('id', 'LIKE', "%$search%")
-                    ->orWhere('name', 'LIKE', "%$search%")
-                    ->orWhere('description', 'LIKE', "%$search%");
-            });
-        });
-
-        $total = $sql->count();
-
-        $sql->orderBy($sort, $order)->skip($offset)->take($limit);
-        $res = $sql->get();
-
-        $bulkData = array();
-        $bulkData['total'] = $total;
-        $rows = array();
-
-        foreach ($res as $row) {
-            $row = (object)$row;
-
-            $operate = BootstrapTableService::editButton('editRoomType', true, null, null, $row->id, null);
-            $operate .= BootstrapTableService::deleteAjaxButton(route('hotel_room_types.destroy', $row->id));
-
-            $tempRow = $row->toArray();
-            $tempRow['status_text'] = $row->status ? 'Active' : 'Inactive';
-            $tempRow['operate'] = $operate;
-            $rows[] = $tempRow;
-        }
-
-        $bulkData['rows'] = $rows;
-        return response()->json($bulkData);
+        return response()->json([
+            'error' => false,
+            'data' => $hotelRoomType,
+            'message' => 'Room type fetched successfully'
+        ]);
     }
 
     /**
@@ -143,12 +112,69 @@ class HotelRoomTypeController extends Controller
     }
 
     /**
+     * Get list of room types for DataTables.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function getRoomTypesList()
+    {
+        if (!has_permissions('read', 'hotel_room_types')) {
+            ResponseService::errorResponse(PERMISSION_ERROR_MSG);
+        }
+
+        $offset = request('offset', 0);
+        $limit = request('limit', 10);
+        $sort = request('sort', 'id');
+        $order = request('order', 'DESC');
+        $search = request('search');
+
+        $sql = HotelRoomType::when($search, function ($query) use ($search) {
+            $query->where(function ($query) use ($search) {
+                $query->where('id', 'LIKE', "%$search%")
+                    ->orWhere('name', 'LIKE', "%$search%")
+                    ->orWhere('description', 'LIKE', "%$search%");
+            });
+        });
+
+        $total = $sql->count();
+
+        $sql->orderBy($sort, $order)->skip($offset)->take($limit);
+        $res = $sql->get();
+
+        $bulkData = array();
+        $bulkData['total'] = $total;
+        $rows = array();
+
+        foreach ($res as $row) {
+            $row = (object)$row;
+
+            $operate = '<div class="btn-group" role="group">';
+            $operate .= '<button type="button" class="btn btn-sm btn-primary edit-room-type" data-id="' . $row->id . '"><i class="bi bi-pencil-fill"></i></button>';
+
+            // Check if the room type is being used
+            if ($row->rooms()->count() == 0) {
+                $operate .= '<button type="button" class="btn btn-sm btn-danger change-status" data-status="0" data-id="' . $row->id . '"><i class="bi bi-trash-fill"></i></button>';
+            }
+
+            $operate .= '</div>';
+
+            $tempRow = $row->toArray();
+            $tempRow['status'] = $row->status ? 1 : 0;
+            $tempRow['operate'] = $operate;
+            $rows[] = $tempRow;
+        }
+
+        $bulkData['rows'] = $rows;
+        return response()->json($bulkData);
+    }
+
+    /**
      * Update the status of the specified resource.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function status(Request $request)
+    public function updateStatus(Request $request)
     {
         if (!has_permissions('update', 'hotel_room_types')) {
             ResponseService::errorResponse(PERMISSION_ERROR_MSG);
