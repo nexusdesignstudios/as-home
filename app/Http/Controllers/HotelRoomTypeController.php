@@ -15,12 +15,23 @@ class HotelRoomTypeController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
-        if (!has_permissions('read', 'hotel_room_types')) {
-            return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
+        if ($request->is('api/*')) {
+            // API request
+            $roomTypes = HotelRoomType::all();
+            return response()->json([
+                'error' => false,
+                'message' => 'Room types fetched successfully',
+                'data' => $roomTypes
+            ]);
+        } else {
+            // Web request
+            if (!has_permissions('read', 'hotel_room_types')) {
+                return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
+            }
+            return view('hotel_room_types.index');
         }
-        return view('hotel_room_types.index');
     }
 
     /**
