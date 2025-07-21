@@ -45,7 +45,10 @@ class Property extends Model
         'refund_policy',
         'corresponding_day',
         'hotel_apartment_type_id',
-        'rent_package'
+        'rent_package',
+        'check_in',
+        'check_out',
+        'agent_addons'
     ];
     protected $hidden = [
         'updated_at',
@@ -531,7 +534,9 @@ class Property extends Model
         'status' => 'integer',
         'property_classification' => 'integer',
         'availability_type' => 'integer',
-        'available_dates' => 'json'
+        'available_dates' => 'json',
+        'corresponding_day' => 'json',
+        'agent_addons' => 'json'
     ];
 
     /**
@@ -657,5 +662,93 @@ class Property extends Model
         }
 
         $this->attributes['rent_package'] = $value;
+    }
+
+    /**
+     * Get the check_in attribute.
+     *
+     * @param  string|null  $value
+     * @return string|null
+     */
+    public function getCheckInAttribute($value)
+    {
+        return $value;
+    }
+
+    /**
+     * Set the check_in attribute.
+     *
+     * @param  string|null  $value
+     * @return void
+     */
+    public function setCheckInAttribute($value)
+    {
+        $this->attributes['check_in'] = $value;
+    }
+
+    /**
+     * Get the check_out attribute.
+     *
+     * @param  string|null  $value
+     * @return string|null
+     */
+    public function getCheckOutAttribute($value)
+    {
+        return $value;
+    }
+
+    /**
+     * Set the check_out attribute.
+     *
+     * @param  string|null  $value
+     * @return void
+     */
+    public function setCheckOutAttribute($value)
+    {
+        $this->attributes['check_out'] = $value;
+    }
+
+    /**
+     * Get the corresponding_day attribute.
+     *
+     * @param  string|null  $value
+     * @return array|null
+     */
+    public function getCorrespondingDayAttribute($value)
+    {
+        return $value ? json_decode($value, true) : [];
+    }
+
+    /**
+     * Set the corresponding_day attribute.
+     *
+     * @param  mixed  $value
+     * @return void
+     */
+    public function setCorrespondingDayAttribute($value)
+    {
+        $this->attributes['corresponding_day'] = is_array($value) ? json_encode($value) : $value;
+    }
+
+    /**
+     * Get the agent_addons attribute.
+     *
+     * @param  string|null  $value
+     * @return array|null
+     */
+    public function getAgentAddonsAttribute($value)
+    {
+        return $value ? json_decode($value, true) : [];
+    }
+
+    /**
+     * Set the agent_addons attribute.
+     *
+     * @param  mixed  $value
+     * @return void
+     */
+    public function setAgentAddonsAttribute($value)
+    {
+        $this->attributes['agent_addons'] = is_array($value) ? json_encode($value) : $value;
     }
 }

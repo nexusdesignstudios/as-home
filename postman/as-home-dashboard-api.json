@@ -2000,9 +2000,27 @@
                 },
                 {
                   "key": "corresponding_day",
-                  "value": "20-03-2024",
-                  "description": "Date for weekend commission (format: d-m-Y)",
-                  "type": "date"
+                  "value": "[{\"from\":\"2023-08-01:08:00AM\",\"to\":\"2023-08-15:10:00PM\"}]",
+                  "description": "JSON array of date-time ranges with time in format YYYY-MM-DD:HH:MMAM/PM",
+                  "type": "text"
+                },
+                {
+                  "key": "check_in",
+                  "value": "14:00",
+                  "description": "Check-in time for hotel properties",
+                  "type": "text"
+                },
+                {
+                  "key": "check_out",
+                  "value": "11:00",
+                  "description": "Check-out time for hotel properties",
+                  "type": "text"
+                },
+                {
+                  "key": "agent_addons",
+                  "value": "[{\"text\":\"Airport Transfer\",\"price\":50},{\"text\":\"Spa Package\",\"price\":75}]",
+                  "description": "JSON array of agent addons with text and price",
+                  "type": "text"
                 },
                 {
                   "key": "identity_proof",
@@ -2420,9 +2438,27 @@
                 },
                 {
                   "key": "corresponding_day",
-                  "value": "20-03-2024",
-                  "description": "Date for weekend commission (format: d-m-Y)",
-                  "type": "date"
+                  "value": "{\"date\":\"2023-07-01\",\"hours\":[\"14:00\",\"22:00\"]}",
+                  "description": "JSON object with date and available hours",
+                  "type": "text"
+                },
+                {
+                  "key": "check_in",
+                  "value": "14:00",
+                  "description": "Check-in time for hotel properties",
+                  "type": "text"
+                },
+                {
+                  "key": "check_out",
+                  "value": "11:00",
+                  "description": "Check-out time for hotel properties",
+                  "type": "text"
+                },
+                {
+                  "key": "agent_addons",
+                  "value": "[{\"text\":\"Airport Transfer\",\"price\":50},{\"text\":\"Spa Package\",\"price\":75}]",
+                  "description": "JSON array of agent addons with text and price",
+                  "type": "text"
                 },
                 {
                   "key": "property_type",
@@ -2638,9 +2674,27 @@
                 },
                 {
                   "key": "corresponding_day",
-                  "value": "20-03-2024",
-                  "description": "Date for weekend commission (format: d-m-Y)",
-                  "type": "date"
+                  "value": "{\"date\":\"2023-07-01\",\"hours\":[\"14:00\",\"22:00\"]}",
+                  "description": "JSON object with date and available hours",
+                  "type": "text"
+                },
+                {
+                  "key": "check_in",
+                  "value": "14:00",
+                  "description": "Check-in time for hotel properties",
+                  "type": "text"
+                },
+                {
+                  "key": "check_out",
+                  "value": "11:00",
+                  "description": "Check-out time for hotel properties",
+                  "type": "text"
+                },
+                {
+                  "key": "agent_addons",
+                  "value": "[{\"text\":\"Airport Transfer\",\"price\":50},{\"text\":\"Spa Package\",\"price\":75}]",
+                  "description": "JSON array of agent addons with text and price",
+                  "type": "text"
                 },
                 {
                   "key": "property_classification",
@@ -2855,9 +2909,27 @@
                 },
                 {
                   "key": "corresponding_day",
-                  "value": "20-03-2024",
-                  "description": "Date for weekend commission (format: d-m-Y)",
-                  "type": "date"
+                  "value": "[{\"from\":\"2023-08-01:08:00AM\",\"to\":\"2023-08-15:10:00PM\"}]",
+                  "description": "JSON array of date-time ranges with time in format YYYY-MM-DD:HH:MMAM/PM",
+                  "type": "text"
+                },
+                {
+                  "key": "check_in",
+                  "value": "14:00",
+                  "description": "Check-in time for hotel properties",
+                  "type": "text"
+                },
+                {
+                  "key": "check_out",
+                  "value": "11:00",
+                  "description": "Check-out time for hotel properties",
+                  "type": "text"
+                },
+                {
+                  "key": "agent_addons",
+                  "value": "[{\"text\":\"Airport Transfer\",\"price\":50},{\"text\":\"Spa Package\",\"price\":75}]",
+                  "description": "JSON array of agent addons with text and price",
+                  "type": "text"
                 },
                 {
                   "key": "title_image",
@@ -3164,9 +3236,27 @@
                 },
                 {
                   "key": "corresponding_day",
-                  "value": "20-03-2024",
-                  "description": "Date for weekend commission (format: d-m-Y)",
-                  "type": "date"
+                  "value": "[{\"from\":\"2023-08-01:08:00AM\",\"to\":\"2023-08-15:10:00PM\"}]",
+                  "description": "JSON array of date-time ranges with time in format YYYY-MM-DD:HH:MMAM/PM",
+                  "type": "text"
+                },
+                {
+                  "key": "check_in",
+                  "value": "14:00",
+                  "description": "Check-in time for hotel properties",
+                  "type": "text"
+                },
+                {
+                  "key": "check_out",
+                  "value": "11:00",
+                  "description": "Check-out time for hotel properties",
+                  "type": "text"
+                },
+                {
+                  "key": "agent_addons",
+                  "value": "[{\"text\":\"Airport Transfer\",\"price\":50},{\"text\":\"Spa Package\",\"price\":75}]",
+                  "description": "JSON array of agent addons with text and price",
+                  "type": "text"
                 },
                 {
                   "key": "description",

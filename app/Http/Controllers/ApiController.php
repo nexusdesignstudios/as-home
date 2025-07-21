@@ -891,7 +891,10 @@ class ApiController extends Controller
             'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
             'available_dates'   => 'nullable|json|required_if:property_classification,4',
             'refund_policy'     => 'nullable|in:flexible,non-refundable',
-            'corresponding_day' => 'nullable|date:d-m-Y',
+            'corresponding_day' => 'nullable|json',
+            'check_in'          => 'nullable|string',
+            'check_out'         => 'nullable|string',
+            'agent_addons'      => 'nullable|json',
             'hotel_rooms'       => 'nullable|array',
             'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
             'hotel_rooms.*.room_number' => 'required_with:hotel_rooms',
@@ -901,7 +904,7 @@ class ApiController extends Controller
             'hotel_rooms.*.availability_type' => 'nullable|integer|in:1,2',
             'hotel_rooms.*.available_dates' => 'nullable|json',
             'hotel_rooms.*.weekend_commission' => 'nullable|numeric|min:0|max:100',
-            'hotel_apartment_type_id' => 'nullable|exists:hotel_apartment_types,id|required_if:property_classification,5',
+            'hotel_apartment_type_id' => 'nullable|exists:hotel_apartment_types,id',
             'rent_package' => 'nullable|in:basic,premium',
             'addons_packages'       => 'nullable|array',
             'addons_packages.*.name' => 'required_with:addons_packages',
@@ -987,6 +990,9 @@ class ApiController extends Controller
             $saveProperty->rent_package = (isset($request->rent_package)) ? $request->rent_package : null;
             $saveProperty->weekend_commission = (isset($request->weekend_commission)) ? $request->weekend_commission : null;
             $saveProperty->corresponding_day = (isset($request->corresponding_day)) ? $request->corresponding_day : null;
+            $saveProperty->check_in = (isset($request->check_in)) ? $request->check_in : null;
+            $saveProperty->check_out = (isset($request->check_out)) ? $request->check_out : null;
+            $saveProperty->agent_addons = (isset($request->agent_addons)) ? $request->agent_addons : null;
 
             // Set vacation home specific fields if property classification is vacation_homes (4)
             if (isset($request->property_classification) && $request->property_classification == 4) {
@@ -998,6 +1004,9 @@ class ApiController extends Controller
             if (isset($request->property_classification) && $request->property_classification == 5) {
                 $saveProperty->refund_policy = $request->refund_policy;
                 $saveProperty->hotel_apartment_type_id = $request->hotel_apartment_type_id;
+                $saveProperty->check_in = $request->check_in;
+                $saveProperty->check_out = $request->check_out;
+                $saveProperty->agent_addons = $request->agent_addons;
             }
 
             $autoApproveStatus = $this->getAutoApproveStatus($loggedInUserId);
@@ -1355,6 +1364,10 @@ class ApiController extends Controller
             'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
             'available_dates'   => 'nullable|json|required_if:property_classification,4',
             'refund_policy'     => 'nullable|in:flexible,non-refundable',
+            'corresponding_day' => 'nullable|json',
+            'check_in'          => 'nullable|string|required_if:property_classification,5',
+            'check_out'         => 'nullable|string|required_if:property_classification,5',
+            'agent_addons'      => 'nullable|json',
             'hotel_rooms'       => 'nullable|array',
             'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
             'hotel_rooms.*.room_number' => 'required_with:hotel_rooms',
@@ -1498,6 +1511,18 @@ class ApiController extends Controller
 
                     if (isset($request->corresponding_day)) {
                         $property->corresponding_day = $request->corresponding_day;
+                    }
+
+                    if (isset($request->check_in)) {
+                        $property->check_in = $request->check_in;
+                    }
+
+                    if (isset($request->check_out)) {
+                        $property->check_out = $request->check_out;
+                    }
+
+                    if (isset($request->agent_addons)) {
+                        $property->agent_addons = $request->agent_addons;
                     }
 
                     $property->meta_title = $request->meta_title ?? null;
