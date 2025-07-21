@@ -48,7 +48,8 @@ class Property extends Model
         'rent_package',
         'check_in',
         'check_out',
-        'agent_addons'
+        'agent_addons',
+        'available_rooms'
     ];
     protected $hidden = [
         'updated_at',
@@ -61,7 +62,8 @@ class Property extends Model
         'is_favourite',
         'hotel_rooms',
         'hotel_addons',
-        'hotel_apartment_type'
+        'hotel_apartment_type',
+        'certificates'
     ];
 
     protected static function boot()
@@ -125,6 +127,21 @@ class Property extends Model
                         rmdir(public_path('images') . config('global.PROPERTY_DOCUMENT_PATH') . $property->id);
                     }
                 }
+
+                // Delete Certificates
+                if (isset($property->certificates) && collect($property->certificates)->isNotEmpty()) {
+                    foreach ($property->certificates as $certificate) {
+                        $certificateFile = $certificate->getRawOriginal('file');
+                        if (!empty($certificateFile)) {
+                            $filePath = public_path('images') . config('global.PROPERTY_CERTIFICATE_PATH') . $certificateFile;
+                            if (file_exists($filePath)) {
+                                unlink($filePath);
+                            }
+                        }
+                        $certificate->delete();
+                    }
+                }
+
                 /** Delete the properties associated data */
                 // Delete Directly without modal boot events
                 Advertisement::where('property_id', $property->id)->delete();
@@ -621,6 +638,27 @@ class Property extends Model
         // Only return hotel apartment type if this is a hotel property
         if ($this->getRawOriginal('property_classification') == 5) {
             return $this->hotelApartmentType()->select('id', 'name', 'description')->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the certificates for this property.
+     */
+    public function certificates()
+    {
+        return $this->hasMany(PropertyCertificate::class);
+    }
+
+    /**
+     * Get certificates attribute for API response
+     */
+    public function getCertificatesAttribute()
+    {
+        // Only return certificates if this is a hotel property
+        if ($this->getRawOriginal('property_classification') == 5) {
+            return $this->certificates()->get();
         }
 
         return null;

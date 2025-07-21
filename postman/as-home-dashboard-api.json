@@ -2353,9 +2353,46 @@
                 }
               ]
             },
-            "description": "Get property details by ID"
+            "description": "Get property details by ID including all hotel-specific fields like check_in, check_out, agent_addons, and certificates"
           },
-          "response": []
+          "response": [
+            {
+              "name": "Hotel Property Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/get_property?id={{property_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "get_property"],
+                  "query": [
+                    {
+                      "key": "id",
+                      "value": "{{property_id}}",
+                      "description": "Property ID"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": false,\n  \"message\": \"Data Fetch Successfully\",\n  \"similar_properties\": [...],\n  \"total\": 1,\n  \"data\": [\n    {\n      \"customer_name\": \"John Doe\",\n      \"customer_id\": 1,\n      \"email\": \"john@example.com\",\n      \"mobile\": \"+123456789\",\n      \"profile\": \"https://example.com/profile.jpg\",\n      \"id\": 1,\n      \"slug_id\": \"luxury-hotel-123\",\n      \"title\": \"Luxury Hotel\",\n      \"price\": \"0\",\n      \"category\": {...},\n      \"description\": \"Luxury hotel with amazing amenities and views\",\n      \"address\": \"789 Hotel Blvd, Resort City\",\n      \"property_type\": \"rent\",\n      \"title_image\": \"https://example.com/hotel.jpg\",\n      \"three_d_image\": \"\",\n      \"post_created\": \"2 days ago\",\n      \"gallery\": [...],\n      \"documents\": [...],\n      \"total_view\": 25,\n      \"status\": 1,\n      \"state\": \"Nevada\",\n      \"city\": \"Las Vegas\",\n      \"country\": \"United States\",\n      \"latitude\": \"36.1699\",\n      \"longitude\": \"-115.1398\",\n      \"added_by\": 1,\n      \"video_link\": \"https://www.youtube.com/watch?v=example\",\n      \"rentduration\": \"Monthly\",\n      \"meta_title\": \"Luxury Hotel\",\n      \"meta_description\": \"Luxury hotel with amazing amenities and views\",\n      \"meta_keywords\": \"luxury, hotel, resort\",\n      \"meta_image\": \"https://example.com/hotel.jpg\",\n      \"is_premium\": true,\n      \"assign_facilities\": [...],\n      \"is_verified\": true,\n      \"availability_type\": null,\n      \"available_dates\": [],\n      \"corresponding_day\": [{\"from\":\"2023-08-01:08:00AM\",\"to\":\"2023-08-15:10:00PM\"}],\n      \"rent_package\": \"premium\",\n      \"refund_policy\": \"flexible\",\n      \"hotel_rooms\": [...],\n      \"hotel_apartment_type\": {...},\n      \"addons_packages\": [...],\n      \"check_in\": \"14:00\",\n      \"check_out\": \"11:00\",\n      \"agent_addons\": [{\"text\":\"Airport Transfer\",\"price\":50},{\"text\":\"Spa Package\",\"price\":75}],\n      \"available_rooms\": 25,\n      \"certificates\": [\n        {\n          \"id\": 1,\n          \"property_id\": 1,\n          \"title\": \"Hotel Star Rating\",\n          \"description\": \"Official 5-star rating certificate\",\n          \"file\": \"https://example.com/certificates/star-rating.pdf\",\n          \"created_at\": \"2023-07-21T21:00:13.000000Z\",\n          \"updated_at\": \"2023-07-21T21:00:13.000000Z\"\n        },\n        {\n          \"id\": 2,\n          \"property_id\": 1,\n          \"title\": \"Health and Safety\",\n          \"description\": \"Health and safety compliance certificate\",\n          \"file\": \"https://example.com/certificates/health-safety.jpg\",\n          \"created_at\": \"2023-07-21T21:00:13.000000Z\",\n          \"updated_at\": \"2023-07-21T21:00:13.000000Z\"\n        }\n      ],\n      \"inquiry\": false,\n      \"promoted\": true,\n      \"favourite_users\": [...],\n      \"total_favourite_users\": 5,\n      \"interested_users\": [...],\n      \"total_interested_users\": 3,\n      \"is_reported\": false,\n      \"is_favourite\": 0,\n      \"is_interested\": 0,\n      \"parameters\": [...]\n    }\n  ]\n}"
+            }
+          ]
         },
         {
           "name": "Delete Property",
@@ -2932,6 +2969,48 @@
                   "type": "text"
                 },
                 {
+                  "key": "available_rooms",
+                  "value": "25",
+                  "description": "Number of available rooms for hotel properties",
+                  "type": "text"
+                },
+                {
+                  "key": "certificates[0][title]",
+                  "value": "Hotel Star Rating",
+                  "description": "Certificate title",
+                  "type": "text"
+                },
+                {
+                  "key": "certificates[0][description]",
+                  "value": "Official 5-star rating certificate",
+                  "description": "Certificate description",
+                  "type": "text"
+                },
+                {
+                  "key": "certificates[0][file]",
+                  "description": "Certificate file (image or document)",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "certificates[1][title]",
+                  "value": "Health and Safety",
+                  "description": "Certificate title",
+                  "type": "text"
+                },
+                {
+                  "key": "certificates[1][description]",
+                  "value": "Health and safety compliance certificate",
+                  "description": "Certificate description",
+                  "type": "text"
+                },
+                {
+                  "key": "certificates[1][file]",
+                  "description": "Certificate file (image or document)",
+                  "type": "file",
+                  "src": []
+                },
+                {
                   "key": "title_image",
                   "type": "file",
                   "src": []
@@ -3257,6 +3336,62 @@
                   "value": "[{\"text\":\"Airport Transfer\",\"price\":50},{\"text\":\"Spa Package\",\"price\":75}]",
                   "description": "JSON array of agent addons with text and price",
                   "type": "text"
+                },
+                {
+                  "key": "available_rooms",
+                  "value": "30",
+                  "description": "Number of available rooms for hotel properties",
+                  "type": "text"
+                },
+                {
+                  "key": "certificates[0][id]",
+                  "value": "1",
+                  "description": "ID of existing certificate (required for updating)",
+                  "type": "text"
+                },
+                {
+                  "key": "certificates[0][title]",
+                  "value": "Updated Hotel Star Rating",
+                  "description": "Updated certificate title",
+                  "type": "text"
+                },
+                {
+                  "key": "certificates[0][description]",
+                  "value": "Updated official 5-star rating certificate",
+                  "description": "Updated certificate description",
+                  "type": "text"
+                },
+                {
+                  "key": "certificates[0][file]",
+                  "description": "Updated certificate file (image or document)",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "certificates[1][title]",
+                  "value": "New Certificate",
+                  "description": "New certificate title",
+                  "type": "text"
+                },
+                {
+                  "key": "certificates[1][description]",
+                  "value": "New certificate description",
+                  "description": "New certificate description",
+                  "type": "text"
+                },
+                {
+                  "key": "certificates[1][file]",
+                  "description": "New certificate file (image or document)",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "deleted_certificate_ids[]",
+                  "value": "2",
+                  "description": "IDs of certificates to delete",
+                  "type": "text",
+                  "disabled": true
                 },
                 {
                   "key": "description",

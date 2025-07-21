@@ -33,4 +33,5 @@ return [
     'PROPERTY_UTILITIES_PATH' => '/property_utilities_bills/',
     'PROPERTY_POA_PATH' => '/property_power_of_attorney/',
     'HOTEL_ADDON_PATH' => '/hotel_addon/',
+    'PROPERTY_CERTIFICATE_PATH' => '/property_certificate/',
 ];

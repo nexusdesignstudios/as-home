@@ -100,6 +100,7 @@ use App\Models\HotelAddonField;
 use App\Models\HotelAddonFieldValue;
 use App\Models\PropertyHotelAddonValue;
 use App\Models\AddonsPackage;
+use App\Models\PropertyCertificate;
 
 class ApiController extends Controller
 {
@@ -688,7 +689,7 @@ class ApiController extends Controller
         } else {
             $current_user = null;
         }
-        $property = Property::with('customer', 'user', 'category:id,category,image,slug_id', 'assignfacilities.outdoorfacilities', 'parameters', 'favourite', 'interested_users')->where(['status' => 1, 'request_status' => 'approved']);
+        $property = Property::with('customer', 'user', 'category:id,category,image,slug_id', 'assignfacilities.outdoorfacilities', 'parameters', 'favourite', 'interested_users', 'certificates')->where(['status' => 1, 'request_status' => 'approved']);
 
         // If Property Classification is passed
         if ($request->has('property_classification') && !empty($request->property_classification)) {
@@ -839,14 +840,60 @@ class ApiController extends Controller
                  * If both passed then priority given to id param
                  * */
                 if ((isset($id) && !empty($id))) {
-                    $getSimilarPropertiesQueryData = Property::where('id', '!=', $id)->select('id', 'slug_id', 'category_id', 'title', 'added_by', 'address', 'city', 'country', 'state', 'propery_type', 'price', 'created_at', 'title_image', 'request_status', 'property_classification')->where(function ($query) {
-                        return $query->where(['status' => 1, 'request_status' => 'approved']);
-                    })->orderBy('id', 'desc')->limit(10)->get();
+                    $getSimilarPropertiesQueryData = Property::where('id', '!=', $id)
+                        ->select(
+                            'id',
+                            'slug_id',
+                            'category_id',
+                            'title',
+                            'added_by',
+                            'address',
+                            'city',
+                            'country',
+                            'state',
+                            'propery_type',
+                            'price',
+                            'created_at',
+                            'title_image',
+                            'request_status',
+                            'property_classification',
+                            'check_in',
+                            'check_out',
+                            'agent_addons',
+                            'corresponding_day'
+                        )
+                        ->with('certificates')
+                        ->where(function ($query) {
+                            return $query->where(['status' => 1, 'request_status' => 'approved']);
+                        })->orderBy('id', 'desc')->limit(10)->get();
                     $getSimilarProperties = get_property_details($getSimilarPropertiesQueryData, $current_user);
                 } else if ((isset($request->slug_id) && !empty($request->slug_id))) {
-                    $getSimilarPropertiesQueryData = Property::where('slug_id', '!=', $request->slug_id)->select('id', 'slug_id', 'category_id', 'title', 'added_by', 'address', 'city', 'country', 'state', 'propery_type', 'price', 'created_at', 'title_image', 'request_status', 'property_classification')->where(function ($query) {
-                        return $query->where(['status' => 1, 'request_status' => 'approved']);
-                    })->orderBy('id', 'desc')->limit(10)->get();
+                    $getSimilarPropertiesQueryData = Property::where('slug_id', '!=', $request->slug_id)
+                        ->select(
+                            'id',
+                            'slug_id',
+                            'category_id',
+                            'title',
+                            'added_by',
+                            'address',
+                            'city',
+                            'country',
+                            'state',
+                            'propery_type',
+                            'price',
+                            'created_at',
+                            'title_image',
+                            'request_status',
+                            'property_classification',
+                            'check_in',
+                            'check_out',
+                            'agent_addons',
+                            'corresponding_day'
+                        )
+                        ->with('certificates')
+                        ->where(function ($query) {
+                            return $query->where(['status' => 1, 'request_status' => 'approved']);
+                        })->orderBy('id', 'desc')->limit(10)->get();
                     $getSimilarProperties = get_property_details($getSimilarPropertiesQueryData, $current_user);
                 }
             }
@@ -894,6 +941,7 @@ class ApiController extends Controller
             'corresponding_day' => 'nullable|json',
             'check_in'          => 'nullable|string',
             'check_out'         => 'nullable|string',
+            'available_rooms'   => 'nullable|integer|min:0',
             'agent_addons'      => 'nullable|json',
             'hotel_rooms'       => 'nullable|array',
             'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
@@ -943,13 +991,17 @@ class ApiController extends Controller
                 if (!$headers || strpos($headers[0], '200') === false) {
                     return $fail("The Video Link must be accessible.");
                 }
-            }]
-
+            }],
+            'certificates'      => 'nullable|array',
+            'certificates.*.title' => 'required_with:certificates',
+            'certificates.*.description' => 'nullable|string',
+            'certificates.*.file' => 'required_with:certificates|file|max:5120|mimes:jpeg,png,jpg,pdf,doc,docx',
         ], [], [
             'documents.*' => 'document :position',
             'addons_packages.*.name' => 'package name :position',
             'addons_packages.*.addon_values.*.hotel_addon_field_id' => 'package addon field :position',
-            'addons_packages.*.addon_values.*.value' => 'package addon value :position'
+            'addons_packages.*.addon_values.*.value' => 'package addon value :position',
+            'certificates.*.file' => 'certificate file :position',
         ]);
         if ($validator->fails()) {
             return response()->json([
@@ -993,6 +1045,7 @@ class ApiController extends Controller
             $saveProperty->check_in = (isset($request->check_in)) ? $request->check_in : null;
             $saveProperty->check_out = (isset($request->check_out)) ? $request->check_out : null;
             $saveProperty->agent_addons = (isset($request->agent_addons)) ? $request->agent_addons : null;
+            $saveProperty->available_rooms = (isset($request->available_rooms)) ? $request->available_rooms : null;
 
             // Set vacation home specific fields if property classification is vacation_homes (4)
             if (isset($request->property_classification) && $request->property_classification == 4) {
@@ -1323,6 +1376,39 @@ class ApiController extends Controller
             }
             // END :: ADD ADDONS PACKAGES
 
+            // START :: ADD CERTIFICATES
+            if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->certificates) && !empty($request->certificates)) {
+                try {
+                    // Create destination path for certificate files
+                    $certificateFolderPath = public_path('images') . config('global.PROPERTY_CERTIFICATE_PATH');
+                    if (!is_dir($certificateFolderPath)) {
+                        mkdir($certificateFolderPath, 0777, true);
+                    }
+
+                    // Process each certificate
+                    foreach ($request->certificates as $certificate) {
+                        // Create the certificate
+                        $propertyCertificate = new PropertyCertificate();
+                        $propertyCertificate->title = $certificate['title'];
+                        $propertyCertificate->description = $certificate['description'] ?? null;
+                        $propertyCertificate->property_id = $saveProperty->id;
+
+                        // Handle file uploads
+                        if ($request->hasFile('certificates.' . $certificate['title'] . '.file')) {
+                            $file = $request->file('certificates.' . $certificate['title'] . '.file');
+                            $fileName = microtime(true) . '.' . $file->extension();
+                            $file->move($certificateFolderPath, $fileName);
+                            $propertyCertificate->file = $fileName;
+                        }
+
+                        $propertyCertificate->save();
+                    }
+                } catch (\Exception $e) {
+                    throw $e;
+                }
+            }
+            // END :: ADD CERTIFICATES
+
             $result = Property::with('customer')->with('category:id,category,image')->with('assignfacilities.outdoorfacilities')->with('favourite')->with('parameters')->with('interested_users')->where('id', $saveProperty->id)->get();
             $property_details = get_property_details($result);
 
@@ -1368,6 +1454,7 @@ class ApiController extends Controller
             'check_in'          => 'nullable|string|required_if:property_classification,5',
             'check_out'         => 'nullable|string|required_if:property_classification,5',
             'agent_addons'      => 'nullable|json',
+            'available_rooms'   => 'nullable|integer|min:0',
             'hotel_rooms'       => 'nullable|array',
             'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
             'hotel_rooms.*.room_number' => 'required_with:hotel_rooms',
@@ -1404,11 +1491,14 @@ class ApiController extends Controller
                 if (!$headers || strpos($headers[0], '200') === false) {
                     return $fail("The Video Link must be accessible.");
                 }
-            }]
-
-
+            }],
+            'certificates'      => 'nullable|array',
+            'certificates.*.title' => 'required_with:certificates',
+            'certificates.*.description' => 'nullable|string',
+            'certificates.*.file' => 'required_with:certificates|file|max:5120|mimes:jpeg,png,jpg,pdf,doc,docx',
         ], [], [
-            'documents.*' => 'document :position'
+            'documents.*' => 'document :position',
+            'certificates.*.file' => 'certificate file :position',
         ]);
         if ($validator->fails()) {
             return response()->json([
@@ -1523,6 +1613,10 @@ class ApiController extends Controller
 
                     if (isset($request->agent_addons)) {
                         $property->agent_addons = $request->agent_addons;
+                    }
+
+                    if (isset($request->available_rooms)) {
+                        $property->available_rooms = $request->available_rooms;
                     }
 
                     $property->meta_title = $request->meta_title ?? null;
@@ -2093,6 +2187,120 @@ class ApiController extends Controller
                         }
                     }
                     // END :: UPDATE HOTEL ADDON VALUES AND PACKAGES
+
+                    // START :: ADD CERTIFICATES
+                    if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->certificates) && !empty($request->certificates)) {
+                        try {
+                            // Create destination path for certificate files
+                            $certificateFolderPath = public_path('images') . config('global.PROPERTY_CERTIFICATE_PATH');
+                            if (!is_dir($certificateFolderPath)) {
+                                mkdir($certificateFolderPath, 0777, true);
+                            }
+
+                            // Process each certificate
+                            foreach ($request->certificates as $certificate) {
+                                // Create the certificate
+                                $propertyCertificate = new PropertyCertificate();
+                                $propertyCertificate->title = $certificate['title'];
+                                $propertyCertificate->description = $certificate['description'] ?? null;
+                                $propertyCertificate->property_id = $property->id;
+
+                                // Handle file uploads
+                                if ($request->hasFile('certificates.' . $certificate['title'] . '.file')) {
+                                    $file = $request->file('certificates.' . $certificate['title'] . '.file');
+                                    $fileName = microtime(true) . '.' . $file->extension();
+                                    $file->move($certificateFolderPath, $fileName);
+                                    $propertyCertificate->file = $fileName;
+                                }
+
+                                $propertyCertificate->save();
+                            }
+                        } catch (\Exception $e) {
+                            throw $e;
+                        }
+                    }
+                    // END :: ADD CERTIFICATES
+
+                    // START :: UPDATE CERTIFICATES
+                    if (isset($request->property_classification) && $request->property_classification == 5) {
+                        // Delete existing certificates if requested
+                        if (isset($request->deleted_certificate_ids) && !empty($request->deleted_certificate_ids)) {
+                            foreach ($request->deleted_certificate_ids as $certificateId) {
+                                $certificateToDelete = PropertyCertificate::where('id', $certificateId)
+                                    ->where('property_id', $property->id)
+                                    ->first();
+
+                                if ($certificateToDelete) {
+                                    // Delete file if exists
+                                    $certificateFile = $certificateToDelete->getRawOriginal('file');
+                                    if (!empty($certificateFile)) {
+                                        $filePath = public_path('images') . config('global.PROPERTY_CERTIFICATE_PATH') . $certificateFile;
+                                        if (file_exists($filePath)) {
+                                            unlink($filePath);
+                                        }
+                                    }
+                                    $certificateToDelete->delete();
+                                }
+                            }
+                        }
+
+                        // Update or create certificates
+                        if (isset($request->certificates) && !empty($request->certificates)) {
+                            // Create destination path for certificate files
+                            $certificateFolderPath = public_path('images') . config('global.PROPERTY_CERTIFICATE_PATH');
+                            if (!is_dir($certificateFolderPath)) {
+                                mkdir($certificateFolderPath, 0777, true);
+                            }
+
+                            foreach ($request->certificates as $certificateIndex => $certificate) {
+                                // Check if this is an update or new certificate
+                                if (isset($certificate['id']) && !empty($certificate['id'])) {
+                                    // Update existing certificate
+                                    $existingCertificate = PropertyCertificate::find($certificate['id']);
+                                    if ($existingCertificate && $existingCertificate->property_id == $property->id) {
+                                        $existingCertificate->title = $certificate['title'];
+                                        $existingCertificate->description = $certificate['description'] ?? $existingCertificate->description;
+
+                                        // Handle file uploads
+                                        if ($request->hasFile('certificates.' . $certificateIndex . '.file')) {
+                                            // Delete old file if exists
+                                            $oldFile = $existingCertificate->getRawOriginal('file');
+                                            if (!empty($oldFile)) {
+                                                $filePath = public_path('images') . config('global.PROPERTY_CERTIFICATE_PATH') . $oldFile;
+                                                if (file_exists($filePath)) {
+                                                    unlink($filePath);
+                                                }
+                                            }
+
+                                            $file = $request->file('certificates.' . $certificateIndex . '.file');
+                                            $fileName = microtime(true) . '.' . $file->extension();
+                                            $file->move($certificateFolderPath, $fileName);
+                                            $existingCertificate->file = $fileName;
+                                        }
+
+                                        $existingCertificate->save();
+                                    }
+                                } else {
+                                    // Create new certificate
+                                    $propertyCertificate = new PropertyCertificate();
+                                    $propertyCertificate->title = $certificate['title'];
+                                    $propertyCertificate->description = $certificate['description'] ?? null;
+                                    $propertyCertificate->property_id = $property->id;
+
+                                    // Handle file uploads
+                                    if ($request->hasFile('certificates.' . $certificateIndex . '.file')) {
+                                        $file = $request->file('certificates.' . $certificateIndex . '.file');
+                                        $fileName = microtime(true) . '.' . $file->extension();
+                                        $file->move($certificateFolderPath, $fileName);
+                                        $propertyCertificate->file = $fileName;
+                                    }
+
+                                    $propertyCertificate->save();
+                                }
+                            }
+                        }
+                    }
+                    // END :: UPDATE CERTIFICATES
 
                     $current_user = Auth::user()->id;
                     $property_details = get_property_details($update_property, $current_user, true);
