@@ -45,6 +45,10 @@
             </div>
             <div class="card-content">
                 <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        {{ __('You can now create multiple categories with different property classifications at once. Simply select multiple classifications and the system will create a separate category for each one.') }}
+                    </div>
                     <div class="row">
                         {!! Form::open(['url' => route('categories.store'), 'data-parsley-validate', 'files' => true]) !!}
                         <div class=" row">
@@ -79,15 +83,31 @@
                             </div>
 
                             {{-- Property Classification --}}
-                            <div class="col-md-6 col-sm-12 form-group">
-                                {{ Form::label('property_classification', __('Property Classification'), ['class' => 'form-label text-center']) }}
-                                <select name="property_classification" class="form-control form-select">
-                                    <option value="1">{{ __('Sell/Long Term Rent') }}</option>
-                                    <option value="2">{{ __('Commercial') }}</option>
-                                    <option value="3">{{ __('New Project') }}</option>
-                                    <option value="4">{{ __('Vacation Homes') }}</option>
-                                    <option value="5">{{ __('Hotel Booking') }}</option>
-                                </select>
+                            <div class="col-md-6 col-sm-12 form-group mandatory">
+                                {{ Form::label('property_classifications', __('Property Classifications'), ['class' => 'form-label text-center']) }}
+                                <div class="form-group">
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" name="property_classifications[]" value="1" id="classification1">
+                                        <label class="form-check-label" for="classification1">{{ __('Sell/Long Term Rent') }}</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" name="property_classifications[]" value="2" id="classification2">
+                                        <label class="form-check-label" for="classification2">{{ __('Commercial') }}</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" name="property_classifications[]" value="3" id="classification3">
+                                        <label class="form-check-label" for="classification3">{{ __('New Project') }}</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" name="property_classifications[]" value="4" id="classification4">
+                                        <label class="form-check-label" for="classification4">{{ __('Vacation Homes') }}</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="checkbox" name="property_classifications[]" value="5" id="classification5">
+                                        <label class="form-check-label" for="classification5">{{ __('Hotel Booking') }}</label>
+                                    </div>
+                                </div>
+                                <small class="text-muted">{{ __('Select one or more classifications to create multiple categories') }}</small>
                             </div>
 
                         </div>
@@ -300,6 +320,29 @@
             $('.add-category').hide();
             $('#select_parameter_type').chosen();
             $('#edit_parameter_type').chosen();
+
+            // Select at least one classification by default
+            if ($('input[name="property_classifications[]"]:checked').length === 0) {
+                $('#classification1').prop('checked', true);
+            }
+
+            // Ensure at least one classification is selected
+            $('input[name="property_classifications[]"]').on('change', function() {
+                if ($('input[name="property_classifications[]"]:checked').length === 0) {
+                    $(this).prop('checked', true);
+                    alert('At least one property classification must be selected.');
+                }
+            });
+
+            // Form validation before submission
+            $('form').on('submit', function(e) {
+                if ($('input[name="property_classifications[]"]:checked').length === 0) {
+                    e.preventDefault();
+                    alert('Please select at least one property classification.');
+                    return false;
+                }
+                return true;
+            });
         });
 
 
@@ -445,546 +488,6 @@
                             '<div class="seq" id=' + v +
                             '><span class="badge rounded-pill" style="background:var( --bs-primary);margin-left:2px;cursor:grab;">' +
                             text_op + '</span></div></div>'
-                        ));
-                    }
-
-                });
-
-                $("#edit_parameter_type").val(str.split(',')).trigger('chosen:updated');
-
-                var sequence = [];
-                $('.seq').each(function() {
-
-
-                    sequence.push($(this).attr('id'));
-
-                });
-
-                $('#update_seq').val(sequence.toString());
-
-                // var containers = document.getElementById('par');
-
-                var containers = [document.getElementById('par')];
-
-                dragula(containers, {
-                    // Additional options for Dragula can be added here
-                }).on('drop', function() {
-                    var sequence = [];
-                    var existingIDs = {};
-
-                    $('.seq').each(function() {
-                        var id = $(this).attr('id');
-
-                        if (!existingIDs[id]) {
-                            existingIDs[id] = true;
-                            sequence.push(id);
-                        }
-                    });
-
-
-                    $('#update_seq').val(sequence.join(','));
-                });
-
-                var type = row.parameter_types;
-
-                var type_arr = type.split(',');
-
-
-                if (type != '') {
-                    $('#edit_parameter_type').val(type.split(',')).trigger('change');
-                } else {
-                    $('#edit_parameter_type').val('');
-                }
-
-                $('#par').empty();
-                str = '';
-
-                val_arr = $("#edit_parameter_type").val();
-
-                arr1 = [];
-                mapped_arr1 = [];
-
-                $("#edit_parameter_type :selected").each(function(key, value) {
-
-
-                    var arr = type_arr;
-
-                    var mapped_arr = type_arr.map(function(val) {
-                        return $.inArray(val, [val_arr]) ? val : "no";
-                    });
-
-
-                    mapped_arr1.push(mapped_arr);
-                    arr1.push(value.text);
-
-
-                    str += this.value + ',';
-
-
-                });
-
-
-                $.each(mapped_arr1[0], function(k, v) {
-
-                    text_op = ($('#edit_parameter_type option[value="' + v + '"]').text());
-                    if (v != '') {
-                        $('#par').append($(
-                            '<div class="col-md-3">' +
-                            '<div class="seq" id=' + v +
-                            '><span class="badge rounded-pill" style="background:var( --bs-primary);margin-left:2px;cursor:grab;">' +
-                            text_op + '</span></div></div>'
-
-
-                        ));
-                    }
-
-                });
-
-                $("#edit_parameter_type").val(str.split(',')).trigger('chosen:updated');
-
-                var sequence = [];
-                $('.seq').each(function() {
-
-
-                    sequence.push($(this).attr('id'));
-
-                });
-
-                $('#update_seq').val(sequence.toString());
-
-                // var containers = document.getElementById('par');
-
-                var containers = [document.getElementById('par')];
-
-                dragula(containers, {
-                    // Additional options for Dragula can be added here
-                }).on('drop', function() {
-                    var sequence = [];
-                    var existingIDs = {};
-
-                    $('.seq').each(function() {
-                        var id = $(this).attr('id');
-
-                        if (!existingIDs[id]) {
-                            existingIDs[id] = true;
-                            sequence.push(id);
-                        }
-                    });
-
-
-                    $('#update_seq').val(sequence.join(','));
-                });
-
-                var type = row.parameter_types;
-
-                var type_arr = type.split(',');
-
-
-                if (type != '') {
-                    $('#edit_parameter_type').val(type.split(',')).trigger('change');
-                } else {
-                    $('#edit_parameter_type').val('');
-                }
-
-                $('#par').empty();
-                str = '';
-
-                val_arr = $("#edit_parameter_type").val();
-
-                arr1 = [];
-                mapped_arr1 = [];
-
-                $("#edit_parameter_type :selected").each(function(key, value) {
-
-
-                    var arr = type_arr;
-
-                    var mapped_arr = type_arr.map(function(val) {
-                        return $.inArray(val, [val_arr]) ? val : "no";
-                    });
-
-
-                    mapped_arr1.push(mapped_arr);
-                    arr1.push(value.text);
-
-
-                    str += this.value + ',';
-
-
-                });
-
-
-                $.each(mapped_arr1[0], function(k, v) {
-
-                    text_op = ($('#edit_parameter_type option[value="' + v + '"]').text());
-                    if (v != '') {
-                        $('#par').append($(
-                            '<div class="col-md-3">' +
-                            '<div class="seq" id=' + v +
-                            '><span class="badge rounded-pill" style="background:var( --bs-primary);margin-left:2px;cursor:grab;">' +
-                            text_op + '</span></div></div>'
-
-
-                        ));
-                    }
-
-                });
-
-                $("#edit_parameter_type").val(str.split(',')).trigger('chosen:updated');
-
-                var sequence = [];
-                $('.seq').each(function() {
-
-
-                    sequence.push($(this).attr('id'));
-
-                });
-
-                $('#update_seq').val(sequence.toString());
-
-                // var containers = document.getElementById('par');
-
-                var containers = [document.getElementById('par')];
-
-                dragula(containers, {
-                    // Additional options for Dragula can be added here
-                }).on('drop', function() {
-                    var sequence = [];
-                    var existingIDs = {};
-
-                    $('.seq').each(function() {
-                        var id = $(this).attr('id');
-
-                        if (!existingIDs[id]) {
-                            existingIDs[id] = true;
-                            sequence.push(id);
-                        }
-                    });
-
-
-                    $('#update_seq').val(sequence.join(','));
-                });
-
-                var type = row.parameter_types;
-
-                var type_arr = type.split(',');
-
-
-                if (type != '') {
-                    $('#edit_parameter_type').val(type.split(',')).trigger('change');
-                } else {
-                    $('#edit_parameter_type').val('');
-                }
-
-                $('#par').empty();
-                str = '';
-
-                val_arr = $("#edit_parameter_type").val();
-
-                arr1 = [];
-                mapped_arr1 = [];
-
-                $("#edit_parameter_type :selected").each(function(key, value) {
-
-
-                    var arr = type_arr;
-
-                    var mapped_arr = type_arr.map(function(val) {
-                        return $.inArray(val, [val_arr]) ? val : "no";
-                    });
-
-
-                    mapped_arr1.push(mapped_arr);
-                    arr1.push(value.text);
-
-
-                    str += this.value + ',';
-
-
-                });
-
-
-                $.each(mapped_arr1[0], function(k, v) {
-
-                    text_op = ($('#edit_parameter_type option[value="' + v + '"]').text());
-                    if (v != '') {
-                        $('#par').append($(
-                            '<div class="col-md-3">' +
-                            '<div class="seq" id=' + v +
-                            '><span class="badge rounded-pill" style="background:var( --bs-primary);margin-left:2px;cursor:grab;">' +
-                            text_op + '</span></div></div>'
-
-
-                        ));
-                    }
-
-                });
-
-                $("#edit_parameter_type").val(str.split(',')).trigger('chosen:updated');
-
-                var sequence = [];
-                $('.seq').each(function() {
-
-
-                    sequence.push($(this).attr('id'));
-
-                });
-
-                $('#update_seq').val(sequence.toString());
-
-                // var containers = document.getElementById('par');
-
-                var containers = [document.getElementById('par')];
-
-                dragula(containers, {
-                    // Additional options for Dragula can be added here
-                }).on('drop', function() {
-                    var sequence = [];
-                    var existingIDs = {};
-
-                    $('.seq').each(function() {
-                        var id = $(this).attr('id');
-
-                        if (!existingIDs[id]) {
-                            existingIDs[id] = true;
-                            sequence.push(id);
-                        }
-                    });
-
-
-                    $('#update_seq').val(sequence.join(','));
-                });
-
-                var type = row.parameter_types;
-
-                var type_arr = type.split(',');
-
-
-                if (type != '') {
-                    $('#edit_parameter_type').val(type.split(',')).trigger('change');
-                } else {
-                    $('#edit_parameter_type').val('');
-                }
-
-                $('#par').empty();
-                str = '';
-
-                val_arr = $("#edit_parameter_type").val();
-
-                arr1 = [];
-                mapped_arr1 = [];
-
-                $("#edit_parameter_type :selected").each(function(key, value) {
-
-
-                    var arr = type_arr;
-
-                    var mapped_arr = type_arr.map(function(val) {
-                        return $.inArray(val, [val_arr]) ? val : "no";
-                    });
-
-
-                    mapped_arr1.push(mapped_arr);
-                    arr1.push(value.text);
-
-
-                    str += this.value + ',';
-
-
-                });
-
-
-                $.each(mapped_arr1[0], function(k, v) {
-
-                    text_op = ($('#edit_parameter_type option[value="' + v + '"]').text());
-                    if (v != '') {
-                        $('#par').append($(
-                            '<div class="col-md-3">' +
-                            '<div class="seq" id=' + v +
-                            '><span class="badge rounded-pill" style="background:var( --bs-primary);margin-left:2px;cursor:grab;">' +
-                            text_op + '</span></div></div>'
-
-
-                        ));
-                    }
-
-                });
-
-                $("#edit_parameter_type").val(str.split(',')).trigger('chosen:updated');
-
-                var sequence = [];
-                $('.seq').each(function() {
-
-
-                    sequence.push($(this).attr('id'));
-
-                });
-
-                $('#update_seq').val(sequence.toString());
-
-                // var containers = document.getElementById('par');
-
-                var containers = [document.getElementById('par')];
-
-                dragula(containers, {
-                    // Additional options for Dragula can be added here
-                }).on('drop', function() {
-                    var sequence = [];
-                    var existingIDs = {};
-
-                    $('.seq').each(function() {
-                        var id = $(this).attr('id');
-
-                        if (!existingIDs[id]) {
-                            existingIDs[id] = true;
-                            sequence.push(id);
-                        }
-                    });
-
-
-                    $('#update_seq').val(sequence.join(','));
-                });
-
-                var type = row.parameter_types;
-
-                var type_arr = type.split(',');
-
-
-                if (type != '') {
-                    $('#edit_parameter_type').val(type.split(',')).trigger('change');
-                } else {
-                    $('#edit_parameter_type').val('');
-                }
-
-                $('#par').empty();
-                str = '';
-
-                val_arr = $("#edit_parameter_type").val();
-
-                arr1 = [];
-                mapped_arr1 = [];
-
-                $("#edit_parameter_type :selected").each(function(key, value) {
-
-
-                    var arr = type_arr;
-
-                    var mapped_arr = type_arr.map(function(val) {
-                        return $.inArray(val, [val_arr]) ? val : "no";
-                    });
-
-
-                    mapped_arr1.push(mapped_arr);
-                    arr1.push(value.text);
-
-
-                    str += this.value + ',';
-
-
-                });
-
-
-                $.each(mapped_arr1[0], function(k, v) {
-
-                    text_op = ($('#edit_parameter_type option[value="' + v + '"]').text());
-                    if (v != '') {
-                        $('#par').append($(
-                            '<div class="col-md-3">' +
-                            '<div class="seq" id=' + v +
-                            '><span class="badge rounded-pill" style="background:var( --bs-primary);margin-left:2px;cursor:grab;">' +
-                            text_op + '</span></div></div>'
-
-
-                        ));
-                    }
-
-                });
-
-                $("#edit_parameter_type").val(str.split(',')).trigger('chosen:updated');
-
-                var sequence = [];
-                $('.seq').each(function() {
-
-
-                    sequence.push($(this).attr('id'));
-
-                });
-
-                $('#update_seq').val(sequence.toString());
-
-                // var containers = document.getElementById('par');
-
-                var containers = [document.getElementById('par')];
-
-                dragula(containers, {
-                    // Additional options for Dragula can be added here
-                }).on('drop', function() {
-                    var sequence = [];
-                    var existingIDs = {};
-
-                    $('.seq').each(function() {
-                        var id = $(this).attr('id');
-
-                        if (!existingIDs[id]) {
-                            existingIDs[id] = true;
-                            sequence.push(id);
-                        }
-                    });
-
-
-                    $('#update_seq').val(sequence.join(','));
-                });
-
-                var type = row.parameter_types;
-
-                var type_arr = type.split(',');
-
-
-                if (type != '') {
-                    $('#edit_parameter_type').val(type.split(',')).trigger('change');
-                } else {
-                    $('#edit_parameter_type').val('');
-                }
-
-                $('#par').empty();
-                str = '';
-
-                val_arr = $("#edit_parameter_type").val();
-
-                arr1 = [];
-                mapped_arr1 = [];
-
-                $("#edit_parameter_type :selected").each(function(key, value) {
-
-
-                    var arr = type_arr;
-
-                    var mapped_arr = type_arr.map(function(val) {
-                        return $.inArray(val, [val_arr]) ? val : "no";
-                    });
-
-
-                    mapped_arr1.push(mapped_arr);
-                    arr1.push(value.text);
-
-
-                    str += this.value + ',';
-
-
-                });
-
-
-                $.each(mapped_arr1[0], function(k, v) {
-
-                    text_op = ($('#edit_parameter_type option[value="' + v + '"]').text());
-                    if (v != '') {
-                        $('#par').append($(
-                            '<div class="col-md-3">' +
-                            '<div class="seq" id=' + v +
-                            '><span class="badge rounded-pill" style="background:var( --bs-primary);margin-left:2px;cursor:grab;">' +
-                            text_op + '</span></div></div>'
-
-
                         ));
                     }
 

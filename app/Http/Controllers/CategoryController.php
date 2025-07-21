@@ -43,26 +43,51 @@ class CategoryController extends Controller
                 'category'  => 'required',
                 'slug'      => 'nullable|regex:/^[a-z0-9-]+$/|unique:categories,slug_id',
                 'image'     => 'required|image|mimes:svg|max:2048',
-                'property_classification' => 'nullable|integer|min:1|max:5',
+                'property_classifications' => 'required|array|min:1',
+                'property_classifications.*' => 'integer|min:1|max:5',
             ]);
-            $categoryData = [
-                'category' => ($request->category) ? $request->category : '',
-                'parameter_types' => ($request->parameter_type) ? implode(',', $request->parameter_type) : '',
-                'property_classification' => $request->property_classification ?? 1,
-                'slug_id' => $request->slug ?? generateUniqueSlug($request->category, 3),
-                'meta_title' => $request->meta_title,
-                'meta_description' => $request->meta_description,
-                'meta_keywords' => $request->meta_keywords
-            ];
+
+            $baseSlug = $request->slug ?? generateUniqueSlug($request->category, 3);
+            $imageFileName = '';
 
             if ($request->hasFile('image')) {
-                $categoryData['image'] = store_image($request->file('image'), 'CATEGORY_IMG_PATH');
-            } else {
-                $categoryData['image'] = '';
+                $imageFileName = store_image($request->file('image'), 'CATEGORY_IMG_PATH');
             }
 
-            Category::create($categoryData);
-            ResponseService::successRedirectResponse('Data Created Successfully');
+            foreach ($request->property_classifications as $classification) {
+                $slug = $baseSlug;
+
+                // If not the first classification, append the classification number to make the slug unique
+                if ($classification > 1) {
+                    $slug = $baseSlug . '-' . $classification;
+                }
+
+                // Check if slug already exists and make it unique if needed
+                $existingCategory = Category::where('slug_id', $slug)->first();
+                if ($existingCategory) {
+                    $slug = $slug . '-' . uniqid();
+                }
+
+                $categoryData = [
+                    'category' => ($request->category) ? $request->category : '',
+                    'parameter_types' => ($request->parameter_type) ? implode(',', $request->parameter_type) : '',
+                    'property_classification' => $classification,
+                    'slug_id' => $slug,
+                    'meta_title' => $request->meta_title,
+                    'meta_description' => $request->meta_description,
+                    'meta_keywords' => $request->meta_keywords
+                ];
+
+                if (!empty($imageFileName)) {
+                    $categoryData['image'] = $imageFileName;
+                } else {
+                    $categoryData['image'] = '';
+                }
+
+                Category::create($categoryData);
+            }
+
+            ResponseService::successRedirectResponse('Categories Created Successfully');
         }
     }
 
