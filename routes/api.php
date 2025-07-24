@@ -6,6 +6,7 @@ use App\Http\Controllers\HotelRoomTypeController;
 use App\Http\Controllers\HotelRoomController;
 use App\Http\Controllers\AddonsPackageController;
 use App\Http\Controllers\HotelApartmentTypeController;
+use App\Http\Controllers\PaymobController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -55,6 +56,11 @@ Route::get('get_category_classifications', [ApiController::class, 'get_category_
 /** Only Declared */
 Route::match(array('GET', 'POST'), 'app_payment_status', [ApiController::class, 'app_payment_status']);
 Route::match(array('GET', 'POST'), 'flutterwave-payment-status', [ApiController::class, 'flutterwavePaymentStatus']);
+/*********************************************************************** */
+
+/** Paymob Payment Routes */
+Route::post('payments/paymob/callback', [PaymobController::class, 'handleCallback']);
+Route::get('payments/paymob/return', [PaymobController::class, 'handleReturn'])->name('payment.paymob.return');
 /*********************************************************************** */
 
 /** Confirmation needed */
@@ -126,6 +132,15 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
 
     Route::post('create-payment-intent', [ApiController::class, 'getPaymentIntent']);
     Route::post('payment-transaction-fail', [ApiController::class, 'makePaymentTransactionFail']);
+
+    // Paymob Payment
+    Route::post('create-paymob-payment', [PaymobController::class, 'createPaymentIntent']);
+
+    // Paymob Refund and Payout
+    Route::post('paymob-refund', [PaymobController::class, 'processRefund']);
+    Route::get('paymob-refund-status', [PaymobController::class, 'getRefundStatus']);
+    Route::post('paymob-payout', [PaymobController::class, 'processPayout']);
+    Route::get('paymob-payout-status', [PaymobController::class, 'getPayoutStatus']);
 
     // Payment Receipt
     Route::get('get-payment-receipt', [ApiController::class, 'getPaymentReceipt']);

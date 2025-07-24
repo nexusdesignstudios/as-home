@@ -461,3 +461,12 @@ Route::get('/seed-demo-data', function () {
     $output = Artisan::output();
     echo nl2br($output); // Convert newlines to <br> for better readability in HTML
 });
+
+// Add these routes for Paymob payment success and failure
+Route::get('/payment/success', function () {
+    return view('payments.responses.success');
+})->name('payment.success');
+
+Route::get('/payment/failed', function () {
+    return view('payments.responses.failed');
+})->name('payment.failed');
