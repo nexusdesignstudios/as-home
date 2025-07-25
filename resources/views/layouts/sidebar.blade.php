@@ -107,6 +107,16 @@
                     </li>
                 @endif
 
+                {{-- Hotel Addon Fields --}}
+                @if (has_permissions('read', 'hotel_addon_field'))
+                    <li class="sidebar-item">
+                        <a href="{{ route('hotel-addon-field.index') }}" class='sidebar-link'>
+                            <i class="bi bi-plus-square"></i>
+                            <span class="menu-item">{{ __('Hotel Addon Fields') }}</span>
+                        </a>
+                    </li>
+                @endif
+
                 {{-- Hotel Room Types --}}
                 @if (has_permissions('read', 'hotel_room_types'))
                     <li class="sidebar-item">
