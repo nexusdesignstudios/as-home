@@ -702,6 +702,160 @@
             "description": "Admin endpoint to update the status of a reservation. Status can be 'pending', 'confirmed', 'cancelled', or 'completed'. Payment status can be 'paid', 'unpaid', or 'partial'."
           },
           "response": []
+        },
+        {
+          "name": "Create Reservation Payment",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"amount\": 500.00,\n    \"email\": \"customer@example.com\",\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"phone\": \"1234567890\",\n    \"reservable_id\": 1,\n    \"reservable_type\": \"hotel_room\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments/create-payment-intent",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "create-payment-intent"]
+            },
+            "description": "Create a payment intent for a reservation. This will create a pending reservation and generate a payment URL. When the payment is completed successfully, the reservation status will be updated to confirmed."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Reservation with Payment",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"reservable_id\": 1,\n    \"reservable_type\": \"hotel_room\",\n    \"check_in_date\": \"2023-10-15\",\n    \"check_out_date\": \"2023-10-20\",\n    \"number_of_guests\": 2,\n    \"special_requests\": \"I would like a room with a view if possible.\",\n    \"payment\": {\n        \"amount\": 500.00,\n        \"email\": \"customer@example.com\",\n        \"first_name\": \"John\",\n        \"last_name\": \"Doe\",\n        \"phone\": \"1234567890\"\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/reservations/with-payment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reservations", "with-payment"]
+            },
+            "description": "Create a reservation and initiate payment in a single step. This creates a pending reservation and generates a payment URL. When payment is completed successfully, the reservation status will be updated to confirmed."
+          },
+          "response": []
+        },
+        {
+          "name": "Refund Reservation",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"transaction_id\": \"transaction_id_to_refund\",\n    \"amount\": 500.00,\n    \"reason\": \"Customer requested refund\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments/refund",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "refund"]
+            },
+            "description": "Process a refund for a reservation payment. This will update the reservation status to 'cancelled' and refund the payment."
+          },
+          "response": []
+        },
+        {
+          "name": "Check Refund Status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payments/refund-status?refund_id=refund_id_to_check",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "refund-status"],
+              "query": [
+                {
+                  "key": "refund_id",
+                  "value": "refund_id_to_check",
+                  "description": "ID of the refund to check"
+                }
+              ]
+            },
+            "description": "Check the status of a refund by its ID. Returns the current status, amount, and other details."
+          },
+          "response": []
         }
       ],
       "description": "Reservation system endpoints for hotel rooms and vacation homes. Includes checking availability, creating reservations, viewing reservations, cancelling reservations, and admin functionality for managing reservations."
@@ -4409,6 +4563,36 @@
               "path": ["api", "paymob-refund"]
             },
             "description": "Process a refund for a completed transaction. The transaction must have a 'succeed' status to be eligible for refund."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Reservation Payment",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/reservations/1/payment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reservations", "1", "payment"]
+            },
+            "description": "Get payment details for a specific reservation. This returns the payment transaction details associated with the reservation."
           },
           "response": []
         },

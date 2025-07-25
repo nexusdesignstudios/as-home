@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PaymentTransaction;
+use App\Models\PaymobPayment;
 use App\Services\ApiResponseService;
 use App\Services\Payment\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use App\Models\Reservation;
 
 class PaymobController extends Controller
 {
@@ -28,26 +31,59 @@ class PaymobController extends Controller
 
             $transactionId = $request->input('obj.order.merchant_order_id');
             $paymentStatus = $request->input('obj.success') ? 'succeed' : 'failed';
+            $paymobOrderId = $request->input('obj.order.id');
+            $paymobTransactionId = $request->input('obj.id');
 
             // Find the payment transaction
-            $paymentTransaction = PaymentTransaction::where('id', $transactionId)
-                ->orWhere('transaction_id', $transactionId)
-                ->first();
+            $payment = PaymobPayment::where('transaction_id', $transactionId)->first();
 
-            if (!$paymentTransaction) {
+            if (!$payment) {
                 ApiResponseService::errorResponse('Payment transaction not found', null, 404);
                 return;
             }
 
             // Update payment transaction status
-            $paymentTransaction->status = $paymentStatus;
-            $paymentTransaction->transaction_data = json_encode($request->all());
-            $paymentTransaction->save();
+            $payment->status = $paymentStatus;
+            $payment->paymob_order_id = $paymobOrderId;
+            $payment->paymob_transaction_id = $paymobTransactionId;
+            $payment->transaction_data = json_encode($request->all());
+            $payment->save();
 
             // Process successful payment
             if ($paymentStatus === 'succeed') {
-                // Add your business logic here for successful payment
-                // For example, update subscription status, send confirmation email, etc.
+                // Find the associated reservation
+                $reservation = Reservation::find($payment->reservation_id);
+
+                if ($reservation) {
+                    // Update reservation status
+                    $reservation->status = 'confirmed';
+                    $reservation->payment_status = 'paid';
+                    $reservation->save();
+
+                    // Update available dates
+                    $reservationService = app(\App\Services\ReservationService::class);
+                    $reservationService->updateAvailableDates(
+                        $reservation->reservable_type,
+                        $reservation->reservable_id,
+                        $reservation->check_in_date,
+                        $reservation->check_out_date,
+                        $reservation->id
+                    );
+
+                    Log::info('Reservation confirmed successfully', ['reservation_id' => $reservation->id]);
+                } else {
+                    Log::warning('Could not find reservation for payment', ['payment_id' => $payment->id]);
+                }
+            } else {
+                // If payment failed, cancel the reservation
+                if ($payment->reservation_id) {
+                    $reservation = Reservation::find($payment->reservation_id);
+                    if ($reservation) {
+                        $reservation->status = 'cancelled';
+                        $reservation->save();
+                        Log::info('Reservation cancelled due to payment failure', ['reservation_id' => $reservation->id]);
+                    }
+                }
             }
 
             ApiResponseService::successResponse('Payment callback processed successfully');
@@ -73,8 +109,14 @@ class PaymobController extends Controller
             $success = $request->input('success') === 'true';
             $transactionId = $request->input('merchant_order_id');
 
-            if ($success) {
-                return redirect()->route('payment.success', ['transaction_id' => $transactionId]);
+            // Find the payment
+            $payment = PaymobPayment::where('transaction_id', $transactionId)->first();
+
+            if ($payment && $success) {
+                return redirect()->route('payment.success', [
+                    'transaction_id' => $transactionId,
+                    'reservation_id' => $payment->reservation_id
+                ]);
             } else {
                 return redirect()->route('payment.failed', ['transaction_id' => $transactionId]);
             }
@@ -111,7 +153,7 @@ class PaymobController extends Controller
     }
 
     /**
-     * Create a payment intent with Paymob
+     * Create a payment intent with Paymob for a reservation
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -125,7 +167,49 @@ class PaymobController extends Controller
                 'first_name' => 'required|string',
                 'last_name' => 'required|string',
                 'phone' => 'required|string',
-                'payment_transaction_id' => 'required|string',
+                'reservable_id' => 'required|integer',
+                'reservable_type' => 'required|in:property,hotel_room',
+                'check_in_date' => 'required|date|after_or_equal:today',
+                'check_out_date' => 'required|date|after:check_in_date',
+                'number_of_guests' => 'integer|min:1',
+                'special_requests' => 'nullable|string',
+            ]);
+
+            // Map the reservable type to the model class
+            $reservableType = $request->reservable_type === 'property'
+                ? 'App\\Models\\Property'
+                : 'App\\Models\\HotelRoom';
+
+            // Generate a unique transaction ID
+            $transactionId = Str::uuid()->toString();
+
+            // Create temporary reservation to hold the details
+            $reservation = Reservation::create([
+                'customer_id' => Auth::guard('sanctum')->user()->id,
+                'reservable_id' => $request->reservable_id,
+                'reservable_type' => $reservableType,
+                'check_in_date' => $request->check_in_date,
+                'check_out_date' => $request->check_out_date,
+                'number_of_guests' => $request->number_of_guests ?? 1,
+                'total_price' => $request->amount,
+                'special_requests' => $request->special_requests,
+                'status' => 'pending',
+                'payment_status' => 'unpaid',
+                'payment_method' => 'paymob',
+                'transaction_id' => $transactionId,
+            ]);
+
+            // Create payment record
+            $payment = PaymobPayment::create([
+                'customer_id' => Auth::guard('sanctum')->user()->id,
+                'transaction_id' => $transactionId,
+                'amount' => $request->amount,
+                'currency' => config('paymob.currency', 'EGP'),
+                'status' => 'pending',
+                'payment_method' => 'paymob',
+                'reservable_id' => $request->reservable_id,
+                'reservable_type' => $reservableType,
+                'reservation_id' => $reservation->id,
             ]);
 
             $paymentData = [
@@ -136,16 +220,25 @@ class PaymobController extends Controller
                 'paymob_currency' => config('paymob.currency'),
             ];
 
-            $amount = $request->input('amount');
-            $metadata = $request->except('amount');
+            $metadata = [
+                'email' => $request->email,
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
+                'phone' => $request->phone,
+                'payment_transaction_id' => $transactionId,
+            ];
 
             // Create payment service
             $paymentService = PaymentService::create($paymentData);
 
             // Create payment intent
-            $paymentIntent = $paymentService->createAndFormatPaymentIntent($amount, $metadata);
+            $paymentIntent = $paymentService->createAndFormatPaymentIntent($request->amount, $metadata);
 
-            ApiResponseService::successResponse('Payment intent created successfully', $paymentIntent);
+            ApiResponseService::successResponse('Payment intent created successfully', [
+                'payment_intent' => $paymentIntent,
+                'transaction_id' => $transactionId,
+                'reservation_id' => $reservation->id
+            ]);
             return;
         } catch (\Exception $e) {
             Log::error('Paymob payment intent error: ' . $e->getMessage());
@@ -174,23 +267,20 @@ class PaymobController extends Controller
             $reason = $request->input('reason', 'Customer requested refund');
 
             // Find the payment transaction to verify it exists and is valid for refund
-            $paymentTransaction = PaymentTransaction::where('id', $transactionId)
-                ->orWhere('transaction_id', $transactionId)
-                ->first();
+            $payment = PaymobPayment::where('transaction_id', $transactionId)->first();
 
-            if (!$paymentTransaction) {
+            if (!$payment) {
                 ApiResponseService::errorResponse('Payment transaction not found', null, 404);
                 return;
             }
 
-            if ($paymentTransaction->status !== 'succeed') {
+            if ($payment->status !== 'succeed') {
                 ApiResponseService::errorResponse('Cannot refund a transaction that is not successful', null, 400);
                 return;
             }
 
             // Get the Paymob transaction ID from the stored transaction data
-            $transactionData = json_decode($paymentTransaction->transaction_data, true);
-            $paymobTransactionId = $transactionData['id'] ?? $transactionId;
+            $paymobTransactionId = $payment->paymob_transaction_id ?? $transactionId;
 
             $paymentData = [
                 'payment_method' => 'paymob',
@@ -207,9 +297,23 @@ class PaymobController extends Controller
             $refundResult = $paymentService->refundTransaction($paymobTransactionId, $amount, $reason);
 
             // Update payment transaction status
-            $paymentTransaction->status = 'refunded';
-            $paymentTransaction->refund_data = json_encode($refundResult);
-            $paymentTransaction->save();
+            $payment->status = 'refunded';
+            $payment->refund_data = json_encode($refundResult);
+            $payment->save();
+
+            // If there's an associated reservation, cancel it
+            if ($payment->reservation_id) {
+                $reservation = Reservation::find($payment->reservation_id);
+                if ($reservation) {
+                    $reservation->status = 'cancelled';
+                    $reservation->payment_status = 'refunded';
+                    $reservation->save();
+
+                    // Use the reservation service to handle the cancellation
+                    $reservationService = app(\App\Services\ReservationService::class);
+                    $reservationService->cancelReservation($payment->reservation_id);
+                }
+            }
 
             ApiResponseService::successResponse('Refund processed successfully', $refundResult);
             return;

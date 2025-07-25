@@ -48,6 +48,14 @@ class Reservation extends Model
     }
 
     /**
+     * Get the payment associated with this reservation.
+     */
+    public function payment()
+    {
+        return $this->hasOne(PaymobPayment::class);
+    }
+
+    /**
      * Scope a query to only include active reservations.
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $query

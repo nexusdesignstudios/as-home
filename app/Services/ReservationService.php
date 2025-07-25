@@ -59,7 +59,7 @@ class ReservationService
      * @param int $reservationId
      * @return void
      */
-    protected function updateAvailableDates($modelType, $modelId, $checkInDate, $checkOutDate, $reservationId)
+    public function updateAvailableDates($modelType, $modelId, $checkInDate, $checkOutDate, $reservationId)
     {
         // Get the model instance
         $model = $this->getModelInstance($modelType, $modelId);

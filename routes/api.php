@@ -284,3 +284,14 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/reservations', [App\Http\Controllers\ReservationController::class, 'getAllReservations']);
     Route::put('/reservations/{id}/status', [App\Http\Controllers\ReservationController::class, 'updateReservationStatus']);
 });
+
+/* Reservation Payment Routes */
+Route::post('/payments/paymob/callback', [App\Http\Controllers\PaymobController::class, 'handleCallback']);
+Route::get('/payments/paymob/return', [App\Http\Controllers\PaymobController::class, 'handleReturn']);
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/payments/create-payment-intent', [App\Http\Controllers\PaymobController::class, 'createPaymentIntent']);
+    Route::post('/payments/refund', [App\Http\Controllers\PaymobController::class, 'processRefund']);
+    Route::get('/payments/refund-status', [App\Http\Controllers\PaymobController::class, 'getRefundStatus']);
+    Route::get('/reservations/{id}/payment', [App\Http\Controllers\ReservationController::class, 'getReservationPayment']);
+    Route::post('/reservations/with-payment', [App\Http\Controllers\ReservationController::class, 'createReservationWithPayment']);
+});
