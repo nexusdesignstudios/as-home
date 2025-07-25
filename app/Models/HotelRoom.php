@@ -131,4 +131,12 @@ class HotelRoom extends Model
 
         $this->attributes['available_dates'] = is_array($value) ? json_encode($value) : $value;
     }
+
+    /**
+     * Get the reservations for this room.
+     */
+    public function reservations()
+    {
+        return $this->morphMany(Reservation::class, 'reservable');
+    }
 }

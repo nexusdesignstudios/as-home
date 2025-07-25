@@ -930,7 +930,7 @@ class ApiController extends Controller
             'three_d_image'     => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
             'documents.*'       => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
             'policy_data'       => 'required_unless:property_classification,5|mimes:pdf,doc,docx,txt|max:5120',
-            'weekend_commission' => 'nullable|numeric|min:0|max:100|required_unless:property_classification,5',
+            'weekend_commission' => 'nullable|numeric|min:0|max:100',
             'identity_proof'    => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
             'national_id_passport' => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
             'utilities_bills'   => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',

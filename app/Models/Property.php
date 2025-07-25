@@ -822,4 +822,12 @@ class Property extends Model
     {
         $this->attributes['agent_addons'] = is_array($value) ? json_encode($value) : $value;
     }
+
+    /**
+     * Get the reservations for this property.
+     */
+    public function reservations()
+    {
+        return $this->morphMany(Reservation::class, 'reservable');
+    }
 }

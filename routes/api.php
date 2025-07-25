@@ -261,3 +261,26 @@ Route::get('remove-account-temp', [ApiController::class, 'removeAccountTemp']);
 
 /** Hotel Room */
 Route::get('search-available-rooms', [HotelRoomController::class, 'searchAvailableRooms']);
+
+/*
+|--------------------------------------------------------------------------
+| Reservation Routes
+|--------------------------------------------------------------------------
+*/
+
+// Check availability
+Route::post('/check-availability', [App\Http\Controllers\ReservationController::class, 'checkAvailability']);
+
+// Customer routes (authenticated)
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/reservations', [App\Http\Controllers\ReservationController::class, 'createReservation']);
+    Route::get('/reservations', [App\Http\Controllers\ReservationController::class, 'getCustomerReservations']);
+    Route::get('/reservations/{id}', [App\Http\Controllers\ReservationController::class, 'getReservation']);
+    Route::post('/reservations/{id}/cancel', [App\Http\Controllers\ReservationController::class, 'cancelReservation']);
+});
+
+// Admin routes
+Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+    Route::get('/reservations', [App\Http\Controllers\ReservationController::class, 'getAllReservations']);
+    Route::put('/reservations/{id}/status', [App\Http\Controllers\ReservationController::class, 'updateReservationStatus']);
+});
