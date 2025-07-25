@@ -4516,6 +4516,309 @@
         }
       ],
       "description": "Addons packages endpoints for creating, reading, updating, and deleting packages of hotel addon options. Each package contains a set of addon values that can be applied to hotel properties."
+    },
+    {
+      "name": "Paymob Payments",
+      "item": [
+        {
+          "name": "Create Payment Intent",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"amount\": 100.00,\n    \"email\": \"customer@example.com\",\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"phone\": \"1234567890\",\n    \"payment_transaction_id\": \"unique_transaction_id\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/create-paymob-payment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "create-paymob-payment"]
+            },
+            "description": "Create a payment intent with Paymob. The response includes an iframe_url that can be used to redirect the user to the Paymob payment page."
+          },
+          "response": []
+        },
+        {
+          "name": "Process Refund",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"transaction_id\": \"transaction_id_to_refund\",\n    \"amount\": 100.00,\n    \"reason\": \"Customer requested refund\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/paymob-refund",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymob-refund"]
+            },
+            "description": "Process a refund for a completed transaction. The transaction must have a 'succeed' status to be eligible for refund."
+          },
+          "response": []
+        },
+        {
+          "name": "Check Refund Status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/paymob-refund-status?refund_id=refund_id_to_check",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymob-refund-status"],
+              "query": [
+                {
+                  "key": "refund_id",
+                  "value": "refund_id_to_check",
+                  "description": "ID of the refund to check"
+                }
+              ]
+            },
+            "description": "Check the status of a refund by its ID. Returns the current status, amount, and other details."
+          },
+          "response": []
+        },
+        {
+          "name": "Process Bank Account Payout",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"amount\": 100.00,\n    \"beneficiary_name\": \"John Doe\",\n    \"disbursement_type\": \"bank_wallet\",\n    \"account_number\": \"123456789\",\n    \"bank_code\": \"BANK123\",\n    \"swift_code\": \"SWIFT123\",\n    \"iban\": \"AE123456789\",\n    \"email\": \"recipient@example.com\",\n    \"mobile_number\": \"1234567890\",\n    \"reference_id\": \"unique_reference_id\",\n    \"notes\": \"Payout for services rendered\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/paymob-payout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymob-payout"]
+            },
+            "description": "Process a payout to a bank account. This endpoint transfers funds to the specified bank account."
+          },
+          "response": []
+        },
+        {
+          "name": "Process Mobile Wallet Payout",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"amount\": 100.00,\n    \"beneficiary_name\": \"John Doe\",\n    \"disbursement_type\": \"mobile_wallet\",\n    \"mobile_number\": \"1234567890\",\n    \"wallet_issuer\": \"WALLET_PROVIDER\",\n    \"wallet_number\": \"wallet_number\",\n    \"email\": \"recipient@example.com\",\n    \"reference_id\": \"unique_reference_id\",\n    \"notes\": \"Payout for services rendered\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/paymob-payout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymob-payout"]
+            },
+            "description": "Process a payout to a mobile wallet. This endpoint transfers funds to the specified mobile wallet."
+          },
+          "response": []
+        },
+        {
+          "name": "Check Payout Status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/paymob-payout-status?payout_id=payout_id_to_check",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymob-payout-status"],
+              "query": [
+                {
+                  "key": "payout_id",
+                  "value": "payout_id_to_check",
+                  "description": "ID of the payout to check"
+                }
+              ]
+            },
+            "description": "Check the status of a payout by its ID. Returns the current status, amount, and other details."
+          },
+          "response": []
+        },
+        {
+          "name": "Payment Callback (Webhook)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "HMAC",
+                "value": "generated_hmac_signature",
+                "type": "text",
+                "description": "HMAC signature for request validation"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"obj\": {\n        \"id\": 123456,\n        \"created_at\": \"2023-07-01T12:00:00.000Z\",\n        \"amount_cents\": 10000,\n        \"currency\": \"EGP\",\n        \"success\": true,\n        \"is_refunded\": false,\n        \"is_capture\": true,\n        \"captured_amount\": 10000,\n        \"order\": {\n            \"id\": 987654,\n            \"merchant_order_id\": \"unique_transaction_id\"\n        }\n    },\n    \"type\": \"TRANSACTION\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments/paymob/callback",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "paymob", "callback"]
+            },
+            "description": "Webhook endpoint that Paymob calls after processing a payment. This is for reference only - it's called by Paymob, not by your application."
+          },
+          "response": []
+        },
+        {
+          "name": "Payment Return URL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payments/paymob/return?success=true&merchant_order_id=unique_transaction_id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "paymob", "return"],
+              "query": [
+                {
+                  "key": "success",
+                  "value": "true",
+                  "description": "Whether the payment was successful (true/false)"
+                },
+                {
+                  "key": "merchant_order_id",
+                  "value": "unique_transaction_id",
+                  "description": "The transaction ID"
+                }
+              ]
+            },
+            "description": "URL that users are redirected to after completing payment. This is for reference only - users are redirected here by Paymob."
+          },
+          "response": []
+        }
+      ],
+      "description": "Paymob payment integration endpoints for processing payments, refunds, and payouts. Includes both server-to-server API calls and user-facing payment flows."
     }
   ],
   "event": [
