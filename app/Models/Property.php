@@ -543,6 +543,39 @@ class Property extends Model
 
     public function setAvailableDatesAttribute($value)
     {
+        // Ensure each date entry has the required fields (price, type, reservation_id if applicable)
+        if (is_array($value)) {
+            foreach ($value as $key => $dateInfo) {
+                // Make sure each date entry is an array with at least price and type
+                if (is_array($dateInfo)) {
+                    // Set defaults if not provided
+                    if (!isset($dateInfo['price'])) {
+                        $value[$key]['price'] = 0;
+                    }
+                    if (!isset($dateInfo['type'])) {
+                        $value[$key]['type'] = 'open';
+                    } else {
+                        // Ensure type is one of the allowed values
+                        $allowedTypes = ['dead', 'open', 'reserved'];
+                        if (!in_array($dateInfo['type'], $allowedTypes)) {
+                            $value[$key]['type'] = 'open';
+                        }
+
+                        // If type is reserved, ensure reservation_id exists
+                        if ($dateInfo['type'] === 'reserved' && !isset($dateInfo['reservation_id'])) {
+                            $value[$key]['reservation_id'] = null;
+                        }
+                    }
+                } else {
+                    // If the date entry is not an array, convert it to one with defaults
+                    $value[$key] = [
+                        'price' => 0,
+                        'type' => 'open'
+                    ];
+                }
+            }
+        }
+
         $this->attributes['available_dates'] = is_array($value) ? json_encode($value) : $value;
     }
 
