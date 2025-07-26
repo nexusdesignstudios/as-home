@@ -70,15 +70,65 @@ class ReservationService
         // Get current available dates
         $availableDates = $model->available_dates ?? [];
 
+        // Ensure availableDates is an array
+        if (!is_array($availableDates)) {
+            $availableDates = [];
+        }
+
         // Generate date range
         $dateRange = $this->generateDateRange($checkInDate, $checkOutDate);
 
+        // Handle different availability types (for HotelRoom model)
+        if ($modelType === 'App\\Models\\HotelRoom' && isset($model->availability_type)) {
+            $availabilityType = $model->availability_type;
+
+            if ($availabilityType === 'busy_days') {
+                // For busy_days, add the reservation dates as busy
+                $updatedDates = $this->processBusyDateRange($availableDates, $dateRange, $reservationId, $model);
+                $model->available_dates = $updatedDates;
+                $model->save();
+                return;
+            }
+        }
+
+        // Default behavior for "available_days" or other models
         // Process each date in the range
         $updatedDates = $this->processDateRange($availableDates, $dateRange, $reservationId, $model);
 
         // Update the model
         $model->available_dates = $updatedDates;
         $model->save();
+    }
+
+    /**
+     * Process busy date ranges for "busy_days" availability type.
+     *
+     * @param array $availableDates
+     * @param array $dateRange
+     * @param int $reservationId
+     * @param \Illuminate\Database\Eloquent\Model $model
+     * @return array
+     */
+    protected function processBusyDateRange($availableDates, $dateRange, $reservationId, $model)
+    {
+        if (empty($dateRange)) {
+            return $availableDates;
+        }
+
+        // Create a new busy date range
+        $reservationFrom = Carbon::parse($dateRange[0]);
+        $reservationTo = Carbon::parse($dateRange[count($dateRange) - 1]);
+
+        // Add the new busy range
+        $availableDates[] = [
+            'from' => $reservationFrom->format('Y-m-d'),
+            'to' => $reservationTo->format('Y-m-d'),
+            'price' => $model->price_per_night ?? $model->price,
+            'type' => 'busy',
+            'reservation_id' => $reservationId
+        ];
+
+        return $availableDates;
     }
 
     /**
@@ -250,6 +300,36 @@ class ReservationService
 
             // Get current available dates
             $availableDates = $model->available_dates ?? [];
+
+            // Ensure availableDates is an array
+            if (!is_array($availableDates)) {
+                $availableDates = [];
+            }
+
+            // Handle different availability types (for HotelRoom model)
+            if ($model instanceof \App\Models\HotelRoom && isset($model->availability_type)) {
+                $availabilityType = $model->availability_type;
+
+                if ($availabilityType === 'busy_days') {
+                    // For busy_days, remove the reservation dates from busy dates
+                    $updatedDates = [];
+
+                    foreach ($availableDates as $dateInfo) {
+                        // Keep all date ranges except the one for this reservation
+                        if (!isset($dateInfo['reservation_id']) || $dateInfo['reservation_id'] != $reservationId) {
+                            $updatedDates[] = $dateInfo;
+                        }
+                    }
+
+                    // Update the model
+                    $model->available_dates = $updatedDates;
+                    $model->save();
+
+                    return $reservation;
+                }
+            }
+
+            // Default behavior for "available_days" or other models
             $updatedDates = [];
 
             // Process each date range
@@ -361,7 +441,7 @@ class ReservationService
         $availableDates = $model->available_dates ?? [];
 
         // If there are no available dates defined, assume it's not available
-        if (empty($availableDates)) {
+        if (empty($availableDates) || !is_array($availableDates)) {
             return false;
         }
 
@@ -369,6 +449,39 @@ class ReservationService
         $checkIn = Carbon::parse($checkInDate);
         $checkOut = Carbon::parse($checkOutDate);
 
+        // Handle different availability types (for HotelRoom model)
+        if ($modelType === 'App\\Models\\HotelRoom' && isset($model->availability_type)) {
+            $availabilityType = $model->availability_type;
+
+            // If availability_type is "busy_days", then dates NOT in the array are available
+            if ($availabilityType === 'busy_days') {
+                // Check if any of the requested dates are in the busy dates
+                $requestedDates = $this->generateDateRange($checkInDate, $checkOutDate);
+
+                foreach ($requestedDates as $date) {
+                    // Check if this date is within any busy date range
+                    foreach ($availableDates as $dateInfo) {
+                        if (!isset($dateInfo['from']) || !isset($dateInfo['to'])) {
+                            continue;
+                        }
+
+                        $fromDate = Carbon::parse($dateInfo['from']);
+                        $toDate = Carbon::parse($dateInfo['to']);
+                        $currentDate = Carbon::parse($date);
+
+                        // If the date is within a busy range, it's not available
+                        if ($currentDate->gte($fromDate) && $currentDate->lte($toDate)) {
+                            return false;
+                        }
+                    }
+                }
+
+                // If we got here, none of the requested dates are in busy ranges
+                return true;
+            }
+        }
+
+        // Default behavior for "available_days" or other models
         // For each date range, check if our requested dates are covered
         foreach ($availableDates as $dateInfo) {
             // Skip if this isn't a date range format or is reserved
