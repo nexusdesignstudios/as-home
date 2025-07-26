@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.payment')
 
 @section('content')
 <div class="container mt-5">
@@ -20,20 +20,6 @@
                             <p class="mb-0"><strong>Transaction ID:</strong> {{ request('transaction_id') }}</p>
                         </div>
                     @endif
-
-                    @if(request('reservation_id'))
-                        <div class="mt-3">
-                            <p class="card-text">Your reservation has been confirmed.</p>
-                            <a href="{{ url('/reservations/' . request('reservation_id')) }}" class="btn btn-info">
-                                View Reservation Details
-                            </a>
-                        </div>
-                    @endif
-
-                    <div class="mt-4">
-                        <a href="{{ url('/') }}" class="btn btn-primary">Back to Home</a>
-                    </div>
-                </div>
             </div>
         </div>
     </div>

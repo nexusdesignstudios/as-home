@@ -150,7 +150,7 @@ class PaymobController extends Controller
                     'payment_id' => $payment->id,
                     'reservation_id' => $payment->reservation_id
                 ]);
-                return redirect()->route('payment.success', [
+                return redirect()->route('payments.paymob-success', [
                     'transaction_id' => $transactionId,
                     'reservation_id' => $payment->reservation_id,
                     'source' => 'paymob'
@@ -166,7 +166,7 @@ class PaymobController extends Controller
                         'success' => $success
                     ]);
                 }
-                return redirect()->route('payment.failed', [
+                return redirect()->route('payments.paymob-failed', [
                     'transaction_id' => $transactionId,
                     'source' => 'paymob'
                 ]);
@@ -175,7 +175,7 @@ class PaymobController extends Controller
             Log::error('Paymob return error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
             ]);
-            return redirect()->route('payment.failed', ['source' => 'paymob']);
+            return redirect()->route('payments.paymob-failed', ['source' => 'paymob']);
         }
     }
 

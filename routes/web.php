@@ -478,3 +478,15 @@ Route::get('/payment/failed', function () {
     }
     return view('payments.responses.failed');
 })->name('payment.failed');
+
+// Add specific routes for Paymob payments
+Route::get('/payments/paymob-success', function () {
+    return view('payments.responses.paymob-success');
+})->name('payments.paymob-success');
+
+Route::get('/payments/paymob-failed', function () {
+    return view('payments.responses.paymob-failed');
+})->name('payments.paymob-failed');
+
+// Add direct web route for Paymob return
+Route::get('/payments/paymob/return', [App\Http\Controllers\PaymobController::class, 'handleReturn']);

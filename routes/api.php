@@ -60,7 +60,8 @@ Route::match(array('GET', 'POST'), 'flutterwave-payment-status', [ApiController:
 
 /** Paymob Payment Routes */
 Route::post('payments/paymob/callback', [PaymobController::class, 'handleCallback']);
-Route::get('payments/paymob/return', [PaymobController::class, 'handleReturn'])->name('payment.paymob.return');
+Route::get('payments/paymob/return', [PaymobController::class, 'handleReturn'])->name('payments.paymob.return');
+Route::post('payments/paymob/webhook', [PaymobController::class, 'handleWebhook']);
 /*********************************************************************** */
 
 /** Confirmation needed */
