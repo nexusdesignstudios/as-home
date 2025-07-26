@@ -44,7 +44,15 @@ trait HasAppTimezone
      */
     protected function convertDatesToAppTimezone()
     {
-        foreach ($this->dates as $field) {
+        // Check if $this->dates is set and is an array/object
+        if (!isset($this->dates) || !is_array($this->dates) && !is_object($this->dates)) {
+            // If dates is not defined or is not iterable, use default date fields
+            $dateFieldsToConvert = $this->dateFields;
+        } else {
+            $dateFieldsToConvert = $this->dates;
+        }
+
+        foreach ($dateFieldsToConvert as $field) {
             if (in_array($field, $this->dateFields)) {
                 try {
                     if (isset($this->attributes[$field])) {

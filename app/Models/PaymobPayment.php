@@ -41,6 +41,16 @@ class PaymobPayment extends Model
     ];
 
     /**
+     * The attributes that should be mutated to dates.
+     *
+     * @var array
+     */
+    protected $dates = [
+        'created_at',
+        'updated_at',
+    ];
+
+    /**
      * Get the customer that owns the payment.
      */
     public function customer()

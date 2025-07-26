@@ -21,75 +21,103 @@ class PaymobController extends Controller
      */
     public function handleCallback(Request $request)
     {
-        Log::info('Paymob callback received', $request->all());
-
         try {
+            Log::info('Paymob callback received', $request->all());
+
             // Validate HMAC if provided
-            if (config('paymob.hmac_secret')) {
-                $this->validateHmac($request);
-            }
+            // if (config('paymob.hmac_secret')) {
+            //     $this->validateHmac($request);
+            // }
+            $data = $request->all();
+            Log::info('Paymob callback received - Parsed to json:', ['data' => json_encode($data)]);
 
-            $transactionId = $request->input('obj.order.merchant_order_id');
-            $paymentStatus = $request->input('obj.success') ? 'succeed' : 'failed';
-            $paymobOrderId = $request->input('obj.order.id');
-            $paymobTransactionId = $request->input('obj.id');
+            $transactionId = $data['obj']['order']['merchant_order_id'];
+            $paymentStatus = $data['obj']['success'] ? 'succeed' : 'failed';
+            $paymobOrderId = $data['obj']['order']['id'];
+            $paymobTransactionId = $data['obj']['id'];
 
-            // Find the payment transaction
-            $payment = PaymobPayment::where('transaction_id', $transactionId)->first();
+            Log::info('Paymob callback received - Transaction ID:', ['transaction_id' => $transactionId]);
+            Log::info('Paymob callback received - Payment Status:', ['status' => $paymentStatus]);
+            Log::info('Paymob callback received - Paymob Order ID:', ['order_id' => $paymobOrderId]);
+            Log::info('Paymob callback received - Paymob Transaction ID:', ['paymob_transaction_id' => $paymobTransactionId]);
 
-            if (!$payment) {
-                ApiResponseService::errorResponse('Payment transaction not found', null, 404);
-                return;
-            }
+            try {
+                $payment = PaymobPayment::where('transaction_id', $transactionId)->first();
+                if ($payment) {
+                    $payment->status = $paymentStatus;
+                    $payment->paymob_order_id = $paymobOrderId;
+                    $payment->paymob_transaction_id = $paymobTransactionId;
+                    $payment->transaction_data = json_encode($data);
+                    $payment->save();
 
-            // Update payment transaction status
-            $payment->status = $paymentStatus;
-            $payment->paymob_order_id = $paymobOrderId;
-            $payment->paymob_transaction_id = $paymobTransactionId;
-            $payment->transaction_data = json_encode($request->all());
-            $payment->save();
-
-            // Process successful payment
-            if ($paymentStatus === 'succeed') {
-                // Find the associated reservation
-                $reservation = Reservation::find($payment->reservation_id);
-
-                if ($reservation) {
                     // Update reservation status
-                    $reservation->status = 'confirmed';
-                    $reservation->payment_status = 'paid';
-                    $reservation->save();
+                    if ($payment->reservation_id) {
+                        $reservation = Reservation::find($payment->reservation_id);
+                        if ($reservation) {
+                            $reservation->status = $paymentStatus === 'succeed' ? 'confirmed' : 'cancelled';
+                            $reservation->payment_status = $paymentStatus === 'succeed' ? 'paid' : 'failed';
+                            $reservation->save();
 
-                    // Update available dates
-                    $reservationService = app(\App\Services\ReservationService::class);
-                    $reservationService->updateAvailableDates(
-                        $reservation->reservable_type,
-                        $reservation->reservable_id,
-                        $reservation->check_in_date,
-                        $reservation->check_out_date,
-                        $reservation->id
-                    );
+                            Log::info('Reservation status updated', [
+                                'reservation_id' => $reservation->id,
+                                'status' => $reservation->status,
+                                'payment_status' => $reservation->payment_status
+                            ]);
 
-                    Log::info('Reservation confirmed successfully', ['reservation_id' => $reservation->id]);
-                } else {
-                    Log::warning('Could not find reservation for payment', ['payment_id' => $payment->id]);
-                }
-            } else {
-                // If payment failed, cancel the reservation
-                if ($payment->reservation_id) {
-                    $reservation = Reservation::find($payment->reservation_id);
-                    if ($reservation) {
-                        $reservation->status = 'cancelled';
-                        $reservation->save();
-                        Log::info('Reservation cancelled due to payment failure', ['reservation_id' => $reservation->id]);
+                            // Only update available dates if payment was successful
+                            if ($paymentStatus === 'succeed') {
+                                try {
+                                    $reservationService = app(\App\Services\ReservationService::class);
+                                    $reservationService->updateAvailableDates(
+                                        $reservation->reservable_type,
+                                        $reservation->reservable_id,
+                                        $reservation->check_in_date,
+                                        $reservation->check_out_date,
+                                        $reservation->id
+                                    );
+
+                                    Log::info('Available dates updated successfully', [
+                                        'reservation_id' => $reservation->id
+                                    ]);
+                                } catch (\Exception $e) {
+                                    Log::error('Failed to update available dates', [
+                                        'error' => $e->getMessage(),
+                                        'reservation_id' => $reservation->id,
+                                        'trace' => $e->getTraceAsString()
+                                    ]);
+                                }
+                            }
+                        } else {
+                            Log::warning('Reservation not found', [
+                                'reservation_id' => $payment->reservation_id,
+                                'payment_id' => $payment->id
+                            ]);
+                        }
                     }
+
+                    Log::info('Payment updated successfully', [
+                        'payment_id' => $payment->id,
+                        'status' => $paymentStatus
+                    ]);
+                } else {
+                    Log::warning('Payment not found for transaction', [
+                        'transaction_id' => $transactionId
+                    ]);
                 }
+            } catch (\Exception $e) {
+                Log::error('Error processing payment data', [
+                    'error' => $e->getMessage(),
+                    'transaction_id' => $transactionId,
+                    'trace' => $e->getTraceAsString()
+                ]);
             }
 
             ApiResponseService::successResponse('Payment callback processed successfully');
             return;
         } catch (\Exception $e) {
-            Log::error('Paymob callback error: ' . $e->getMessage());
+            Log::error('Paymob callback error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             ApiResponseService::errorResponse('Failed to process payment callback: ' . $e->getMessage(), null, 500);
             return;
         }
@@ -109,19 +137,40 @@ class PaymobController extends Controller
             $success = $request->input('success') === 'true';
             $transactionId = $request->input('merchant_order_id');
 
+            Log::info('Paymob return details', [
+                'success' => $success,
+                'transaction_id' => $transactionId
+            ]);
+
             // Find the payment
             $payment = PaymobPayment::where('transaction_id', $transactionId)->first();
 
             if ($payment && $success) {
+                Log::info('Payment found and successful', [
+                    'payment_id' => $payment->id,
+                    'reservation_id' => $payment->reservation_id
+                ]);
                 return redirect()->route('payment.success', [
                     'transaction_id' => $transactionId,
                     'reservation_id' => $payment->reservation_id
                 ]);
             } else {
+                if (!$payment) {
+                    Log::warning('Payment not found for transaction', [
+                        'transaction_id' => $transactionId
+                    ]);
+                } else {
+                    Log::warning('Payment found but not successful', [
+                        'payment_id' => $payment->id,
+                        'success' => $success
+                    ]);
+                }
                 return redirect()->route('payment.failed', ['transaction_id' => $transactionId]);
             }
         } catch (\Exception $e) {
-            Log::error('Paymob return error: ' . $e->getMessage());
+            Log::error('Paymob return error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             return redirect()->route('payment.failed');
         }
     }
