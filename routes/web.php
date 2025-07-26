@@ -464,9 +464,17 @@ Route::get('/seed-demo-data', function () {
 
 // Add these routes for Paymob payment success and failure
 Route::get('/payment/success', function () {
+    // Check if this is a Paymob payment
+    if (request()->has('source') && request('source') === 'paymob') {
+        return view('payments.responses.paymob-success');
+    }
     return view('payments.responses.success');
 })->name('payment.success');
 
 Route::get('/payment/failed', function () {
+    // Check if this is a Paymob payment
+    if (request()->has('source') && request('source') === 'paymob') {
+        return view('payments.responses.paymob-failed');
+    }
     return view('payments.responses.failed');
 })->name('payment.failed');
