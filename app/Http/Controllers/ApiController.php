@@ -1504,7 +1504,7 @@ class ApiController extends Controller
             'deleted_package_ids.*' => 'exists:addons_packages,id',
             'deleted_certificate_ids' => 'nullable|array',
             'deleted_certificate_ids.*' => 'exists:property_certificates,id',
-            'price'                 => ['required_unless:property_classification,5', 'nullable', 'numeric', 'min:0', 'max:9223372036854775807', function ($attribute, $value, $fail) {
+            'price'                 => [ 'nullable', 'numeric', 'min:0', 'max:9223372036854775807', function ($attribute, $value, $fail) {
                 if ($value !== null && $value >= 9223372036854775807) {
                     $fail("The Price must not exceed more than 9223372036854775807.");
                 }
