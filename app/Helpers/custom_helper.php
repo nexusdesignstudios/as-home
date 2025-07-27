@@ -362,17 +362,17 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
     $tempRow = array();
     $count = 1;
     foreach ($result as $row) {
-        if ($row->is_premium == 1) {
-            if (Auth::guard('sanctum')->check() && $skipLimitCheck == false) {
-                // Check if the user has a premium property list feature in package
-                $response = HelperService::checkPackageLimit('premium_properties', true);
-                if ($response['package_available'] == false || $response['feature_available'] == false) {
-                    return ApiResponseService::validationError('Cannot Access Premium Property, Feature Not Available', $response);
-                }
-            } else {
-                return ApiResponseService::validationError('Cannot Access Premium Property, Feature Not Available');
-            }
-        }
+        // if ($row->is_premium == 1) {
+        //     if (Auth::guard('sanctum')->check() && $skipLimitCheck == false) {
+        //         // Check if the user has a premium property list feature in package
+        //         $response = HelperService::checkPackageLimit('premium_properties', true);
+        //         if ($response['package_available'] == false || $response['feature_available'] == false) {
+        //             return ApiResponseService::validationError('Cannot Access Premium Property, Feature Not Available', $response);
+        //         }
+        //     } else {
+        //         return ApiResponseService::validationError('Cannot Access Premium Property, Feature Not Available');
+        //     }
+        // }
         $customer = $row->customer;
 
         // Get Property's Added by details

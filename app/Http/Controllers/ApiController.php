@@ -1436,7 +1436,26 @@ class ApiController extends Controller
     public function update_post_property(Request $request)
     {
         $validator = Validator::make($request->all(), [
+            'id'                    => 'required|exists:propertys,id',
             'action_type'           => 'required',
+            'title'                 => 'nullable',
+            'description'           => 'nullable',
+            'category_id'           => 'nullable',
+            'slug_id'               => 'nullable',
+            'property_type'         => 'nullable',
+            'address'               => 'nullable',
+            'client_address'        => 'nullable',
+            'country'               => 'nullable',
+            'state'                 => 'nullable',
+            'city'                  => 'nullable',
+            'latitude'              => 'nullable',
+            'longitude'             => 'nullable',
+            'rentduration'          => 'nullable',
+            'meta_title'            => 'nullable',
+            'meta_description'      => 'nullable',
+            'meta_keywords'         => 'nullable',
+            'is_premium'            => 'nullable',
+            'title_image'           => 'nullable|file|max:3000|mimes:jpeg,png,jpg',
             'three_d_image'         => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
             'remove_three_d_image'  => 'nullable|in:0,1',
             'documents.*'           => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
@@ -1456,6 +1475,7 @@ class ApiController extends Controller
             'agent_addons'      => 'nullable|json',
             'available_rooms'   => 'nullable|integer|min:0',
             'hotel_rooms'       => 'nullable|array',
+            'hotel_rooms.*.id'  => 'nullable|exists:hotel_rooms,id',
             'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
             'hotel_rooms.*.room_number' => 'required_with:hotel_rooms',
             'hotel_rooms.*.price_per_night' => 'required_with:hotel_rooms|numeric|min:0',
@@ -1466,10 +1486,29 @@ class ApiController extends Controller
             'hotel_rooms.*.weekend_commission' => 'nullable|numeric|min:0|max:100',
             'hotel_apartment_type_id' => 'nullable|exists:hotel_apartment_types,id',
             'rent_package' => 'nullable|in:basic,premium',
-            'price'                 => ['required_unless:property_classification,5', 'numeric', 'min:1', 'max:9223372036854775807', function ($attribute, $value, $fail) {
-                if ($value >= 9223372036854775807) {
+            'addons_packages'       => 'nullable|array',
+            'addons_packages.*.id' => 'nullable|exists:addons_packages,id',
+            'addons_packages.*.name' => 'required_with:addons_packages',
+            'addons_packages.*.description' => 'nullable|string',
+            'addons_packages.*.status' => 'nullable|in:active,inactive',
+            'addons_packages.*.price' => 'nullable|numeric|min:0',
+            'addons_packages.*.addon_values' => 'required_with:addons_packages|array',
+            'addons_packages.*.addon_values.*.id' => 'nullable|exists:property_hotel_addon_values,id',
+            'addons_packages.*.addon_values.*.hotel_addon_field_id' => 'required|exists:hotel_addon_fields,id',
+            'addons_packages.*.addon_values.*.value' => 'required',
+            'addons_packages.*.addon_values.*.static_price' => 'nullable|numeric|min:0',
+            'addons_packages.*.addon_values.*.multiply_price' => 'nullable|numeric|min:0',
+            'deleted_room_ids'      => 'nullable|array',
+            'deleted_room_ids.*'    => 'exists:hotel_rooms,id',
+            'deleted_package_ids'   => 'nullable|array',
+            'deleted_package_ids.*' => 'exists:addons_packages,id',
+            'deleted_certificate_ids' => 'nullable|array',
+            'deleted_certificate_ids.*' => 'exists:property_certificates,id',
+            'price'                 => ['required_unless:property_classification,5', 'nullable', 'numeric', 'min:0', 'max:9223372036854775807', function ($attribute, $value, $fail) {
+                if ($value !== null && $value >= 9223372036854775807) {
                     $fail("The Price must not exceed more than 9223372036854775807.");
                 }
+                return true;
             }],
             'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
                 // Regular expression to validate YouTube URLs
@@ -1493,11 +1532,15 @@ class ApiController extends Controller
                 }
             }],
             'certificates'      => 'nullable|array',
+            'certificates.*.id' => 'nullable|exists:property_certificates,id',
             'certificates.*.title' => 'required_with:certificates',
             'certificates.*.description' => 'nullable|string',
             'certificates.*.file' => 'required_with:certificates|file|max:5120|mimes:jpeg,png,jpg,pdf,doc,docx',
         ], [], [
             'documents.*' => 'document :position',
+            'addons_packages.*.name' => 'package name :position',
+            'addons_packages.*.addon_values.*.hotel_addon_field_id' => 'package addon field :position',
+            'addons_packages.*.addon_values.*.value' => 'package addon value :position',
             'certificates.*.file' => 'certificate file :position',
         ]);
         if ($validator->fails()) {
@@ -1619,6 +1662,39 @@ class ApiController extends Controller
                         $property->available_rooms = $request->available_rooms;
                     }
 
+                    if (isset($request->package_id)) {
+                        $property->package_id = $request->package_id;
+                    }
+
+                    // Set vacation home specific fields if property classification is vacation_homes (4)
+                    if (isset($request->property_classification) && $request->property_classification == 4) {
+                        if (isset($request->availability_type)) {
+                            $property->availability_type = $request->availability_type;
+                        }
+                        if (isset($request->available_dates)) {
+                            $property->available_dates = $request->available_dates;
+                        }
+                    }
+
+                    // Set hotel specific fields if property classification is hotel (5)
+                    if (isset($request->property_classification) && $request->property_classification == 5) {
+                        if (isset($request->refund_policy)) {
+                            $property->refund_policy = $request->refund_policy;
+                        }
+                        if (isset($request->hotel_apartment_type_id)) {
+                            $property->hotel_apartment_type_id = $request->hotel_apartment_type_id;
+                        }
+                        if (isset($request->check_in)) {
+                            $property->check_in = $request->check_in;
+                        }
+                        if (isset($request->check_out)) {
+                            $property->check_out = $request->check_out;
+                        }
+                        if (isset($request->agent_addons)) {
+                            $property->agent_addons = $request->agent_addons;
+                        }
+                    }
+
                     $property->meta_title = $request->meta_title ?? null;
                     $property->meta_description = $request->meta_description ?? null;
                     $property->meta_keywords = $request->meta_keywords ?? null;
@@ -1629,15 +1705,11 @@ class ApiController extends Controller
                     }
 
                     if ($request->hasFile('title_image')) {
-                        $profile = $request->file('title_image');
-                        $imageName = microtime(true) . "." . $profile->getClientOriginalExtension();
-                        $profile->move($destinationPath, $imageName);
-                        if ($property->title_image != '') {
-                            if (file_exists(public_path('images') . config('global.PROPERTY_TITLE_IMG_PATH') .  $property->title_image)) {
-                                unlink(public_path('images') . config('global.PROPERTY_TITLE_IMG_PATH') . $property->title_image);
-                            }
+                        $imageName = microtime(true) . "." . $request->file('title_image')->getClientOriginalExtension();
+                        $titleImageName = handleFileUpload($request, 'title_image', $destinationPath, $imageName, $property->title_image);
+                        if ($titleImageName) {
+                            $property->title_image = $titleImageName;
                         }
-                        $property->title_image = $imageName;
                     }
 
                     // if ($request->hasFile('meta_image')) {
@@ -1669,35 +1741,26 @@ class ApiController extends Controller
 
 
 
-                    if ($request->has('meta_image')) {
-                        if ($request->meta_image != $property->meta_image) {
-                            if (!empty($request->meta_image && $request->hasFile('meta_image'))) {
-                                if (!empty($property->meta_image)) {
-                                    $url = $property->meta_image;
-                                    $relativePath = parse_url($url, PHP_URL_PATH);
-                                    if (file_exists(public_path()  . $relativePath)) {
-                                        unlink(public_path()  . $relativePath);
-                                    }
-                                }
-                                $destinationPath = public_path('images') . config('global.PROPERTY_SEO_IMG_PATH');
-                                if (!is_dir($destinationPath)) {
-                                    mkdir($destinationPath, 0777, true);
-                                }
-                                $profile = $request->file('meta_image');
-                                $imageName = microtime(true) . "." . $profile->getClientOriginalExtension();
-                                $profile->move($destinationPath, $imageName);
-                                $property->meta_image = $imageName;
-                            } else {
-                                if (!empty($property->meta_image)) {
-                                    $url = $property->meta_image;
-                                    $relativePath = parse_url($url, PHP_URL_PATH);
-                                    if (file_exists(public_path()  . $relativePath)) {
-                                        unlink(public_path()  . $relativePath);
-                                    }
-                                }
-                                $property->meta_image = null;
+                    if ($request->hasFile('meta_image')) {
+                        $destinationPath = public_path('images') . config('global.PROPERTY_SEO_IMG_PATH');
+                        if (!is_dir($destinationPath)) {
+                            mkdir($destinationPath, 0777, true);
+                        }
+                        $imageName = microtime(true) . "." . $request->file('meta_image')->getClientOriginalExtension();
+                        $metaImageName = handleFileUpload($request, 'meta_image', $destinationPath, $imageName, $property->meta_image);
+                        if ($metaImageName) {
+                            $property->meta_image = $metaImageName;
+                        }
+                    } else if ($request->has('meta_image') && empty($request->meta_image)) {
+                        // Handle case where meta_image is being removed
+                        if (!empty($property->meta_image)) {
+                            $url = $property->meta_image;
+                            $relativePath = parse_url($url, PHP_URL_PATH);
+                            if (file_exists(public_path()  . $relativePath)) {
+                                unlink(public_path()  . $relativePath);
                             }
                         }
+                        $property->meta_image = null;
                     }
 
                     if ($request->has('remove_three_d_image') && $request->remove_three_d_image == 1) {
@@ -1715,15 +1778,11 @@ class ApiController extends Controller
                         if (!is_dir($destinationPath1)) {
                             mkdir($destinationPath1, 0777, true);
                         }
-                        $profile = $request->file('three_d_image');
-                        $imageName = microtime(true) . "." . $profile->getClientOriginalExtension();
-                        $profile->move($destinationPath1, $imageName);
-                        if ($property->three_d_image != '') {
-                            if (file_exists(public_path('images') . config('global.3D_IMG_PATH') .  $property->three_d_image)) {
-                                unlink(public_path('images') . config('global.3D_IMG_PATH') . $property->three_d_image);
-                            }
+                        $imageName = microtime(true) . "." . $request->file('three_d_image')->getClientOriginalExtension();
+                        $threeDImageName = handleFileUpload($request, 'three_d_image', $destinationPath1, $imageName, $property->three_d_image);
+                        if ($threeDImageName) {
+                            $property->three_d_image = $threeDImageName;
                         }
-                        $property->three_d_image = $imageName;
                     }
 
                     // Handle policy_data file
@@ -1732,15 +1791,11 @@ class ApiController extends Controller
                         if (!is_dir($destinationPath)) {
                             mkdir($destinationPath, 0777, true);
                         }
-                        $file = $request->file('policy_data');
-                        $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
-                        $file->move($destinationPath, $fileName);
-                        if ($property->getRawOriginal('policy_data') != '') {
-                            if (file_exists(public_path('images') . config('global.PROPERTY_DOCUMENT_PATH') . $property->getRawOriginal('policy_data'))) {
-                                unlink(public_path('images') . config('global.PROPERTY_DOCUMENT_PATH') . $property->getRawOriginal('policy_data'));
-                            }
+                        $fileName = microtime(true) . "." . $request->file('policy_data')->getClientOriginalExtension();
+                        $policyDataName = handleFileUpload($request, 'policy_data', $destinationPath, $fileName, $property->getRawOriginal('policy_data'));
+                        if ($policyDataName) {
+                            $property->policy_data = $policyDataName;
                         }
-                        $property->policy_data = $fileName;
                     }
 
                     // Handle identity_proof file
@@ -1749,15 +1804,11 @@ class ApiController extends Controller
                         if (!is_dir($destinationPath)) {
                             mkdir($destinationPath, 0777, true);
                         }
-                        $file = $request->file('identity_proof');
-                        $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
-                        $file->move($destinationPath, $fileName);
-                        if ($property->getRawOriginal('identity_proof') != '') {
-                            if (file_exists(public_path('images') . config('global.PROPERTY_IDENTITY_PROOF_PATH') . $property->getRawOriginal('identity_proof'))) {
-                                unlink(public_path('images') . config('global.PROPERTY_IDENTITY_PROOF_PATH') . $property->getRawOriginal('identity_proof'));
-                            }
+                        $fileName = microtime(true) . "." . $request->file('identity_proof')->getClientOriginalExtension();
+                        $identityProofName = handleFileUpload($request, 'identity_proof', $destinationPath, $fileName, $property->getRawOriginal('identity_proof'));
+                        if ($identityProofName) {
+                            $property->identity_proof = $identityProofName;
                         }
-                        $property->identity_proof = $fileName;
                     }
 
                     // Handle national_id_passport file
@@ -1766,15 +1817,11 @@ class ApiController extends Controller
                         if (!is_dir($destinationPath)) {
                             mkdir($destinationPath, 0777, true);
                         }
-                        $file = $request->file('national_id_passport');
-                        $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
-                        $file->move($destinationPath, $fileName);
-                        if ($property->getRawOriginal('national_id_passport') != '') {
-                            if (file_exists(public_path('images') . config('global.PROPERTY_NATIONAL_ID_PATH') . $property->getRawOriginal('national_id_passport'))) {
-                                unlink(public_path('images') . config('global.PROPERTY_NATIONAL_ID_PATH') . $property->getRawOriginal('national_id_passport'));
-                            }
+                        $fileName = microtime(true) . "." . $request->file('national_id_passport')->getClientOriginalExtension();
+                        $nationalIdName = handleFileUpload($request, 'national_id_passport', $destinationPath, $fileName, $property->getRawOriginal('national_id_passport'));
+                        if ($nationalIdName) {
+                            $property->national_id_passport = $nationalIdName;
                         }
-                        $property->national_id_passport = $fileName;
                     }
 
                     // Handle utilities_bills file
@@ -1783,15 +1830,11 @@ class ApiController extends Controller
                         if (!is_dir($destinationPath)) {
                             mkdir($destinationPath, 0777, true);
                         }
-                        $file = $request->file('utilities_bills');
-                        $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
-                        $file->move($destinationPath, $fileName);
-                        if ($property->getRawOriginal('utilities_bills') != '') {
-                            if (file_exists(public_path('images') . config('global.PROPERTY_UTILITIES_PATH') . $property->getRawOriginal('utilities_bills'))) {
-                                unlink(public_path('images') . config('global.PROPERTY_UTILITIES_PATH') . $property->getRawOriginal('utilities_bills'));
-                            }
+                        $fileName = microtime(true) . "." . $request->file('utilities_bills')->getClientOriginalExtension();
+                        $utilitiesBillsName = handleFileUpload($request, 'utilities_bills', $destinationPath, $fileName, $property->getRawOriginal('utilities_bills'));
+                        if ($utilitiesBillsName) {
+                            $property->utilities_bills = $utilitiesBillsName;
                         }
-                        $property->utilities_bills = $fileName;
                     }
 
                     // Handle power_of_attorney file
@@ -1800,15 +1843,11 @@ class ApiController extends Controller
                         if (!is_dir($destinationPath)) {
                             mkdir($destinationPath, 0777, true);
                         }
-                        $file = $request->file('power_of_attorney');
-                        $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
-                        $file->move($destinationPath, $fileName);
-                        if ($property->getRawOriginal('power_of_attorney') != '') {
-                            if (file_exists(public_path('images') . config('global.PROPERTY_POA_PATH') . $property->getRawOriginal('power_of_attorney'))) {
-                                unlink(public_path('images') . config('global.PROPERTY_POA_PATH') . $property->getRawOriginal('power_of_attorney'));
-                            }
+                        $fileName = microtime(true) . "." . $request->file('power_of_attorney')->getClientOriginalExtension();
+                        $poaName = handleFileUpload($request, 'power_of_attorney', $destinationPath, $fileName, $property->getRawOriginal('power_of_attorney'));
+                        if ($poaName) {
+                            $property->power_of_attorney = $poaName;
                         }
-                        $property->power_of_attorney = $fileName;
                     }
 
                     if ($request->parameters) {
