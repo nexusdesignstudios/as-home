@@ -310,6 +310,57 @@ class HelperService
                             ],
                         )
                     );
+                case 'monthly_tax_invoice':
+                    return array(
+                        'title' => 'Monthly Tax Invoice',
+                        'type' => 'monthly_tax_invoice_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'owner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'month_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_reservations',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_revenue',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'commission_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'commission_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'net_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_details',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_summary',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
             }
         }
 
@@ -350,6 +401,10 @@ class HelperService
             [
                 'title' => 'Reservation Confirmation',
                 'type' => 'reservation_confirmation',
+            ],
+            [
+                'title' => 'Monthly Tax Invoice',
+                'type' => 'monthly_tax_invoice',
             ],
         );
     }
