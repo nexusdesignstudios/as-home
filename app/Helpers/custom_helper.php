@@ -464,7 +464,7 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['availability_type'] = $row->availability_type;
         $tempRow['available_dates'] = $row->available_dates;
         $tempRow['corresponding_day'] = $row->corresponding_day;
-        $tempRow['property_classification'] = $row->property_classification;
+        $tempRow['property_classification'] = $row->getRawOriginal('property_classification');
         $tempRow['rent_package'] = $row->rent_package;
 
         // Add hotel-specific fields
