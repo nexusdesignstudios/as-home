@@ -107,6 +107,16 @@
                     </li>
                 @endif
 
+                {{-- Reservations --}}
+                @if (has_permissions('read', 'reservations'))
+                    <li class="sidebar-item">
+                        <a href="{{ route('reservations.index') }}" class='sidebar-link'>
+                            <i class="bi bi-calendar-check"></i>
+                            <span class="menu-item">{{ __('Reservations') }}</span>
+                        </a>
+                    </li>
+                @endif
+
                 {{-- Hotel Addon Fields --}}
                 @if (has_permissions('read', 'hotel_addon_field'))
                     <li class="sidebar-item">
