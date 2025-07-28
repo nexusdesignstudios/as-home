@@ -957,6 +957,7 @@ class ApiController extends Controller
             'addons_packages'       => 'nullable|array',
             'addons_packages.*.name' => 'required_with:addons_packages',
             'addons_packages.*.description' => 'nullable|string',
+            'addons_packages.*.room_type_id' => 'nullable|exists:hotel_room_types,id',
             'addons_packages.*.status' => 'nullable|in:active,inactive',
             'addons_packages.*.price' => 'nullable|numeric|min:0',
             'addons_packages.*.addon_values' => 'required_with:addons_packages|array',
@@ -1318,6 +1319,7 @@ class ApiController extends Controller
                         // Create the package
                         $addonsPackage = new AddonsPackage();
                         $addonsPackage->name = $package['name'];
+                        $addonsPackage->room_type_id = $package['room_type_id'] ?? null;
                         $addonsPackage->description = $package['description'] ?? null;
                         $addonsPackage->property_id = $saveProperty->id;
                         $addonsPackage->status = $package['status'] ?? 'active';
@@ -1490,6 +1492,7 @@ class ApiController extends Controller
             'addons_packages.*.id' => 'nullable|exists:addons_packages,id',
             'addons_packages.*.name' => 'required_with:addons_packages',
             'addons_packages.*.description' => 'nullable|string',
+            'addons_packages.*.room_type_id' => 'nullable|exists:hotel_room_types,id',
             'addons_packages.*.status' => 'nullable|in:active,inactive',
             'addons_packages.*.price' => 'nullable|numeric|min:0',
             'addons_packages.*.addon_values' => 'required_with:addons_packages|array',
@@ -1504,7 +1507,7 @@ class ApiController extends Controller
             'deleted_package_ids.*' => 'exists:addons_packages,id',
             'deleted_certificate_ids' => 'nullable|array',
             'deleted_certificate_ids.*' => 'exists:property_certificates,id',
-            'price'                 => [ 'nullable', 'numeric', 'min:0', 'max:9223372036854775807', function ($attribute, $value, $fail) {
+            'price'                 => ['nullable', 'numeric', 'min:0', 'max:9223372036854775807', function ($attribute, $value, $fail) {
                 if ($value !== null && $value >= 9223372036854775807) {
                     $fail("The Price must not exceed more than 9223372036854775807.");
                 }
@@ -2089,6 +2092,7 @@ class ApiController extends Controller
                                     $addonsPackage = AddonsPackage::find($package['id']);
                                     if ($addonsPackage && $addonsPackage->property_id == $property->id) {
                                         $addonsPackage->name = $package['name'];
+                                        $addonsPackage->room_type_id = $package['room_type_id'] ?? $addonsPackage->room_type_id;
                                         $addonsPackage->description = $package['description'] ?? $addonsPackage->description;
                                         $addonsPackage->status = $package['status'] ?? $addonsPackage->status;
                                         $addonsPackage->price = isset($package['price']) ? $package['price'] : $addonsPackage->price;
@@ -2167,6 +2171,7 @@ class ApiController extends Controller
                                     // Create new package
                                     $addonsPackage = new AddonsPackage();
                                     $addonsPackage->name = $package['name'];
+                                    $addonsPackage->room_type_id = $package['room_type_id'] ?? null;
                                     $addonsPackage->description = $package['description'] ?? null;
                                     $addonsPackage->property_id = $property->id;
                                     $addonsPackage->status = $package['status'] ?? 'active';

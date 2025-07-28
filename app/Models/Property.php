@@ -830,4 +830,14 @@ class Property extends Model
     {
         return $this->morphMany(Reservation::class, 'reservable');
     }
+
+    public function addons_packages()
+    {
+        return $this->hasMany(AddonsPackage::class);
+    }
+
+    public function getAddonsPackagesAttribute()
+    {
+        return $this->addons_packages()->get();
+    }
 }

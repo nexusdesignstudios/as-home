@@ -13,6 +13,7 @@ class AddonsPackage extends Model
     protected $dates = ['created_at', 'updated_at', 'deleted_at'];
 
     protected $fillable = [
+        'room_type_id', // room_type_id
         'name',
         'description',
         'property_id',
@@ -36,5 +37,10 @@ class AddonsPackage extends Model
     public function addon_values()
     {
         return $this->hasMany(PropertyHotelAddonValue::class, 'package_id');
+    }
+
+    public function hotel_room_type()
+    {
+        return $this->belongsTo(HotelRoomType::class, 'room_type_id');
     }
 }
