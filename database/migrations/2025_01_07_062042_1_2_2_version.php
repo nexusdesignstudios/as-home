@@ -51,7 +51,7 @@ return new class extends Migration
         // Add user_side_status and request_status column in property
         Schema::table('propertys', function (Blueprint $table) {
             if (!Schema::hasColumn('propertys', 'request_status')) {
-                $table->enum('request_status',['approved','rejected','pending'])->default('pending')->after('status');
+                $table->enum('request_status', ['approved', 'rejected', 'pending'])->default('pending')->after('status');
             }
         });
 
@@ -93,6 +93,7 @@ return new class extends Migration
         $passwordResetMailTemplate = "<p>Hello,</p> <p>We received a request to reset your password for your <strong>{app_name}</strong>&nbsp;account. To reset your password, please click on the following link:</p> <p><a title='{link}' href='{link}'><strong>{link}</strong></a></p> <p>If you did not request a password reset, please ignore this email or contact support for assistance.</p> <p>Best regards,</p> <p>The <strong>{app_name}</strong>&nbsp;Team</p>";
         $welcomeMailTemplate = "<p>Hello <strong>{user_name}</strong>,</p> <p>Welcome to <strong>{app_name}</strong>! We're thrilled to have you on board. Thank you for registering with us.</p> <p>Get ready to explore and enjoy all the features we have to offer. If you have any questions or need assistance, feel free to reach out to our support team.</p> <p>Best regards,</p> <p>The <strong>{app_name}</strong>&nbsp;Team</p>";
         $agentVerificationStatusTemplate = "<p><strong>Dear <strong>{user_name}</strong>,</strong></p> <p>We hope this email finds you well.</p> <p>We are writing to inform you about the current status of your agent verification process with <strong>{app_name}</strong>.</p> <p><strong>Status:</strong> <strong>{status}</strong></p> <p>If you have any questions or need further assistance, please don't hesitate to reach out to our support team.</p> <p>Thank you for your patience and cooperation.</p> <p>Best regards,</p> <p><strong>{app_name}</strong>,<br /><strong>Support Team</strong></p>";
+        $reservationConfirmationTemplate = "<p>Hello <strong>{user_name}</strong>,</p> <p>Thank you for your reservation with <strong>{app_name}</strong>! Your booking has been confirmed.</p> <p><strong>Reservation Details:</strong></p> <ul> <li><strong>Reservation ID:</strong> {reservation_id}</li> <li><strong>Property:</strong> {property_name}</li> <li><strong>Check-in Date:</strong> {check_in_date}</li> <li><strong>Check-out Date:</strong> {check_out_date}</li> <li><strong>Number of Guests:</strong> {number_of_guests}</li> <li><strong>Total Amount:</strong> {currency_symbol} {total_price}</li> <li><strong>Payment Status:</strong> {payment_status}</li> <li><strong>Transaction ID:</strong> {transaction_id}</li> </ul> <p><strong>Special Requests:</strong> {special_requests}</p> <p>If you have any questions or need to modify your reservation, please don't hesitate to contact our support team.</p> <p>We look forward to welcoming you!</p> <p>Best regards,</p> <p>The <strong>{app_name}</strong>&nbsp;Team</p>";
 
         $settingsData = array(
             'email_configuration_verification' => 0,
@@ -104,16 +105,16 @@ return new class extends Migration
             'password_reset_mail_template' => $passwordResetMailTemplate,
             'welcome_mail_template' => $welcomeMailTemplate,
             'agent_verification_status_mail_template' => $agentVerificationStatusTemplate,
+            'reservation_confirmation_mail_template' => $reservationConfirmationTemplate,
         );
         foreach ($settingsData as $key => $settingData) {
             // Adding default data for verification required for user settings
-            Setting::updateOrCreate(['type' => $key],['data' => $settingData]);
+            Setting::updateOrCreate(['type' => $key], ['data' => $settingData]);
         }
 
         // Update Admin properties to approved
-        Property::where('added_by',0)->update(['request_status' => "approved"]);
+        Property::where('added_by', 0)->update(['request_status' => "approved"]);
         /******************************************************************************************* */
-
     }
 
     /**

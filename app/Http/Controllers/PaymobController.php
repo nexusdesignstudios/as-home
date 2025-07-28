@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PaymobPayment;
 use App\Services\ApiResponseService;
 use App\Services\Payment\PaymentService;
+use App\Services\HelperService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -79,6 +80,68 @@ class PaymobController extends Controller
                                     Log::info('Available dates updated successfully', [
                                         'reservation_id' => $reservation->id
                                     ]);
+
+                                    // Send reservation confirmation email
+                                    try {
+                                        $customer = $reservation->customer;
+                                        if ($customer && $customer->email) {
+                                            // Get Data of email type
+                                            $emailTypeData = HelperService::getEmailTemplatesTypes("reservation_confirmation");
+
+                                            // Email Template
+                                            $reservationConfirmationTemplateData = system_setting($emailTypeData['type']);
+                                            $appName = env("APP_NAME") ?? "eBroker";
+
+                                            // Get property name
+                                            $propertyName = '';
+                                            if ($reservation->reservable_type === 'App\Models\Property') {
+                                                $propertyName = $reservation->reservable->title ?? 'Property';
+                                            } elseif ($reservation->reservable_type === 'App\Models\HotelRoom') {
+                                                $propertyName = $reservation->reservable->property->title ?? 'Hotel Room';
+                                            }
+
+                                            // Get currency symbol
+                                            $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+                                            $variables = array(
+                                                'app_name' => $appName,
+                                                'user_name' => $customer->name,
+                                                'reservation_id' => $reservation->id,
+                                                'property_name' => $propertyName,
+                                                'check_in_date' => $reservation->check_in_date->format('d M Y'),
+                                                'check_out_date' => $reservation->check_out_date->format('d M Y'),
+                                                'number_of_guests' => $reservation->number_of_guests,
+                                                'total_price' => number_format($reservation->total_price, 2),
+                                                'currency_symbol' => $currencySymbol,
+                                                'payment_status' => ucfirst($reservation->payment_status),
+                                                'transaction_id' => $payment->transaction_id,
+                                                'special_requests' => $reservation->special_requests ?? 'None',
+                                            );
+
+                                            if (empty($reservationConfirmationTemplateData)) {
+                                                $reservationConfirmationTemplateData = "Your reservation has been confirmed!";
+                                            }
+                                            $reservationConfirmationTemplate = HelperService::replaceEmailVariables($reservationConfirmationTemplateData, $variables);
+
+                                            $data = array(
+                                                'email_template' => $reservationConfirmationTemplate,
+                                                'email' => $customer->email,
+                                                'title' => $emailTypeData['title'],
+                                            );
+                                            HelperService::sendMail($data);
+
+                                            Log::info('Reservation confirmation email sent successfully', [
+                                                'reservation_id' => $reservation->id,
+                                                'customer_email' => $customer->email
+                                            ]);
+                                        }
+                                    } catch (\Exception $e) {
+                                        Log::error('Failed to send reservation confirmation email', [
+                                            'error' => $e->getMessage(),
+                                            'reservation_id' => $reservation->id,
+                                            'trace' => $e->getTraceAsString()
+                                        ]);
+                                    }
                                 } catch (\Exception $e) {
                                     Log::error('Failed to update available dates', [
                                         'error' => $e->getMessage(),

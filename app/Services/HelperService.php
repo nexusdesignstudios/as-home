@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Services;
 
 use Exception;
@@ -19,8 +20,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Symfony\Component\Intl\Currencies;
 
-class HelperService {
-    public static function currencyCode(){
+class HelperService
+{
+    public static function currencyCode()
+    {
         $currencies = Currencies::getNames();
         $currenciesArray = array();
         foreach ($currencies as $key => $value) {
@@ -32,19 +35,22 @@ class HelperService {
         return $currenciesArray;
     }
 
-    public static function getCurrencyData($code){
+    public static function getCurrencyData($code)
+    {
         $name = Currencies::getName($code);
         $currencySymbol = Currencies::getSymbol($code);
         return array('code' => $code, 'name' => $name, 'symbol' => $currencySymbol);
     }
 
     // Generate Token
-    public static function generateToken(){
+    public static function generateToken()
+    {
         return bin2hex(random_bytes(50)); // Generates a secure random token
     }
 
     // Store Token
-    public static function storeToken($email,$token){
+    public static function storeToken($email, $token)
+    {
         $expiresAt = now()->addMinutes(60); // Set token to expire after 60 minutes
         PasswordReset::updateOrCreate(
             array(
@@ -59,7 +65,8 @@ class HelperService {
     }
 
     // Verify Token
-    public static function verifyToken($token){
+    public static function verifyToken($token)
+    {
         $record = PasswordReset::where('token', $token)->where('expires_at', '>', now())->first();
         if ($record) {
             return $record->email;
@@ -69,7 +76,8 @@ class HelperService {
     }
 
     // Make Token Expire
-    public static function expireToken($email){
+    public static function expireToken($email)
+    {
         $expiresAt = now(); // Set token to expire after 60 minutes
         PasswordReset::updateOrCreate(
             array(
@@ -82,9 +90,10 @@ class HelperService {
         return true;
     }
 
-    public static function getEmailTemplatesTypes($type = null){
+    public static function getEmailTemplatesTypes($type = null)
+    {
         // Return required data if type is passed
-        if($type){
+        if ($type) {
             switch ($type) {
                 case 'verify_mail':
                     return array(
@@ -92,10 +101,12 @@ class HelperService {
                         'type' => 'verify_mail_template',
                         'required_fields' => array(
                             [
-                                'name' => 'app_name','is_condition' => false,
+                                'name' => 'app_name',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'otp','is_condition' => false,
+                                'name' => 'otp',
+                                'is_condition' => false,
                             ],
                         )
                     );
@@ -105,10 +116,12 @@ class HelperService {
                         'type' => 'password_reset_mail_template',
                         'required_fields' => array(
                             [
-                                'name' => 'app_name','is_condition' => false,
+                                'name' => 'app_name',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'link','is_condition' => false,
+                                'name' => 'link',
+                                'is_condition' => false,
                             ],
                         )
                     );
@@ -118,10 +131,12 @@ class HelperService {
                         'type' => 'welcome_mail_template',
                         'required_fields' => array(
                             [
-                                'name' => 'app_name','is_condition' => false,
+                                'name' => 'app_name',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'user_name','is_condition' => false,
+                                'name' => 'user_name',
+                                'is_condition' => false,
                             ],
                         )
                     );
@@ -131,19 +146,24 @@ class HelperService {
                         'type' => 'property_status_mail_template',
                         'required_fields' => array(
                             [
-                                'name' => 'app_name','is_condition' => false,
+                                'name' => 'app_name',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'user_name','is_condition' => false,
+                                'name' => 'user_name',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'property_name','is_condition' => false,
+                                'name' => 'property_name',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'status','is_condition' => false,
+                                'name' => 'status',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'reject_reason','is_condition' => false,
+                                'name' => 'reject_reason',
+                                'is_condition' => false,
                             ],
                         )
                     );
@@ -153,19 +173,24 @@ class HelperService {
                         'type' => 'project_status_mail_template',
                         'required_fields' => array(
                             [
-                                'name' => 'app_name','is_condition' => false,
+                                'name' => 'app_name',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'user_name','is_condition' => false,
+                                'name' => 'user_name',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'project_name','is_condition' => false,
+                                'name' => 'project_name',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'status','is_condition' => false,
+                                'name' => 'status',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'reject_reason','is_condition' => false,
+                                'name' => 'reject_reason',
+                                'is_condition' => false,
                             ],
                         )
                     );
@@ -175,16 +200,20 @@ class HelperService {
                         'type' => 'property_ads_mail_template',
                         'required_fields' => array(
                             [
-                                'name' => 'app_name','is_condition' => false,
+                                'name' => 'app_name',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'user_name','is_condition' => false,
+                                'name' => 'user_name',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'property_name','is_condition' => false,
+                                'name' => 'property_name',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'advertisement_status','is_condition' => false,
+                                'name' => 'advertisement_status',
+                                'is_condition' => false,
                             ],
                         )
                     );
@@ -194,13 +223,16 @@ class HelperService {
                         'type' => 'user_status_mail_template',
                         'required_fields' => array(
                             [
-                                'name' => 'app_name','is_condition' => false,
+                                'name' => 'app_name',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'user_name','is_condition' => false,
+                                'name' => 'user_name',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'status','is_condition' => false,
+                                'name' => 'status',
+                                'is_condition' => false,
                             ],
                         )
                     );
@@ -210,13 +242,71 @@ class HelperService {
                         'type' => 'agent_verification_status_mail_template',
                         'required_fields' => array(
                             [
-                                'name' => 'app_name','is_condition' => false,
+                                'name' => 'app_name',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'user_name','is_condition' => false,
+                                'name' => 'user_name',
+                                'is_condition' => false,
                             ],
                             [
-                                'name' => 'status','is_condition' => false,
+                                'name' => 'status',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'reservation_confirmation':
+                    return array(
+                        'title' => 'Reservation Confirmation',
+                        'type' => 'reservation_confirmation_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'user_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_in_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_out_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'number_of_guests',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_price',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'payment_status',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'transaction_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'special_requests',
+                                'is_condition' => false,
                             ],
                         )
                     );
@@ -257,20 +347,25 @@ class HelperService {
                 'title' => 'Agent Verification Status',
                 'type' => 'agent_verification_status',
             ],
+            [
+                'title' => 'Reservation Confirmation',
+                'type' => 'reservation_confirmation',
+            ],
         );
     }
 
 
-    public static function replaceEmailVariables($templateContent, $variables){
+    public static function replaceEmailVariables($templateContent, $variables)
+    {
         foreach ($variables as $key => $variable) {
 
             // Create the placeholder format
             $placeholder = '{' . $key . '}';
             $endPlaceHolderPair = "{end_$key}";
             if (strpos($templateContent, $placeholder) !== false && strpos($templateContent, $endPlaceHolderPair) !== false) {
-                $pattern=$placeholder.$endPlaceHolderPair;
+                $pattern = $placeholder . $endPlaceHolderPair;
                 $templateContent = str_replace($pattern, $variable, $templateContent);
-            }else{
+            } else {
                 // Replace the placeholder with the variable format
                 $templateContent = str_replace($placeholder, $variable, $templateContent);
             }
@@ -278,7 +373,8 @@ class HelperService {
         return $templateContent;
     }
 
-    public static function sendMail($data, $requiredEmailException = false){
+    public static function sendMail($data, $requiredEmailException = false)
+    {
         try {
             $adminMail = env('MAIL_FROM_ADDRESS');
             Mail::send('mail-templates.mail-template', $data, function ($message) use ($data, $adminMail) {
@@ -286,7 +382,7 @@ class HelperService {
                 $message->from($adminMail, 'Admin');
             });
         } catch (Exception $e) {
-            if($requiredEmailException == true){
+            if ($requiredEmailException == true) {
                 DB::rollback();
                 throw $e;
             }
@@ -296,32 +392,35 @@ class HelperService {
                 'Mail',
                 'Mailer',
                 'MailManager'
-                ])) {
-                    Log::error("Cannot send mail, there is issue with mail configuration.");
+            ])) {
+                Log::error("Cannot send mail, there is issue with mail configuration.");
             } else {
                 $logMessage = "Send Mail for property feature status changed";
                 Log::error($logMessage . ' ' . $e->getMessage() . '---> ' . $e->getFile() . ' At Line : ' . $e->getLine());
             }
         }
     }
-    public static function getFeatureList(){
+    public static function getFeatureList()
+    {
         try {
-            $features = Feature::where('status',1)->get();
+            $features = Feature::where('status', 1)->get();
             return $features;
         } catch (Exception $e) {
-            Log::error('Issue in Get Feature list of Helper Service :- '.$e->getMessage());
+            Log::error('Issue in Get Feature list of Helper Service :- ' . $e->getMessage());
             return array();
         }
     }
 
-    public static function getSettingData($type){
-        $settingData = Setting::where('type',$type)->pluck('data')->first();
+    public static function getSettingData($type)
+    {
+        $settingData = Setting::where('type', $type)->pluck('data')->first();
         return !empty($settingData) ? $settingData : null;
     }
 
-    public static function getMultipleSettingData(array $types, $raw = false){
-        $settingData = Setting::whereIn('type',$types)->get();
-        if(!empty($settingData)){
+    public static function getMultipleSettingData(array $types, $raw = false)
+    {
+        $settingData = Setting::whereIn('type', $types)->get();
+        if (!empty($settingData)) {
             $data = array();
             foreach ($settingData as $setting) {
                 $data[$setting->type] = $setting->data;
@@ -331,51 +430,53 @@ class HelperService {
         return null;
     }
 
-    public static function getActivePaymentGateway(){
+    public static function getActivePaymentGateway()
+    {
         try {
-            $paymentMethodTypes = array('stripe_gateway','razorpay_gateway','paystack_gateway','paypal_gateway','flutterwave_status');
-            $settingsData = Setting::whereIn('type',$paymentMethodTypes)->get();
+            $paymentMethodTypes = array('stripe_gateway', 'razorpay_gateway', 'paystack_gateway', 'paypal_gateway', 'flutterwave_status');
+            $settingsData = Setting::whereIn('type', $paymentMethodTypes)->get();
             foreach ($settingsData as $key => $setting) {
-                if($setting->data == 1){
+                if ($setting->data == 1) {
                     return $setting->type;
                 }
             }
             return 'none';
         } catch (Exception $e) {
-            Log::error('Issue in Get Active Payment Gateway function of Helper Service :- '.$e->getMessage());
+            Log::error('Issue in Get Active Payment Gateway function of Helper Service :- ' . $e->getMessage());
             return false;
         }
     }
 
 
-    public static function getActivePaymentDetails(){
+    public static function getActivePaymentDetails()
+    {
         try {
             $getActivePaymentName = self::getActivePaymentGateway();
             switch ($getActivePaymentName) {
                 case 'stripe_gateway':
-                    $types = array('stripe_currency','stripe_gateway','stripe_publishable_key','stripe_secret_key');
+                    $types = array('stripe_currency', 'stripe_gateway', 'stripe_publishable_key', 'stripe_secret_key');
                     $data = array('payment_method' => 'stripe');
-                    return array_merge($data,self::getMultipleSettingData($types));
+                    return array_merge($data, self::getMultipleSettingData($types));
                     break;
                 case 'razorpay_gateway':
-                    $types = array('razorpay_gateway','razor_key','razor_secret','razorpay_webhook_url','razor_webhook_secret');
+                    $types = array('razorpay_gateway', 'razor_key', 'razor_secret', 'razorpay_webhook_url', 'razor_webhook_secret');
                     $data = array('payment_method' => 'razorpay');
-                    return array_merge($data,self::getMultipleSettingData($types));
+                    return array_merge($data, self::getMultipleSettingData($types));
                     break;
                 case 'paystack_gateway':
-                    $types = array('paystack_secret_key','paystack_public_key','paystack_currency');
+                    $types = array('paystack_secret_key', 'paystack_public_key', 'paystack_currency');
                     $data = array('payment_method' => 'paystack');
-                    return array_merge($data,self::getMultipleSettingData($types));
+                    return array_merge($data, self::getMultipleSettingData($types));
                     break;
                 case 'paypal_gateway':
-                    $types = array('paypal_business_id','paypal_currency','switch_sandbox_mode');
+                    $types = array('paypal_business_id', 'paypal_currency', 'switch_sandbox_mode');
                     $data = array('payment_method' => 'paypal');
-                    return array_merge($data,self::getMultipleSettingData($types));
+                    return array_merge($data, self::getMultipleSettingData($types));
                     break;
                 case 'flutterwave_status':
-                    $types = array('flutterwave_public_key','flutterwave_secret_key','flutterwave_webhook_url','flutterwave_currency',' flutterwave_status');
+                    $types = array('flutterwave_public_key', 'flutterwave_secret_key', 'flutterwave_webhook_url', 'flutterwave_currency', ' flutterwave_status');
                     $data = array('payment_method' => 'flutterwave');
-                    return array_merge($data,self::getMultipleSettingData($types));
+                    return array_merge($data, self::getMultipleSettingData($types));
                     break;
 
                 default:
@@ -383,12 +484,13 @@ class HelperService {
                     break;
             }
         } catch (Exception $e) {
-            Log::error('Issue in Get Payment Details function of Helper Service :- '.$e->getMessage());
+            Log::error('Issue in Get Payment Details function of Helper Service :- ' . $e->getMessage());
             return false;
         }
     }
 
-    public static function changeEnv($updateData = array()): bool {
+    public static function changeEnv($updateData = array()): bool
+    {
         if (count($updateData) > 0) {
             // Read .env-file
             $env = file_get_contents(base_path() . '/.env');
@@ -419,14 +521,16 @@ class HelperService {
         return false;
     }
 
-    public static function getAllActivePackageIds($userId){
+    public static function getAllActivePackageIds($userId)
+    {
         // Retrieve user packages with end_time less than or equal to current date
         $packageIds = UserPackage::where('user_id', $userId)
             ->onlyActive()
             ->pluck('package_id');
         return $packageIds;
     }
-    public static function getActivePackage($userId, $packageId){
+    public static function getActivePackage($userId, $packageId)
+    {
         // Retrieve user packages with end_time less than or equal to current date
         $userPackages = UserPackage::where('user_id', $userId)
             ->where('package_id', $packageId)
@@ -435,30 +539,31 @@ class HelperService {
         return $userPackages;
     }
 
-    public static function getFeatureId($type){
+    public static function getFeatureId($type)
+    {
         try {
             $featureQuery = Feature::query();
             switch ($type) {
                 case 'property_list':
-                    $featureQuery = $featureQuery->clone()->where('name',config('constants.FEATURES.PROPERTY_LIST'));
+                    $featureQuery = $featureQuery->clone()->where('name', config('constants.FEATURES.PROPERTY_LIST'));
                     break;
                 case 'project_list':
-                    $featureQuery = $featureQuery->clone()->where('name',config('constants.FEATURES.PROJECT_LIST'));
+                    $featureQuery = $featureQuery->clone()->where('name', config('constants.FEATURES.PROJECT_LIST'));
                     break;
                 case 'property_feature':
-                    $featureQuery = $featureQuery->clone()->where('name',config('constants.FEATURES.PROPERTY_FEATURE'));
+                    $featureQuery = $featureQuery->clone()->where('name', config('constants.FEATURES.PROPERTY_FEATURE'));
                     break;
                 case 'project_feature':
-                    $featureQuery = $featureQuery->clone()->where('name',config('constants.FEATURES.PROJECT_FEATURE'));
+                    $featureQuery = $featureQuery->clone()->where('name', config('constants.FEATURES.PROJECT_FEATURE'));
                     break;
                 case 'mortgage_calculator_detail':
-                    $featureQuery = $featureQuery->clone()->where('name',config('constants.FEATURES.MORTGAGE_CALCULATOR_DETAIL'));
+                    $featureQuery = $featureQuery->clone()->where('name', config('constants.FEATURES.MORTGAGE_CALCULATOR_DETAIL'));
                     break;
                 case 'premium_properties':
-                    $featureQuery = $featureQuery->clone()->where('name',config('constants.FEATURES.PREMIUM_PROPERTIES'));
+                    $featureQuery = $featureQuery->clone()->where('name', config('constants.FEATURES.PREMIUM_PROPERTIES'));
                     break;
                 case 'project_access':
-                    $featureQuery = $featureQuery->clone()->where('name',config('constants.FEATURES.PROJECT_ACCESS'));
+                    $featureQuery = $featureQuery->clone()->where('name', config('constants.FEATURES.PROJECT_ACCESS'));
                     break;
                 default:
                     Log::error('Type not allowed in getFeatureId function of HelperService');
@@ -467,13 +572,13 @@ class HelperService {
             }
             return $featureQuery->pluck('id')->first();
         } catch (Exception $e) {
-            Log::error('Issue in Get Feature ID HelperService Function => '.$e->getMessage());
+            Log::error('Issue in Get Feature ID HelperService Function => ' . $e->getMessage());
             return false;
         }
     }
 
 
-    public static function updatePackageLimit($type,$getPackageDataReturn = false)
+    public static function updatePackageLimit($type, $getPackageDataReturn = false)
     {
         try {
             $featureTypes = array('property_list', 'property_feature', 'project_list', 'project_feature', 'mortgage_calculator_detail', 'premium_properties', 'project_access');
@@ -487,9 +592,9 @@ class HelperService {
                 ApiResponseService::validationError("Invalid Feature Type");
             }
 
-            if(Auth::guard('sanctum')->check()){
+            if (Auth::guard('sanctum')->check()) {
                 $loggedInUserData = Auth::guard('sanctum')->user();
-            }else{
+            } else {
                 ApiResponseService::validationError('Package not found');
             }
 
@@ -497,7 +602,7 @@ class HelperService {
             if (collect($packagesIds)->isEmpty()) {
                 ApiResponseService::validationError('Package not available');
             }
-            $userPackageIds = UserPackage::whereIn('package_id', $packagesIds)->where('user_id',$loggedInUserData->id)->pluck('id');
+            $userPackageIds = UserPackage::whereIn('package_id', $packagesIds)->where('user_id', $loggedInUserData->id)->pluck('id');
 
             $packageFeatureQuery = PackageFeature::where('feature_id', $featureId)->whereIn('package_id', $packagesIds);
             $packageFeatureIds = $packageFeatureQuery->clone()->pluck('id');
@@ -506,27 +611,27 @@ class HelperService {
                 ApiResponseService::validationError('Package not available');
             }
 
-            $packageFeatures = $packageFeatureQuery->clone()->with(['user_package_limits' => function ($query) use($userPackageIds){
+            $packageFeatures = $packageFeatureQuery->clone()->with(['user_package_limits' => function ($query) use ($userPackageIds) {
                 $query->whereIn('user_package_id', $userPackageIds);
-            },'package'])->get();
+            }, 'package'])->get();
 
             foreach ($packageFeatures as $packageFeatureData) {
                 if ($packageFeatureData->limit_type == 'unlimited') {
-                    if($getPackageDataReturn == true){
+                    if ($getPackageDataReturn == true) {
                         return $packageFeatureData->package;
-                    }else{
+                    } else {
                         return true;
                     }
                 }
-                if($packageFeatureData->user_package_limits){
+                if ($packageFeatureData->user_package_limits) {
                     foreach ($packageFeatureData->user_package_limits as $package) {
                         if ($package->total_limit > $package->used_limit) {
                             // Deduct one limit
                             $package->used_limit += 1;
                             $package->save();
-                            if($getPackageDataReturn == true){
+                            if ($getPackageDataReturn == true) {
                                 return $packageFeatureData->package;
-                            }else{
+                            } else {
                                 return true;
                             }
                         }
@@ -541,39 +646,40 @@ class HelperService {
     }
 
 
-    public static function checkPackageLimit($type, $getCheckDataInReturn = false){
-        try{
+    public static function checkPackageLimit($type, $getCheckDataInReturn = false)
+    {
+        try {
             $packageAvailable = false;
             $featureAvailable = false;
             $limitAvailable = false;
             $loggedInUserData = null;
-            if(Auth::guard('sanctum')->check()){
+            if (Auth::guard('sanctum')->check()) {
                 $loggedInUserData = Auth::guard('sanctum')->user();
             }
             $featureId = HelperService::getFeatureId($type);
 
             if (!empty($featureId)) {
-                if($loggedInUserData){
+                if ($loggedInUserData) {
                     $packageIds = HelperService::getAllActivePackageIds($loggedInUserData->id);
                 }
                 if (isset($packageIds) && collect($packageIds)->isNotEmpty()) {
                     $packageAvailable = true;
-                    $userPackages = UserPackage::whereIn('package_id', $packageIds)->where('user_id',$loggedInUserData->id)->get();
+                    $userPackages = UserPackage::whereIn('package_id', $packageIds)->where('user_id', $loggedInUserData->id)->get();
                     $userPackageIds = $userPackages->pluck('id');
 
                     $packageFeatureQuery = PackageFeature::where('feature_id', $featureId)->whereIn('package_id', $packageIds);
                     $getPackageFeatureData = $packageFeatureQuery->clone()->get();
-                    if(collect($getPackageFeatureData)->isNotEmpty()){
+                    if (collect($getPackageFeatureData)->isNotEmpty()) {
                         $featureAvailable = true;
                         foreach ($getPackageFeatureData as $packageFeatureData) {
-                            if($packageFeatureData->limit_type == 'unlimited'){
+                            if ($packageFeatureData->limit_type == 'unlimited') {
                                 $limitAvailable = true;
-                            }else if($packageFeatureData->limit_type == 'limited'){
+                            } else if ($packageFeatureData->limit_type == 'limited') {
                                 $packageFeatureIds = $packageFeatureQuery->clone()->pluck('id');
                                 $userPackageLimit = UserPackageLimit::whereIn('user_package_id', $userPackageIds)->whereIn('package_feature_id', $packageFeatureIds)->get();
                                 if (collect($userPackageLimit)->isNotEmpty()) {
                                     foreach ($userPackageLimit as $package) {
-                                        if($package->total_limit > $package->used_limit){
+                                        if ($package->total_limit > $package->used_limit) {
                                             $limitAvailable = true;
                                         }
                                     }
@@ -584,37 +690,37 @@ class HelperService {
                 }
             }
 
-            if($getCheckDataInReturn == true){
+            if ($getCheckDataInReturn == true) {
                 return [
                     'package_available' => $packageAvailable,
                     'feature_available' => $featureAvailable,
                     'limit_available' => $limitAvailable,
                 ];
-            }else{
-                if($packageAvailable){
-                    if($featureAvailable){
-                        if($limitAvailable){
+            } else {
+                if ($packageAvailable) {
+                    if ($featureAvailable) {
+                        if ($limitAvailable) {
                             return true;
-                        }else{
+                        } else {
                             ApiResponseService::validationError("Limit Not Available");
                         }
-                    }else{
+                    } else {
                         ApiResponseService::validationError("Feature Not Available");
                     }
-                }else{
+                } else {
                     ApiResponseService::validationError("Package Not Available");
                 }
             }
-
         } catch (Exception $e) {
             ApiResponseService::logErrorResponse($e, 'Issue in check package limit helper function');
         }
     }
-    public static function incrementTotalClick($type,$id = null,$slugId = null){
-        if($type == 'project'){
-            Projects::where('id',$id)->orWhere('slug_id',$slugId)->increment('total_click');
-        }else if($type == 'property'){
-            Property::where('id',$id)->orWhere('slug_id',$slugId)->increment('total_click');
+    public static function incrementTotalClick($type, $id = null, $slugId = null)
+    {
+        if ($type == 'project') {
+            Projects::where('id', $id)->orWhere('slug_id', $slugId)->increment('total_click');
+        } else if ($type == 'property') {
+            Property::where('id', $id)->orWhere('slug_id', $slugId)->increment('total_click');
         }
         return true;
     }
@@ -652,7 +758,8 @@ class HelperService {
     // }
 
 
-    public static function getFeatureNames(){
+    public static function getFeatureNames()
+    {
         $featureNames = array(
             config('constants.FEATURES.PROPERTY_LIST'),
             config('constants.FEATURES.PROPERTY_FEATURE'),
@@ -664,7 +771,4 @@ class HelperService {
         );
         return $featureNames;
     }
-
 }
-
-?>
