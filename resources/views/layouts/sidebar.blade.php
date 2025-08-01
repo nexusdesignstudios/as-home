@@ -127,6 +127,16 @@
                     </li>
                 @endif
 
+                {{-- Property Taxes --}}
+                @if (has_permissions('read', 'property_taxes'))
+                    <li class="sidebar-item">
+                        <a href="{{ route('property-taxes.index') }}" class='sidebar-link'>
+                            <i class="bi bi-cash-coin"></i>
+                            <span class="menu-item">{{ __('Property Taxes') }}</span>
+                        </a>
+                    </li>
+                @endif
+
                 {{-- Property Question Forms --}}
                 @if (has_permissions('read', 'property_question_form'))
                     <li class="sidebar-item has-sub">

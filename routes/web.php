@@ -417,6 +417,10 @@ Route::middleware(['language'])->group(function () {
             Route::delete('/{id}', [PropertyQuestionFormController::class, 'destroy'])->name('property-question-form.delete');
             Route::get('/{classification?}', [PropertyQuestionFormController::class, 'index'])->name('property-question-form.index');
         });
+
+        // Property Taxes Routes
+        Route::get('property-taxes', [App\Http\Controllers\PropertyTaxController::class, 'index'])->name('property-taxes.index');
+        Route::post('property-taxes', [App\Http\Controllers\PropertyTaxController::class, 'store'])->name('property-taxes.store');
     });
 
     Route::get('get-currency-symbol', [SettingController::class, 'getCurrencySymbol'])->name('get-currency-symbol');

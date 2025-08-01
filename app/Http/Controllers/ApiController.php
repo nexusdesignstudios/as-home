@@ -8544,4 +8544,114 @@ class ApiController extends Controller
             ApiResponseService::successResponse("No data found!");
         }
     }
+
+    /**
+     * Get property taxes by classification.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPropertyTaxes(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'property_classification' => 'required|integer|in:4,5',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => true,
+                    'message' => $validator->errors()->first()
+                ]);
+            }
+
+            $propertyClassification = $request->property_classification;
+
+            $taxes = \App\Models\PropertyTax::where('property_classification', $propertyClassification)->first();
+
+            if (!$taxes) {
+                return response()->json([
+                    'error' => false,
+                    'message' => 'No taxes found for this property classification',
+                    'data' => [
+                        'property_classification' => $propertyClassification,
+                        'property_classification_name' => $propertyClassification == 4 ? 'vacation_homes' : 'hotel_booking',
+                        'service_charge' => null,
+                        'sales_tax' => null,
+                        'city_tax' => null
+                    ]
+                ]);
+            }
+
+            return response()->json([
+                'error' => false,
+                'message' => 'Property taxes retrieved successfully',
+                'data' => [
+                    'property_classification' => $taxes->property_classification,
+                    'property_classification_name' => $propertyClassification == 4 ? 'vacation_homes' : 'hotel_booking',
+                    'service_charge' => $taxes->service_charge,
+                    'sales_tax' => $taxes->sales_tax,
+                    'city_tax' => $taxes->city_tax
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => true,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Store or update property taxes.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function storePropertyTaxes(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'property_classification' => 'required|integer|in:4,5',
+                'service_charge' => 'nullable|numeric|min:0',
+                'sales_tax' => 'nullable|numeric|min:0',
+                'city_tax' => 'nullable|numeric|min:0',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => true,
+                    'message' => $validator->errors()->first()
+                ]);
+            }
+
+            $propertyClassification = $request->property_classification;
+
+            $taxes = \App\Models\PropertyTax::updateOrCreate(
+                ['property_classification' => $propertyClassification],
+                [
+                    'service_charge' => $request->service_charge,
+                    'sales_tax' => $request->sales_tax,
+                    'city_tax' => $request->city_tax,
+                ]
+            );
+
+            return response()->json([
+                'error' => false,
+                'message' => 'Property taxes updated successfully',
+                'data' => [
+                    'property_classification' => $taxes->property_classification,
+                    'property_classification_name' => $propertyClassification == 4 ? 'vacation_homes' : 'hotel_booking',
+                    'service_charge' => $taxes->service_charge,
+                    'sales_tax' => $taxes->sales_tax,
+                    'city_tax' => $taxes->city_tax
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => true,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

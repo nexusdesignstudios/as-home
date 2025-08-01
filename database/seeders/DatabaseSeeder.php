@@ -22,6 +22,9 @@ class DatabaseSeeder extends Seeder
         // Call the Hotel Apartment Type Seeder
         $this->call(HotelApartmentTypeSeeder::class);
 
+        // Call the Property Tax Permission Seeder
+        $this->call(PropertyTaxPermissionSeeder::class);
+
         // Duplicate the file
         $sourceFile = resource_path('lang/en.json');
         $destinationFile = resource_path('lang/en-new.json');

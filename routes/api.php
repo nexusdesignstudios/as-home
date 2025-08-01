@@ -122,6 +122,11 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::get('get-hotel-addon-fields', [ApiController::class, 'getHotelAddonFields']);
     /*********************************************************************** */
 
+    /** Property Taxes */
+    Route::get('get-property-taxes', [ApiController::class, 'getPropertyTaxes']);
+    Route::post('store-property-taxes', [ApiController::class, 'storePropertyTaxes']);
+    /*********************************************************************** */
+
     /** Others */
 
     // Payment
