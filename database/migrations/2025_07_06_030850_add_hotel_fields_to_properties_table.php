@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('propertys', function (Blueprint $table) {
-            $table->string('hotel_name')->nullable()->after('available_dates');
+            $table->string('hotel_name')->nullable()->after('identity_proof');
             $table->enum('refund_policy', ['flexible', 'non-refundable'])->nullable()->after('hotel_name');
         });
     }

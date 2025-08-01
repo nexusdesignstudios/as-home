@@ -448,6 +448,14 @@ class ReservationController extends Controller
         }
 
         try {
+            $customerId = Auth::guard('sanctum')->user()->id;
+            $discountInfo = $this->calculateCustomerDiscount(
+                $customerId,
+                $modelType,
+                $request->payment['amount']
+            );
+
+
             // Generate a unique transaction ID
             $transactionId = Str::uuid()->toString();
 
@@ -459,7 +467,7 @@ class ReservationController extends Controller
                 'check_in_date' => $request->check_in_date,
                 'check_out_date' => $request->check_out_date,
                 'number_of_guests' => $request->number_of_guests ?? 1,
-                'total_price' => $request->payment['amount'],
+                'total_price' => $discountInfo['final_amount'],
                 'special_requests' => $request->special_requests,
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
@@ -471,7 +479,7 @@ class ReservationController extends Controller
             $payment = PaymobPayment::create([
                 'customer_id' => Auth::guard('sanctum')->user()->id,
                 'transaction_id' => $transactionId,
-                'amount' => $request->payment['amount'],
+                'amount' => $discountInfo['final_amount'],
                 'currency' => config('paymob.currency', 'EGP'),
                 'status' => 'pending',
                 'payment_method' => 'paymob',
@@ -504,15 +512,55 @@ class ReservationController extends Controller
             $paymentService = app(\App\Services\Payment\PaymentService::class)->create($paymentData);
 
             // Create payment intent
-            $paymentIntent = $paymentService->createAndFormatPaymentIntent($request->payment['amount'], $metadata);
+            $paymentIntent = $paymentService->createAndFormatPaymentIntent($discountInfo['final_amount'], $metadata);
 
             ApiResponseService::successResponse('Reservation and payment intent created successfully', [
                 'reservation' => $reservation,
                 'payment_intent' => $paymentIntent,
-                'transaction_id' => $transactionId
+                'transaction_id' => $transactionId,
+                'discount_info' => $discountInfo,
             ]);
         } catch (\Exception $e) {
             ApiResponseService::errorResponse('Failed to create reservation with payment: ' . $e->getMessage());
         }
+    }
+    private function calculateCustomerDiscount($customerId, $reservableType, $originalAmount)
+    {
+        $completedBookings = Reservation::where('customer_id', $customerId)
+            ->where('reservable_type', $reservableType)
+            ->where('status', 'confirmed')
+            ->count();
+
+        $discountPercentage = 0;
+
+        if ($reservableType === 'App\\Models\\Property') {
+
+            if ($completedBookings == 15) {
+                $discountPercentage = 10;
+            } elseif ($completedBookings == 10) {
+                $discountPercentage = 7;
+            } elseif ($completedBookings == 5) {
+                $discountPercentage = 3;
+            }
+        } elseif ($reservableType === 'App\\Models\\HotelRoom') {
+            if ($completedBookings == 20) {
+                $discountPercentage = 5;
+            } elseif ($completedBookings == 15) {
+                $discountPercentage = 4;
+            } elseif ($completedBookings == 10) {
+                $discountPercentage = 2;
+            }
+        }
+
+        $discountAmount = ($originalAmount * $discountPercentage) / 100;
+        $finalAmount = $originalAmount - $discountAmount;
+
+        return [
+            'original_amount' => $originalAmount,
+            'discount_percentage' => $discountPercentage,
+            'discount_amount' => $discountAmount,
+            'final_amount' => $finalAmount,
+            'completed_bookings' => $completedBookings
+        ];
     }
 }
