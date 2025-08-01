@@ -40,6 +40,8 @@ class ReservationsController extends Controller
         $order = $request->order ?? 'DESC';
         $search = $request->search ?? '';
         $type = $request->type ?? 'all'; // 'vacation_homes', 'hotels', 'all'
+        $dateFrom = $request->date_from ?? null;
+        $dateTo = $request->date_to ?? null;
 
         $query = Reservation::with(['customer', 'reservable']);
 
@@ -48,6 +50,15 @@ class ReservationsController extends Controller
             $query->where('reservable_type', 'App\\Models\\Property');
         } elseif ($type === 'hotels') {
             $query->where('reservable_type', 'App\\Models\\HotelRoom');
+        }
+
+        // Filter by date range
+        if ($dateFrom) {
+            $query->where('check_in_date', '>=', $dateFrom);
+        }
+
+        if ($dateTo) {
+            $query->where('check_out_date', '<=', $dateTo);
         }
 
         if (!empty($search)) {
@@ -269,22 +280,37 @@ class ReservationsController extends Controller
     /**
      * Get reservation statistics.
      *
+     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getStatistics()
+    public function getStatistics(Request $request)
     {
-        $totalReservations = Reservation::count();
-        $pendingReservations = Reservation::where('status', 'pending')->count();
-        $confirmedReservations = Reservation::where('status', 'confirmed')->count();
-        $cancelledReservations = Reservation::where('status', 'cancelled')->count();
-        $completedReservations = Reservation::where('status', 'completed')->count();
+        $dateFrom = $request->date_from ?? null;
+        $dateTo = $request->date_to ?? null;
 
-        $totalRevenue = Reservation::where('payment_status', 'paid')->sum('total_price');
-        $unpaidAmount = Reservation::where('payment_status', 'unpaid')->sum('total_price');
+        $query = Reservation::query();
 
-        $vacationHomeReservations = Reservation::where('reservable_type', 'App\\Models\\Property')->count();
+        // Apply date filters if provided
+        if ($dateFrom) {
+            $query->where('check_in_date', '>=', $dateFrom);
+        }
 
-        $hotelReservations = Reservation::where('reservable_type', 'App\\Models\\HotelRoom')->count();
+        if ($dateTo) {
+            $query->where('check_out_date', '<=', $dateTo);
+        }
+
+        $totalReservations = (clone $query)->count();
+        $pendingReservations = (clone $query)->where('status', 'pending')->count();
+        $confirmedReservations = (clone $query)->where('status', 'confirmed')->count();
+        $cancelledReservations = (clone $query)->where('status', 'cancelled')->count();
+        $completedReservations = (clone $query)->where('status', 'completed')->count();
+
+        $totalRevenue = (clone $query)->where('payment_status', 'paid')->sum('total_price');
+        $unpaidAmount = (clone $query)->where('payment_status', 'unpaid')->sum('total_price');
+
+        $vacationHomeReservations = (clone $query)->where('reservable_type', 'App\\Models\\Property')->count();
+
+        $hotelReservations = (clone $query)->where('reservable_type', 'App\\Models\\HotelRoom')->count();
 
         return response()->json([
             'total_reservations' => $totalReservations,

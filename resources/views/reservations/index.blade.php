@@ -85,6 +85,35 @@
         </div>
     </div>
 
+    <!-- Date Range Filter -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h4 class="card-title">Filter Reservations</h4>
+        </div>
+        <div class="card-body">
+            <div class="column">
+                <div class="col-md-4">
+                    <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="date-from">From Date</label>
+                        <input type="date" id="date-from" class="form-control">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="date-to">To Date</label>
+                        <input type="date" id="date-to" class="form-control">
+                    </div>
+                </div>
+                </div>
+                <div class="col-md-4 d-flex align-items-center">
+                    <button id="apply-filter" class="btn btn-primary me-2">Apply Filter</button>
+                    <button id="reset-filter" class="btn btn-secondary">Reset</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Reservations Table -->
     <div class="card">
         <div class="card-header">
@@ -257,6 +286,8 @@
 <script>
 let currentTab = 'all';
 let tables = {};
+let dateFrom = '';
+let dateTo = '';
 
 $(document).ready(function() {
     // Load statistics
@@ -281,6 +312,26 @@ $(document).ready(function() {
             tables[currentTab].bootstrapTable('refresh');
         }
     });
+
+    // Handle date filter
+    $('#apply-filter').on('click', function() {
+        dateFrom = $('#date-from').val();
+        dateTo = $('#date-to').val();
+
+        // Refresh all tables with the new date filter
+        refreshAllTables();
+    });
+
+    // Handle reset filter
+    $('#reset-filter').on('click', function() {
+        $('#date-from').val('');
+        $('#date-to').val('');
+        dateFrom = '';
+        dateTo = '';
+
+        // Refresh all tables
+        refreshAllTables();
+    });
 });
 
 function initializeTables() {
@@ -290,6 +341,8 @@ function initializeTables() {
         method: 'get',
         queryParams: function(params) {
             params.type = 'all';
+            if (dateFrom) params.date_from = dateFrom;
+            if (dateTo) params.date_to = dateTo;
             return params;
         },
         columns: [
@@ -328,6 +381,8 @@ function initializeTables() {
         method: 'get',
         queryParams: function(params) {
             params.type = 'vacation_homes';
+            if (dateFrom) params.date_from = dateFrom;
+            if (dateTo) params.date_to = dateTo;
             return params;
         },
         columns: [
@@ -365,6 +420,8 @@ function initializeTables() {
         method: 'get',
         queryParams: function(params) {
             params.type = 'hotels';
+            if (dateFrom) params.date_from = dateFrom;
+            if (dateTo) params.date_to = dateTo;
             return params;
         },
         columns: [
@@ -398,10 +455,28 @@ function initializeTables() {
     });
 }
 
+function refreshAllTables() {
+    // Refresh all tables with the current filter
+    Object.keys(tables).forEach(function(tableKey) {
+        if (tables[tableKey]) {
+            tables[tableKey].bootstrapTable('refresh');
+        }
+    });
+
+    // Also refresh statistics as they might be affected by date filters
+    loadStatistics();
+}
+
 function loadStatistics() {
+    // Prepare data with date filters if available
+    let data = {};
+    if (dateFrom) data.date_from = dateFrom;
+    if (dateTo) data.date_to = dateTo;
+
     $.ajax({
         url: '{{ route("reservations.statistics") }}',
         method: 'GET',
+        data: data,
         success: function(response) {
             $('#total-reservations').text(response.total_reservations);
             $('#total-revenue').text(response.total_revenue);
