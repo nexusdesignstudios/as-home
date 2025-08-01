@@ -425,6 +425,21 @@ class ReservationService
      */
     public function areDatesAvailable($modelType, $modelId, $checkInDate, $checkOutDate)
     {
+        // Parse the check-in and check-out dates
+        $checkIn = Carbon::parse($checkInDate);
+        $checkOut = Carbon::parse($checkOutDate);
+        $today = Carbon::today();
+
+        // Check for 31st day restriction
+        if ($checkIn->format('d') == '31' || $checkOut->format('d') == '31') {
+            return false;
+        }
+
+        // Check for past dates
+        if ($checkIn->lt($today) || $checkOut->lt($today)) {
+            return false;
+        }
+
         // Check if there are any overlapping reservations
         $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType);
         if ($hasOverlap) {
@@ -444,10 +459,6 @@ class ReservationService
         if (empty($availableDates) || !is_array($availableDates)) {
             return false;
         }
-
-        // Parse the check-in and check-out dates
-        $checkIn = Carbon::parse($checkInDate);
-        $checkOut = Carbon::parse($checkOutDate);
 
         // Handle different availability types (for HotelRoom model)
         if ($modelType === 'App\\Models\\HotelRoom' && isset($model->availability_type)) {
