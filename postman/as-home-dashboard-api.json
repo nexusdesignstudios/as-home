@@ -4733,7 +4733,7 @@
           "response": []
         },
         {
-          "name": "Process Bank Account Payout",
+          "name": "Process Bank Card Payout (Example)",
           "request": {
             "auth": {
               "type": "bearer",
@@ -4760,19 +4760,19 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"amount\": 100.00,\n    \"beneficiary_name\": \"John Doe\",\n    \"disbursement_type\": \"bank_wallet\",\n    \"account_number\": \"123456789\",\n    \"bank_code\": \"BANK123\",\n    \"swift_code\": \"SWIFT123\",\n    \"iban\": \"AE123456789\",\n    \"email\": \"recipient@example.com\",\n    \"mobile_number\": \"1234567890\",\n    \"reference_id\": \"unique_reference_id\",\n    \"notes\": \"Payout for services rendered\"\n}"
+              "raw": "{\n    \"issuer\": \"bank_card\",\n    \"amount\": 100.50,\n    \"bank_card_number\": \"1111222233334444\",\n    \"bank_transaction_type\": \"cash_transfer\",\n    \"bank_code\": \"CIB\",\n    \"full_name\": \"John Doe\",\n    \"client_reference_id\": \"test-ref-123\",\n    \"notes\": \"Test bank card payout\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/paymob-payout",
               "host": ["{{base_url}}"],
               "path": ["api", "paymob-payout"]
             },
-            "description": "Process a payout to a bank account. This endpoint transfers funds to the specified bank account."
+            "description": "Process a payout to a bank card/account. This is the main payout endpoint that supports all issuer types (vodafone, etisalat, orange, aman, bank_wallet, bank_card)."
           },
           "response": []
         },
         {
-          "name": "Process Mobile Wallet Payout",
+          "name": "Process Vodafone Payout",
           "request": {
             "auth": {
               "type": "bearer",
@@ -4799,19 +4799,58 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"amount\": 100.00,\n    \"beneficiary_name\": \"John Doe\",\n    \"disbursement_type\": \"mobile_wallet\",\n    \"mobile_number\": \"1234567890\",\n    \"wallet_issuer\": \"WALLET_PROVIDER\",\n    \"wallet_number\": \"wallet_number\",\n    \"email\": \"recipient@example.com\",\n    \"reference_id\": \"unique_reference_id\",\n    \"notes\": \"Payout for services rendered\"\n}"
+              "raw": "{\n    \"issuer\": \"vodafone\",\n    \"amount\": 50.00,\n    \"msisdn\": \"01023456789\",\n    \"client_reference_id\": \"test-vodafone-123\",\n    \"notes\": \"Test Vodafone payout\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/paymob-payout",
               "host": ["{{base_url}}"],
               "path": ["api", "paymob-payout"]
             },
-            "description": "Process a payout to a mobile wallet. This endpoint transfers funds to the specified mobile wallet."
+            "description": "Process a payout to Vodafone Cash wallet."
           },
           "response": []
         },
         {
-          "name": "Check Payout Status",
+          "name": "Process Aman Payout",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"issuer\": \"aman\",\n    \"amount\": 75.25,\n    \"msisdn\": \"01020304050\",\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"client_reference_id\": \"test-aman-123\",\n    \"notes\": \"Test Aman payout\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/paymob-payout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymob-payout"]
+            },
+            "description": "Process a payout to Aman. Requires first_name, last_name, and email fields."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payout Status",
           "request": {
             "auth": {
               "type": "bearer",
@@ -4832,18 +4871,272 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/paymob-payout-status?payout_id=payout_id_to_check",
+              "raw": "{{base_url}}/api/paymob-payout-status?transaction_id=transaction_id_to_check",
               "host": ["{{base_url}}"],
               "path": ["api", "paymob-payout-status"],
               "query": [
                 {
-                  "key": "payout_id",
-                  "value": "payout_id_to_check",
-                  "description": "ID of the payout to check"
+                  "key": "transaction_id",
+                  "value": "transaction_id_to_check",
+                  "description": "Transaction ID to check status"
                 }
               ]
             },
-            "description": "Check the status of a payout by its ID. Returns the current status, amount, and other details."
+            "description": "Check the status of a payout transaction. Returns the current status, amount, and other details."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Aman Transaction",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"transaction_id\": \"607f2a5a-1109-43d2-a12c-9327ab2dca18\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/paymob-cancel-aman-transaction",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymob-cancel-aman-transaction"]
+            },
+            "description": "Cancel an Aman transaction. Only Aman transactions can be cancelled."
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk Transaction Inquiry",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"transaction_ids\": [\n        \"607f2a5a-1109-43d2-a12c-9327ab2dca18\",\n        \"2a08d70c-49a9-48ed-bcbf-734343065477\"\n    ],\n    \"is_bank_transactions\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/paymob-bulk-transaction-inquiry",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymob-bulk-transaction-inquiry"]
+            },
+            "description": "Check the status of multiple transactions at once. Limited to 5 requests per minute."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Budget",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/paymob-user-budget",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymob-user-budget"]
+            },
+            "description": "Get the current balance/budget of the user. Limited to 5 requests per minute."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Bank Codes",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/paymob-bank-codes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymob-bank-codes"]
+            },
+            "description": "Get the list of supported bank codes for bank card payouts."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Bank Transaction Types",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/paymob-bank-transaction-types",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymob-bank-transaction-types"]
+            },
+            "description": "Get the list of supported bank transaction types for bank card payouts."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payout Transactions",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/paymob-payout-transactions?per_page=15&status=success&issuer=bank_card&date_from=2024-01-01&date_to=2024-12-31",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymob-payout-transactions"],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Number of records per page (1-100, default: 15)"
+                },
+                {
+                  "key": "status",
+                  "value": "success",
+                  "description": "Filter by status (success, successful, failed, pending)"
+                },
+                {
+                  "key": "issuer",
+                  "value": "bank_card",
+                  "description": "Filter by issuer (vodafone, etisalat, orange, aman, bank_wallet, bank_card)"
+                },
+                {
+                  "key": "date_from",
+                  "value": "2024-01-01",
+                  "description": "Filter by start date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "date_to",
+                  "value": "2024-12-31",
+                  "description": "Filter by end date (YYYY-MM-DD)"
+                }
+              ]
+            },
+            "description": "Get paginated list of payout transactions with filters."
+          },
+          "response": []
+        },
+        {
+          "name": "Payout Callback (Webhook)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"transaction_id\": \"1e886593-03b1-4af9-b9e0-72b39fef479b\",\n    \"issuer\": \"bank_card\",\n    \"amount\": \"100.00\",\n    \"bank_card_number\": \"8881914753038370\",\n    \"full_name\": \"Tom Bernard Ceisar\",\n    \"bank_code\": \"ADCB\",\n    \"bank_transaction_type\": \"cash_transfer\",\n    \"disbursement_status\": \"failed\",\n    \"status_code\": \"8002\",\n    \"status_description\": \"Invalid bank code\",\n    \"created_at\": \"2024-01-01T12:00:00Z\",\n    \"updated_at\": \"2024-01-01T12:01:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/paymob-payout-callback",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymob-payout-callback"]
+            },
+            "description": "Webhook endpoint for Paymob to notify about payout status changes (Aman and bank transactions only). This is for reference only - it's called by Paymob, not by your application."
           },
           "response": []
         },

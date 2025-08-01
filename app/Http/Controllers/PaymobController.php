@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\PaymobPayment;
+use App\Models\PaymobPayoutTransaction;
 use App\Services\ApiResponseService;
 use App\Services\Payment\PaymentService;
+use App\Services\Payment\PaymobPayoutService;
 use App\Services\HelperService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -479,7 +481,7 @@ class PaymobController extends Controller
     }
 
     /**
-     * Process a payout to a recipient
+     * Process instant cashin (payout) to a recipient
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -488,55 +490,83 @@ class PaymobController extends Controller
     {
         try {
             $request->validate([
+                'issuer' => 'required|string|in:vodafone,etisalat,orange,aman,bank_wallet,bank_card',
                 'amount' => 'required|numeric|min:0.01',
-                'beneficiary_name' => 'required|string',
-                'disbursement_type' => 'required|string|in:bank_wallet,bank_card,mobile_wallet',
-                'reference_id' => 'nullable|string',
-                'notes' => 'nullable|string',
-                // Bank account fields
-                'account_number' => 'required_if:disbursement_type,bank_wallet,bank_card|nullable|string',
-                'bank_code' => 'required_if:disbursement_type,bank_wallet,bank_card|nullable|string',
-                'swift_code' => 'nullable|string',
-                'iban' => 'nullable|string',
-                // Mobile wallet fields
-                'mobile_number' => 'required_if:disbursement_type,mobile_wallet|nullable|string',
-                'wallet_issuer' => 'required_if:disbursement_type,mobile_wallet|nullable|string',
-                'wallet_number' => 'required_if:disbursement_type,mobile_wallet|nullable|string',
-                // Additional fields
+                'msisdn' => 'required_if:issuer,vodafone,etisalat,orange,aman,bank_wallet|nullable|string|regex:/^[0-9]{11}$/',
+                'first_name' => 'required_if:issuer,aman|nullable|string',
+                'last_name' => 'required_if:issuer,aman|nullable|string',
                 'email' => 'nullable|email',
-                'beneficiary_type' => 'nullable|string|in:person,company',
+                'bank_card_number' => 'required_if:issuer,bank_card|nullable|string',
+                'bank_transaction_type' => 'required_if:issuer,bank_card|nullable|string|in:salary,credit_card,prepaid_card,cash_transfer',
+                'bank_code' => 'required_if:issuer,bank_card|nullable|string',
+                'full_name' => 'required_if:issuer,bank_card|nullable|string',
+                'client_reference_id' => 'nullable|string|uuid',
+                'notes' => 'nullable|string',
             ]);
 
+            // Create payout service
+            $payoutService = new PaymobPayoutService();
+
+            // Prepare payout data
             $payoutData = $request->all();
+            $payoutData['customer_id'] = Auth::guard('sanctum')->user()->id ?? null;
 
-            $paymentData = [
-                'payment_method' => 'paymob',
-                'paymob_api_key' => config('paymob.api_key'),
-                'paymob_integration_id' => config('paymob.integration_id'),
-                'paymob_iframe_id' => config('paymob.iframe_id'),
-                'paymob_currency' => config('paymob.currency'),
-            ];
+            // Process the payout
+            $result = $payoutService->processInstantCashin($payoutData);
 
-            // Create payment service
-            $paymentService = PaymentService::create($paymentData);
+            // Store the transaction in database
+            $payoutTransaction = PaymobPayoutTransaction::create([
+                'customer_id' => $payoutData['customer_id'],
+                'transaction_id' => $result['transaction_id'],
+                'issuer' => $result['issuer'],
+                'amount' => $result['amount'],
+                'msisdn' => $payoutData['msisdn'] ?? null,
+                'full_name' => $payoutData['full_name'] ?? null,
+                'first_name' => $payoutData['first_name'] ?? null,
+                'last_name' => $payoutData['last_name'] ?? null,
+                'email' => $payoutData['email'] ?? null,
+                'bank_card_number' => $payoutData['bank_card_number'] ?? null,
+                'bank_transaction_type' => $payoutData['bank_transaction_type'] ?? null,
+                'bank_code' => $payoutData['bank_code'] ?? null,
+                'client_reference_id' => $payoutData['client_reference_id'] ?? null,
+                'disbursement_status' => $result['disbursement_status'],
+                'status_code' => $result['status_code'],
+                'status_description' => $result['status_description'],
+                'reference_number' => $result['reference_number'],
+                'paid' => $result['paid'],
+                'aman_cashing_details' => $result['aman_cashing_details'],
+                'transaction_data' => $result,
+                'notes' => $payoutData['notes'] ?? null,
+            ]);
 
-            // Process payout
-            $payoutResult = $paymentService->createPayout($payoutData);
+            Log::info('Paymob payout transaction created', [
+                'transaction_id' => $payoutTransaction->transaction_id,
+                'issuer' => $payoutTransaction->issuer,
+                'amount' => $payoutTransaction->amount,
+                'status' => $payoutTransaction->disbursement_status
+            ]);
 
-            // Store payout record in database if needed
-            // You might want to create a PayoutTransaction model for this
-
-            ApiResponseService::successResponse('Payout processed successfully', $payoutResult);
+            ApiResponseService::successResponse('Payout processed successfully', [
+                'transaction_id' => $result['transaction_id'],
+                'issuer' => $result['issuer'],
+                'amount' => $result['amount'],
+                'disbursement_status' => $result['disbursement_status'],
+                'status_description' => $result['status_description'],
+                'reference_number' => $result['reference_number'],
+                'aman_cashing_details' => $result['aman_cashing_details'],
+            ]);
             return;
         } catch (\Exception $e) {
-            Log::error('Paymob payout error: ' . $e->getMessage());
+            Log::error('Paymob payout error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             ApiResponseService::errorResponse('Failed to process payout: ' . $e->getMessage(), null, 500);
             return;
         }
     }
 
     /**
-     * Check the status of a payout
+     * Check the status of a payout transaction
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -545,30 +575,405 @@ class PaymobController extends Controller
     {
         try {
             $request->validate([
-                'payout_id' => 'required|string',
+                'transaction_id' => 'required|string',
             ]);
 
-            $payoutId = $request->input('payout_id');
+            $transactionId = $request->input('transaction_id');
 
-            $paymentData = [
-                'payment_method' => 'paymob',
-                'paymob_api_key' => config('paymob.api_key'),
-                'paymob_integration_id' => config('paymob.integration_id'),
-                'paymob_iframe_id' => config('paymob.iframe_id'),
-                'paymob_currency' => config('paymob.currency'),
-            ];
+            // First check if we have the transaction in our database
+            $payoutTransaction = PaymobPayoutTransaction::where('transaction_id', $transactionId)->first();
 
-            // Create payment service
-            $paymentService = PaymentService::create($paymentData);
+            if (!$payoutTransaction) {
+                ApiResponseService::errorResponse('Payout transaction not found', null, 404);
+                return;
+            }
 
-            // Get payout status
-            $payoutStatus = $paymentService->getPayoutStatus($payoutId);
+            // Create payout service
+            $payoutService = new PaymobPayoutService();
 
-            ApiResponseService::successResponse('Payout status retrieved successfully', $payoutStatus);
+            // Get updated status from Paymob
+            $result = $payoutService->bulkTransactionInquiry([$transactionId]);
+
+            if ($result['success'] && !empty($result['results'])) {
+                $transactionData = $result['results'][0];
+
+                // Update the transaction in our database
+                $payoutTransaction->update([
+                    'disbursement_status' => $transactionData['disbursement_status'],
+                    'status_code' => $transactionData['status_code'],
+                    'status_description' => $transactionData['status_description'],
+                    'reference_number' => $transactionData['reference_number'] ?? null,
+                    'paid' => $transactionData['paid'] ?? null,
+                    'aman_cashing_details' => $transactionData['aman_cashing_details'] ?? null,
+                    'transaction_data' => $transactionData,
+                ]);
+
+                ApiResponseService::successResponse('Payout status retrieved successfully', [
+                    'transaction_id' => $transactionData['transaction_id'],
+                    'issuer' => $transactionData['issuer'],
+                    'amount' => $transactionData['amount'],
+                    'disbursement_status' => $transactionData['disbursement_status'],
+                    'status_code' => $transactionData['status_code'],
+                    'status_description' => $transactionData['status_description'],
+                    'reference_number' => $transactionData['reference_number'] ?? null,
+                    'paid' => $transactionData['paid'] ?? null,
+                    'aman_cashing_details' => $transactionData['aman_cashing_details'] ?? null,
+                    'created_at' => $transactionData['created_at'],
+                    'updated_at' => $transactionData['updated_at']
+                ]);
+            } else {
+                // Return the stored transaction data if API call fails
+                ApiResponseService::successResponse('Payout status retrieved from database', [
+                    'transaction_id' => $payoutTransaction->transaction_id,
+                    'issuer' => $payoutTransaction->issuer,
+                    'amount' => $payoutTransaction->amount,
+                    'disbursement_status' => $payoutTransaction->disbursement_status,
+                    'status_code' => $payoutTransaction->status_code,
+                    'status_description' => $payoutTransaction->status_description,
+                    'reference_number' => $payoutTransaction->reference_number,
+                    'paid' => $payoutTransaction->paid,
+                    'aman_cashing_details' => $payoutTransaction->aman_cashing_details,
+                    'created_at' => $payoutTransaction->created_at,
+                    'updated_at' => $payoutTransaction->updated_at
+                ]);
+            }
             return;
         } catch (\Exception $e) {
-            Log::error('Paymob payout status error: ' . $e->getMessage());
+            Log::error('Paymob payout status error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             ApiResponseService::errorResponse('Failed to get payout status: ' . $e->getMessage(), null, 500);
+            return;
+        }
+    }
+
+    /**
+     * Cancel Aman transaction
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function cancelAmanTransaction(Request $request)
+    {
+        try {
+            $request->validate([
+                'transaction_id' => 'required|string|uuid',
+            ]);
+
+            $transactionId = $request->input('transaction_id');
+
+            // Check if we have the transaction in our database
+            $payoutTransaction = PaymobPayoutTransaction::where('transaction_id', $transactionId)->first();
+
+            if (!$payoutTransaction) {
+                ApiResponseService::errorResponse('Payout transaction not found', null, 404);
+                return;
+            }
+
+            if ($payoutTransaction->issuer !== 'aman') {
+                ApiResponseService::errorResponse('Only Aman transactions can be cancelled', null, 400);
+                return;
+            }
+
+            // Create payout service
+            $payoutService = new PaymobPayoutService();
+
+            // Cancel the Aman transaction
+            $result = $payoutService->cancelAmanTransaction($transactionId);
+
+            // Update the transaction in our database
+            $payoutTransaction->update([
+                'disbursement_status' => $result['disbursement_status'],
+                'status_code' => $result['status_code'],
+                'status_description' => $result['status_description'],
+                'reference_number' => $result['reference_number'] ?? null,
+                'paid' => $result['paid'] ?? null,
+                'aman_cashing_details' => $result['aman_cashing_details'] ?? null,
+                'transaction_data' => $result,
+            ]);
+
+            Log::info('Aman transaction cancelled', [
+                'transaction_id' => $transactionId,
+                'status' => $result['disbursement_status']
+            ]);
+
+            ApiResponseService::successResponse('Aman transaction cancelled successfully', [
+                'transaction_id' => $result['transaction_id'],
+                'issuer' => $result['issuer'],
+                'amount' => $result['amount'],
+                'disbursement_status' => $result['disbursement_status'],
+                'status_code' => $result['status_code'],
+                'status_description' => $result['status_description'],
+                'reference_number' => $result['reference_number'] ?? null,
+                'paid' => $result['paid'] ?? null,
+                'aman_cashing_details' => $result['aman_cashing_details'] ?? null,
+            ]);
+            return;
+        } catch (\Exception $e) {
+            Log::error('Paymob cancel Aman transaction error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            ApiResponseService::errorResponse('Failed to cancel Aman transaction: ' . $e->getMessage(), null, 500);
+            return;
+        }
+    }
+
+    /**
+     * Bulk transaction inquiry
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function bulkTransactionInquiry(Request $request)
+    {
+        try {
+            $request->validate([
+                'transaction_ids' => 'required|array|min:1|max:50',
+                'transaction_ids.*' => 'string|uuid',
+                'is_bank_transactions' => 'boolean',
+            ]);
+
+            $transactionIds = $request->input('transaction_ids');
+            $isBankTransactions = $request->input('is_bank_transactions', false);
+
+            // Create payout service
+            $payoutService = new PaymobPayoutService();
+
+            // Get transaction statuses
+            $result = $payoutService->bulkTransactionInquiry($transactionIds, $isBankTransactions);
+
+            // Update transactions in our database
+            if ($result['success'] && !empty($result['results'])) {
+                foreach ($result['results'] as $transactionData) {
+                    $payoutTransaction = PaymobPayoutTransaction::where('transaction_id', $transactionData['transaction_id'])->first();
+
+                    if ($payoutTransaction) {
+                        $payoutTransaction->update([
+                            'disbursement_status' => $transactionData['disbursement_status'],
+                            'status_code' => $transactionData['status_code'],
+                            'status_description' => $transactionData['status_description'],
+                            'reference_number' => $transactionData['reference_number'] ?? null,
+                            'paid' => $transactionData['paid'] ?? null,
+                            'aman_cashing_details' => $transactionData['aman_cashing_details'] ?? null,
+                            'transaction_data' => $transactionData,
+                        ]);
+                    }
+                }
+            }
+
+            ApiResponseService::successResponse('Bulk transaction inquiry completed', [
+                'count' => $result['count'],
+                'next' => $result['next'] ?? null,
+                'previous' => $result['previous'] ?? null,
+                'results' => $result['results']
+            ]);
+            return;
+        } catch (\Exception $e) {
+            Log::error('Paymob bulk transaction inquiry error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            ApiResponseService::errorResponse('Failed to inquire transactions: ' . $e->getMessage(), null, 500);
+            return;
+        }
+    }
+
+    /**
+     * Get user budget (balance)
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getUserBudget(Request $request)
+    {
+        try {
+            // Create payout service
+            $payoutService = new PaymobPayoutService();
+
+            // Get user budget
+            $result = $payoutService->getUserBudget();
+
+            ApiResponseService::successResponse('User budget retrieved successfully', [
+                'current_budget' => $result['current_budget'],
+                'status_description' => $result['status_description'] ?? null,
+                'status_code' => $result['status_code'] ?? null
+            ]);
+            return;
+        } catch (\Exception $e) {
+            Log::error('Paymob get user budget error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            ApiResponseService::errorResponse('Failed to get user budget: ' . $e->getMessage(), null, 500);
+            return;
+        }
+    }
+
+    /**
+     * Get bank codes
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getBankCodes(Request $request)
+    {
+        try {
+            $payoutService = new PaymobPayoutService();
+            $bankCodes = $payoutService->getBankCodes();
+
+            ApiResponseService::successResponse('Bank codes retrieved successfully', [
+                'bank_codes' => $bankCodes
+            ]);
+            return;
+        } catch (\Exception $e) {
+            Log::error('Paymob get bank codes error: ' . $e->getMessage());
+            ApiResponseService::errorResponse('Failed to get bank codes: ' . $e->getMessage(), null, 500);
+            return;
+        }
+    }
+
+    /**
+     * Get bank transaction types
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getBankTransactionTypes(Request $request)
+    {
+        try {
+            $payoutService = new PaymobPayoutService();
+            $bankTransactionTypes = $payoutService->getBankTransactionTypes();
+
+            ApiResponseService::successResponse('Bank transaction types retrieved successfully', [
+                'bank_transaction_types' => $bankTransactionTypes
+            ]);
+            return;
+        } catch (\Exception $e) {
+            Log::error('Paymob get bank transaction types error: ' . $e->getMessage());
+            ApiResponseService::errorResponse('Failed to get bank transaction types: ' . $e->getMessage(), null, 500);
+            return;
+        }
+    }
+
+    /**
+     * Get payout transactions (with pagination and filters)
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPayoutTransactions(Request $request)
+    {
+        try {
+            $request->validate([
+                'per_page' => 'integer|min:1|max:100',
+                'status' => 'string|in:success,successful,failed,pending',
+                'issuer' => 'string|in:vodafone,etisalat,orange,aman,bank_wallet,bank_card',
+                'customer_id' => 'integer|exists:customers,id',
+                'date_from' => 'date',
+                'date_to' => 'date|after_or_equal:date_from',
+            ]);
+
+            $perPage = $request->input('per_page', 15);
+            $status = $request->input('status');
+            $issuer = $request->input('issuer');
+            $customerId = $request->input('customer_id');
+            $dateFrom = $request->input('date_from');
+            $dateTo = $request->input('date_to');
+
+            $query = PaymobPayoutTransaction::query();
+
+            // Apply filters
+            if ($status) {
+                $query->byStatus($status);
+            }
+
+            if ($issuer) {
+                $query->byIssuer($issuer);
+            }
+
+            if ($customerId) {
+                $query->where('customer_id', $customerId);
+            }
+
+            if ($dateFrom) {
+                $query->whereDate('created_at', '>=', $dateFrom);
+            }
+
+            if ($dateTo) {
+                $query->whereDate('created_at', '<=', $dateTo);
+            }
+
+            // Order by latest first
+            $query->orderBy('created_at', 'desc');
+
+            // Get paginated results
+            $transactions = $query->with('customer')->paginate($perPage);
+
+            ApiResponseService::successResponse('Payout transactions retrieved successfully', [
+                'transactions' => $transactions->items(),
+                'pagination' => [
+                    'current_page' => $transactions->currentPage(),
+                    'last_page' => $transactions->lastPage(),
+                    'per_page' => $transactions->perPage(),
+                    'total' => $transactions->total(),
+                    'from' => $transactions->firstItem(),
+                    'to' => $transactions->lastItem(),
+                ]
+            ]);
+            return;
+        } catch (\Exception $e) {
+            Log::error('Paymob get payout transactions error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            ApiResponseService::errorResponse('Failed to get payout transactions: ' . $e->getMessage(), null, 500);
+            return;
+        }
+    }
+
+    /**
+     * Handle payout callback from Paymob
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function handlePayoutCallback(Request $request)
+    {
+        try {
+            Log::info('Paymob payout callback received', $request->all());
+
+            $data = $request->all();
+            $transactionId = $data['transaction_id'];
+
+            // Find the payout transaction
+            $payoutTransaction = PaymobPayoutTransaction::where('transaction_id', $transactionId)->first();
+
+            if ($payoutTransaction) {
+                // Update the transaction with the latest data
+                $payoutTransaction->update([
+                    'disbursement_status' => $data['disbursement_status'],
+                    'status_code' => $data['status_code'],
+                    'status_description' => $data['status_description'],
+                    'reference_number' => $data['reference_number'] ?? null,
+                    'paid' => $data['paid'] ?? null,
+                    'aman_cashing_details' => $data['aman_cashing_details'] ?? null,
+                    'transaction_data' => $data,
+                ]);
+
+                Log::info('Payout transaction updated from callback', [
+                    'transaction_id' => $transactionId,
+                    'status' => $data['disbursement_status']
+                ]);
+            } else {
+                Log::warning('Payout transaction not found for callback', [
+                    'transaction_id' => $transactionId
+                ]);
+            }
+
+            ApiResponseService::successResponse('Payout callback processed successfully');
+            return;
+        } catch (\Exception $e) {
+            Log::error('Paymob payout callback error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            ApiResponseService::errorResponse('Failed to process payout callback: ' . $e->getMessage(), null, 500);
             return;
         }
     }

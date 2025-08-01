@@ -149,6 +149,13 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::get('paymob-refund-status', [PaymobController::class, 'getRefundStatus']);
     Route::post('paymob-payout', [PaymobController::class, 'processPayout']);
     Route::get('paymob-payout-status', [PaymobController::class, 'getPayoutStatus']);
+    Route::post('paymob-cancel-aman-transaction', [PaymobController::class, 'cancelAmanTransaction']);
+    Route::post('paymob-bulk-transaction-inquiry', [PaymobController::class, 'bulkTransactionInquiry']);
+    Route::get('paymob-user-budget', [PaymobController::class, 'getUserBudget']);
+    Route::get('paymob-bank-codes', [PaymobController::class, 'getBankCodes']);
+    Route::get('paymob-bank-transaction-types', [PaymobController::class, 'getBankTransactionTypes']);
+    Route::get('paymob-payout-transactions', [PaymobController::class, 'getPayoutTransactions']);
+    Route::post('paymob-payout-callback', [PaymobController::class, 'handlePayoutCallback']);
 
     // Payment Receipt
     Route::get('get-payment-receipt', [ApiController::class, 'getPaymentReceipt']);
