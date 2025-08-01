@@ -104,44 +104,95 @@
 
 
 
-                    {{-- Hotel Specific Fields --}}
-                    <div class="col-md-12 hotel-fields" style="display: none;">
-                        <div class="form-group">
-                            {{ Form::label('refund_policy', __('Refund Policy'), ['class' => 'form-label col-12']) }}
-                            {{ Form::select('refund_policy', ['flexible' => __('Flexible'), 'non-refundable' => __('Non-Refundable')], null, ['class' => 'form-control select2', 'placeholder' => __('Select Refund Policy')]) }}
-                        </div>
-                    </div>
+                                {{-- Hotel Specific Fields --}}
+            <div class="col-md-12 hotel-fields" style="display: none;">
+                <div class="form-group">
+                    {{ Form::label('refund_policy', __('Refund Policy'), ['class' => 'form-label col-12']) }}
+                    {{ Form::select('refund_policy', ['flexible' => __('Flexible'), 'non-refundable' => __('Non-Refundable')], null, ['class' => 'form-control select2', 'placeholder' => __('Select Refund Policy')]) }}
+                </div>
+                <div class="form-group">
+                    {{ Form::label('hotel_apartment_type_id', __('Hotel Apartment Type'), ['class' => 'form-label col-12']) }}
+                    {{ Form::select('hotel_apartment_type_id', App\Models\HotelApartmentType::pluck('name', 'id'), null, ['class' => 'form-control select2', 'placeholder' => __('Select Apartment Type')]) }}
+                </div>
+                <div class="form-group">
+                    {{ Form::label('check_in', __('Check-in Time'), ['class' => 'form-label col-12']) }}
+                    {{ Form::time('check_in', null, ['class' => 'form-control']) }}
+                </div>
+                <div class="form-group">
+                    {{ Form::label('check_out', __('Check-out Time'), ['class' => 'form-label col-12']) }}
+                    {{ Form::time('check_out', null, ['class' => 'form-control']) }}
+                </div>
+                <div class="form-group">
+                    {{ Form::label('available_rooms', __('Total Available Rooms'), ['class' => 'form-label col-12']) }}
+                    {{ Form::number('available_rooms', null, ['class' => 'form-control', 'min' => '0']) }}
+                </div>
+                <div class="form-group">
+                    {{ Form::label('agent_addons', __('Agent Addons'), ['class' => 'form-label col-12']) }}
+                    {{ Form::textarea('agent_addons', null, ['class' => 'form-control', 'rows' => '3', 'placeholder' => __('Agent Addons (JSON format)')]) }}
+                </div>
+            </div>
 
-                    {{-- Hotel Rooms Section --}}
-                    <div class="col-md-12 hotel-fields" style="display: none;">
-                        <div class="form-group">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h5>{{ __('Hotel Rooms') }}</h5>
-                                <button type="button" class="btn btn-sm btn-primary" id="add-room-btn">
-                                    <i class="bi bi-plus"></i> {{ __('Add Room') }}
-                                </button>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table table-bordered">
-                                    <thead>
-                                        <tr>
-                                            <th>{{ __('Room Number') }}</th>
-                                            <th>{{ __('Room Type') }}</th>
-                                            <th>{{ __('Price/Night') }}</th>
-                                            <th>{{ __('Discount %') }}</th>
-                                            <th>{{ __('Refund Policy') }}</th>
-                                            <th>{{ __('Weekend Commission') }}</th>
-                                            <th>{{ __('Availability Type') }}</th>
-                                            <th>{{ __('Action') }}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="rooms-container">
-                                        <!-- Room rows will be added here dynamically -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+            {{-- Hotel Rooms Section --}}
+            <div class="col-md-12 hotel-fields" style="display: none;">
+                <div class="form-group">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5>{{ __('Hotel Rooms') }}</h5>
+                        <button type="button" class="btn btn-sm btn-primary" id="add-room-btn">
+                            <i class="bi bi-plus"></i> {{ __('Add Room') }}
+                        </button>
                     </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>{{ __('Room Number') }}</th>
+                                    <th>{{ __('Room Type') }}</th>
+                                    <th>{{ __('Price/Night') }}</th>
+                                    <th>{{ __('Discount %') }}</th>
+                                    <th>{{ __('Refund Policy') }}</th>
+                                    <th>{{ __('Weekend Commission') }}</th>
+                                    <th>{{ __('Availability Type') }}</th>
+                                    <th>{{ __('Description') }}</th>
+                                    <th>{{ __('Action') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rooms-container">
+                                <!-- Room rows will be added here dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Addons Packages Section --}}
+            <div class="col-md-12 hotel-fields" style="display: none;">
+                <div class="form-group">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5>{{ __('Addons Packages') }}</h5>
+                        <button type="button" class="btn btn-sm btn-primary" id="add-package-btn">
+                            <i class="bi bi-plus"></i> {{ __('Add Package') }}
+                        </button>
+                    </div>
+                    <div id="packages-container">
+                        <!-- Package forms will be added here dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            {{-- Certificates Section --}}
+            <div class="col-md-12 hotel-fields" style="display: none;">
+                <div class="form-group">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5>{{ __('Certificates') }}</h5>
+                        <button type="button" class="btn btn-sm btn-primary" id="add-certificate-btn">
+                            <i class="bi bi-plus"></i> {{ __('Add Certificate') }}
+                        </button>
+                    </div>
+                    <div id="certificates-container">
+                        <!-- Certificate forms will be added here dynamically -->
+                    </div>
+                </div>
+            </div>
 
                     {{-- Duration --}}
                     <div class="col-md-12 col-12 form-group mandatory" id='duration'>
@@ -153,6 +204,22 @@
                             <option value="Yearly">{{ __("Yearly") }}</option>
                             <option value="Quarterly">{{ __("Quarterly") }}</option>
                         </select>
+                    </div>
+
+                    {{-- Vacation Home Specific Fields --}}
+                    <div class="col-md-12 vacation-fields" style="display: none;">
+                        <div class="form-group">
+                            {{ Form::label('availability_type', __('Availability Type'), ['class' => 'form-label col-12']) }}
+                            {{ Form::select('availability_type', [
+                                '1' => __('Available Days'),
+                                '2' => __('Busy Days')
+                            ], null, ['class' => 'form-control select2', 'placeholder' => __('Select Availability Type')]) }}
+                        </div>
+                        <div class="form-group">
+                            {{ Form::label('available_dates', __('Available Dates'), ['class' => 'form-label col-12']) }}
+                            <div id="availability-calendar"></div>
+                            {{ Form::hidden('available_dates', '[]', ['id' => 'available-dates-json']) }}
+                        </div>
                     </div>
 
                     {{-- Price --}}
@@ -347,6 +414,30 @@
                         <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 policy-data-field">
                             {{ Form::label('policy_data', __('Policy Data'), ['class' => 'form-label']) }}
                             <input type="file" class="filepond" id="policy_data" name="policy_data" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
+                        </div>
+
+                        {{-- Identity Proof --}}
+                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3">
+                            {{ Form::label('identity_proof', __('Identity Proof'), ['class' => 'form-label']) }}
+                            <input type="file" class="filepond" id="identity_proof" name="identity_proof" accept="image/jpg,image/png,image/jpeg">
+                        </div>
+
+                        {{-- National ID/Passport --}}
+                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3">
+                            {{ Form::label('national_id_passport', __('National ID/Passport'), ['class' => 'form-label']) }}
+                            <input type="file" class="filepond" id="national_id_passport" name="national_id_passport" accept="image/jpg,image/png,image/jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                        </div>
+
+                        {{-- Utilities Bills --}}
+                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3">
+                            {{ Form::label('utilities_bills', __('Utilities Bills'), ['class' => 'form-label']) }}
+                            <input type="file" class="filepond" id="utilities_bills" name="utilities_bills" accept="image/jpg,image/png,image/jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                        </div>
+
+                        {{-- Power of Attorney --}}
+                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3">
+                            {{ Form::label('power_of_attorney', __('Power of Attorney'), ['class' => 'form-label']) }}
+                            <input type="file" class="filepond" id="power_of_attorney" name="power_of_attorney" accept="image/jpg,image/png,image/jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
                         </div>
 
                         {{-- Video Link --}}
@@ -738,6 +829,8 @@
 
         // Room management
         var roomIndex = 0;
+        var packageIndex = 0;
+        var certificateIndex = 0;
 
         // Add new room
         $('#add-room-btn').on('click', function() {
@@ -769,12 +862,19 @@
                         <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][weekend_commission]" value="" min="0" max="100" step="0.01">
                     </td>
                     <td>
-                        <select class="form-control" name="hotel_rooms[${roomIndex}][availability_type]">
+                        <select class="form-control availability-type-select" data-index="${roomIndex}">
                             <option value="">{{ __('None') }}</option>
                             <option value="1">{{ __('Available Days') }}</option>
                             <option value="2">{{ __('Busy Days') }}</option>
                         </select>
-                        <input type="hidden" name="hotel_rooms[${roomIndex}][available_dates]" value="[]">
+                        <input type="hidden" name="hotel_rooms[${roomIndex}][availability_type]" class="availability-type-value">
+                        <input type="hidden" name="hotel_rooms[${roomIndex}][available_dates]" value="[]" class="available-dates-value">
+                        <button type="button" class="btn btn-sm btn-info mt-2 select-dates-btn" data-index="${roomIndex}" style="display:none;">
+                            <i class="bi bi-calendar"></i> {{ __('Select Dates') }}
+                        </button>
+                    </td>
+                    <td>
+                        <textarea class="form-control" name="hotel_rooms[${roomIndex}][description]" rows="2"></textarea>
                     </td>
                     <td>
                         <button type="button" class="btn btn-danger btn-sm remove-room">
@@ -793,6 +893,205 @@
             $(this).closest('tr').remove();
         });
 
+        // Add new addon package
+        $('#add-package-btn').on('click', function() {
+            var packageHtml = `
+                <div class="card mb-3 addon-package" data-index="${packageIndex}">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5>{{ __('Package') }} #${packageIndex + 1}</h5>
+                        <button type="button" class="btn btn-danger btn-sm remove-package">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>{{ __('Package Name') }} <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="addons_packages[${packageIndex}][name]" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>{{ __('Room Type') }}</label>
+                                    <select class="form-control" name="addons_packages[${packageIndex}][room_type_id]">
+                                        <option value="">{{ __('Select Room Type') }}</option>
+                                        @foreach(App\Models\HotelRoomType::where('status', 1)->get() as $roomType)
+                                            <option value="{{ $roomType->id }}">{{ $roomType->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>{{ __('Description') }}</label>
+                                    <textarea class="form-control" name="addons_packages[${packageIndex}][description]" rows="3"></textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>{{ __('Price') }}</label>
+                                    <input type="number" class="form-control" name="addons_packages[${packageIndex}][price]" min="0" step="0.01">
+                                </div>
+                                <div class="form-group">
+                                    <label>{{ __('Status') }}</label>
+                                    <select class="form-control" name="addons_packages[${packageIndex}][status]">
+                                        <option value="active">{{ __('Active') }}</option>
+                                        <option value="inactive">{{ __('Inactive') }}</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <h6>{{ __('Addon Values') }}</h6>
+                            <div class="addon-values-container" data-package-index="${packageIndex}">
+                                <button type="button" class="btn btn-sm btn-primary add-addon-value" data-package-index="${packageIndex}">
+                                    <i class="bi bi-plus"></i> {{ __('Add Addon Value') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            $('#packages-container').append(packageHtml);
+            packageIndex++;
+        });
+
+        // Remove addon package
+        $(document).on('click', '.remove-package', function() {
+            $(this).closest('.addon-package').remove();
+        });
+
+        // Add addon value to package
+        $(document).on('click', '.add-addon-value', function() {
+            var packageIndex = $(this).data('package-index');
+            var addonValueIndex = $(this).closest('.addon-values-container').find('.addon-value-row').length;
+
+            var addonValueHtml = `
+                <div class="row mt-2 addon-value-row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>{{ __('Addon Field') }} <span class="text-danger">*</span></label>
+                                                                        <select class="form-control" name="addons_packages[${packageIndex}][addon_values][${addonValueIndex}][hotel_addon_field_id]" required>
+                                                <option value="">{{ __('Select Addon Field') }}</option>
+                                                @foreach(App\Models\HotelAddonField::where('status', 'active')->get() as $addonField)
+                                                    <option value="{{ $addonField->id }}">{{ $addonField->name }}</option>
+                                                @endforeach
+                                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>{{ __('Value') }} <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="addons_packages[${packageIndex}][addon_values][${addonValueIndex}][value]" required>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>{{ __('Static Price') }}</label>
+                            <input type="number" class="form-control" name="addons_packages[${packageIndex}][addon_values][${addonValueIndex}][static_price]" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="button" class="btn btn-danger btn-sm remove-addon-value">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            $(this).before(addonValueHtml);
+        });
+
+        // Remove addon value
+        $(document).on('click', '.remove-addon-value', function() {
+            $(this).closest('.addon-value-row').remove();
+        });
+
+        // Add certificate
+        $('#add-certificate-btn').on('click', function() {
+            var certificateHtml = `
+                <div class="row mt-2 certificate-row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>{{ __('Title') }} <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="certificates[${certificateIndex}][title]" required>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>{{ __('Description') }}</label>
+                            <textarea class="form-control" name="certificates[${certificateIndex}][description]" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>{{ __('File') }} <span class="text-danger">*</span></label>
+                            <input type="file" class="form-control" name="certificates[${certificateIndex}][file]" required>
+                        </div>
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="button" class="btn btn-danger btn-sm remove-certificate">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            $('#certificates-container').append(certificateHtml);
+            certificateIndex++;
+        });
+
+        // Remove certificate
+        $(document).on('click', '.remove-certificate', function() {
+            $(this).closest('.certificate-row').remove();
+        });
+
+        // Handle availability type change for hotel rooms
+        $(document).on('change', '.availability-type-select', function() {
+            var index = $(this).data('index');
+            var value = $(this).val();
+
+            $(this).siblings('.availability-type-value').val(value);
+
+            if (value === '1' || value === '2') {
+                $(this).siblings('.select-dates-btn').show();
+            } else {
+                $(this).siblings('.select-dates-btn').hide();
+            }
+        });
+
+        // Handle select dates button click
+        $(document).on('click', '.select-dates-btn', function() {
+            var index = $(this).data('index');
+            // Here you would open a date picker or calendar modal
+            // For now, we'll just set a sample date range
+            var sampleDates = JSON.stringify([
+                {
+                    from: '2023-01-01',
+                    to: '2023-01-15'
+                }
+            ]);
+            $(this).siblings('.available-dates-value').val(sampleDates);
+            alert('Date selection would open here. A sample date range has been set.');
+        });
+
+        // Initialize availability calendar for vacation homes
+        function initAvailabilityCalendar() {
+            // This would be implemented with a date picker library like flatpickr
+            // For now, we'll just set a sample date range
+            $('#available-dates-json').val(JSON.stringify([
+                {
+                    from: '2023-01-01',
+                    to: '2023-01-15'
+                }
+            ]));
+            $('#availability-calendar').html('<div class="alert alert-info">Calendar would be displayed here. A sample date range has been set.</div>');
+        }
+
         // Handle property classification change
         $('#property_classification').on('change', function() {
             var classification = $(this).val();
@@ -803,6 +1102,10 @@
             // Show fields based on classification
             if (classification == 4) { // Vacation Homes
                 $('.vacation-fields').show();
+                initAvailabilityCalendar();
+                $('.policy-data-field').show();
+                $('.price-field').show();
+                $('#price').attr('required', 'true');
             } else if (classification == 5) { // Hotel Booking
                 $('.hotel-fields').show();
                 $('.policy-data-field').hide(); // Hide policy data for hotels
@@ -812,6 +1115,18 @@
                 $('.policy-data-field').show(); // Show policy data for non-hotels
                 $('.price-field').show(); // Show price for non-hotels
                 $('#price').attr('required', 'true');
+            }
+        });
+
+        // Validate YouTube URL
+        $('#video_link').on('blur', function() {
+            var url = $(this).val();
+            if (url) {
+                var youtubePattern = /^(https?\:\/\/)?(www\.youtube\.com|youtu\.be)\/.+$/;
+                if (!youtubePattern.test(url)) {
+                    alert('Please enter a valid YouTube URL');
+                    $(this).val('');
+                }
             }
         });
 

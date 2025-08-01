@@ -100,6 +100,15 @@ class PropertController extends Controller
                 'price'             => 'required_unless:property_classification,5|numeric|min:1|max:9223372036854775807',
                 'weekend_commission' => 'nullable|numeric|min:0|max:100|required_unless:property_classification,5',
                 'refund_policy'     => 'nullable|in:flexible,non-refundable',
+                'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
+                'available_dates'   => 'nullable|json|required_if:property_classification,4',
+                'corresponding_day' => 'nullable|json',
+                'check_in'          => 'nullable|string',
+                'check_out'         => 'nullable|string',
+                'available_rooms'   => 'nullable|integer|min:0',
+                'agent_addons'      => 'nullable|json',
+                'hotel_apartment_type_id' => 'nullable|exists:hotel_apartment_types,id',
+                'rent_package' => 'nullable|in:basic,premium',
                 'hotel_rooms'       => 'nullable|array',
                 'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
                 'hotel_rooms.*.room_number' => 'required_with:hotel_rooms',
@@ -109,8 +118,42 @@ class PropertController extends Controller
                 'hotel_rooms.*.availability_type' => 'nullable|integer|in:1,2',
                 'hotel_rooms.*.available_dates' => 'nullable|json',
                 'hotel_rooms.*.weekend_commission' => 'nullable|numeric|min:0|max:100',
+                'hotel_rooms.*.description' => 'nullable|string',
+                'addons_packages'       => 'nullable|array',
+                'addons_packages.*.name' => 'required_with:addons_packages',
+                'addons_packages.*.description' => 'nullable|string',
+                'addons_packages.*.room_type_id' => 'nullable|exists:hotel_room_types,id',
+                'addons_packages.*.status' => 'nullable|in:active,inactive',
+                'addons_packages.*.price' => 'nullable|numeric|min:0',
+                'addons_packages.*.addon_values' => 'required_with:addons_packages|array',
+                'addons_packages.*.addon_values.*.hotel_addon_field_id' => 'required|exists:hotel_addon_fields,id',
+                'addons_packages.*.addon_values.*.value' => 'required',
+                'addons_packages.*.addon_values.*.static_price' => 'nullable|numeric|min:0',
+                'addons_packages.*.addon_values.*.multiply_price' => 'nullable|numeric|min:0',
+                'certificates'      => 'nullable|array',
+                'certificates.*.title' => 'required_with:certificates',
+                'certificates.*.description' => 'nullable|string',
+                'certificates.*.file' => 'required_with:certificates|file|max:5120|mimes:jpeg,png,jpg,pdf,doc,docx',
+                'identity_proof'    => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
+                'national_id_passport' => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
+                'utilities_bills'   => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
+                'power_of_attorney' => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
+                'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
+                    if (!empty($value)) {
+                        // Regular expression to validate YouTube URLs
+                        $youtubePattern = '/^(https?\:\/\/)?(www\.youtube\.com|youtu\.be)\/.+$/';
+
+                        if (!preg_match($youtubePattern, $value)) {
+                            return $fail("The Video Link must be a valid YouTube URL.");
+                        }
+                    }
+                }],
             ], [], [
-                'documents.*' => 'document :position'
+                'documents.*' => 'document :position',
+                'addons_packages.*.name' => 'package name :position',
+                'addons_packages.*.addon_values.*.hotel_addon_field_id' => 'package addon field :position',
+                'addons_packages.*.addon_values.*.value' => 'package addon value :position',
+                'certificates.*.file' => 'certificate file :position',
             ]);
 
             try {
@@ -168,6 +211,37 @@ class PropertController extends Controller
 
                 if ($request->hasFile('meta_image')) {
                     $saveProperty->meta_image = store_image($request->file('meta_image'), 'PROPERTY_SEO_IMG_PATH');
+                }
+
+                // Identity Proof
+                if ($request->hasFile('identity_proof')) {
+                    $saveProperty->identity_proof = store_image($request->file('identity_proof'), 'PROPERTY_IDENTITY_PROOF_PATH');
+                }
+
+                // National ID/Passport
+                if ($request->hasFile('national_id_passport')) {
+                    $saveProperty->national_id_passport = store_image($request->file('national_id_passport'), 'PROPERTY_NATIONAL_ID_PATH');
+                }
+
+                // Utilities Bills
+                if ($request->hasFile('utilities_bills')) {
+                    $saveProperty->utilities_bills = store_image($request->file('utilities_bills'), 'PROPERTY_UTILITIES_PATH');
+                }
+
+                // Power of Attorney
+                if ($request->hasFile('power_of_attorney')) {
+                    $saveProperty->power_of_attorney = store_image($request->file('power_of_attorney'), 'PROPERTY_POA_PATH');
+                }
+
+                // Set hotel specific fields if property classification is hotel (5)
+                if (isset($request->property_classification) && $request->property_classification == 5) {
+                    $saveProperty->refund_policy = $request->refund_policy ?? 'flexible';
+                    $saveProperty->hotel_apartment_type_id = $request->hotel_apartment_type_id;
+                    $saveProperty->check_in = $request->check_in;
+                    $saveProperty->check_out = $request->check_out;
+                    $saveProperty->agent_addons = $request->agent_addons;
+                    $saveProperty->available_rooms = $request->available_rooms;
+                    $saveProperty->rent_package = $request->rent_package;
                 }
 
                 $saveProperty->save();
@@ -277,6 +351,112 @@ class PropertController extends Controller
                     }
                 }
                 // END :: ADD HOTEL ROOMS
+
+                // START :: ADD ADDONS PACKAGES
+                if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->addons_packages) && !empty($request->addons_packages)) {
+                    try {
+                        // Create destination path for hotel addon files
+                        $addonFolderPath = public_path('images') . config('global.HOTEL_ADDON_PATH');
+                        if (!is_dir($addonFolderPath)) {
+                            mkdir($addonFolderPath, 0777, true);
+                        }
+
+                        // Process each package
+                        foreach ($request->addons_packages as $packageIndex => $package) {
+                            // Create the package
+                            $addonsPackage = new \App\Models\AddonsPackage();
+                            $addonsPackage->name = $package['name'];
+                            $addonsPackage->room_type_id = $package['room_type_id'] ?? null;
+                            $addonsPackage->description = $package['description'] ?? null;
+                            $addonsPackage->property_id = $saveProperty->id;
+                            $addonsPackage->status = $package['status'] ?? 'active';
+                            $addonsPackage->price = isset($package['price']) ? $package['price'] : null;
+                            $addonsPackage->save();
+
+                            // Process addon values for this package
+                            if (isset($package['addon_values']) && !empty($package['addon_values'])) {
+                                foreach ($package['addon_values'] as $addonIndex => $addon) {
+                                    // Get the addon field to check its type
+                                    $addonField = \App\Models\HotelAddonField::where('id', $addon['hotel_addon_field_id'])->where('status', 'active')->first();
+
+                                    if (!$addonField) {
+                                        continue; // Skip inactive or non-existent fields
+                                    }
+
+                                    $value = $addon['value'];
+
+                                    // Handle file uploads
+                                    if ($addonField->field_type == 'file' && $request->hasFile('addons_packages.' . $packageIndex . '.addon_values.' . $addonIndex . '.value')) {
+                                        $file = $request->file('addons_packages.' . $packageIndex . '.addon_values.' . $addonIndex . '.value');
+                                        $fileName = microtime(true) . '.' . $file->extension();
+                                        $file->move($addonFolderPath, $fileName);
+                                        $value = $fileName;
+                                    }
+                                    // Handle checkbox values (convert array to JSON)
+                                    else if ($addonField->field_type == 'checkbox' && is_array($value)) {
+                                        $value = json_encode($value);
+                                    }
+                                    // Handle radio and dropdown values (validate against available options)
+                                    else if (in_array($addonField->field_type, ['radio', 'dropdown'])) {
+                                        $validValue = \App\Models\HotelAddonFieldValue::where('hotel_addon_field_id', $addon['hotel_addon_field_id'])
+                                            ->where('value', $value)
+                                            ->exists();
+
+                                        if (!$validValue) {
+                                            continue; // Skip invalid values
+                                        }
+                                    }
+
+                                    // Save the addon value with user-provided price fields
+                                    \App\Models\PropertyHotelAddonValue::create([
+                                        'property_id' => $saveProperty->id,
+                                        'hotel_addon_field_id' => $addon['hotel_addon_field_id'],
+                                        'value' => $value,
+                                        'static_price' => isset($addon['static_price']) ? $addon['static_price'] : null,
+                                        'multiply_price' => isset($addon['multiply_price']) ? $addon['multiply_price'] : null,
+                                        'package_id' => $addonsPackage->id // Link to the package
+                                    ]);
+                                }
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        throw $e;
+                    }
+                }
+                // END :: ADD ADDONS PACKAGES
+
+                // START :: ADD CERTIFICATES
+                if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->certificates) && !empty($request->certificates)) {
+                    try {
+                        // Create destination path for certificate files
+                        $certificateFolderPath = public_path('images') . config('global.PROPERTY_CERTIFICATE_PATH');
+                        if (!is_dir($certificateFolderPath)) {
+                            mkdir($certificateFolderPath, 0777, true);
+                        }
+
+                        // Process each certificate
+                        foreach ($request->certificates as $certificateIndex => $certificate) {
+                            // Create the certificate
+                            $propertyCertificate = new \App\Models\PropertyCertificate();
+                            $propertyCertificate->title = $certificate['title'];
+                            $propertyCertificate->description = $certificate['description'] ?? null;
+                            $propertyCertificate->property_id = $saveProperty->id;
+
+                            // Handle file uploads
+                            if ($request->hasFile('certificates.' . $certificateIndex . '.file')) {
+                                $file = $request->file('certificates.' . $certificateIndex . '.file');
+                                $fileName = microtime(true) . '.' . $file->extension();
+                                $file->move($certificateFolderPath, $fileName);
+                                $propertyCertificate->file = $fileName;
+                            }
+
+                            $propertyCertificate->save();
+                        }
+                    } catch (\Exception $e) {
+                        throw $e;
+                    }
+                }
+                // END :: ADD CERTIFICATES
 
                 DB::commit();
                 ResponseService::successRedirectResponse('Data Created Successfully');
