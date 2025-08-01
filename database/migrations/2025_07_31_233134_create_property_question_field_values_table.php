@@ -14,10 +14,16 @@ return new class extends Migration
         if (!Schema::hasTable('property_question_field_values')) {
             Schema::create('property_question_field_values', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('property_question_field_id')->constrained('property_question_fields')->onDelete('cascade');
+                $table->unsignedBigInteger('property_question_field_id');
                 $table->text('value');
                 $table->timestamps();
                 $table->softDeletes();
+
+                // Add foreign key with a custom shorter name
+                $table->foreign('property_question_field_id', 'pq_field_values_field_id_foreign')
+                    ->references('id')
+                    ->on('property_question_fields')
+                    ->onDelete('cascade');
             });
         }
     }

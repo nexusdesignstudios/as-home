@@ -14,11 +14,22 @@ return new class extends Migration
         if (!Schema::hasTable('property_question_answers')) {
             Schema::create('property_question_answers', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('property_id')->constrained('propertys')->onDelete('cascade');
-                $table->foreignId('property_question_field_id')->constrained('property_question_fields')->onDelete('cascade');
+                $table->unsignedBigInteger('property_id');
+                $table->unsignedBigInteger('property_question_field_id');
                 $table->text('value');
                 $table->timestamps();
                 $table->softDeletes();
+
+                // Add foreign keys with custom shorter names
+                $table->foreign('property_id', 'pq_answers_property_id_foreign')
+                    ->references('id')
+                    ->on('propertys')
+                    ->onDelete('cascade');
+
+                $table->foreign('property_question_field_id', 'pq_answers_field_id_foreign')
+                    ->references('id')
+                    ->on('property_question_fields')
+                    ->onDelete('cascade');
             });
         }
     }
