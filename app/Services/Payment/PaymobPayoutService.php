@@ -18,10 +18,10 @@ class PaymobPayoutService
 
     public function __construct()
     {
-        $this->clientId = config('paymob.api_key');
-        $this->clientSecret = config('paymob.api_secret');
-        $this->username = config('paymob.username');
-        $this->password = config('paymob.password');
+        $this->clientId = config('paymob.payout_client_id');
+        $this->clientSecret = config('paymob.payout_client_secret');
+        $this->username = config('paymob.payout_username');
+        $this->password = config('paymob.payout_password');
         $this->environment = config('paymob.environment', 'staging');
 
         // Set base URL based on environment
