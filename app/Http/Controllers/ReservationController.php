@@ -45,6 +45,21 @@ class ReservationController extends Controller
             'check_in_date' => 'required|date|after_or_equal:today',
             'check_out_date' => 'required|date|after:check_in_date',
         ]);
+        
+        // Custom validation for dates
+        $checkInDate = Carbon::parse($request->check_in_date);
+        $checkOutDate = Carbon::parse($request->check_out_date);
+        $today = Carbon::today();
+        
+        // Check for 31st day restriction
+        if ($checkInDate->format('d') == '31' || $checkOutDate->format('d') == '31') {
+            $validator->errors()->add('date_restriction', 'Reservations are not allowed on the 31st day of any month');
+        }
+        
+        // Check for past dates
+        if ($checkInDate->lt($today) || $checkOutDate->lt($today)) {
+            $validator->errors()->add('past_date', 'Check-in and check-out dates cannot be in the past');
+        }
 
         if ($validator->fails()) {
             ApiResponseService::errorResponse('Validation failed', $validator->errors());
@@ -84,6 +99,21 @@ class ReservationController extends Controller
             'number_of_guests' => 'integer|min:1',
             'special_requests' => 'nullable|string',
         ]);
+
+        // Custom validation for dates
+        $checkInDate = Carbon::parse($request->check_in_date);
+        $checkOutDate = Carbon::parse($request->check_out_date);
+        $today = Carbon::today();
+
+        // Check for 31st day restriction
+        if ($checkInDate->format('d') == '31' || $checkOutDate->format('d') == '31') {
+            $validator->errors()->add('date_restriction', 'Reservations are not allowed on the 31st day of any month');
+        }
+
+        // Check for past dates
+        if ($checkInDate->lt($today) || $checkOutDate->lt($today)) {
+            $validator->errors()->add('past_date', 'Check-in and check-out dates cannot be in the past');
+        }
 
         if ($validator->fails()) {
             ApiResponseService::errorResponse('Validation failed', $validator->errors());
@@ -371,6 +401,21 @@ class ReservationController extends Controller
             'payment.last_name' => 'required|string',
             'payment.phone' => 'required|string',
         ]);
+
+                // Custom validation for dates
+        $checkInDate = Carbon::parse($request->check_in_date);
+        $checkOutDate = Carbon::parse($request->check_out_date);
+        $today = Carbon::today();
+
+        // Check for 31st day restriction
+        if ($checkInDate->format('d') == '31' || $checkOutDate->format('d') == '31') {
+            $validator->errors()->add('date_restriction', 'Reservations are not allowed on the 31st day of any month');
+        }
+
+        // Check for past dates
+        if ($checkInDate->lt($today) || $checkOutDate->lt($today)) {
+            $validator->errors()->add('past_date', 'Check-in and check-out dates cannot be in the past');
+        }
 
         if ($validator->fails()) {
             ApiResponseService::errorResponse('Validation failed', $validator->errors());
