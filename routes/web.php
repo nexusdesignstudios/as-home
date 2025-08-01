@@ -42,6 +42,7 @@ use App\Http\Controllers\HotelPropertiesController;
 use App\Http\Controllers\TransactionsController;
 use App\Http\Controllers\HotelApartmentTypeController;
 use App\Http\Controllers\ReservationsController;
+use App\Http\Controllers\PropertyQuestionFormController;
 
 
 /*
@@ -405,6 +406,16 @@ Route::middleware(['language'])->group(function () {
             Route::post('/update-verification-status', [VerifyCustomerFormController::class, 'updateVerificationStatus'])->name('agent-verification.change-status');
             Route::post('/auto-approve-settings', [VerifyCustomerFormController::class, 'autoApproveSettings'])->name('agent-verification.auto-approve');
             Route::post('/verification-required-for-user-settings', [VerifyCustomerFormController::class, 'verificationRequiredForUserSettings'])->name('agent-verification.verification-required-for-user');
+        });
+
+        // Property Question Forms Routes
+        Route::prefix('property-question-form')->group(function () {
+            Route::get('/show', [PropertyQuestionFormController::class, 'show'])->name('property-question-form.show');
+            Route::post('/store', [PropertyQuestionFormController::class, 'store'])->name('property-question-form.store');
+            Route::post('/update', [PropertyQuestionFormController::class, 'update'])->name('property-question-form.update');
+            Route::post('/status', [PropertyQuestionFormController::class, 'status'])->name('property-question-form.status');
+            Route::delete('/{id}', [PropertyQuestionFormController::class, 'destroy'])->name('property-question-form.delete');
+            Route::get('/{classification?}', [PropertyQuestionFormController::class, 'index'])->name('property-question-form.index');
         });
     });
 

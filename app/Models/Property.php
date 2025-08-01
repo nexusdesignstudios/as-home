@@ -63,7 +63,8 @@ class Property extends Model
         'hotel_rooms',
         'hotel_addons',
         'hotel_apartment_type',
-        'certificates'
+        'certificates',
+        'property_questions'
     ];
 
     protected static function boot()
@@ -839,5 +840,54 @@ class Property extends Model
     public function getAddonsPackagesAttribute()
     {
         return $this->addons_packages()->get();
+    }
+
+    /**
+     * Get the property question answers for this property.
+     */
+    public function propertyQuestionAnswers()
+    {
+        return $this->hasMany(PropertyQuestionAnswer::class);
+    }
+
+    /**
+     * Get property question answers as an attribute for API response
+     * based on property classification
+     */
+    public function getPropertyQuestionsAttribute()
+    {
+        $classification = $this->getRawOriginal('property_classification');
+
+        $answers = $this->propertyQuestionAnswers()
+            ->with('property_question_field:id,name,field_type')
+            ->whereHas('property_question_field', function ($query) use ($classification) {
+                $query->where('property_classification', $classification);
+            })
+            ->get();
+
+        if ($answers->isNotEmpty()) {
+            $questions = [];
+            foreach ($answers as $answer) {
+                $fieldType = $answer->property_question_field->field_type;
+                $value = $answer->value;
+
+                // Process value based on field type
+                if ($fieldType == 'file') {
+                    $value = url('') . config('global.IMG_PATH') . config('global.PROPERTY_QUESTION_PATH') . '/' . $value;
+                } elseif ($fieldType == 'checkbox') {
+                    $value = json_decode($value, true);
+                }
+
+                $questions[] = [
+                    'id' => $answer->property_question_field_id,
+                    'name' => $answer->property_question_field->name,
+                    'field_type' => $fieldType,
+                    'value' => $value,
+                ];
+            }
+            return $questions;
+        }
+
+        return null;
     }
 }

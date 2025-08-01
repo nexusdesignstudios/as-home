@@ -127,6 +127,27 @@
                     </li>
                 @endif
 
+                {{-- Property Question Forms --}}
+                @if (has_permissions('read', 'property_question_form'))
+                    <li class="sidebar-item has-sub">
+                        <a href="#" class='sidebar-link'>
+                            <i class="bi bi-question-square"></i>
+                            <span class="menu-item">{{ __('Property Questions') }}</span>
+                        </a>
+                        <ul class="submenu" style="padding-left: 0rem">
+                            <li class="submenu-item">
+                                <a href="{{ route('property-question-form.index', 'sell_rent') }}">{{ __('Sell/Rent & Commercial') }}</a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="{{ route('property-question-form.index', 'vacation_homes') }}">{{ __('Vacation Homes Forms') }}</a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="{{ route('property-question-form.index', 'hotel_booking') }}">{{ __('Hotel Forms') }}</a>
+                            </li>
+                        </ul>
+                    </li>
+                @endif
+
                 {{-- Hotel Room Types --}}
                 @if (has_permissions('read', 'hotel_room_types'))
                     <li class="sidebar-item">

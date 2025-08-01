@@ -13,6 +13,7 @@ $config = [
     'hotel_room_types'              => array('create', 'read', 'update', 'delete'),
     'hotel_apartment_types'         => array('create', 'read', 'update', 'delete'),
     'hotel_addon_field'             => array('create', 'read', 'update', 'delete'),
+    'property_question_form'         => array('create', 'read', 'update', 'delete'),
     'city_images'                   => array('read', 'update', 'delete'),
     'project'                       => array('create', 'read', 'update'),
     'report_reason'                 => array('create', 'read', 'update', 'delete'),

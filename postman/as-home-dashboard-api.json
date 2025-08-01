@@ -1790,6 +1790,105 @@
       "name": "Properties",
       "item": [
         {
+          "name": "Get Property Question Fields",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/get-property-question-fields?property_classification=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get-property-question-fields"],
+              "query": [
+                {
+                  "key": "property_classification",
+                  "value": "1",
+                  "description": "Property classification (1: Sell/Rent, 2: Commercial, 3: New Project, 4: Vacation Homes, 5: Hotel Booking)"
+                }
+              ]
+            },
+            "description": "Get all question fields for a specific property classification. These are custom form fields that can be used to collect additional information about properties."
+          },
+          "response": []
+        },
+        {
+          "name": "Save Property Question Answers",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "property_id",
+                  "value": "1",
+                  "type": "text",
+                  "description": "ID of the property"
+                },
+                {
+                  "key": "answers[0][field_id]",
+                  "value": "1",
+                  "type": "text",
+                  "description": "ID of the question field"
+                },
+                {
+                  "key": "answers[0][value]",
+                  "value": "Sample answer text",
+                  "type": "text",
+                  "description": "Answer value for text, number, radio, dropdown fields"
+                },
+                {
+                  "key": "answers[1][field_id]",
+                  "value": "2",
+                  "type": "text",
+                  "description": "ID of another question field"
+                },
+                {
+                  "key": "answers[1][value]",
+                  "value": "[\"option1\",\"option2\"]",
+                  "type": "text",
+                  "description": "JSON array for checkbox fields"
+                },
+                {
+                  "key": "1",
+                  "type": "file",
+                  "src": [],
+                  "description": "File upload for field_id 1 (if field_type is 'file')",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/save-property-question-answers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "save-property-question-answers"]
+            },
+            "description": "Save answers to property question fields. For file uploads, use the field_id as the key name."
+          },
+          "response": []
+        },
+        {
           "name": "Get Property List",
           "request": {
             "method": "GET",

@@ -43,6 +43,7 @@ Route::get('get_seo_settings', [ApiController::class, 'get_seo_settings']);
 Route::get('get_report_reasons', [ApiController::class, 'get_report_reasons']);
 Route::get('get-active-room-types', [HotelRoomTypeController::class, 'getActiveRoomTypes']);
 Route::get('get-hotel-apartment-types', [HotelApartmentTypeController::class, 'getHotelApartmentTypes']);
+Route::get('get-property-question-fields', [ApiController::class, 'getPropertyQuestionFields']);
 /*********************************************************************** */
 
 /** Extra */
@@ -81,6 +82,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::post('delete_property', [ApiController::class, 'delete_property']);
     Route::post('interested_users', [ApiController::class, 'interested_users']);
     Route::post('change-property-status', [ApiController::class, 'changePropertyStatus']);
+    Route::post('save-property-question-answers', [ApiController::class, 'savePropertyQuestionAnswers']);
     Route::get('get_favourite_property', [ApiController::class, 'get_favourite_property']);
     Route::get('get_property_inquiry', [ApiController::class, 'get_property_inquiry']);
     Route::get('get-added-properties', [ApiController::class, 'getAddedProperties']);

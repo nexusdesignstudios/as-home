@@ -98,6 +98,9 @@ use App\Models\HotelRoomType;
 use App\Models\PropertyTerms;
 use App\Models\HotelAddonField;
 use App\Models\HotelAddonFieldValue;
+use App\Models\PropertyQuestionField;
+use App\Models\PropertyQuestionAnswer;
+use Illuminate\Support\Facades\File;
 use App\Models\PropertyHotelAddonValue;
 use App\Models\AddonsPackage;
 use App\Models\PropertyCertificate;
@@ -8362,6 +8365,170 @@ class ApiController extends Controller
                 'approval_status' => $chat->approval_status
             ]
         ]);
+    }
+
+    /**
+     * Get property question fields by classification
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPropertyQuestionFields(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'property_classification' => 'required|integer|between:1,5',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'error' => true,
+                'message' => $validator->errors()->first()
+            ]);
+        }
+
+        try {
+            $propertyClassification = $request->property_classification;
+
+            $fields = PropertyQuestionField::with('field_values')
+                ->where('property_classification', $propertyClassification)
+                ->where('status', 'active')
+                ->orderBy('rank')
+                ->get();
+
+            if ($fields->isEmpty()) {
+                return response()->json([
+                    'error' => false,
+                    'message' => trans('No fields found for this classification'),
+                    'data' => []
+                ]);
+            }
+
+            $formattedFields = [];
+            foreach ($fields as $field) {
+                $fieldData = [
+                    'id' => $field->id,
+                    'name' => $field->name,
+                    'field_type' => $field->field_type,
+                    'values' => []
+                ];
+
+                // Add values if field type is radio, checkbox, or dropdown
+                if (in_array($field->field_type, ['radio', 'checkbox', 'dropdown']) && $field->field_values->isNotEmpty()) {
+                    foreach ($field->field_values as $value) {
+                        $fieldData['values'][] = [
+                            'id' => $value->id,
+                            'value' => $value->value
+                        ];
+                    }
+                }
+
+                $formattedFields[] = $fieldData;
+            }
+
+            return response()->json([
+                'error' => false,
+                'message' => trans('Fields retrieved successfully'),
+                'data' => $formattedFields
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'error' => true,
+                'message' => trans('Something went wrong'),
+                'data' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Save property question answers
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function savePropertyQuestionAnswers(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'property_id' => 'required|exists:propertys,id',
+            'answers' => 'required|array',
+            'answers.*.field_id' => 'required|exists:property_question_fields,id',
+            'answers.*.value' => 'required'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'error' => true,
+                'message' => $validator->errors()->first()
+            ]);
+        }
+
+        try {
+            $propertyId = $request->property_id;
+            $property = Property::find($propertyId);
+
+            if (!$property) {
+                return response()->json([
+                    'error' => true,
+                    'message' => trans('Property not found')
+                ]);
+            }
+
+            // Begin transaction
+            DB::beginTransaction();
+
+            // Delete existing answers for this property
+            PropertyQuestionAnswer::where('property_id', $propertyId)->delete();
+
+            // Process each answer
+            foreach ($request->answers as $answer) {
+                $field = PropertyQuestionField::find($answer['field_id']);
+
+                // Skip if field doesn't exist
+                if (!$field) {
+                    continue;
+                }
+
+                // Handle file uploads
+                $value = $answer['value'];
+                if ($field->field_type == 'file' && $request->hasFile($answer['field_id'])) {
+                    $file = $request->file($answer['field_id']);
+                    $destinationPath = public_path('images') . config('global.PROPERTY_QUESTION_PATH');
+
+                    if (!File::isDirectory($destinationPath)) {
+                        File::makeDirectory($destinationPath, 0777, true, true);
+                    }
+
+                    $fileName = time() . '_' . $file->getClientOriginalName();
+                    $file->move($destinationPath, $fileName);
+                    $value = $fileName;
+                }
+
+                // For checkbox type, convert array to JSON
+                if ($field->field_type == 'checkbox' && is_array($value)) {
+                    $value = json_encode($value);
+                }
+
+                // Create new answer
+                PropertyQuestionAnswer::create([
+                    'property_id' => $propertyId,
+                    'property_question_field_id' => $answer['field_id'],
+                    'value' => $value
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'error' => false,
+                'message' => trans('Answers saved successfully')
+            ]);
+        } catch (Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'error' => true,
+                'message' => trans('Something went wrong'),
+                'data' => $e->getMessage()
+            ]);
+        }
     }
 
     public function getHotelAddonFields(Request $request)
