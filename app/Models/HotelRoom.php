@@ -20,7 +20,8 @@ class HotelRoom extends Model
         'status',
         'availability_type',
         'available_dates',
-        'weekend_commission'
+        'weekend_commission',
+        'nonrefundable_percentage'
     ];
 
     protected $casts = [
@@ -29,7 +30,8 @@ class HotelRoom extends Model
         'status' => 'boolean',
         'availability_type' => 'integer',
         'available_dates' => 'json',
-        'weekend_commission' => 'float'
+        'weekend_commission' => 'float',
+        'nonrefundable_percentage' => 'float'
     ];
 
     /**
@@ -105,6 +107,9 @@ class HotelRoom extends Model
                     if (!isset($dateInfo['price'])) {
                         $value[$key]['price'] = 0;
                     }
+                    if (!isset($dateInfo['nonrefundable_percentage'])) {
+                        $value[$key]['nonrefundable_percentage'] = $this->nonrefundable_percentage ?? 0;
+                    }
                     if (!isset($dateInfo['type'])) {
                         // Check if this room uses busy_days availability type
                         if ($this->availability_type === 'busy_days') {
@@ -134,7 +139,8 @@ class HotelRoom extends Model
                     $defaultType = ($this->availability_type === 'busy_days') ? 'dead' : 'open';
                     $value[$key] = [
                         'price' => 0,
-                        'type' => $defaultType
+                        'type' => $defaultType,
+                        'nonrefundable_percentage' => $this->nonrefundable_percentage ?? 0
                     ];
                 }
             }

@@ -951,6 +951,7 @@ class ApiController extends Controller
             'hotel_rooms.*.room_number' => 'required_with:hotel_rooms',
             'hotel_rooms.*.price_per_night' => 'required_with:hotel_rooms|numeric|min:0',
             'hotel_rooms.*.discount_percentage' => 'nullable|numeric|min:0|max:100',
+            'hotel_rooms.*.nonrefundable_percentage' => 'nullable|numeric|min:0|max:100',
             'hotel_rooms.*.refund_policy' => 'nullable|in:flexible,non-refundable',
             'hotel_rooms.*.availability_type' => 'nullable|integer|in:1,2',
             'hotel_rooms.*.available_dates' => 'nullable|json',
@@ -1291,6 +1292,7 @@ class ApiController extends Controller
                                 'room_number' => $room['room_number'],
                                 'price_per_night' => (float)$room['price_per_night'],
                                 'discount_percentage' => isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : 0,
+                                'nonrefundable_percentage' => isset($room['nonrefundable_percentage']) ? (float)$room['nonrefundable_percentage'] : 0,
                                 'refund_policy' => $room['refund_policy'] ?? 'flexible',
                                 'availability_type' => $room['availability_type'] ?? null,
                                 'available_dates' => $room['available_dates'] ?? null,
@@ -1485,6 +1487,7 @@ class ApiController extends Controller
             'hotel_rooms.*.room_number' => 'required_with:hotel_rooms',
             'hotel_rooms.*.price_per_night' => 'required_with:hotel_rooms|numeric|min:0',
             'hotel_rooms.*.discount_percentage' => 'nullable|numeric|min:0|max:100',
+            'hotel_rooms.*.nonrefundable_percentage' => 'nullable|numeric|min:0|max:100',
             'hotel_rooms.*.refund_policy' => 'nullable|in:flexible,non-refundable',
             'hotel_rooms.*.availability_type' => 'nullable|integer|in:1,2',
             'hotel_rooms.*.available_dates' => 'nullable|json',
@@ -2034,6 +2037,7 @@ class ApiController extends Controller
                                         $hotelRoom->room_number = $room['room_number'];
                                         $hotelRoom->price_per_night = $room['price_per_night'];
                                         $hotelRoom->discount_percentage = $room['discount_percentage'] ?? $hotelRoom->discount_percentage;
+                                        $hotelRoom->nonrefundable_percentage = $room['nonrefundable_percentage'] ?? $hotelRoom->nonrefundable_percentage;
                                         $hotelRoom->refund_policy = $room['refund_policy'] ?? $hotelRoom->refund_policy;
                                         $hotelRoom->availability_type = $room['availability_type'] ?? $hotelRoom->availability_type;
                                         $hotelRoom->available_dates = $room['available_dates'] ?? $hotelRoom->available_dates;
@@ -2050,6 +2054,7 @@ class ApiController extends Controller
                                         'room_number' => $room['room_number'],
                                         'price_per_night' => $room['price_per_night'],
                                         'discount_percentage' => $room['discount_percentage'] ?? 0,
+                                        'nonrefundable_percentage' => $room['nonrefundable_percentage'] ?? 0,
                                         'refund_policy' => $room['refund_policy'] ?? 'flexible',
                                         'availability_type' => $room['availability_type'] ?? null,
                                         'available_dates' => $room['available_dates'] ?? null,

@@ -112,7 +112,14 @@ class HotelRoomController extends Controller
      */
     public function index(Request $request)
     {
-        $rooms = HotelRoom::with('roomType', 'property')->get();
+        $user = auth()->user();
+
+        // Get hotel rooms from properties added by the authenticated user
+        $rooms = HotelRoom::with('roomType', 'property')
+            ->whereHas('property', function ($query) use ($user) {
+                $query->where('added_by', $user->id);
+            })
+            ->get();
 
         return response()->json([
             'error' => false,
