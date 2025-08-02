@@ -326,6 +326,24 @@
                     </li>
                 @endif
 
+                {{-- Property Payouts --}}
+                @if (has_permissions('read', 'property_payouts'))
+                    <li class="sidebar-item has-sub">
+                        <a href="#" class='sidebar-link'>
+                            <i class="bi bi-wallet"></i>
+                            <span class="menu-item">{{ __('Property Payouts') }}</span>
+                        </a>
+                        <ul class="submenu" style="padding-left: 0rem">
+                            <li class="submenu-item">
+                                <a href="{{ route('payouts.index') }}">{{ __('Pending Payouts') }}</a>
+                            </li>
+                            <li class="submenu-item">
+                                <a href="{{ route('payouts.history') }}">{{ __('Payout History') }}</a>
+                            </li>
+                        </ul>
+                    </li>
+                @endif
+
                 {{-- Calculator --}}
                 @if (has_permissions('read', 'calculator'))
                     <li class="sidebar-item">

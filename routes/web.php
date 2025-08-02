@@ -421,6 +421,11 @@ Route::middleware(['language'])->group(function () {
         // Property Taxes Routes
         Route::get('property-taxes', [App\Http\Controllers\PropertyTaxController::class, 'index'])->name('property-taxes.index');
         Route::post('property-taxes', [App\Http\Controllers\PropertyTaxController::class, 'store'])->name('property-taxes.store');
+
+        // Property Payouts Routes
+        Route::get('payouts', [App\Http\Controllers\PayoutController::class, 'index'])->name('payouts.index');
+        Route::get('payouts/history', [App\Http\Controllers\PayoutController::class, 'history'])->name('payouts.history');
+        Route::post('payouts/process/{id}', [App\Http\Controllers\PayoutController::class, 'processPayout'])->name('payouts.process');
     });
 
     Route::get('get-currency-symbol', [SettingController::class, 'getCurrencySymbol'])->name('get-currency-symbol');

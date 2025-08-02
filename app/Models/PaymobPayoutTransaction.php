@@ -12,9 +12,12 @@ class PaymobPayoutTransaction extends Model
 
     protected $fillable = [
         'customer_id',
+        'property_id',
         'transaction_id',
         'issuer',
         'amount',
+        'original_amount',
+        'commission_percentage',
         'msisdn',
         'full_name',
         'first_name',
@@ -32,13 +35,19 @@ class PaymobPayoutTransaction extends Model
         'aman_cashing_details',
         'transaction_data',
         'notes',
+        'payout_month',
+        'payout_year',
+        'is_processed',
         'created_at',
         'updated_at'
     ];
 
     protected $casts = [
         'amount' => 'float',
+        'original_amount' => 'float',
+        'commission_percentage' => 'float',
         'paid' => 'boolean',
+        'is_processed' => 'boolean',
         'aman_cashing_details' => 'array',
         'transaction_data' => 'array',
         'created_at' => 'datetime',
@@ -51,6 +60,14 @@ class PaymobPayoutTransaction extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Get the property associated with this payout transaction
+     */
+    public function property()
+    {
+        return $this->belongsTo(Property::class);
     }
 
     /**
@@ -158,5 +175,58 @@ class PaymobPayoutTransaction extends Model
             default:
                 return 'badge-secondary';
         }
+    }
+
+    /**
+     * Calculate commission based on property classification and rent package
+     *
+     * @param Property $property
+     * @param float $amount
+     * @return array [commission_percentage, amount_after_commission]
+     */
+    public static function calculateCommission($property, $amount)
+    {
+        $commissionPercentage = 0;
+        $classification = $property->getRawOriginal('property_classification');
+        $rentPackage = $property->rent_package;
+
+        if ($classification == 4) { // vacation homes
+            if ($rentPackage == 'basic') {
+                $commissionPercentage = 14.99;
+            } elseif ($rentPackage == 'premium') {
+                $commissionPercentage = 24.99;
+            }
+        } elseif ($classification == 5) { // hotel booking
+            if ($rentPackage == 'basic') {
+                $commissionPercentage = 5;
+            } elseif ($rentPackage == 'premium') {
+                $commissionPercentage = 15;
+            }
+        }
+
+        $commissionAmount = ($amount * $commissionPercentage) / 100;
+        $amountAfterCommission = $amount - $commissionAmount;
+
+        return [
+            'commission_percentage' => $commissionPercentage,
+            'amount_after_commission' => $amountAfterCommission
+        ];
+    }
+
+    /**
+     * Scope a query to filter by month and year
+     */
+    public function scopeByMonthYear($query, $month, $year)
+    {
+        return $query->where('payout_month', $month)
+            ->where('payout_year', $year);
+    }
+
+    /**
+     * Scope a query to filter by processing status
+     */
+    public function scopeProcessed($query, $processed = true)
+    {
+        return $query->where('is_processed', $processed);
     }
 }
