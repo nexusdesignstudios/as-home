@@ -106,12 +106,22 @@ class HotelRoom extends Model
                         $value[$key]['price'] = 0;
                     }
                     if (!isset($dateInfo['type'])) {
-                        $value[$key]['type'] = 'open';
+                        // Check if this room uses busy_days availability type
+                        if ($this->availability_type === 'busy_days') {
+                            $value[$key]['type'] = 'dead';
+                        } else {
+                            $value[$key]['type'] = 'open';
+                        }
                     } else {
                         // Ensure type is one of the allowed values
                         $allowedTypes = ['dead', 'open', 'reserved'];
                         if (!in_array($dateInfo['type'], $allowedTypes)) {
-                            $value[$key]['type'] = 'open';
+                            // For busy_days type, default to dead, otherwise open
+                            if ($this->availability_type === 'busy_days') {
+                                $value[$key]['type'] = 'dead';
+                            } else {
+                                $value[$key]['type'] = 'open';
+                            }
                         }
 
                         // If type is reserved, ensure reservation_id exists
@@ -121,9 +131,10 @@ class HotelRoom extends Model
                     }
                 } else {
                     // If the date entry is not an array, convert it to one with defaults
+                    $defaultType = ($this->availability_type === 'busy_days') ? 'dead' : 'open';
                     $value[$key] = [
                         'price' => 0,
-                        'type' => 'open'
+                        'type' => $defaultType
                     ];
                 }
             }
