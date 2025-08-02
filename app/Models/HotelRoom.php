@@ -21,7 +21,8 @@ class HotelRoom extends Model
         'availability_type',
         'available_dates',
         'weekend_commission',
-        'nonrefundable_percentage'
+        'nonrefundable_percentage',
+        'max_guests'
     ];
 
     protected $casts = [
@@ -31,7 +32,8 @@ class HotelRoom extends Model
         'availability_type' => 'integer',
         'available_dates' => 'json',
         'weekend_commission' => 'float',
-        'nonrefundable_percentage' => 'float'
+        'nonrefundable_percentage' => 'float',
+        'max_guests' => 'integer'
     ];
 
     /**
