@@ -186,6 +186,7 @@ class PayoutController extends Controller
 
         $pendingPayouts = collect();
 
+        // Process properties
         foreach ($properties as $property) {
             // Skip if no customer associated
             if (!$property->customer) {
@@ -194,17 +195,43 @@ class PayoutController extends Controller
 
             // Get total reservation amount for this property in the specified month
             // Using created_at as requested
-            $totalAmount = Reservation::where('reservable_id', $property->id)
-                ->where('reservable_type', Property::class)
+            $totalAmount = Reservation::where(function ($query) use ($property) {
+                // Check for direct property reservations
+                $query->where('reservable_id', $property->id)
+                    ->where('reservable_type', Property::class);
+            })
                 ->whereMonth('created_at', $currentMonth)
                 ->whereYear('created_at', $currentYear)
                 ->where('payment_status', 'paid')
                 ->sum('total_price');
 
+            // Add hotel room reservations for this property
+            $hotelRoomIds = DB::table('hotel_rooms')
+                ->where('property_id', $property->id)
+                ->pluck('id')
+                ->toArray();
+
+            if (!empty($hotelRoomIds)) {
+                $hotelRoomAmount = Reservation::whereIn('reservable_id', $hotelRoomIds)
+                    ->where('reservable_type', 'App\\Models\\HotelRoom')
+                    ->whereMonth('created_at', $currentMonth)
+                    ->whereYear('created_at', $currentYear)
+                    ->where('payment_status', 'paid')
+                    ->sum('total_price');
+
+                $totalAmount += $hotelRoomAmount;
+            }
+
             // Skip if no paid reservations
             if ($totalAmount <= 0) {
                 continue;
             }
+
+            // Set default rent package if not set
+            $rentPackage = $property->getRawOriginal('rent_package') ?: 'basic';
+
+            // Get raw property classification
+            $propertyClassification = $property->getRawOriginal('property_classification');
 
             // Calculate commission
             $commissionData = PaymobPayoutTransaction::calculateCommission($property, $totalAmount);
@@ -217,6 +244,14 @@ class PayoutController extends Controller
                 ->exists();
 
             if (!$payoutExists) {
+                // Map classification number to text
+                $classificationText = 'Unknown';
+                if ($propertyClassification == 4) {
+                    $classificationText = 'Vacation Home';
+                } elseif ($propertyClassification == 5) {
+                    $classificationText = 'Hotel Booking';
+                }
+
                 $pendingPayouts->push((object)[
                     'property_id' => $property->id,
                     'property_title' => $property->title,
@@ -225,8 +260,8 @@ class PayoutController extends Controller
                     'original_amount' => $totalAmount,
                     'commission_percentage' => $commissionData['commission_percentage'],
                     'amount_after_commission' => $commissionData['amount_after_commission'],
-                    'rent_package' => $property->rent_package,
-                    'property_classification' => $property->property_classification,
+                    'rent_package' => $rentPackage,
+                    'property_classification' => $classificationText,
                     'payout_month' => $currentMonth,
                     'payout_year' => $currentYear
                 ]);

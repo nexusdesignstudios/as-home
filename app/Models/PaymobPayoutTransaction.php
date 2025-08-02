@@ -188,21 +188,17 @@ class PaymobPayoutTransaction extends Model
     {
         $commissionPercentage = 0;
         $classification = $property->getRawOriginal('property_classification');
-        $rentPackage = $property->rent_package;
+        $rentPackage = $property->getRawOriginal('rent_package') ?: 'basic';
 
         if ($classification == 4) { // vacation homes
             if ($rentPackage == 'basic') {
                 $commissionPercentage = 14.99;
             } elseif ($rentPackage == 'premium') {
                 $commissionPercentage = 24.99;
+            } else {
+                $commissionPercentage = 14.99; // Default to basic rate
             }
-        } elseif ($classification == 5) { // hotel booking
-            if ($rentPackage == 'basic') {
-                $commissionPercentage = 5;
-            } elseif ($rentPackage == 'premium') {
-                $commissionPercentage = 15;
-            }
-        }
+        } 
 
         $commissionAmount = ($amount * $commissionPercentage) / 100;
         $amountAfterCommission = $amount - $commissionAmount;
