@@ -3738,6 +3738,33 @@
             "description": "Update an existing hotel property with room modifications and addon packages. Each package contains grouped addon fields with custom pricing options. Supports updating existing packages, creating new ones, and deleting packages via deleted_package_ids array."
           },
           "response": []
+        },
+        {
+          "name": "Get Property Taxes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/get-property-taxes?property_classification=4",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get-property-taxes"],
+              "query": [
+                {
+                  "key": "property_classification",
+                  "value": "4",
+                  "description": "Property classification (4: Vacation Homes, 5: Hotel Booking)"
+                }
+              ]
+            },
+            "description": "Get property taxes for a specific property classification. Returns service charge, sales tax, and city tax information for vacation homes (4) or hotel bookings (5)."
+          },
+          "response": []
         }
       ],
       "description": "Property management endpoints including the new fields: policy_data (required document except for hotel properties), weekend_commission (optional percentage except for hotel properties), identity_proof (optional image), vacation home fields (availability_type and available_dates), and hotel booking fields (refund_policy, hotel_rooms)"
