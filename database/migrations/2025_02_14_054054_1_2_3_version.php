@@ -26,10 +26,14 @@ return new class extends Migration
     {
 
         // Clear all caches before running migration
-        Artisan::call('cache:clear');
-        Artisan::call('config:clear');
-        Artisan::call('route:clear');
-        Artisan::call('view:clear');
+        try {
+            Artisan::call('cache:clear');
+            Artisan::call('config:clear');
+            Artisan::call('route:clear');
+            Artisan::call('view:clear');
+        } catch (\Exception $e) {
+            // Continue with migration even if cache clearing fails
+        }
 
         /**
          * Project Request Status
