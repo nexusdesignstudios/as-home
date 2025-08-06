@@ -45,16 +45,7 @@
                                     <input type="hidden" name="property_classification" value="4">
 
                                     <div class="row">
-                                        <div class="col-md-4 mb-3">
-                                            <div class="form-group">
-                                                <label for="vacation_service_charge">Service Charge (%)</label>
-                                                <input type="number" class="form-control" id="vacation_service_charge" name="service_charge"
-                                                    step="0.01" min="0" max="100"
-                                                    value="{{ isset($taxes[4]) ? $taxes[4]->service_charge : '' }}"
-                                                    placeholder="Enter service charge percentage">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4 mb-3">
+                                        <div class="col-md-6 mb-3">
                                             <div class="form-group">
                                                 <label for="vacation_sales_tax">Sales Tax (%)</label>
                                                 <input type="number" class="form-control" id="vacation_sales_tax" name="sales_tax"
@@ -63,7 +54,7 @@
                                                     placeholder="Enter sales tax percentage">
                                             </div>
                                         </div>
-                                        <div class="col-md-4 mb-3">
+                                        <div class="col-md-6 mb-3">
                                             <div class="form-group">
                                                 <label for="vacation_city_tax">City Tax (%)</label>
                                                 <input type="number" class="form-control" id="vacation_city_tax" name="city_tax"
