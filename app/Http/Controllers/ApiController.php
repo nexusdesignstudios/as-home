@@ -5931,6 +5931,8 @@ class ApiController extends Controller
                 'offset'                        => 'nullable|numeric',
                 'limit'                         => 'nullable|numeric',
                 'get_all_premium_properties'    => 'nullable|in:1',
+                'check_in_date'                 => 'nullable|date|after_or_equal:today',
+                'check_out_date'                => 'nullable|date|after:check_in_date',
             ]);
             if ($validator->fails()) {
                 ApiResponseService::validationError($validator->errors()->first());
@@ -6052,6 +6054,114 @@ class ApiController extends Controller
             // If get_all_premium_properties is passed then show the data according to
             if ($request->has('get_all_premium_properties') && $request->get_all_premium_properties == 1) {
                 $propertyQuery = $propertyQuery->clone()->where('is_premium', 1);
+            }
+
+            // If check-in and check-out dates are provided, filter by availability
+            if (
+                $request->has('check_in_date') && $request->has('check_out_date') &&
+                !empty($request->check_in_date) && !empty($request->check_out_date)
+            ) {
+
+                $checkInDate = $request->check_in_date;
+                $checkOutDate = $request->check_out_date;
+
+                $propertyQuery = $propertyQuery->clone()->where(function ($query) use ($checkInDate, $checkOutDate) {
+                    // Filter vacation homes (property_classification = 4)
+                    $query->where(function ($vacationQuery) use ($checkInDate, $checkOutDate) {
+                        $vacationQuery->where('property_classification', 4)
+                            ->where(function ($availabilityQuery) use ($checkInDate, $checkOutDate) {
+                                $availabilityQuery->whereRaw("JSON_VALID(available_dates)")
+                                    ->whereRaw("
+                                        EXISTS (
+                                            SELECT 1
+                                            FROM JSON_TABLE(
+                                                available_dates,
+                                                '$[*]' COLUMNS (
+                                                    from_date DATE PATH '$.from',
+                                                    to_date DATE PATH '$.to',
+                                                    type VARCHAR(20) PATH '$.type'
+                                                )
+                                            ) AS jt
+                                            WHERE (jt.type IS NULL OR jt.type != 'reserved')
+                                            AND jt.from_date <= ?
+                                            AND jt.to_date >= ?
+                                        )
+                                    ", [$checkInDate, $checkOutDate]);
+                            });
+                    })
+                        // OR filter hotels (property_classification = 5) with available rooms
+                        ->orWhere(function ($hotelQuery) use ($checkInDate, $checkOutDate) {
+                            $hotelQuery->where('property_classification', 5)
+                                ->whereHas('hotelRooms', function ($roomQuery) use ($checkInDate, $checkOutDate) {
+                                    $roomQuery->where(function ($availabilityQuery) use ($checkInDate, $checkOutDate) {
+                                        // Check for rooms with available dates
+                                        $availabilityQuery->whereRaw("JSON_VALID(available_dates)")
+                                            ->where(function ($dateQuery) use ($checkInDate, $checkOutDate) {
+                                                // Handle available_days type (default)
+                                                $dateQuery->where(function ($availableDaysQuery) use ($checkInDate, $checkOutDate) {
+                                                    $availableDaysQuery->where(function ($typeQuery) {
+                                                        $typeQuery->whereNull('availability_type')
+                                                            ->orWhere('availability_type', 'available_days');
+                                                    })
+                                                        ->whereRaw("
+                                                    EXISTS (
+                                                        SELECT 1
+                                                        FROM JSON_TABLE(
+                                                            available_dates,
+                                                            '$[*]' COLUMNS (
+                                                                from_date DATE PATH '$.from',
+                                                                to_date DATE PATH '$.to',
+                                                                type VARCHAR(20) PATH '$.type'
+                                                            )
+                                                        ) AS jt
+                                                        WHERE (jt.type IS NULL OR jt.type != 'reserved')
+                                                        AND jt.from_date <= ?
+                                                        AND jt.to_date >= ?
+                                                    )
+                                                ", [$checkInDate, $checkOutDate]);
+                                                })
+                                                    // Handle busy_days type
+                                                    ->orWhere(function ($busyDaysQuery) use ($checkInDate, $checkOutDate) {
+                                                        $busyDaysQuery->where('availability_type', 'busy_days')
+                                                            ->whereRaw("
+                                                        NOT EXISTS (
+                                                            SELECT 1
+                                                            FROM JSON_TABLE(
+                                                                available_dates,
+                                                                '$[*]' COLUMNS (
+                                                                    from_date DATE PATH '$.from',
+                                                                    to_date DATE PATH '$.to'
+                                                                )
+                                                            ) AS jt
+                                                            WHERE jt.from_date <= ?
+                                                            AND jt.to_date >= ?
+                                                        )
+                                                    ", [$checkOutDate, $checkInDate]);
+                                                    });
+                                            });
+                                    })
+                                        // Also check that room is not already reserved for these dates
+                                        ->whereDoesntHave('reservations', function ($reservationQuery) use ($checkInDate, $checkOutDate) {
+                                            $reservationQuery->where(function ($dateOverlapQuery) use ($checkInDate, $checkOutDate) {
+                                                $dateOverlapQuery->where(function ($query) use ($checkInDate, $checkOutDate) {
+                                                    $query->where('check_in_date', '<=', $checkInDate)
+                                                        ->where('check_out_date', '>', $checkInDate);
+                                                })
+                                                    ->orWhere(function ($query) use ($checkInDate, $checkOutDate) {
+                                                        $query->where('check_in_date', '<', $checkOutDate)
+                                                            ->where('check_out_date', '>=', $checkOutDate);
+                                                    })
+                                                    ->orWhere(function ($query) use ($checkInDate, $checkOutDate) {
+                                                        $query->where('check_in_date', '>=', $checkInDate)
+                                                            ->where('check_out_date', '<=', $checkOutDate);
+                                                    });
+                                            });
+                                        });
+                                });
+                        })
+                        // OR allow other property classifications to pass through
+                        ->orWhereNotIn('property_classification', [4, 5]);
+                });
             }
 
             // Get total properties
