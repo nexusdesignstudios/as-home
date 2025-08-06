@@ -40,6 +40,14 @@ class PropertyHotelAddonValue extends Model
     }
 
     /**
+     * Get the addon field value that this property value is based on
+     */
+    public function addon_field_value()
+    {
+        return $this->belongsTo(HotelAddonFieldValue::class, 'value', 'id');
+    }
+
+    /**
      * Get the package that owns this addon value
      */
     public function package()

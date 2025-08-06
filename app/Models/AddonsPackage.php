@@ -39,6 +39,15 @@ class AddonsPackage extends Model
         return $this->hasMany(PropertyHotelAddonValue::class, 'package_id');
     }
 
+    /**
+     * Get all addon values with their field details for this package
+     */
+    public function addon_values_with_fields()
+    {
+        return $this->hasMany(PropertyHotelAddonValue::class, 'package_id')
+            ->with('hotel_addon_field:id,name,field_type');
+    }
+
     public function hotel_room_type()
     {
         return $this->belongsTo(HotelRoomType::class, 'room_type_id');

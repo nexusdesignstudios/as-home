@@ -192,11 +192,11 @@ class Property extends Model
     }
     public function customer()
     {
-        return $this->hasOne(Customer::class, 'id', 'added_by', 'fcm_id', 'notification');
+        return $this->hasOne(Customer::class, 'id', 'added_by');
     }
     public function user()
     {
-        return $this->hasMany(User::class, 'id', 'added_by', 'fcm_id', 'notification');
+        return $this->hasMany(User::class, 'id', 'added_by');
     }
 
     public function assignParameter()
@@ -839,7 +839,56 @@ class Property extends Model
 
     public function getAddonsPackagesAttribute()
     {
-        return $this->addons_packages()->get();
+        // Only return addon packages if this is a hotel property
+        if ($this->getRawOriginal('property_classification') == 5) {
+            return $this->addons_packages()
+                ->with([
+                    'addon_values' => function ($query) {
+                        $query->with('hotel_addon_field:id,name,field_type');
+                    },
+                    'hotel_room_type:id,name'
+                ])
+                ->get()
+                ->map(function ($package) {
+                    $packageData = [
+                        'id' => $package->id,
+                        'name' => $package->name,
+                        'description' => $package->description,
+                        'price' => $package->price,
+                        'status' => $package->status,
+                        'room_type' => $package->hotel_room_type,
+                        'addons' => []
+                    ];
+
+                    // Process addon values for this package
+                    foreach ($package->addon_values as $addonValue) {
+                        if ($addonValue->hotel_addon_field) {
+                            $fieldType = $addonValue->hotel_addon_field->field_type;
+                            $value = $addonValue->value;
+
+                            // Process value based on field type
+                            if ($fieldType == 'file' && !empty($value)) {
+                                $value = url('') . config('global.IMG_PATH') . config('global.HOTEL_ADDON_PATH') . '/' . $value;
+                            } elseif ($fieldType == 'checkbox') {
+                                $value = json_decode($value, true) ?: [];
+                            }
+
+                            $packageData['addons'][] = [
+                                'field_id' => $addonValue->hotel_addon_field_id,
+                                'field_name' => $addonValue->hotel_addon_field->name,
+                                'field_type' => $fieldType,
+                                'value' => $value,
+                                'static_price' => $addonValue->static_price,
+                                'multiply_price' => $addonValue->multiply_price,
+                            ];
+                        }
+                    }
+
+                    return $packageData;
+                });
+        }
+
+        return collect([]);
     }
 
     /**
