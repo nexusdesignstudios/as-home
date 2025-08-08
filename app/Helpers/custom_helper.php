@@ -467,6 +467,14 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['property_classification'] = $row->getRawOriginal('property_classification');
         $tempRow['rent_package'] = $row->rent_package;
 
+        // Add revenue and reservation fields
+        $tempRow['revenue_user_name'] = $row->revenue_user_name;
+        $tempRow['revenue_phone_number'] = $row->revenue_phone_number;
+        $tempRow['revenue_email'] = $row->revenue_email;
+        $tempRow['reservation_user_name'] = $row->reservation_user_name;
+        $tempRow['reservation_phone_number'] = $row->reservation_phone_number;
+        $tempRow['reservation_email'] = $row->reservation_email;
+
         // Add hotel-specific fields
         if ($row->getRawOriginal('property_classification') == 5) {
             // Hotel name field removed
