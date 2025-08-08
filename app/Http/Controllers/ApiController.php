@@ -1003,6 +1003,12 @@ class ApiController extends Controller
             'certificates.*.title' => 'required_with:certificates',
             'certificates.*.description' => 'nullable|string',
             'certificates.*.file' => 'required_with:certificates|file|max:5120|mimes:jpeg,png,jpg,pdf,doc,docx',
+            'revenue_user_name' => 'nullable|string',
+            'revenue_phone_number' => 'nullable|string',
+            'revenue_email' => 'nullable|email',
+            'reservation_user_name' => 'nullable|string',
+            'reservation_phone_number' => 'nullable|string',
+            'reservation_email' => 'nullable|email',
         ], [], [
             'documents.*' => 'document :position',
             'addons_packages.*.name' => 'package name :position',
@@ -1053,6 +1059,12 @@ class ApiController extends Controller
             $saveProperty->check_out = (isset($request->check_out)) ? $request->check_out : null;
             $saveProperty->agent_addons = (isset($request->agent_addons)) ? $request->agent_addons : null;
             $saveProperty->available_rooms = (isset($request->available_rooms)) ? $request->available_rooms : null;
+            $saveProperty->revenue_user_name = (isset($request->revenue_user_name)) ? $request->revenue_user_name : null;
+            $saveProperty->revenue_phone_number = (isset($request->revenue_phone_number)) ? $request->revenue_phone_number : null;
+            $saveProperty->revenue_email = (isset($request->revenue_email)) ? $request->revenue_email : null;
+            $saveProperty->reservation_user_name = (isset($request->reservation_user_name)) ? $request->reservation_user_name : null;
+            $saveProperty->reservation_phone_number = (isset($request->reservation_phone_number)) ? $request->reservation_phone_number : null;
+            $saveProperty->reservation_email = (isset($request->reservation_email)) ? $request->reservation_email : null;
 
             // Set vacation home specific fields if property classification is vacation_homes (4)
             if (isset($request->property_classification) && $request->property_classification == 4) {
@@ -1549,6 +1561,12 @@ class ApiController extends Controller
             'certificates.*.title' => 'required_with:certificates',
             'certificates.*.description' => 'nullable|string',
             'certificates.*.file' => 'required_with:certificates|file|max:5120|mimes:jpeg,png,jpg,pdf,doc,docx',
+            'revenue_user_name' => 'nullable|string',
+            'revenue_phone_number' => 'nullable|string',
+            'revenue_email' => 'nullable|email',
+            'reservation_user_name' => 'nullable|string',
+            'reservation_phone_number' => 'nullable|string',
+            'reservation_email' => 'nullable|email',
         ], [], [
             'documents.*' => 'document :position',
             'addons_packages.*.name' => 'package name :position',
@@ -1673,6 +1691,30 @@ class ApiController extends Controller
 
                     if (isset($request->available_rooms)) {
                         $property->available_rooms = $request->available_rooms;
+                    }
+
+                    if (isset($request->revenue_user_name)) {
+                        $property->revenue_user_name = $request->revenue_user_name;
+                    }
+
+                    if (isset($request->revenue_phone_number)) {
+                        $property->revenue_phone_number = $request->revenue_phone_number;
+                    }
+
+                    if (isset($request->revenue_email)) {
+                        $property->revenue_email = $request->revenue_email;
+                    }
+
+                    if (isset($request->reservation_user_name)) {
+                        $property->reservation_user_name = $request->reservation_user_name;
+                    }
+
+                    if (isset($request->reservation_phone_number)) {
+                        $property->reservation_phone_number = $request->reservation_phone_number;
+                    }
+
+                    if (isset($request->reservation_email)) {
+                        $property->reservation_email = $request->reservation_email;
                     }
 
                     if (isset($request->package_id)) {

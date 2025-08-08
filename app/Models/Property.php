@@ -49,7 +49,13 @@ class Property extends Model
         'check_in',
         'check_out',
         'agent_addons',
-        'available_rooms'
+        'available_rooms',
+        'revenue_user_name',
+        'revenue_phone_number',
+        'revenue_email',
+        'reservation_user_name',
+        'reservation_phone_number',
+        'reservation_email'
     ];
     protected $hidden = [
         'updated_at',
