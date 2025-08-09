@@ -1139,9 +1139,6 @@ class ApiController extends Controller
                 $imageName = microtime(true) . "." . $file->getClientOriginalExtension();
                 $policyDataName = handleFileUpload($request, 'policy_data', $destinationPath, $imageName);
                 $saveProperty->policy_data = $policyDataName;
-            } else if ($request->property_classification != 5) {
-                // For non-hotel properties, policy_data is required
-                throw new Exception("Policy data is required for non-hotel properties");
             }
 
             // Identity Proof
