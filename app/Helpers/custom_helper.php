@@ -22,6 +22,7 @@ use App\Models\PropertysInquiry;
 use kornrunner\Blurhash\Blurhash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use App\Services\ApiResponseService;
 use Illuminate\Support\Facades\Auth;
 use GuzzleHttp\Client as GuzzleClient;
@@ -580,26 +581,150 @@ function get_unregistered_fcm_ids($registeredIDs = array())
 function handleFileUpload($request, $key, $destinationPath, $filename, $databaseData = null)
 {
     if ($request->hasFile($key)) {
+        // Prefer env at runtime, fallback to config
+        $disk = env('FILESYSTEM_DISK', config('filesystems.default', 'local'));
+
+        // Build a relative directory key compatible with both local and S3
+        $publicRoot = str_replace('\\', '/', public_path());
+        $normalizedDestination = str_replace('\\', '/', $destinationPath);
+
+        // Prefer mapping paths under public/images to an "images" prefix in storage
+        $publicImagesRoot = rtrim($publicRoot, '/') . '/images';
+        if (strpos($normalizedDestination, $publicImagesRoot) === 0) {
+            $suffix = substr($normalizedDestination, strlen($publicImagesRoot));
+            $directory = 'images' . $suffix;
+        } elseif (strpos($normalizedDestination, $publicRoot) === 0) {
+            $suffix = substr($normalizedDestination, strlen($publicRoot));
+            $directory = ltrim($suffix, '/');
+        } else {
+            // Fallback
+            $directory = 'uploads';
+        }
+        $directory = trim(str_replace('\\', '/', $directory), '/');
+
+        $uploadedFile = $request->file($key);
+        try {
+            Log::info('handleFileUpload: starting', [
+                'disk' => $disk,
+                'bucket' => config('filesystems.disks.s3.bucket'),
+                'region' => config('filesystems.disks.s3.region'),
+                'endpoint' => config('filesystems.disks.s3.endpoint'),
+                'key' => $key,
+                'originalName' => $uploadedFile->getClientOriginalName(),
+                'mime' => $uploadedFile->getClientMimeType(),
+                'size' => $uploadedFile->getSize(),
+                'directory' => $directory,
+                'destinationPath' => $destinationPath,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('handleFileUpload: metadata logging failed', ['error' => $e->getMessage()]);
+        }
+
         if (!empty($databaseData)) {
-            // Delete the old file if it exists
-            $oldFilePath = $destinationPath . '/' . $databaseData;
+            // Delete old file on the configured disk (best-effort)
+            if ($disk === 's3') {
+                try {
+                    $deleted = Storage::disk('s3')->delete($directory . '/' . $databaseData);
+                    Log::info('handleFileUpload: S3 delete previous', [
+                        'key' => $directory . '/' . $databaseData,
+                        'deleted' => $deleted,
+                    ]);
+                } catch (\Throwable $e) {
+                    Log::warning('handleFileUpload: S3 delete previous failed', [
+                        'key' => $directory . '/' . $databaseData,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+            // Also attempt local cleanup for compatibility
+            $oldFilePath = rtrim($destinationPath, '\\/') . '/' . $databaseData;
             if (file_exists($oldFilePath)) {
-                unlink($oldFilePath);
+                $unlinked = @unlink($oldFilePath);
+                Log::info('handleFileUpload: local delete previous', [
+                    'path' => $oldFilePath,
+                    'deleted' => $unlinked,
+                ]);
             }
         }
-        $extension = $request->file($key)->getClientOriginalExtension();
-        // Change the file name
-        if (empty($filename)) {
-            $filename = microtime(true) . '.' . $extension;
+
+        $extension = $uploadedFile->getClientOriginalExtension();
+        $finalFilename = empty($filename) ? (microtime(true) . '.' . $extension) : $filename;
+
+        if ($disk === 's3') {
+            try {
+                // Use UploadedFile API to satisfy static analysis
+                $uploadedFile->storeAs($directory, $finalFilename, ['disk' => 's3', 'visibility' => 'public']);
+                $s3Key = trim($directory, '/') . '/' . $finalFilename;
+                $exists = null;
+                try {
+                    $exists = Storage::disk('s3')->exists($s3Key);
+                } catch (\Throwable $e) {
+                    Log::warning('handleFileUpload: S3 exists check failed', [
+                        'key' => $s3Key,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+                $sampleList = null;
+                try {
+                    $sampleList = array_slice(Storage::disk('s3')->files(trim($directory, '/')), 0, 5);
+                } catch (\Throwable $e) {
+                    Log::warning('handleFileUpload: S3 list files failed', [
+                        'prefix' => trim($directory, '/'),
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+                Log::info('handleFileUpload: S3 upload complete', [
+                    'key' => $s3Key,
+                    'exists' => $exists,
+                    'sampleList' => $sampleList,
+                ]);
+
+                // Also write a local copy to maintain existing URL scheme
+                if (!is_dir($destinationPath)) {
+                    @mkdir($destinationPath, 0777, true);
+                }
+                try {
+                    $tmpPath = $uploadedFile->getRealPath();
+                    $localTarget = rtrim($destinationPath, '\\/') . '/' . $finalFilename;
+                    if ($tmpPath && is_readable($tmpPath)) {
+                        @copy($tmpPath, $localTarget);
+                    } else {
+                        // Fallback to move if temp not readable
+                        $uploadedFile->move($destinationPath, $finalFilename);
+                    }
+                    Log::info('handleFileUpload: local mirror after S3', [
+                        'path' => $localTarget,
+                        'exists' => file_exists($localTarget),
+                    ]);
+                } catch (\Throwable $e) {
+                    Log::warning('handleFileUpload: local mirror failed', [
+                        'destinationPath' => $destinationPath,
+                        'filename' => $finalFilename,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                Log::error('S3 upload failed in handleFileUpload', [
+                    'directory' => $directory,
+                    'filename' => $finalFilename,
+                    'error' => $e->getMessage(),
+                ]);
+                throw $e;
+            }
         } else {
-            $filename = $filename;
+            // Preserve existing local behavior
+            if (!is_dir($destinationPath)) {
+                @mkdir($destinationPath, 0777, true);
+            }
+            $uploadedFile->move($destinationPath, $finalFilename);
+            $fullPath = rtrim($destinationPath, '\\/') . '/' . $finalFilename;
+            Log::info('handleFileUpload: local upload complete', [
+                'path' => $fullPath,
+                'exists' => file_exists($fullPath),
+            ]);
         }
 
-        $profile = $request->file($key);
-        $profile->move($destinationPath, $filename);
-        $value = $filename;
-
-        return $value;
+        return $finalFilename;
     }
 
     return null;
@@ -635,35 +760,154 @@ function check_subscription($user, $type, $status)
 }
 function store_image($file, $path)
 {
-    $destinationPath = public_path('images') . config('global.' . $path);
-    if (!is_dir($destinationPath)) {
-        mkdir($destinationPath, 0777, true);
+    // Prefer env at runtime, fallback to config
+    $disk = env('FILESYSTEM_DISK', config('filesystems.default', 'local'));
+    $relativeDir = 'images/' . trim(config('global.' . $path), '/');
+
+    try {
+        Log::info('store_image: starting', [
+            'disk' => $disk,
+            'bucket' => config('filesystems.disks.s3.bucket'),
+            'region' => config('filesystems.disks.s3.region'),
+            'endpoint' => config('filesystems.disks.s3.endpoint'),
+            'relativeDir' => $relativeDir,
+            'pathKey' => $path,
+            'isUploadedFile' => $file instanceof \Illuminate\Http\UploadedFile,
+            'originalName' => $file instanceof \Illuminate\Http\UploadedFile ? $file->getClientOriginalName() : null,
+            'mime' => $file instanceof \Illuminate\Http\UploadedFile ? $file->getClientMimeType() : null,
+            'size' => $file instanceof \Illuminate\Http\UploadedFile ? $file->getSize() : null,
+        ]);
+    } catch (\Throwable $e) {
+        Log::warning('store_image: metadata logging failed', ['error' => $e->getMessage()]);
     }
 
-    // Check if the file is an instance of UploadedFile
     if ($file instanceof \Illuminate\Http\UploadedFile) {
         $extension = $file->getClientOriginalExtension();
-
-        // Initialize the filename
-        // $filename = $originalName . '.' . $extension;
         $filename = microtime(true) . '.' . $extension;
 
-        $file->move($destinationPath, $filename);
+        if ($disk === 's3') {
+            try {
+                $file->storeAs($relativeDir, $filename, ['disk' => 's3', 'visibility' => 'public']);
+                $s3Key = trim($relativeDir, '/') . '/' . $filename;
+                $exists = null;
+                try {
+                    $exists = Storage::disk('s3')->exists($s3Key);
+                } catch (\Throwable $e) {
+                    Log::warning('store_image: S3 exists check failed', [
+                        'key' => $s3Key,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+                $sampleList = null;
+                try {
+                    $sampleList = array_slice(Storage::disk('s3')->files(trim($relativeDir, '/')), 0, 5);
+                } catch (\Throwable $e) {
+                    Log::warning('store_image: S3 list files failed', [
+                        'prefix' => trim($relativeDir, '/'),
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+                Log::info('store_image: S3 upload complete', [
+                    'key' => $s3Key,
+                    'exists' => $exists,
+                    'sampleList' => $sampleList,
+                ]);
+
+                // Also write a local copy to maintain existing URL scheme
+                $destinationPath = public_path('images') . config('global.' . $path);
+                if (!is_dir($destinationPath)) {
+                    @mkdir($destinationPath, 0777, true);
+                }
+                try {
+                    $tmpPath = $file->getRealPath();
+                    $localTarget = rtrim($destinationPath, '\\/') . '/' . $filename;
+                    if ($tmpPath && is_readable($tmpPath)) {
+                        @copy($tmpPath, $localTarget);
+                    }
+                    Log::info('store_image: local mirror after S3', [
+                        'path' => $localTarget,
+                        'exists' => file_exists($localTarget),
+                    ]);
+                } catch (\Throwable $e) {
+                    Log::warning('store_image: local mirror failed', [
+                        'destinationPath' => $destinationPath,
+                        'filename' => $filename,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                Log::error('S3 upload failed in store_image', [
+                    'relativeDir' => $relativeDir,
+                    'filename' => $filename,
+                    'error' => $e->getMessage(),
+                ]);
+                throw $e;
+            }
+        } else {
+            $destinationPath = public_path('images') . config('global.' . $path);
+            if (!is_dir($destinationPath)) {
+                @mkdir($destinationPath, 0777, true);
+            }
+            $file->move($destinationPath, $filename);
+            $fullPath = rtrim($destinationPath, '\\/') . '/' . $filename;
+            Log::info('store_image: local upload complete', [
+                'path' => $fullPath,
+                'exists' => file_exists($fullPath),
+            ]);
+        }
+
         return $filename;
-    } else {
-        // Handle the case when the file is not an instance of UploadedFile
-        // You can log an error or throw an exception here
-        // For now, we return null
-        return null;
     }
+
+    return null;
 }
 function unlink_image($url)
 {
-    if (!empty($url)) {
-        $relativePath = parse_url($url, PHP_URL_PATH);
-        if (file_exists(public_path()  . $relativePath)) {
-            unlink(public_path()  . $relativePath);
+    if (empty($url)) {
+        return;
+    }
+
+    $relativePath = parse_url($url, PHP_URL_PATH);
+    if (!$relativePath) {
+        return;
+    }
+
+    $disk = config('filesystems.default', env('FILESYSTEM_DISK', 'local'));
+
+    // Attempt S3 deletion when enabled
+    if ($disk === 's3') {
+        $path = ltrim(str_replace('\\', '/', $relativePath), '/');
+        // Ensure the key does not start with public/ when targeting S3
+        if (strpos($path, 'images/') !== false) {
+            // Already relative to images root
+            $key = $path;
+        } else {
+            // Fallback: strip leading public/
+            $key = preg_replace('#^public/#', '', $path);
         }
+        try {
+            $deleted = Storage::disk('s3')->delete($key);
+            Log::info('unlink_image: S3 delete', [
+                'key' => $key,
+                'deleted' => $deleted,
+            ]);
+        } catch (\Throwable $e) {
+            // Best-effort, ignore failures
+            Log::warning('unlink_image: S3 delete failed', [
+                'key' => $key,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    // Local cleanup for backward compatibility
+    $fullLocalPath = public_path() . $relativePath;
+    if (file_exists($fullLocalPath)) {
+        $unlinked = @unlink($fullLocalPath);
+        Log::info('unlink_image: local delete', [
+            'path' => $fullLocalPath,
+            'deleted' => $unlinked,
+        ]);
     }
 }
 
