@@ -24,6 +24,11 @@ class RewriteMediaUrls
         $appBase = rtrim(url(''), '/');
         $imagesPath = rtrim((string) config('global.IMG_PATH', '/images'), '/');
         $jsonPath = rtrim((string) config('global.JSON_PATH', '/json'), '/');
+        $roots = array_unique(array_filter([
+            $imagesPath,
+            $jsonPath,
+            '/assets',
+        ]));
 
         $s3Base = rtrim((string) config('filesystems.disks.s3.url')
             ?: (string) config('filesystems.disks.s3.endpoint'), '/');
@@ -33,10 +38,10 @@ class RewriteMediaUrls
             $s3Base = "https://{$bucket}.s3.{$region}.amazonaws.com";
         }
         // Build mapping list from local to S3 for known media roots
-        $replacements = [
-            $appBase . $imagesPath . '/' => $s3Base . $imagesPath . '/',
-            $appBase . $jsonPath . '/'   => $s3Base . $jsonPath . '/',
-        ];
+        $replacements = [];
+        foreach ($roots as $root) {
+            $replacements[$appBase . $root . '/'] = $s3Base . $root . '/';
+        }
 
         // Skip binary/streamed responses
         if ($response instanceof BinaryFileResponse) {
