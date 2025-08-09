@@ -27,7 +27,6 @@ class RewriteMediaUrls
         $roots = array_unique(array_filter([
             $imagesPath,
             $jsonPath,
-            '/assets',
         ]));
 
         $s3Base = rtrim((string) config('filesystems.disks.s3.url')
