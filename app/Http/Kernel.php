@@ -26,6 +26,7 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             DemoMiddleware::class,
+            \App\Http\Middleware\RewriteMediaUrls::class,
         ],
 
         'api' => [
@@ -33,6 +34,7 @@ class Kernel extends HttpKernel
             'throttle:api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             DemoMiddleware::class,
+            \App\Http\Middleware\RewriteMediaUrls::class,
         ],
     ];
 
