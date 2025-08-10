@@ -5183,7 +5183,7 @@ class ApiController extends Controller
                 'slider_section' => $slidersData,
                 'homepage_location_data_available' => $homepageLocationDataAvailable == true ? true : false,
             ];
-            ApiResponseService::successResponse("Data fetched Successfully", $data);
+            return ApiResponseService::successResponseReturn("Data fetched Successfully", $data);
         } catch (Exception $e) {
             ApiResponseService::errorResponse("Something Went Wrong");
         }

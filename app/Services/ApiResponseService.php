@@ -124,6 +124,19 @@ class ApiResponseService
     }
 
     /**
+     * Return success response without sending it (for middleware processing)
+     */
+    public static function successResponseReturn(string $message = "Success", $data = null, array $customData = array(), $code = null)
+    {
+        return response()->json(array_merge([
+            'error'   => false,
+            'message' => $message,
+            'data'    => $data,
+            'code'    => $code ?? config('constants.RESPONSE_CODE.SUCCESS')
+        ], $customData), $code ?? config('constants.RESPONSE_CODE.SUCCESS'));
+    }
+
+    /**
      * @param string $message
      * @param $url
      * @return Application|\Illuminate\Foundation\Application|RedirectResponse|Redirector
@@ -153,7 +166,7 @@ class ApiResponseService
             'data'    => $data,
             'code'    => $code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'),
             'details' => (!empty($e) && is_object($e)) ? $e->getMessage() . ' --> ' . $e->getFile() . ' At Line : ' . $e->getLine() : ''
-        ],$code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'))->send();
+        ], $code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'))->send();
         exit();
     }
 
@@ -183,7 +196,7 @@ class ApiResponseService
             'code'    => $code,
             'message' => $message,
             'data'    => $data,
-        ],$code)->send();
+        ], $code)->send();
         exit();
     }
 
@@ -238,6 +251,5 @@ class ApiResponseService
         if (config('app.debug')) {
             self::errorRedirectResponse(null, $responseMessage);
         }
-
     }
 }

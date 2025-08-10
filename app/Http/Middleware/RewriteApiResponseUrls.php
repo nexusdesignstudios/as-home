@@ -18,44 +18,9 @@ class RewriteApiResponseUrls
             return $next($request);
         }
 
-        // Start output buffering to capture the response
-        ob_start();
-
         $response = $next($request);
 
-        // Get the buffered content
-        $content = ob_get_clean();
-
-        // If we have content in the buffer, it means ApiResponseService sent the response
-        if (!empty($content)) {
-            try {
-                // Try to decode as JSON
-                $data = json_decode($content, true);
-                if (is_array($data)) {
-                    $rewritten = $this->rewriteArrayWithMap($data, []);
-                    $newContent = json_encode($rewritten);
-
-                    // Log the rewriting process for debugging
-                    Log::info('RewriteApiResponseUrls: JSON response processed from buffer', [
-                        'originalLength' => strlen($content),
-                        'newLength' => strlen($newContent),
-                    ]);
-
-                    // Output the rewritten content
-                    echo $newContent;
-                    return null; // Response already sent
-                }
-            } catch (\Throwable $e) {
-                Log::warning('RewriteApiResponseUrls failed to process buffer content', [
-                    'error' => $e->getMessage(),
-                ]);
-                // If processing fails, output the original content
-                echo $content;
-                return null; // Response already sent
-            }
-        }
-
-        // If no buffer content, process normal response
+        // Skip binary/streamed responses
         if ($response instanceof BinaryFileResponse) {
             return $response;
         }
@@ -136,7 +101,7 @@ class RewriteApiResponseUrls
             $s3Base = "https://{$bucket}.s3.{$region}.amazonaws.com";
         }
 
-        // Match URLs that contain /images/ or /json/ from any domain
+        // Match URLs that contain /images/, /json/, or /assets/images/ from any domain
         if (preg_match('#^https?://[^/]+(/images/[^/]+.*)$#', $value, $matches)) {
             return $s3Base . $matches[1];
         } elseif (preg_match('#^https?://[^/]+(/json/[^/]+.*)$#', $value, $matches)) {
