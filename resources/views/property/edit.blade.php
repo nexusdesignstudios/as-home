@@ -234,7 +234,41 @@
                     {{-- Corresponding Day --}}
                     <div class="control-label col-12 form-group">
                         {{ Form::label('corresponding_day', __('Corresponding Day'), ['class' => 'form-label col-12 ']) }}
-                        {{ Form::text('corresponding_day', isset($list->corresponding_day) ? $list->corresponding_day : '', ['class' => 'form-control', 'placeholder' => __('Corresponding Day')]) }}
+                        <div class="corresponding-day-container">
+                            <div class="row mb-2">
+                                <div class="col-md-3">
+                                    <label>{{ __('Day') }}</label>
+                                    <select class="form-control day-select">
+                                        <option value="monday">{{ __('Monday') }}</option>
+                                        <option value="tuesday">{{ __('Tuesday') }}</option>
+                                        <option value="wednesday">{{ __('Wednesday') }}</option>
+                                        <option value="thursday">{{ __('Thursday') }}</option>
+                                        <option value="friday">{{ __('Friday') }}</option>
+                                        <option value="saturday">{{ __('Saturday') }}</option>
+                                        <option value="sunday">{{ __('Sunday') }}</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label>{{ __('From Time') }}</label>
+                                    <input type="time" class="form-control from-time" value="10:00">
+                                </div>
+                                <div class="col-md-3">
+                                    <label>{{ __('To Time') }}</label>
+                                    <input type="time" class="form-control to-time" value="14:00">
+                                </div>
+                                <div class="col-md-3">
+                                    <label>&nbsp;</label>
+                                    <button type="button" class="btn btn-primary btn-sm add-corresponding-day">
+                                        <i class="bi bi-plus"></i> {{ __('Add') }}
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="corresponding-day-list">
+                                <!-- Added days will appear here -->
+                            </div>
+                            {{ Form::hidden('corresponding_day', isset($list->corresponding_day) ? $list->corresponding_day : '', ['id' => 'corresponding_day_json']) }}
+                        </div>
+                        <small class="text-muted">{{ __('Format: [{"from": "10:00AM", "to": "02:00PM", "day": "saturday"}]') }}</small>
                     </div>
                 </div>
             </div>
@@ -1098,6 +1132,98 @@
                 }
                 $(this).closest('tr').remove();
             });
+
+            // Corresponding Day Management
+            var correspondingDays = [];
+
+            // Initialize with existing data if available
+            var existingCorrespondingDay = $('#corresponding_day_json').val();
+            if (existingCorrespondingDay) {
+                try {
+                    correspondingDays = JSON.parse(existingCorrespondingDay);
+                    updateCorrespondingDayList();
+                } catch (e) {
+                    console.error('Error parsing existing corresponding day data:', e);
+                }
+            }
+
+            // Add corresponding day
+            $('.add-corresponding-day').on('click', function() {
+                var day = $('.day-select').val();
+                var fromTime = $('.from-time').val();
+                var toTime = $('.to-time').val();
+
+                if (!fromTime || !toTime) {
+                    alert('Please select both from and to times');
+                    return;
+                }
+
+                // Convert 24-hour format to 12-hour format
+                var fromTime12 = convertTo12HourFormat(fromTime);
+                var toTime12 = convertTo12HourFormat(toTime);
+
+                var dayData = {
+                    from: fromTime12,
+                    to: toTime12,
+                    day: day
+                };
+
+                // Check if day already exists
+                var existingIndex = correspondingDays.findIndex(function(item) {
+                    return item.day === day;
+                });
+
+                if (existingIndex !== -1) {
+                    correspondingDays[existingIndex] = dayData;
+                } else {
+                    correspondingDays.push(dayData);
+                }
+
+                updateCorrespondingDayList();
+                updateCorrespondingDayJson();
+            });
+
+            // Remove corresponding day
+            $(document).on('click', '.remove-corresponding-day', function() {
+                var day = $(this).data('day');
+                correspondingDays = correspondingDays.filter(function(item) {
+                    return item.day !== day;
+                });
+                updateCorrespondingDayList();
+                updateCorrespondingDayJson();
+            });
+
+            // Update the display list
+            function updateCorrespondingDayList() {
+                var html = '';
+                correspondingDays.forEach(function(dayData) {
+                    html += `
+                        <div class="alert alert-info d-flex justify-content-between align-items-center">
+                            <span><strong>${dayData.day.charAt(0).toUpperCase() + dayData.day.slice(1)}</strong>: ${dayData.from} - ${dayData.to}</span>
+                            <button type="button" class="btn btn-danger btn-sm remove-corresponding-day" data-day="${dayData.day}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+                $('.corresponding-day-list').html(html);
+            }
+
+            // Update the hidden JSON field
+            function updateCorrespondingDayJson() {
+                $('#corresponding_day_json').val(JSON.stringify(correspondingDays));
+            }
+
+            // Convert 24-hour format to 12-hour format
+            function convertTo12HourFormat(time24) {
+                var time = time24.split(':');
+                var hours = parseInt(time[0]);
+                var minutes = time[1];
+                var ampm = hours >= 12 ? 'PM' : 'AM';
+                hours = hours % 12;
+                hours = hours ? hours : 12; // the hour '0' should be '12'
+                return hours.toString().padStart(2, '0') + ':' + minutes + ampm;
+            }
         });
     </script>
 @endsection
