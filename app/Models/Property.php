@@ -883,6 +883,8 @@ class Property extends Model
                         'price' => $package->price,
                         'status' => $package->status,
                         'room_type' => $package->hotel_room_type,
+                        'room_type_id' => $package->room_type_id,
+                        'property_id' => $package->property_id,
                         'addons' => []
                     ];
 
