@@ -580,7 +580,19 @@ function get_unregistered_fcm_ids($registeredIDs = array())
 }
 function handleFileUpload($request, $key, $destinationPath, $filename, $databaseData = null)
 {
-    if ($request->hasFile($key)) {
+    Log::info('handleFileUpload: starting', [
+        'key' => $key,
+        'hasFile' => $request->hasFile($key),
+        'allFiles' => array_keys($request->allFiles()),
+    ]);
+
+    // Check if file exists in request (handle both real and mock requests)
+    $uploadedFile = $request->file($key);
+    if (!$uploadedFile && $request->hasFile($key)) {
+        $uploadedFile = $request->file($key);
+    }
+
+    if ($uploadedFile) {
         // Prefer env at runtime, fallback to config
         $disk = env('FILESYSTEM_DISK', config('filesystems.default', 'local'));
 
@@ -602,23 +614,7 @@ function handleFileUpload($request, $key, $destinationPath, $filename, $database
         }
         $directory = trim(str_replace('\\', '/', $directory), '/');
 
-        $uploadedFile = $request->file($key);
-        try {
-            Log::info('handleFileUpload: starting', [
-                'disk' => $disk,
-                'bucket' => config('filesystems.disks.s3.bucket'),
-                'region' => config('filesystems.disks.s3.region'),
-                'endpoint' => config('filesystems.disks.s3.endpoint'),
-                'key' => $key,
-                'originalName' => $uploadedFile->getClientOriginalName(),
-                'mime' => $uploadedFile->getClientMimeType(),
-                'size' => $uploadedFile->getSize(),
-                'directory' => $directory,
-                'destinationPath' => $destinationPath,
-            ]);
-        } catch (\Throwable $e) {
-            Log::warning('handleFileUpload: metadata logging failed', ['error' => $e->getMessage()]);
-        }
+
 
         if (!empty($databaseData)) {
             // Delete old file on the configured disk (best-effort)
@@ -652,8 +648,24 @@ function handleFileUpload($request, $key, $destinationPath, $filename, $database
 
         if ($disk === 's3') {
             try {
-                // Use UploadedFile API to satisfy static analysis
-                $uploadedFile->storeAs($directory, $finalFilename, ['disk' => 's3', 'visibility' => 'public']);
+                // Use direct AWS SDK since Laravel Storage facade is failing
+                $s3Client = new \Aws\S3\S3Client([
+                    'key' => env('AWS_ACCESS_KEY_ID'),
+                    'secret' => env('AWS_SECRET_ACCESS_KEY'),
+                    'region' => env('AWS_DEFAULT_REGION'),
+                    'version' => 'latest',
+                    'http' => ['verify' => false],
+                ]);
+
+                $s3Key = trim($directory, '/') . '/' . $finalFilename;
+                $fileContent = $uploadedFile->get();
+
+                $result = $s3Client->putObject([
+                    'Bucket' => env('AWS_BUCKET'),
+                    'Key' => $s3Key,
+                    'Body' => $fileContent,
+                    'ContentType' => $uploadedFile->getClientMimeType(),
+                ]);
                 $s3Key = trim($directory, '/') . '/' . $finalFilename;
                 $exists = null;
                 try {
@@ -678,31 +690,6 @@ function handleFileUpload($request, $key, $destinationPath, $filename, $database
                     'exists' => $exists,
                     'sampleList' => $sampleList,
                 ]);
-
-                // Also write a local copy to maintain existing URL scheme
-                if (!is_dir($destinationPath)) {
-                    @mkdir($destinationPath, 0777, true);
-                }
-                try {
-                    $tmpPath = $uploadedFile->getRealPath();
-                    $localTarget = rtrim($destinationPath, '\\/') . '/' . $finalFilename;
-                    if ($tmpPath && is_readable($tmpPath)) {
-                        @copy($tmpPath, $localTarget);
-                    } else {
-                        // Fallback to move if temp not readable
-                        $uploadedFile->move($destinationPath, $finalFilename);
-                    }
-                    Log::info('handleFileUpload: local mirror after S3', [
-                        'path' => $localTarget,
-                        'exists' => file_exists($localTarget),
-                    ]);
-                } catch (\Throwable $e) {
-                    Log::warning('handleFileUpload: local mirror failed', [
-                        'destinationPath' => $destinationPath,
-                        'filename' => $finalFilename,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
             } catch (\Throwable $e) {
                 Log::error('S3 upload failed in handleFileUpload', [
                     'directory' => $directory,
@@ -712,20 +699,16 @@ function handleFileUpload($request, $key, $destinationPath, $filename, $database
                 throw $e;
             }
         } else {
-            // Preserve existing local behavior
-            if (!is_dir($destinationPath)) {
-                @mkdir($destinationPath, 0777, true);
-            }
-            $uploadedFile->move($destinationPath, $finalFilename);
-            $fullPath = rtrim($destinationPath, '\\/') . '/' . $finalFilename;
-            Log::info('handleFileUpload: local upload complete', [
-                'path' => $fullPath,
-                'exists' => file_exists($fullPath),
-            ]);
+            throw new Exception('S3 disk is required for file uploads');
         }
 
         return $finalFilename;
     }
+
+    Log::warning('handleFileUpload: no file found', [
+        'key' => $key,
+        'hasFile' => $request->hasFile($key),
+    ]);
 
     return null;
 }
@@ -787,7 +770,36 @@ function store_image($file, $path)
 
         if ($disk === 's3') {
             try {
-                $file->storeAs($relativeDir, $filename, ['disk' => 's3', 'visibility' => 'public']);
+                // Use direct AWS SDK since Laravel Storage facade is failing
+                $s3Client = new \Aws\S3\S3Client([
+                    'key' => env('AWS_ACCESS_KEY_ID'),
+                    'secret' => env('AWS_SECRET_ACCESS_KEY'),
+                    'region' => env('AWS_DEFAULT_REGION'),
+                    'version' => 'latest',
+                    'http' => ['verify' => false],
+                ]);
+
+                $s3Key = trim($relativeDir, '/') . '/' . $filename;
+                $fileContent = $file->get();
+
+                Log::info('store_image: file content details', [
+                    'contentLength' => strlen($fileContent),
+                    'mimeType' => $file->getClientMimeType(),
+                    's3Key' => $s3Key,
+                ]);
+
+                $result = $s3Client->putObject([
+                    'Bucket' => env('AWS_BUCKET'),
+                    'Key' => $s3Key,
+                    'Body' => $fileContent,
+                    'ContentType' => $file->getClientMimeType(),
+                ]);
+
+                Log::info('store_image: S3 put result', [
+                    'success' => true,
+                    's3Key' => $s3Key,
+                    'objectUrl' => $result['ObjectURL'],
+                ]);
                 $s3Key = trim($relativeDir, '/') . '/' . $filename;
                 $exists = null;
                 try {
@@ -812,29 +824,6 @@ function store_image($file, $path)
                     'exists' => $exists,
                     'sampleList' => $sampleList,
                 ]);
-
-                // Also write a local copy to maintain existing URL scheme
-                $destinationPath = public_path('images') . config('global.' . $path);
-                if (!is_dir($destinationPath)) {
-                    @mkdir($destinationPath, 0777, true);
-                }
-                try {
-                    $tmpPath = $file->getRealPath();
-                    $localTarget = rtrim($destinationPath, '\\/') . '/' . $filename;
-                    if ($tmpPath && is_readable($tmpPath)) {
-                        @copy($tmpPath, $localTarget);
-                    }
-                    Log::info('store_image: local mirror after S3', [
-                        'path' => $localTarget,
-                        'exists' => file_exists($localTarget),
-                    ]);
-                } catch (\Throwable $e) {
-                    Log::warning('store_image: local mirror failed', [
-                        'destinationPath' => $destinationPath,
-                        'filename' => $filename,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
             } catch (\Throwable $e) {
                 Log::error('S3 upload failed in store_image', [
                     'relativeDir' => $relativeDir,
@@ -844,16 +833,7 @@ function store_image($file, $path)
                 throw $e;
             }
         } else {
-            $destinationPath = public_path('images') . config('global.' . $path);
-            if (!is_dir($destinationPath)) {
-                @mkdir($destinationPath, 0777, true);
-            }
-            $file->move($destinationPath, $filename);
-            $fullPath = rtrim($destinationPath, '\\/') . '/' . $filename;
-            Log::info('store_image: local upload complete', [
-                'path' => $fullPath,
-                'exists' => file_exists($fullPath),
-            ]);
+            throw new Exception('S3 disk is required for file uploads');
         }
 
         return $filename;
