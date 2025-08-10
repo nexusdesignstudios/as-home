@@ -1251,10 +1251,9 @@ class ApiController extends Controller
             }
             if ($request->hasfile('gallery_images')) {
                 foreach ($request->file('gallery_images') as $file) {
-                    $name = microtime(true) . '.' . $file->extension();
-                    $file->move($destinationPath, $name);
+                    $uploadedFileName = store_image($file, 'PROPERTY_GALLERY_IMG_PATH', $saveProperty->id);
                     $gallary_image = new PropertyImages();
-                    $gallary_image->image = $name;
+                    $gallary_image->image = $uploadedFileName;
                     $gallary_image->propertys_id = $saveProperty->id;
                     $gallary_image->save();
                 }
@@ -1274,12 +1273,11 @@ class ApiController extends Controller
             if ($request->hasfile('documents')) {
                 $documentsData = array();
                 foreach ($request->file('documents') as $file) {
-                    $name = microtime(true) . '.' . $file->extension();
                     $type = $file->extension();
-                    $file->move($destinationPath, $name);
+                    $uploadedFileName = store_image($file, 'PROPERTY_DOCUMENT_PATH', $saveProperty->id);
                     $documentsData[] = array(
                         'property_id' => $saveProperty->id,
-                        'name' => $name,
+                        'name' => $uploadedFileName,
                         'type' => $type
                     );
                 }
@@ -1366,9 +1364,8 @@ class ApiController extends Controller
                                 // Handle file uploads
                                 if ($addonField->field_type == 'file' && $request->hasFile('addons_packages.' . $packageIndex . '.addon_values.' . $addonIndex . '.value')) {
                                     $file = $request->file('addons_packages.' . $packageIndex . '.addon_values.' . $addonIndex . '.value');
-                                    $fileName = microtime(true) . '.' . $file->extension();
-                                    $file->move($addonFolderPath, $fileName);
-                                    $value = $fileName;
+                                    $uploadedFileName = store_image($file, 'HOTEL_ADDON_PATH');
+                                    $value = $uploadedFileName;
                                 }
                                 // Handle checkbox values (convert array to JSON)
                                 else if ($addonField->field_type == 'checkbox' && is_array($value)) {
@@ -1423,9 +1420,8 @@ class ApiController extends Controller
                         // Handle file uploads
                         if ($request->hasFile('certificates.' . $certificate['title'] . '.file')) {
                             $file = $request->file('certificates.' . $certificate['title'] . '.file');
-                            $fileName = microtime(true) . '.' . $file->extension();
-                            $file->move($certificateFolderPath, $fileName);
-                            $propertyCertificate->file = $fileName;
+                            $uploadedFileName = store_image($file, 'PROPERTY_CERTIFICATE_PATH');
+                            $propertyCertificate->file = $uploadedFileName;
                         }
 
                         $propertyCertificate->save();

@@ -744,11 +744,16 @@ function check_subscription($user, $type, $status)
 
     return $current_package;
 }
-function store_image($file, $path)
+function store_image($file, $path, $subdir = null)
 {
     // Prefer env at runtime, fallback to config
     $disk = env('FILESYSTEM_DISK', config('filesystems.default', 'local'));
     $relativeDir = 'images/' . trim(config('global.' . $path), '/');
+
+    // Add subdirectory if provided
+    if ($subdir) {
+        $relativeDir = $relativeDir . '/' . trim($subdir, '/');
+    }
 
     try {
         Log::info('store_image: starting', [
