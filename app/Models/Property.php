@@ -239,6 +239,22 @@ class Property extends Model
     }
 
     /**
+     * Get the property images for this property.
+     */
+    public function propertyImages()
+    {
+        return $this->hasMany(PropertyImages::class, 'propertys_id', 'id');
+    }
+
+    /**
+     * Get the property documents for this property.
+     */
+    public function propertiesDocuments()
+    {
+        return $this->hasMany(PropertiesDocument::class, 'property_id', 'id');
+    }
+
+    /**
      * Get the hotel rooms for this property.
      */
     public function hotelRooms()
@@ -304,7 +320,7 @@ class Property extends Model
 
     public function getPolicyDataAttribute($value)
     {
-        return $value != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_POLICY_PATH') . $value : '';
+        return $value != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_DOCUMENT_PATH') . $value : '';
     }
 
     public function setPolicyDataAttribute($value)
@@ -314,7 +330,7 @@ class Property extends Model
 
     public function getIdentityProofAttribute($value)
     {
-        return $value != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_IDENTITY_PATH') . $value : '';
+        return $value != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_IDENTITY_PROOF_PATH') . $value : '';
     }
 
     public function setIdentityProofAttribute($value)

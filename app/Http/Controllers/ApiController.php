@@ -1428,7 +1428,19 @@ class ApiController extends Controller
             }
             // END :: ADD CERTIFICATES
 
-            $result = Property::with('customer')->with('category:id,category,image')->with('assignfacilities.outdoorfacilities')->with('favourite')->with('parameters')->with('interested_users')->where('id', $saveProperty->id)->get();
+            $result = Property::with([
+                'customer',
+                'category:id,category,image',
+                'assignfacilities.outdoorfacilities',
+                'favourite',
+                'parameters',
+                'interested_users',
+                'propertyImages',
+                'propertiesDocuments',
+                'hotelRooms.roomType',
+                'addons_packages.addon_values.hotel_addon_field',
+                'certificates'
+            ])->where('id', $saveProperty->id)->get();
             $property_details = get_property_details($result);
 
             DB::commit();
@@ -1973,7 +1985,19 @@ class ApiController extends Controller
                     }
 
                     $property->update();
-                    $update_property = Property::with('customer')->with('category:id,category,image')->with('assignfacilities.outdoorfacilities')->with('favourite')->with('parameters')->with('interested_users')->where('id', $request->id)->get();
+                    $update_property = Property::with([
+                        'customer',
+                        'category:id,category,image',
+                        'assignfacilities.outdoorfacilities',
+                        'favourite',
+                        'parameters',
+                        'interested_users',
+                        'propertyImages',
+                        'propertiesDocuments',
+                        'hotelRooms.roomType',
+                        'addons_packages.addon_values.hotel_addon_field',
+                        'certificates'
+                    ])->where('id', $request->id)->get();
 
                     /// START :: UPLOAD GALLERY IMAGE
                     $FolderPath = public_path('images') . config('global.PROPERTY_GALLERY_IMG_PATH');
