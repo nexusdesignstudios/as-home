@@ -925,6 +925,10 @@ class ApiController extends Controller
         $validator = Validator::make($request->all(), [
             'title'             => 'required',
             'description'       => 'required',
+            'area_description'  => 'nullable|string',
+            'company_employee_username' => 'nullable|string',
+            'company_employee_email' => 'nullable|email',
+            'company_employee_phone_number' => 'nullable|string',
             'category_id'       => 'required',
             'property_type'     => 'required',
             'property_classification' => 'nullable|integer|between:1,5',
@@ -1034,6 +1038,10 @@ class ApiController extends Controller
             $saveProperty->slug_id = generateUniqueSlug($slugData, 1);
             $saveProperty->title = $request->title;
             $saveProperty->description = $request->description;
+            $saveProperty->area_description = (isset($request->area_description)) ? $request->area_description : null;
+            $saveProperty->company_employee_username = (isset($request->company_employee_username)) ? $request->company_employee_username : null;
+            $saveProperty->company_employee_email = (isset($request->company_employee_email)) ? $request->company_employee_email : null;
+            $saveProperty->company_employee_phone_number = (isset($request->company_employee_phone_number)) ? $request->company_employee_phone_number : null;
             $saveProperty->address = $request->address;
             $saveProperty->client_address = (isset($request->client_address)) ? $request->client_address : '';
             $saveProperty->propery_type = $request->property_type;
@@ -1471,6 +1479,10 @@ class ApiController extends Controller
             'action_type'           => 'required',
             'title'                 => 'nullable',
             'description'           => 'nullable',
+            'area_description'      => 'nullable|string',
+            'company_employee_username' => 'nullable|string',
+            'company_employee_email' => 'nullable|email',
+            'company_employee_phone_number' => 'nullable|string',
             'category_id'           => 'nullable',
             'slug_id'               => 'nullable',
             'property_type'         => 'nullable',
@@ -1627,6 +1639,22 @@ class ApiController extends Controller
 
                     if (isset($request->description)) {
                         $property->description = $request->description;
+                    }
+
+                    if (isset($request->area_description)) {
+                        $property->area_description = $request->area_description;
+                    }
+
+                    if (isset($request->company_employee_username)) {
+                        $property->company_employee_username = $request->company_employee_username;
+                    }
+
+                    if (isset($request->company_employee_email)) {
+                        $property->company_employee_email = $request->company_employee_email;
+                    }
+
+                    if (isset($request->company_employee_phone_number)) {
+                        $property->company_employee_phone_number = $request->company_employee_phone_number;
                     }
 
                     if (isset($request->address)) {

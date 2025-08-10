@@ -89,6 +89,10 @@ class PropertController extends Controller
             $request->validate([
                 'title'             => 'required',
                 'description'       => 'required',
+                'area_description'  => 'nullable|string',
+                'company_employee_username' => 'nullable|string',
+                'company_employee_email' => 'nullable|email',
+                'company_employee_phone_number' => 'nullable|string',
                 'category'          => 'required',
                 'property_type'     => 'required',
                 'property_classification' => 'nullable|integer|between:1,5',
@@ -109,6 +113,12 @@ class PropertController extends Controller
                 'agent_addons'      => 'nullable|json',
                 'hotel_apartment_type_id' => 'nullable|exists:hotel_apartment_types,id',
                 'rent_package' => 'nullable|in:basic,premium',
+                'revenue_user_name' => 'nullable|string',
+                'revenue_phone_number' => 'nullable|string',
+                'revenue_email' => 'nullable|email',
+                'reservation_user_name' => 'nullable|string',
+                'reservation_phone_number' => 'nullable|string',
+                'reservation_email' => 'nullable|email',
                 'hotel_rooms'       => 'nullable|array',
                 'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
                 'hotel_rooms.*.room_number' => 'required_with:hotel_rooms',
@@ -164,6 +174,10 @@ class PropertController extends Controller
                 $saveProperty->title = $request->title;
                 $saveProperty->slug_id = $request->slug ?? generateUniqueSlug($request->title, 1);
                 $saveProperty->description = $request->description;
+                $saveProperty->area_description = $request->area_description ?? null;
+                $saveProperty->company_employee_username = $request->company_employee_username ?? null;
+                $saveProperty->company_employee_email = $request->company_employee_email ?? null;
+                $saveProperty->company_employee_phone_number = $request->company_employee_phone_number ?? null;
                 $saveProperty->address = $request->address;
                 $saveProperty->client_address = $request->client_address;
                 $saveProperty->propery_type = $request->property_type;
@@ -242,6 +256,12 @@ class PropertController extends Controller
                     $saveProperty->agent_addons = $request->agent_addons;
                     $saveProperty->available_rooms = $request->available_rooms;
                     $saveProperty->rent_package = $request->rent_package;
+                    $saveProperty->revenue_user_name = $request->revenue_user_name ?? null;
+                    $saveProperty->revenue_phone_number = $request->revenue_phone_number ?? null;
+                    $saveProperty->revenue_email = $request->revenue_email ?? null;
+                    $saveProperty->reservation_user_name = $request->reservation_user_name ?? null;
+                    $saveProperty->reservation_phone_number = $request->reservation_phone_number ?? null;
+                    $saveProperty->reservation_email = $request->reservation_email ?? null;
                 }
 
                 $saveProperty->save();
@@ -339,6 +359,7 @@ class PropertController extends Controller
                                 'price_per_night' => (float)$room['price_per_night'],
                                 'discount_percentage' => isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : 0,
                                 'refund_policy' => $room['refund_policy'] ?? 'flexible',
+                                'nonrefundable_percentage' => isset($room['nonrefundable_percentage']) ? (float)$room['nonrefundable_percentage'] : 0,
                                 'availability_type' => isset($room['availability_type']) ? (int)$room['availability_type'] : null,
                                 'available_dates' => isset($room['available_dates']) ? $room['available_dates'] : null,
                                 'weekend_commission' => isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : null,
@@ -541,12 +562,22 @@ class PropertController extends Controller
         } else {
             $request->validate([
                 'slug'              => 'nullable|regex:/^[a-z0-9-]+$/|unique:propertys,slug_id,' . $id . ',id',
+                'area_description'  => 'nullable|string',
+                'company_employee_username' => 'nullable|string',
+                'company_employee_email' => 'nullable|email',
+                'company_employee_phone_number' => 'nullable|string',
                 'gallery_images.*'  => 'nullable|image|mimes:jpg,png,jpeg|max:2048',
                 'documents.*'       => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
                 'title_image'       => 'nullable|image|mimes:jpg,png,jpeg|max:2048',
                 'meta_image'        => 'nullable|image|mimes:jpg,png,jpeg|max:5120',
                 'property_classification' => 'required|integer|min:1|max:5',
                 'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
+                'revenue_user_name' => 'nullable|string',
+                'revenue_phone_number' => 'nullable|string',
+                'revenue_email' => 'nullable|email',
+                'reservation_user_name' => 'nullable|string',
+                'reservation_phone_number' => 'nullable|string',
+                'reservation_email' => 'nullable|email',
                 'available_dates'   => 'nullable|json|required_if:property_classification,4',
                 'refund_policy'     => 'nullable|in:flexible,non-refundable',
                 'policy_data'       => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
@@ -589,6 +620,10 @@ class PropertController extends Controller
                 $UpdateProperty->title = $request->title;
                 $UpdateProperty->slug_id = $request->slug ?? generateUniqueSlug($request->title, 1, null, $id);
                 $UpdateProperty->description = $request->description;
+                $UpdateProperty->area_description = $request->area_description ?? null;
+                $UpdateProperty->company_employee_username = $request->company_employee_username ?? null;
+                $UpdateProperty->company_employee_email = $request->company_employee_email ?? null;
+                $UpdateProperty->company_employee_phone_number = $request->company_employee_phone_number ?? null;
                 $UpdateProperty->address = $request->address;
                 $UpdateProperty->client_address = $request->client_address;
                 $UpdateProperty->propery_type = $request->property_type;
@@ -619,6 +654,18 @@ class PropertController extends Controller
                 // Set hotel specific fields if property classification is hotel_booking (5)
                 if (isset($request->property_classification) && $request->property_classification == 5) {
                     $UpdateProperty->refund_policy = $request->refund_policy ?? 'flexible';
+                    $UpdateProperty->hotel_apartment_type_id = $request->hotel_apartment_type_id ?? null;
+                    $UpdateProperty->check_in = $request->check_in ?? null;
+                    $UpdateProperty->check_out = $request->check_out ?? null;
+                    $UpdateProperty->agent_addons = $request->agent_addons ?? null;
+                    $UpdateProperty->available_rooms = $request->available_rooms ?? null;
+                    $UpdateProperty->rent_package = $request->rent_package ?? null;
+                    $UpdateProperty->revenue_user_name = $request->revenue_user_name ?? null;
+                    $UpdateProperty->revenue_phone_number = $request->revenue_phone_number ?? null;
+                    $UpdateProperty->revenue_email = $request->revenue_email ?? null;
+                    $UpdateProperty->reservation_user_name = $request->reservation_user_name ?? null;
+                    $UpdateProperty->reservation_phone_number = $request->reservation_phone_number ?? null;
+                    $UpdateProperty->reservation_email = $request->reservation_email ?? null;
                 }
 
                 if ($request->hasFile('title_image')) {

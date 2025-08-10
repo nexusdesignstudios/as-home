@@ -75,6 +75,35 @@
                         {{ Form::textarea('description', isset($list->description) ? $list->description : '', ['class' => 'form-control mb-3', 'rows' => '3', 'id' => '', 'required' => 'true', 'placeholder' => __('Description')]) }}
                     </div>
 
+                    {{-- Area Description --}}
+                    <div class="col-md-12 col-12 form-group">
+                        {{ Form::label('area_description', __('Area Description'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::textarea('area_description', isset($list->area_description) ? $list->area_description : '', ['class' => 'form-control mb-3', 'rows' => '3', 'id' => 'area_description', 'placeholder' => __('Area Description')]) }}
+                    </div>
+
+                    {{-- Company Employee Information --}}
+                    <div class="col-md-12 col-12 form-group">
+                        <h6 class="form-label col-12">{{ __('Company Employee Information') }}</h6>
+                    </div>
+
+                    {{-- Company Employee Username --}}
+                    <div class="col-md-12 col-12 form-group">
+                        {{ Form::label('company_employee_username', __('Company Employee Username'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::text('company_employee_username', isset($list->company_employee_username) ? $list->company_employee_username : '', ['class' => 'form-control ', 'placeholder' =>  __('Company Employee Username'), 'id' => 'company_employee_username', ]) }}
+                    </div>
+
+                    {{-- Company Employee Email --}}
+                    <div class="col-md-12 col-12 form-group">
+                        {{ Form::label('company_employee_email', __('Company Employee Email'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::email('company_employee_email', isset($list->company_employee_email) ? $list->company_employee_email : '', ['class' => 'form-control ', 'placeholder' =>  __('Company Employee Email'), 'id' => 'company_employee_email', ]) }}
+                    </div>
+
+                    {{-- Company Employee Phone Number --}}
+                    <div class="col-md-12 col-12 form-group">
+                        {{ Form::label('company_employee_phone_number', __('Company Employee Phone Number'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::text('company_employee_phone_number', isset($list->company_employee_phone_number) ? $list->company_employee_phone_number : '', ['class' => 'form-control ', 'placeholder' =>  __('Company Employee Phone Number'), 'id' => 'company_employee_phone_number', ]) }}
+                    </div>
+
                     {{-- Property Type --}}
                     <div class="col-md-12 col-12  form-group  mandatory">
                         <div class="row">
@@ -115,6 +144,66 @@
                                 <option value="flexible" {{ isset($list->refund_policy) && $list->refund_policy == 'flexible' ? 'selected' : '' }}>{{ __('Flexible Booking') }}</option>
                                 <option value="non-refundable" {{ isset($list->refund_policy) && $list->refund_policy == 'non-refundable' ? 'selected' : '' }}>{{ __('Non-Refundable') }}</option>
                             </select>
+                        </div>
+                        <div class="form-group">
+                            {{ Form::label('hotel_apartment_type_id', __('Hotel Apartment Type'), ['class' => 'form-label col-12']) }}
+                            {{ Form::select('hotel_apartment_type_id', App\Models\HotelApartmentType::pluck('name', 'id'), isset($list->hotel_apartment_type_id) ? $list->hotel_apartment_type_id : null, ['class' => 'form-control select2', 'placeholder' => __('Select Apartment Type')]) }}
+                        </div>
+                        <div class="form-group">
+                            {{ Form::label('check_in', __('Check-in Time'), ['class' => 'form-label col-12']) }}
+                            {{ Form::time('check_in', isset($list->check_in) ? $list->check_in : null, ['class' => 'form-control']) }}
+                        </div>
+                        <div class="form-group">
+                            {{ Form::label('check_out', __('Check-out Time'), ['class' => 'form-label col-12']) }}
+                            {{ Form::time('check_out', isset($list->check_out) ? $list->check_out : null, ['class' => 'form-control']) }}
+                        </div>
+                        <div class="form-group">
+                            {{ Form::label('available_rooms', __('Total Available Rooms'), ['class' => 'form-label col-12']) }}
+                            {{ Form::number('available_rooms', isset($list->available_rooms) ? $list->available_rooms : null, ['class' => 'form-control', 'min' => '0']) }}
+                        </div>
+                        <div class="form-group">
+                            {{ Form::label('agent_addons', __('Agent Addons'), ['class' => 'form-label col-12']) }}
+                            {{ Form::textarea('agent_addons', isset($list->agent_addons) ? $list->agent_addons : null, ['class' => 'form-control', 'rows' => '3', 'placeholder' => __('Agent Addons (JSON format)')]) }}
+                        </div>
+
+                        {{-- Revenue Information --}}
+                        <div class="form-group">
+                            <h6 class="form-label col-12">{{ __('Revenue Information') }}</h6>
+                        </div>
+                        <div class="form-group">
+                            {{ Form::label('revenue_user_name', __('Revenue User Name'), ['class' => 'form-label col-12']) }}
+                            {{ Form::text('revenue_user_name', isset($list->revenue_user_name) ? $list->revenue_user_name : null, ['class' => 'form-control', 'placeholder' => __('Revenue User Name')]) }}
+                        </div>
+                        <div class="form-group">
+                            {{ Form::label('revenue_phone_number', __('Revenue Phone Number'), ['class' => 'form-label col-12']) }}
+                            {{ Form::text('revenue_phone_number', isset($list->revenue_phone_number) ? $list->revenue_phone_number : null, ['class' => 'form-control', 'placeholder' => __('Revenue Phone Number')]) }}
+                        </div>
+                        <div class="form-group">
+                            {{ Form::label('revenue_email', __('Revenue Email'), ['class' => 'form-label col-12']) }}
+                            {{ Form::email('revenue_email', isset($list->revenue_email) ? $list->revenue_email : null, ['class' => 'form-control', 'placeholder' => __('Revenue Email')]) }}
+                        </div>
+
+                        {{-- Reservation Information --}}
+                        <div class="form-group">
+                            <h6 class="form-label col-12">{{ __('Reservation Information') }}</h6>
+                        </div>
+                        <div class="form-group">
+                            {{ Form::label('reservation_user_name', __('Reservation User Name'), ['class' => 'form-label col-12']) }}
+                            {{ Form::text('reservation_user_name', isset($list->reservation_user_name) ? $list->reservation_user_name : null, ['class' => 'form-control', 'placeholder' => __('Reservation User Name')]) }}
+                        </div>
+                        <div class="form-group">
+                            {{ Form::label('reservation_phone_number', __('Reservation Phone Number'), ['class' => 'form-label col-12']) }}
+                            {{ Form::text('reservation_phone_number', isset($list->reservation_phone_number) ? $list->reservation_phone_number : null, ['class' => 'form-control', 'placeholder' => __('Reservation Phone Number')]) }}
+                        </div>
+                        <div class="form-group">
+                            {{ Form::label('reservation_email', __('Reservation Email'), ['class' => 'form-label col-12']) }}
+                            {{ Form::email('reservation_email', isset($list->reservation_email) ? $list->reservation_email : null, ['class' => 'form-control', 'placeholder' => __('Reservation Email')]) }}
+                        </div>
+
+                        {{-- Rent Package --}}
+                        <div class="form-group">
+                            {{ Form::label('rent_package', __('Rent Package'), ['class' => 'form-label col-12']) }}
+                            {{ Form::select('rent_package', ['basic' => __('Basic'), 'premium' => __('Premium')], isset($list->rent_package) ? $list->rent_package : null, ['class' => 'form-control select2', 'placeholder' => __('Select Rent Package')]) }}
                         </div>
                     </div>
 
