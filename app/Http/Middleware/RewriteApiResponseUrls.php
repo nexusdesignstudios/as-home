@@ -12,15 +12,50 @@ class RewriteApiResponseUrls
 {
     public function handle($request, Closure $next)
     {
-        $response = $next($request);
-
         // Only rewrite when using S3
         $disk = env('FILESYSTEM_DISK', config('filesystems.default', 'local'));
         if ($disk !== 's3') {
-            return $response;
+            return $next($request);
         }
 
-        // Skip binary/streamed responses
+        // Start output buffering to capture the response
+        ob_start();
+
+        $response = $next($request);
+
+        // Get the buffered content
+        $content = ob_get_clean();
+
+        // If we have content in the buffer, it means ApiResponseService sent the response
+        if (!empty($content)) {
+            try {
+                // Try to decode as JSON
+                $data = json_decode($content, true);
+                if (is_array($data)) {
+                    $rewritten = $this->rewriteArrayWithMap($data, []);
+                    $newContent = json_encode($rewritten);
+
+                    // Log the rewriting process for debugging
+                    Log::info('RewriteApiResponseUrls: JSON response processed from buffer', [
+                        'originalLength' => strlen($content),
+                        'newLength' => strlen($newContent),
+                    ]);
+
+                    // Output the rewritten content
+                    echo $newContent;
+                    return null; // Response already sent
+                }
+            } catch (\Throwable $e) {
+                Log::warning('RewriteApiResponseUrls failed to process buffer content', [
+                    'error' => $e->getMessage(),
+                ]);
+                // If processing fails, output the original content
+                echo $content;
+                return null; // Response already sent
+            }
+        }
+
+        // If no buffer content, process normal response
         if ($response instanceof BinaryFileResponse) {
             return $response;
         }

@@ -257,7 +257,7 @@ Route::get('mortgage-calculator', [ApiController::class, 'calculateMortgageCalcu
 
 /** Extra */
 Route::post('get_system_settings', [ApiController::class, 'get_system_settings']);
-Route::get('homepage-data', [ApiController::class, 'homepageData']);
+Route::get('homepage-data', [ApiController::class, 'homepageData'])->middleware('rewrite.api.response.urls');
 Route::get('faqs', [ApiController::class, 'getFaqData']);
 Route::get('privacy-policy', [ApiController::class, 'getPrivacyPolicy']);
 Route::get('terms-conditions', [ApiController::class, 'getTermsAndConditions']);
