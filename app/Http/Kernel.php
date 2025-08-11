@@ -35,6 +35,7 @@ class Kernel extends HttpKernel
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             DemoMiddleware::class,
             \App\Http\Middleware\RewriteMediaUrls::class,
+            \App\Http\Middleware\RewriteApiResponseUrls::class,
         ],
     ];
 

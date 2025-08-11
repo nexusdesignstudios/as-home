@@ -6584,7 +6584,7 @@ class ApiController extends Controller
 
 
 
-            ApiResponseService::successResponseReturn(
+            return ApiResponseService::successResponseReturn(
                 "Data Fetch Successfully",
                 $data,
             );
