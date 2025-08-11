@@ -6584,13 +6584,9 @@ class ApiController extends Controller
 
 
 
-            ApiResponseService::successResponse(
+            ApiResponseService::successResponseReturn(
                 "Data Fetch Successfully",
                 $data,
-                array(
-                    'total' => $total,
-                    'similar_projects' => $getSimilarProjects
-                )
             );
         } catch (Exception $e) {
             ApiResponseService::errorResponse();
