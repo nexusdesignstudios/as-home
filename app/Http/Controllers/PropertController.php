@@ -1493,82 +1493,80 @@ class PropertController extends Controller
                     Log::error("Something Went Wrong in Property Status Update Mail Sending");
                 }
 
-                // Send contract emails when property is approved
-                if ($request->request_status == "approved") {
-                    try {
-                        if (!empty($propertyData->customer->email)) {
-                            // Get customer data with management_type
-                            $customerData = $propertyData->customer;
+                try {
+                    if (!empty($propertyData->customer->email)) {
+                        // Get customer data with management_type
+                        $customerData = $propertyData->customer;
 
-                            // Always send the selling_or_renting_contract email first
-                            $this->sendContractEmail($propertyData, "selling_or_renting_contract");
+                        // Always send the selling_or_renting_contract email first
+                        $this->sendContractEmail($propertyData, "selling_or_renting_contract");
 
-                            // Send additional contract emails based on conditions
-                            // Check if customer management_type is "himself" and rent_package is "basic"
-                            if (
-                                isset($customerData->management_type) && $customerData->management_type == 'himself' &&
-                                isset($propertyData->rent_package) && $propertyData->rent_package == 'basic' && ($propertyData->getRawOriginal('property_classification') == 1  ||  $propertyData->getRawOriginal('property_classification') == 2) && $propertyData->getRawOriginal('propery_type') == 0
-                            ) {
-                                // Send additional basic package self managed contract
-                                $this->sendContractEmail($propertyData, "basic_package_self_managed");
-                            }
-
-                            // Check if customer management_type is "himself" and rent_package is "basic" for renting properties
-                            if (
-                                isset($customerData->management_type) && $customerData->management_type == 'himself' &&
-                                isset($propertyData->rent_package) && $propertyData->rent_package == 'basic' && ($propertyData->getRawOriginal('property_classification') == 1  ||  $propertyData->getRawOriginal('property_classification') == 2) &&
-                                $propertyData->getRawOriginal('propery_type') == 1
-                            ) {
-                                // Send additional basic package renting self managed contract
-                                $this->sendContractEmail($propertyData, "basic_package_renting_self_managed");
-                            }
-
-                            // Check if rent_package is "premium" for renting properties
-                            if (
-                                isset($propertyData->rent_package) && $propertyData->rent_package == 'premium' &&
-                                ($propertyData->getRawOriginal('property_classification') == 1  ||  $propertyData->getRawOriginal('property_classification') == 2) &&
-                                $propertyData->getRawOriginal('propery_type') == 1
-                            ) {
-                                // Send additional premium package renting contract
-                                $this->sendContractEmail($propertyData, "premium_package_renting");
-                            }
-
-                            // Check if vacation homes with basic package and self managed
-                            if (
-                                isset($propertyData->rent_package) && $propertyData->rent_package == 'basic' &&
-                                isset($customerData->management_type) && $customerData->management_type == 'himself' &&
-                                $propertyData->getRawOriginal('property_classification') == 4
-                            ) {
-                                // Send additional vacation homes self managed basic package contract
-                                $this->sendContractEmail($propertyData, "vacation_homes_self_managed_basic_package");
-                            }
-
-                            // Check if vacation homes with premium package and as-home managed
-                            if (
-                                isset($propertyData->rent_package) && $propertyData->rent_package == 'premium' &&
-                                isset($customerData->management_type) && $customerData->management_type == 'as home' &&
-                                $propertyData->getRawOriginal('property_classification') == 4
-                            ) {
-                                // Send additional vacation homes as-home managed premium package contract
-                                $this->sendContractEmail($propertyData, "vacation_homes_ashome_managed_premium_package");
-                            }
-
-                            // Check if hotel booking (property classification == 5 for hotels)
-                            if ($propertyData->getRawOriginal('property_classification') == 5) {
-                                // Send hotel booking contract
-                                $this->sendContractEmail($propertyData, "hotel_booking");
-                            }
-
-                            // Add more conditions here for future contract types
-                            // Example:
-                            // if (some_condition) {
-                            //     $this->sendContractEmail($propertyData, "another_contract_type");
-                            // }
+                        // Send additional contract emails based on conditions
+                        // Check if customer management_type is "himself" and rent_package is "basic"
+                        if (
+                            isset($customerData->management_type) && $customerData->management_type == 'himself' &&
+                            isset($propertyData->rent_package) && $propertyData->rent_package == 'basic' && ($propertyData->getRawOriginal('property_classification') == 1  ||  $propertyData->getRawOriginal('property_classification') == 2) && $propertyData->getRawOriginal('propery_type') == 0
+                        ) {
+                            // Send additional basic package self managed contract
+                            $this->sendContractEmail($propertyData, "basic_package_self_managed");
                         }
-                    } catch (Exception $e) {
-                        Log::error("Something Went Wrong in Contract Email Sending: " . $e->getMessage());
+
+                        // Check if customer management_type is "himself" and rent_package is "basic" for renting properties
+                        if (
+                            isset($customerData->management_type) && $customerData->management_type == 'himself' &&
+                            isset($propertyData->rent_package) && $propertyData->rent_package == 'basic' && ($propertyData->getRawOriginal('property_classification') == 1  ||  $propertyData->getRawOriginal('property_classification') == 2) &&
+                            $propertyData->getRawOriginal('propery_type') == 1
+                        ) {
+                            // Send additional basic package renting self managed contract
+                            $this->sendContractEmail($propertyData, "basic_package_renting_self_managed");
+                        }
+
+                        // Check if rent_package is "premium" for renting properties
+                        if (
+                            isset($propertyData->rent_package) && $propertyData->rent_package == 'premium' &&
+                            ($propertyData->getRawOriginal('property_classification') == 1  ||  $propertyData->getRawOriginal('property_classification') == 2) &&
+                            $propertyData->getRawOriginal('propery_type') == 1
+                        ) {
+                            // Send additional premium package renting contract
+                            $this->sendContractEmail($propertyData, "premium_package_renting");
+                        }
+
+                        // Check if vacation homes with basic package and self managed
+                        if (
+                            isset($propertyData->rent_package) && $propertyData->rent_package == 'basic' &&
+                            isset($customerData->management_type) && $customerData->management_type == 'himself' &&
+                            $propertyData->getRawOriginal('property_classification') == 4
+                        ) {
+                            // Send additional vacation homes self managed basic package contract
+                            $this->sendContractEmail($propertyData, "vacation_homes_self_managed_basic_package");
+                        }
+
+                        // Check if vacation homes with premium package and as-home managed
+                        if (
+                            isset($propertyData->rent_package) && $propertyData->rent_package == 'premium' &&
+                            isset($customerData->management_type) && $customerData->management_type == 'as home' &&
+                            $propertyData->getRawOriginal('property_classification') == 4
+                        ) {
+                            // Send additional vacation homes as-home managed premium package contract
+                            $this->sendContractEmail($propertyData, "vacation_homes_ashome_managed_premium_package");
+                        }
+
+                        // Check if hotel booking (property classification == 5 for hotels)
+                        if ($propertyData->getRawOriginal('property_classification') == 5) {
+                            // Send hotel booking contract
+                            $this->sendContractEmail($propertyData, "hotel_booking");
+                        }
+
+                        // Add more conditions here for future contract types
+                        // Example:
+                        // if (some_condition) {
+                        //     $this->sendContractEmail($propertyData, "another_contract_type");
+                        // }
                     }
+                } catch (Exception $e) {
+                    Log::error("Something Went Wrong in Contract Email Sending: " . $e->getMessage());
                 }
+
 
 
 
