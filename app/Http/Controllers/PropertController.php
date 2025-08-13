@@ -1442,7 +1442,7 @@ class PropertController extends Controller
 
                 // Send mail for property status
                 try {
-                    $propertyData = Property::where('id', $request->id)->select('id', 'title', 'request_status', 'added_by')->with('customer:id,name,email')->firstOrFail();
+                    $propertyData = Property::where('id', $request->id)->select('id', 'title', 'request_status', 'added_by', 'city', 'state', 'country')->with('customer:id,name,email')->firstOrFail();
                     if (!empty($propertyData->customer->email)) {
                         // Get Data of email type
                         $emailTypeData = HelperService::getEmailTemplatesTypes("property_status");
@@ -1450,10 +1450,24 @@ class PropertController extends Controller
                         // Email Template
                         $propertyStatusTemplateData = system_setting($emailTypeData['type']);
                         $appName = env("APP_NAME") ?? "eBroker";
+
+                        // Build location string
+                        $locationParts = [];
+                        if (!empty($propertyData->city)) {
+                            $locationParts[] = $propertyData->city;
+                        }
+                        if (!empty($propertyData->state)) {
+                            $locationParts[] = $propertyData->state;
+                        }
+                        if (!empty($propertyData->country)) {
+                            $locationParts[] = $propertyData->country;
+                        }
+                        $locationString = !empty($locationParts) ? ', ' . implode(', ', $locationParts) : '';
+
                         $variables = array(
                             'app_name' => $appName,
                             'user_name' => $propertyData->customer->name,
-                            'property_name' => $propertyData->title,
+                            'property_name' => $propertyData->title . $locationString,
                             'status' => $request->request_status,
                             'reject_reason' => $request->request_status == 'rejected' ? $request->reject_reason : null,
                             'email' => $propertyData->customer->email

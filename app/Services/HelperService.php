@@ -165,6 +165,18 @@ class HelperService
                                 'name' => 'reject_reason',
                                 'is_condition' => false,
                             ],
+                            [
+                                'name' => 'city',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'state',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'country',
+                                'is_condition' => false,
+                            ],
                         )
                     );
                 case 'project_status':
