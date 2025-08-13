@@ -33,7 +33,8 @@ class SettingController extends Controller
      */
 
     private CachingService $cache;
-    public function __construct(CachingService $cache) {
+    public function __construct(CachingService $cache)
+    {
         $this->cache = $cache;
     }
 
@@ -53,7 +54,7 @@ class SettingController extends Controller
 
     public function settings(Request $request)
     {
-        $permissionType = str_replace("-","_",$request->type);
+        $permissionType = str_replace("-", "_", $request->type);
 
         if (!has_permissions('update', $permissionType)) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
@@ -82,7 +83,8 @@ class SettingController extends Controller
         }
     }
 
-    public function systemSettingsIndex(){
+    public function systemSettingsIndex()
+    {
         $stripe_currencies = ["USD", "AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD", "BDT", "BGN", "BIF", "BMD", "BND", "BOB", "BRL", "BSD", "BWP", "BYN", "BZD", "CAD", "CDF", "CHF", "CLP", "CNY", "COP", "CRC", "CVE", "CZK", "DJF", "DKK", "DOP", "DZD", "EGP", "ETB", "EUR", "FJD", "FKP", "GBP", "GEL", "GIP", "GMD", "GNF", "GTQ", "GYD", "HKD", "HNL", "HTG", "HUF", "IDR", "ILS", "INR", "ISK", "JMD", "JPY", "KES", "KGS", "KHR", "KMF", "KRW", "KYD", "KZT", "LAK", "LBP", "LKR", "LRD", "LSL", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP", "MRO", "MUR", "MVR", "MWK", "MXN", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK", "NPR", "NZD", "PAB", "PEN", "PGK", "PHP", "PKR", "PLN", "PYG", "QAR", "RON", "RSD", "RUB", "RWF", "SAR", "SBD", "SCR", "SEK", "SGD", "SHP", "SLE", "SOS", "SRD", "STD", "SZL", "THB", "TJS", "TOP", "TTD", "TWD", "TZS", "UAH", "UGX", "UYU", "UZS", "VND", "VUV", "WST", "XAF", "XCD", "XOF", "XPF", "YER", "ZAR", "ZMW"];
         $languages = Language::all();
 
@@ -117,28 +119,78 @@ class SettingController extends Controller
         $listOfCurrencies = HelperService::currencyCode();
 
         $bankDetailsFieldsQuery = system_setting('bank_details');
-        if(isset($bankDetailsFieldsQuery) && !empty($bankDetailsFieldsQuery)){
+        if (isset($bankDetailsFieldsQuery) && !empty($bankDetailsFieldsQuery)) {
             $bankDetailsFields = json_decode($bankDetailsFieldsQuery, true);
-        }else{
+        } else {
             $bankDetailsFields = [];
         }
 
         $settingsArray = array(
-            'company_name', 'company_email', 'company_tel1', 'company_tel2', 'latitude', 'longitude', 'company_address',
-            'currency_code', 'currency_symbol', 'timezone', 'min_radius_range', 'max_radius_range', 'place_api_key', 'unsplash_api_key', 'appstore_id', 'playstore_id', 'number_with_suffix', 'svg_clr','distance_option','system_color','web_url','text_property_submission','auto_approve_edited_listings',
-            'number_with_otp_login','otp_service_provider','twilio_account_sid','twilio_auth_token','twilio_phone_number','social_login',
-            'paypal_business_id','paypal_webhook_url','paypal_currency','paypal_gateway','sandbox_mode',
-            'razor_key','razorpay_webhook_url','razor_secret','razorpay_gateway','razor_webhook_secret',
-            'paystack_secret_key','paystack_webhook_url','paystack_currency','paystack_gateway','paystack_public_key',
-            'stripe_publishable_key','stripe_webhook_url','stripe_currency','stripe_gateway','stripe_secret_key','stripe_webhook_secret_key',
-            'flutterwave_public_key','flutterwave_secret_key','flutterwave_encryption_key','flutterwave_webhook_url','flutterwave_currency','flutterwave_status',
+            'company_name',
+            'company_email',
+            'company_tel1',
+            'company_tel2',
+            'latitude',
+            'longitude',
+            'company_address',
+            'currency_code',
+            'currency_symbol',
+            'timezone',
+            'min_radius_range',
+            'max_radius_range',
+            'place_api_key',
+            'unsplash_api_key',
+            'appstore_id',
+            'playstore_id',
+            'number_with_suffix',
+            'svg_clr',
+            'distance_option',
+            'system_color',
+            'web_url',
+            'text_property_submission',
+            'auto_approve_edited_listings',
+            'number_with_otp_login',
+            'otp_service_provider',
+            'twilio_account_sid',
+            'twilio_auth_token',
+            'twilio_phone_number',
+            'social_login',
+            'paypal_business_id',
+            'paypal_webhook_url',
+            'paypal_currency',
+            'paypal_gateway',
+            'sandbox_mode',
+            'razor_key',
+            'razorpay_webhook_url',
+            'razor_secret',
+            'razorpay_gateway',
+            'razor_webhook_secret',
+            'paystack_secret_key',
+            'paystack_webhook_url',
+            'paystack_currency',
+            'paystack_gateway',
+            'paystack_public_key',
+            'stripe_publishable_key',
+            'stripe_webhook_url',
+            'stripe_currency',
+            'stripe_gateway',
+            'stripe_secret_key',
+            'stripe_webhook_secret_key',
+            'flutterwave_public_key',
+            'flutterwave_secret_key',
+            'flutterwave_encryption_key',
+            'flutterwave_webhook_url',
+            'flutterwave_currency',
+            'flutterwave_status',
             'schema_for_deeplink',
-            'favicon_icon','company_logo','login_image',
+            'favicon_icon',
+            'company_logo',
+            'login_image',
             'bank_transfer_status'
         );
         $systemSettings = HelperService::getMultipleSettingData($settingsArray);
 
-        return view('settings.system-settings', compact('systemSettings', 'languages', 'stripe_currencies','paypalCurrencies', 'listOfCurrencies', 'bankDetailsFields'));
+        return view('settings.system-settings', compact('systemSettings', 'languages', 'stripe_currencies', 'paypalCurrencies', 'listOfCurrencies', 'bankDetailsFields'));
     }
 
     public function system_settings(Request $request)
@@ -152,15 +204,15 @@ class SettingController extends Controller
             DB::beginTransaction();
             $input = $request->except(['_token', 'btnAdd', 'bank_details_fields']);
 
-            if(($request->has('bank_transfer_status') && $request->bank_transfer_status == 0) && $request->razorpay_gateway == 0 && $request->paystack_gateway == 0 && $request->flutterwave_status == 0 && $request->stripe_gateway == 0 && $request->paypal_gateway == 0){
+            if (($request->has('bank_transfer_status') && $request->bank_transfer_status == 0) && $request->razorpay_gateway == 0 && $request->paystack_gateway == 0 && $request->flutterwave_status == 0 && $request->stripe_gateway == 0 && $request->paypal_gateway == 0) {
                 ResponseService::errorResponse("Please enable at least one payment gateway");
             }
 
             $logoDestinationPath = public_path('assets/images/logo');
             $backgroundDestinationPath = public_path('assets/images/bg');
 
-            if($request->hasFile('favicon_icon')){
-                $filename = 'favicon.'.$request->file('favicon_icon')->getClientOriginalExtension();
+            if ($request->hasFile('favicon_icon')) {
+                $filename = 'favicon.' . $request->file('favicon_icon')->getClientOriginalExtension();
 
                 // Get Data from Settings table
                 $faviconDatabaseData = system_setting('favicon_icon');
@@ -168,8 +220,8 @@ class SettingController extends Controller
 
                 $input['favicon_icon'] = handleFileUpload($request, 'favicon_icon', $logoDestinationPath, $filename, $databaseData);
             }
-            if($request->hasFile('company_logo')){
-                $filename = 'logo.'.$request->file('company_logo')->getClientOriginalExtension();
+            if ($request->hasFile('company_logo')) {
+                $filename = 'logo.' . $request->file('company_logo')->getClientOriginalExtension();
 
                 // Get Data from Settings table
                 $companyLogoDatabaseData = system_setting('company_logo');
@@ -177,8 +229,8 @@ class SettingController extends Controller
 
                 $input['company_logo'] = handleFileUpload($request, 'company_logo', $logoDestinationPath, $filename, $databaseData);
             }
-            if($request->hasFile('login_image')){
-                $filename = 'Login_BG.'.$request->file('login_image')->getClientOriginalExtension();
+            if ($request->hasFile('login_image')) {
+                $filename = 'Login_BG.' . $request->file('login_image')->getClientOriginalExtension();
 
                 // Get Data from Settings table
                 $LoginImageDatabaseData = system_setting('company_logo');
@@ -187,9 +239,9 @@ class SettingController extends Controller
                 $input['login_image'] = handleFileUpload($request, 'login_image', $backgroundDestinationPath, $filename, $databaseData);
             }
 
-            if($request->has('bank_transfer_status')){
+            if ($request->has('bank_transfer_status')) {
                 $bankDetailsEnabled = $request->bank_transfer_status;
-                if($bankDetailsEnabled == 1){
+                if ($bankDetailsEnabled == 1) {
                     $rules = [
                         'bank_details_fields' => 'required|array',
                     ];
@@ -211,11 +263,10 @@ class SettingController extends Controller
 
                     $validator = Validator::make($request->all(), $rules, $messages);
 
-                    if($validator->fails()){
+                    if ($validator->fails()) {
                         ResponseService::validationError($validator->errors()->first());
                     }
                     $input['bank_details'] = json_encode($request->bank_details_fields);
-
                 }
             }
 
@@ -235,7 +286,7 @@ class SettingController extends Controller
                 'PAYSTACK_PAYMENT_URL' => "https://api.paystack.co"
             ];
 
-            if($request->has('paypal_business_id') && !empty($request->paypal_business_id)){
+            if ($request->has('paypal_business_id') && !empty($request->paypal_business_id)) {
                 $envUpdates['BUSINESS'] = $request->paypal_business_id;
             }
 
@@ -258,9 +309,9 @@ class SettingController extends Controller
 
             // Create or update records in the 'settings' table
             foreach ($input as $key => $value) {
-                if($key == 'paypal_web_url' && !empty($value)){
+                if ($key == 'paypal_web_url' && !empty($value)) {
                     // remove / from end of value
-                    $value = rtrim($value,'/');
+                    $value = rtrim($value, '/');
                 }
                 Setting::updateOrCreate(['type' => $key], ['data' => $value]);
             }
@@ -320,9 +371,9 @@ class SettingController extends Controller
 
     public function show_privacy_policy()
     {
-        $appName = env("APP_NAME",'eBroker');
+        $appName = env("APP_NAME", 'eBroker');
         $privacy_policy = Setting::select('data')->where('type', 'privacy_policy')->first();
-        return view('settings.show_privacy_policy', compact('privacy_policy','appName'));
+        return view('settings.show_privacy_policy', compact('privacy_policy', 'appName'));
     }
 
     public function show_terms_conditions()
@@ -455,12 +506,28 @@ class SettingController extends Controller
         }
     }
 
-    public function appSettingsIndex(){
+    public function appSettingsIndex()
+    {
         $settingsArray = array(
-            'ios_version','android_version','force_update','maintenance_mode',
-            'light_tertiary','light_secondary','light_primary','dark_tertiary','dark_secondary','dark_primary',
-            'show_admob_ads','android_banner_ad_id','ios_banner_ad_id','android_interstitial_ad_id','ios_interstitial_ad_id','android_native_ad_id','ios_native_ad_id',
-            'app_home_screen','placeholder_logo'
+            'ios_version',
+            'android_version',
+            'force_update',
+            'maintenance_mode',
+            'light_tertiary',
+            'light_secondary',
+            'light_primary',
+            'dark_tertiary',
+            'dark_secondary',
+            'dark_primary',
+            'show_admob_ads',
+            'android_banner_ad_id',
+            'ios_banner_ad_id',
+            'android_interstitial_ad_id',
+            'ios_interstitial_ad_id',
+            'android_native_ad_id',
+            'ios_native_ad_id',
+            'app_home_screen',
+            'placeholder_logo'
         );
         $getAppSettings = HelperService::getMultipleSettingData($settingsArray);
         return view('settings.app-settings', compact('getAppSettings'));
@@ -474,7 +541,7 @@ class SettingController extends Controller
             $validator = Validator::make($request->all(), [
                 'app_home_screen' => 'nullable|image|mimes:png,jpg,jpeg|max:3000',
                 'placeholder_logo' => 'nullable|image|mimes:png,jpg,jpeg|max:3000',
-            ],[
+            ], [
                 'app_home_screen.mimes' => trans('Image must be JPG, JPEG or PNG'),
                 'placeholder_logo.mimes' => trans('Image must be JPG, JPEG or PNG')
             ]);
@@ -513,8 +580,9 @@ class SettingController extends Controller
     }
 
 
-    public function webSettingsIndex(){
-        $settingsArray = array('web_favicon','web_logo','web_placeholder_logo','web_footer_logo','iframe_link','facebook_id','instagram_id','twitter_id','youtube_id','category_background','sell_web_color','sell_web_background_color','rent_web_color','rent_web_background_color','buy_web_color','buy_web_background_color','web_maintenance_mode','allow_cookies');
+    public function webSettingsIndex()
+    {
+        $settingsArray = array('web_favicon', 'web_logo', 'web_placeholder_logo', 'web_footer_logo', 'iframe_link', 'facebook_id', 'instagram_id', 'twitter_id', 'youtube_id', 'category_background', 'sell_web_color', 'sell_web_background_color', 'rent_web_color', 'rent_web_background_color', 'buy_web_color', 'buy_web_background_color', 'web_maintenance_mode', 'allow_cookies');
         $getWebSettings = HelperService::getMultipleSettingData($settingsArray);
         return view('settings.web-settings', compact('getWebSettings'));
     }
@@ -573,16 +641,18 @@ class SettingController extends Controller
         return redirect()->back()->with('success', trans('Data Updated Successfully'));
     }
 
-    public function notificationSettingIndex(){
+    public function notificationSettingIndex()
+    {
         if (!has_permissions('read', 'notification_settings')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
 
         $firebaseProjectId = Setting::where('type', 'firebase_project_id')->pluck('data')->first();
         $firebaseServiceJsonFile = Setting::where('type', 'firebase_service_json_file')->pluck('data')->first();
-        return view('settings.notification-settings', compact('firebaseProjectId','firebaseServiceJsonFile'));
+        return view('settings.notification-settings', compact('firebaseProjectId', 'firebaseServiceJsonFile'));
     }
-    public function notificationSettingStore(Request $request){
+    public function notificationSettingStore(Request $request)
+    {
         if (!has_permissions('update', 'notification_settings')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         } else {
@@ -601,15 +671,15 @@ class SettingController extends Controller
                 $destinationPath = public_path('assets');
                 $file = $request->file($type);
 
-                if($type == 'firebase_service_json_file'){
+                if ($type == 'firebase_service_json_file') {
                     // When Type is firebase service file then pass custom name
-                    if($request->hasFile($type)){
+                    if ($request->hasFile($type)) {
                         $name = handleFileUpload($request, $type, $destinationPath, 'firebase-service.json');
                         Setting::updateOrCreate(['type' => $type], ['data' => $name]);
                     }
-                }else{
+                } else {
                     // When other file then pass the filename
-                    if($request->hasFile($type)){
+                    if ($request->hasFile($type)) {
                         $name = handleFileUpload($request, $type, $destinationPath, $file->getClientOriginalName());
                         Setting::updateOrCreate(['type' => $type], ['data' => $name]);
                     }
@@ -621,7 +691,8 @@ class SettingController extends Controller
 
 
     // Email Configuration Index
-    public function emailConfigurationsIndex(){
+    public function emailConfigurationsIndex()
+    {
         if (!has_permissions('read', 'email_configurations')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
@@ -629,7 +700,8 @@ class SettingController extends Controller
     }
 
     // Email Configuration Store
-    public function emailConfigurationsStore(Request $request){
+    public function emailConfigurationsStore(Request $request)
+    {
         if (!has_permissions('update', 'email_configurations')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         } else {
@@ -655,13 +727,15 @@ class SettingController extends Controller
                 foreach ($settingsArray as $key => $row) {
                     // If not empty then update or insert data according to type
                     Setting::updateOrInsert(
-                        ['type' => $key], ['data' => $row]
+                        ['type' => $key],
+                        ['data' => $row]
                     );
                 }
 
                 // Add Email Configuration Verification Record to false
                 Setting::updateOrInsert(
-                    ['type' => 'email_configuration_verification'], ['data' => 0]
+                    ['type' => 'email_configuration_verification'],
+                    ['data' => 0]
                 );
 
                 // Update ENV data variables
@@ -676,7 +750,6 @@ class SettingController extends Controller
                 ];
                 updateEnv($envUpdates);
                 ResponseService::successResponse(trans("Data Updated Successfully"));
-
             } catch (Exception $e) {
                 ResponseService::errorResponse(trans("Something Went Wrong"));
             }
@@ -716,9 +789,9 @@ class SettingController extends Controller
                 'email' => $request->verify_email,
                 'title' => "Email Configuration Verification",
             );
-            HelperService::sendMail($data,true);
+            HelperService::sendMail($data, true);
 
-            Setting::where('type','email_configuration_verification')->update(['data' => 1]);
+            Setting::where('type', 'email_configuration_verification')->update(['data' => 1]);
             DB::commit();
 
             ResponseService::successResponse(trans("Email Sent Successfully"));
@@ -737,30 +810,33 @@ class SettingController extends Controller
         }
     }
 
-    public function getCurrencySymbol(Request $request){
+    public function getCurrencySymbol(Request $request)
+    {
         try {
             $countryCode = $request->country_code;
             $symbol = Currencies::getSymbol($countryCode);
-            ResponseService::successResponse("",$symbol);
+            ResponseService::successResponse("", $symbol);
         } catch (Exception $e) {
-            ResponseService::logErrorResponse($e,trans('Something Went Wrong'));
+            ResponseService::logErrorResponse($e, trans('Something Went Wrong'));
         }
     }
 
 
     // Email Templates Index
-    public function emailTemplatesIndex(){
+    public function emailTemplatesIndex()
+    {
         if (!has_permissions('read', 'email_templates')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
         return view('mail-templates.templates-settings.index');
     }
 
-    public function modifyMailTemplateIndex($type){
+    public function modifyMailTemplateIndex($type)
+    {
         if (!has_permissions('read', 'email_templates')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
-        $types = array('verify_mail','reset_password','welcome_mail','property_status','project_status','property_ads_status','user_status','agent_verification_status');
+        $types = array('verify_mail', 'reset_password', 'welcome_mail', 'property_status', 'project_status', 'property_ads_status', 'user_status', 'agent_verification_status', 'reservation_confirmation', 'monthly_tax_invoice');
         if (!in_array($type, $types)) {
             ResponseService::errorRedirectResponse("Type is invalid");
         }
@@ -769,11 +845,12 @@ class SettingController extends Controller
 
         $templateMailData = system_setting($data['type']);
         $templateMail = array('template' => $templateMailData);
-        $data = array_merge($templateMail,$data);
+        $data = array_merge($templateMail, $data);
         return view('mail-templates.templates-settings.update-template', compact('data'));
     }
 
-    public function emailTemplatesList(){
+    public function emailTemplatesList()
+    {
         $data = HelperService::getEmailTemplatesTypes();
         $total = count($data);
 
@@ -784,7 +861,7 @@ class SettingController extends Controller
         $rows = array();
         $no = 1;
         foreach ($data as $row) {
-            $operate = BootstrapTableService::editButton(route('modify-mail-templates.index',$row['type']));
+            $operate = BootstrapTableService::editButton(route('modify-mail-templates.index', $row['type']));
 
             $tempRow = $row;
             $tempRow['no'] = $no;
@@ -797,7 +874,8 @@ class SettingController extends Controller
         return response()->json($bulkData);
     }
 
-    public function emailTemplatesStore(Request $request){
+    public function emailTemplatesStore(Request $request)
+    {
         $validator = Validator::make($request->all(), [
             'type' => 'required',
             'data' => 'required',
@@ -807,31 +885,32 @@ class SettingController extends Controller
         }
         try {
             Setting::updateOrCreate(
-                array( 'type' => $request->type ),
-                array( 'data' => $request->data ),
+                array('type' => $request->type),
+                array('data' => $request->data),
             );
             ResponseService::successResponse("Data Updated Successfully");
         } catch (Exception $e) {
-            ResponseService::logErrorResponse($e,"Issue in email template storing with type :- $request->type");
+            ResponseService::logErrorResponse($e, "Issue in email template storing with type :- $request->type");
         }
     }
 
 
-    public function paystackPaymentSuccess(Request $request){
+    public function paystackPaymentSuccess(Request $request)
+    {
         // Get Web URL
         $webURL = HelperService::getSettingData('web_url') ?? null;
-        $webWithStatusURL = $webURL.'/payment/success';
+        $webWithStatusURL = $webURL . '/payment/success';
 
-        if($webURL){
+        if ($webURL) {
             echo "<html>
             <body>
             Redirecting...!
             </body>
             <script>
-                window.location.replace('".$webWithStatusURL."');
+                window.location.replace('" . $webWithStatusURL . "');
             </script>
             </html>";
-        }else{
+        } else {
             echo "<html>
             <body>
             Redirecting...!
@@ -843,10 +922,11 @@ class SettingController extends Controller
         }
     }
 
-    public function paystackPaymentCancel(Request $request){
+    public function paystackPaymentCancel(Request $request)
+    {
         // Get Web URL and payment transaction ID
         $webURL = HelperService::getSettingData('web_url') ?? null;
-        $webWithStatusURL = $webURL.'/payment/fail';
+        $webWithStatusURL = $webURL . '/payment/fail';
         $paymentTransactionId = $request->payment_transaction_id ?? null;
 
         // If transaction ID is available, update the payment status
@@ -854,16 +934,16 @@ class SettingController extends Controller
             PaymentTransaction::where('id', $paymentTransactionId)->update(['payment_status' => 'failed']);
         }
 
-        if($webURL){
+        if ($webURL) {
             echo "<html>
             <body>
             Redirecting...!
             </body>
             <script>
-                window.location.replace('".$webWithStatusURL."');
+                window.location.replace('" . $webWithStatusURL . "');
             </script>
             </html>";
-        }else{
+        } else {
             echo "<html>
             <body>
             Redirecting...!
