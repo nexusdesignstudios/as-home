@@ -404,6 +404,192 @@ class HelperService
                             ],
                         )
                     );
+                case 'basic_package_self_managed':
+                    return array(
+                        'title' => 'Basic Package Self Managed Contract',
+                        'type' => 'basic_package_self_managed_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_address',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'agreement_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'le_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'contract_date',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'basic_package_renting_self_managed':
+                    return array(
+                        'title' => 'Basic Package Renting Self Managed Contract',
+                        'type' => 'basic_package_renting_self_managed_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_address',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'agreement_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'le_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'contract_date',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'premium_package_renting':
+                    return array(
+                        'title' => 'Premium Package Renting Contract',
+                        'type' => 'premium_package_renting_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_address',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'agreement_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'le_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'contract_date',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'vacation_homes_self_managed_basic_package':
+                    return array(
+                        'title' => 'Vacation Homes Self Managed Basic Package Contract',
+                        'type' => 'vacation_homes_self_managed_basic_package_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_address',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'agreement_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'le_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'contract_date',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'vacation_homes_ashome_managed_premium_package':
+                    return array(
+                        'title' => 'Vacation Homes As-home Managed Premium Package Contract',
+                        'type' => 'vacation_homes_ashome_managed_premium_package_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_address',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'agreement_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'le_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'contract_date',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'hotel_booking':
+                    return array(
+                        'title' => 'Hotel Booking Contract',
+                        'type' => 'hotel_booking_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_address',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'agreement_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'le_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'contract_date',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
             }
         }
 
@@ -452,6 +638,30 @@ class HelperService
             [
                 'title' => 'Selling or Renting All Cases Contract',
                 'type' => 'selling_or_renting_contract',
+            ],
+            [
+                'title' => 'Basic Package Self Managed Contract',
+                'type' => 'basic_package_self_managed',
+            ],
+            [
+                'title' => 'Basic Package Renting Self Managed Contract',
+                'type' => 'basic_package_renting_self_managed',
+            ],
+            [
+                'title' => 'Premium Package Renting Contract',
+                'type' => 'premium_package_renting',
+            ],
+            [
+                'title' => 'Vacation Homes Self Managed Basic Package Contract',
+                'type' => 'vacation_homes_self_managed_basic_package',
+            ],
+            [
+                'title' => 'Vacation Homes As-home Managed Premium Package Contract',
+                'type' => 'vacation_homes_ashome_managed_premium_package',
+            ],
+            [
+                'title' => 'Hotel Booking Contract',
+                'type' => 'hotel_booking',
             ],
         );
     }

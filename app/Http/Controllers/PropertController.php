@@ -1442,7 +1442,7 @@ class PropertController extends Controller
 
                 // Send mail for property status
                 try {
-                    $propertyData = Property::where('id', $request->id)->select('id', 'title', 'request_status', 'added_by', 'city', 'state', 'country')->with('customer:id,name,email')->firstOrFail();
+                    $propertyData = Property::where('id', $request->id)->select('id', 'title', 'request_status', 'added_by', 'city', 'state', 'country', 'rent_package')->with('customer:id,name,email,management_type,address')->firstOrFail();
                     if (!empty($propertyData->customer->email)) {
                         // Get Data of email type
                         $emailTypeData = HelperService::getEmailTemplatesTypes("property_status");
@@ -1488,45 +1488,77 @@ class PropertController extends Controller
                     Log::error("Something Went Wrong in Property Status Update Mail Sending");
                 }
 
-                // Send contract email when property is approved
+                // Send contract emails when property is approved
                 if ($request->request_status == "approved") {
                     try {
                         if (!empty($propertyData->customer->email)) {
-                            // Get Data of email type
-                            $contractEmailTypeData = HelperService::getEmailTemplatesTypes("selling_or_renting_contract");
+                            // Get customer data with management_type
+                            $customerData = $propertyData->customer;
 
-                            // Email Template
-                            $contractTemplateData = system_setting($contractEmailTypeData['type']);
-                            $appName = env("APP_NAME") ?? "eBroker";
+                            // Always send the selling_or_renting_contract email first
+                            $this->sendContractEmail($propertyData, "selling_or_renting_contract");
 
-                            // Get current date for contract
-                            $currentDate = now();
-                            $agreementYear = $currentDate->format('d F Y');
-                            $contractDate = $currentDate->format('F d, Y');
-
-                            // Generate LE ID (you can modify this logic as needed)
-                            $leId = 'LE-' . $propertyData->id; // This can be made dynamic if needed
-
-                            $variables = array(
-                                'app_name' => $appName,
-                                'partner_name' => $propertyData->customer->name,
-                                'partner_address' => $propertyData->customer->address ?? 'Address not provided',
-                                'agreement_year' => $agreementYear,
-                                'le_id' => $leId,
-                                'contract_date' => $contractDate,
-                            );
-
-                            if (empty($contractTemplateData)) {
-                                $contractTemplateData = "Your Partner Agreement with {app_name}";
+                            // Send additional contract emails based on conditions
+                            // Check if customer management_type is "himself" and rent_package is "basic"
+                            if (
+                                isset($customerData->management_type) && $customerData->management_type == 'himself' &&
+                                isset($propertyData->rent_package) && $propertyData->rent_package == 'basic' && ($propertyData->getRawOriginal('property_classification') == 1  ||  $propertyData->getRawOriginal('property_classification') == 2) && $propertyData->getRawOriginal('propery_type') == 0
+                            ) {
+                                // Send additional basic package self managed contract
+                                $this->sendContractEmail($propertyData, "basic_package_self_managed");
                             }
-                            $contractTemplate = HelperService::replaceEmailVariables($contractTemplateData, $variables);
 
-                            $contractData = array(
-                                'email_template' => $contractTemplate,
-                                'email' => $propertyData->customer->email,
-                                'title' => $contractEmailTypeData['title'],
-                            );
-                            HelperService::sendMail($contractData);
+                            // Check if customer management_type is "himself" and rent_package is "basic" for renting properties
+                            if (
+                                isset($customerData->management_type) && $customerData->management_type == 'himself' &&
+                                isset($propertyData->rent_package) && $propertyData->rent_package == 'basic' && ($propertyData->getRawOriginal('property_classification') == 1  ||  $propertyData->getRawOriginal('property_classification') == 2) &&
+                                $propertyData->getRawOriginal('propery_type') == 1
+                            ) {
+                                // Send additional basic package renting self managed contract
+                                $this->sendContractEmail($propertyData, "basic_package_renting_self_managed");
+                            }
+
+                            // Check if rent_package is "premium" for renting properties
+                            if (
+                                isset($propertyData->rent_package) && $propertyData->rent_package == 'premium' &&
+                                ($propertyData->getRawOriginal('property_classification') == 1  ||  $propertyData->getRawOriginal('property_classification') == 2) &&
+                                $propertyData->getRawOriginal('propery_type') == 1
+                            ) {
+                                // Send additional premium package renting contract
+                                $this->sendContractEmail($propertyData, "premium_package_renting");
+                            }
+
+                            // Check if vacation homes with basic package and self managed
+                            if (
+                                isset($propertyData->rent_package) && $propertyData->rent_package == 'basic' &&
+                                isset($customerData->management_type) && $customerData->management_type == 'himself' &&
+                                $propertyData->getRawOriginal('property_classification') == 4
+                            ) {
+                                // Send additional vacation homes self managed basic package contract
+                                $this->sendContractEmail($propertyData, "vacation_homes_self_managed_basic_package");
+                            }
+
+                            // Check if vacation homes with premium package and as-home managed
+                            if (
+                                isset($propertyData->rent_package) && $propertyData->rent_package == 'premium' &&
+                                isset($customerData->management_type) && $customerData->management_type == 'as home' &&
+                                $propertyData->getRawOriginal('property_classification') == 4
+                            ) {
+                                // Send additional vacation homes as-home managed premium package contract
+                                $this->sendContractEmail($propertyData, "vacation_homes_ashome_managed_premium_package");
+                            }
+
+                            // Check if hotel booking (property classification == 5 for hotels)
+                            if ($propertyData->getRawOriginal('property_classification') == 5) {
+                                // Send hotel booking contract
+                                $this->sendContractEmail($propertyData, "hotel_booking");
+                            }
+
+                            // Add more conditions here for future contract types
+                            // Example:
+                            // if (some_condition) {
+                            //     $this->sendContractEmail($propertyData, "another_contract_type");
+                            // }
                         }
                     } catch (Exception $e) {
                         Log::error("Something Went Wrong in Contract Email Sending: " . $e->getMessage());
@@ -1577,6 +1609,56 @@ class PropertController extends Controller
         } catch (Exception $e) {
             DB::rollback();
             ResponseService::logErrorResponse($e, "Update Request Status in Property", "Something Went Wrong");
+        }
+    }
+
+    /**
+     * Helper method to send contract emails
+     *
+     * @param Property $propertyData
+     * @param string $contractType
+     * @return void
+     */
+    private function sendContractEmail($propertyData, $contractType)
+    {
+        try {
+            // Get Data of email type
+            $contractEmailTypeData = HelperService::getEmailTemplatesTypes($contractType);
+
+            // Email Template
+            $contractTemplateData = system_setting($contractEmailTypeData['type']);
+            $appName = env("APP_NAME") ?? "eBroker";
+
+            // Get current date for contract
+            $currentDate = now();
+            $agreementYear = $currentDate->format('d F Y');
+            $contractDate = $currentDate->format('F d, Y');
+
+            // Generate LE ID (you can modify this logic as needed)
+            $leId = 'LE-' . $propertyData->id; // This can be made dynamic if needed
+
+            $variables = array(
+                'app_name' => $appName,
+                'partner_name' => $propertyData->customer->name,
+                'partner_address' => $propertyData->customer->address ?? 'Address not provided',
+                'agreement_year' => $agreementYear,
+                'le_id' => $leId,
+                'contract_date' => $contractDate,
+            );
+
+            if (empty($contractTemplateData)) {
+                $contractTemplateData = "Your Partner Agreement with {app_name}";
+            }
+            $contractTemplate = HelperService::replaceEmailVariables($contractTemplateData, $variables);
+
+            $contractData = array(
+                'email_template' => $contractTemplate,
+                'email' => $propertyData->customer->email,
+                'title' => $contractEmailTypeData['title'],
+            );
+            HelperService::sendMail($contractData);
+        } catch (Exception $e) {
+            Log::error("Something Went Wrong in Contract Email Sending for type {$contractType}: " . $e->getMessage());
         }
     }
 }
