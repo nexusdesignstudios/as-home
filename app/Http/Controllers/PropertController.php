@@ -1087,16 +1087,21 @@ class PropertController extends Controller
             $tempRow = $row->toArray();
             $tempRow['property_type_raw'] = $row->getRawOriginal('propery_type');
 
+            // Initialize operate variable
+            $operate = '';
+
             // Always show edit button for properties that are approved
             if (has_permissions('update', 'property')) {
                 if ($row->request_status == "approved") {
                     $operate = BootstrapTableService::editButton(route('property.edit', $row->id), false);
-                } else {
-                    // Show Change Status button for properties that are not approved
-                    $requestStatusButtonCustomClasses = ["btn", "icon", "btn-warning", "btn-sm", "rounded-pill", "request-status-btn"];
-                    $requestStatusButtonCustomAttributes = ["id" => $row->id, "title" => trans('Change Status'), "data-toggle" => "modal", "data-bs-target" => "#changeRequestStatusModal", "data-bs-toggle" => "modal"];
-                    $operate = BootstrapTableService::button('fa fa-exclamation-circle', '', $requestStatusButtonCustomClasses, $requestStatusButtonCustomAttributes);
                 }
+            }
+
+            // Always show Update Property Status button
+            if (has_permissions('update', 'property')) {
+                $requestStatusButtonCustomClasses = ["btn", "icon", "btn-warning", "btn-sm", "rounded-pill", "request-status-btn"];
+                $requestStatusButtonCustomAttributes = ["id" => $row->id, "title" => trans('Change Status'), "data-toggle" => "modal", "data-bs-target" => "#changeRequestStatusModal", "data-bs-toggle" => "modal"];
+                $operate .= BootstrapTableService::button('fa fa-exclamation-circle', '', $requestStatusButtonCustomClasses, $requestStatusButtonCustomAttributes);
             }
 
             // Add delete button if user has permission
