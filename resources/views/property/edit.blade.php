@@ -45,7 +45,7 @@
                 <div class="card-body">
                     <div class="col-md-12 col-12 form-group mandatory">
                         {{ Form::label('category', __('Category'), ['class' => 'form-label col-12 ']) }}
-                        <select name="category" class="choosen-select form-select form-control-sm" data-parsley-minSelect='1' id="category" required='true'>
+                        <select name="category" class="choosen-select form-select form-control-sm" data-parsley-minSelect='1' id="category">
                             <option value="">{{ __('Choose Category') }}</option>
                             @foreach ($category as $row)
                                 <option value="{{ $row->id }}"
@@ -59,7 +59,7 @@
                     {{-- Title --}}
                     <div class="col-md-12 col-12 form-group mandatory">
                         {{ Form::label('title', __('Title'), ['class' => 'form-label col-12 ']) }}
-                        {{ Form::text('title', isset($list->title) ? $list->title : '', ['class' => 'form-control ', 'placeholder' => __('Title'), 'required' => 'true', 'id' => 'title']) }}
+                        {{ Form::text('title', isset($list->title) ? $list->title : '', ['class' => 'form-control ', 'placeholder' => __('Title'), 'id' => 'title']) }}
                     </div>
 
                     {{-- Slug --}}
@@ -72,7 +72,7 @@
                     {{-- Description --}}
                     <div class="col-md-12 col-12 form-group mandatory">
                         {{ Form::label('description', __('Description'), ['class' => 'form-label col-12 ']) }}
-                        {{ Form::textarea('description', isset($list->description) ? $list->description : '', ['class' => 'form-control mb-3', 'rows' => '3', 'id' => '', 'required' => 'true', 'placeholder' => __('Description')]) }}
+                        {{ Form::textarea('description', isset($list->description) ? $list->description : '', ['class' => 'form-control mb-3', 'rows' => '3', 'id' => '', 'placeholder' => __('Description')]) }}
                     </div>
 
                     {{-- Area Description --}}
@@ -111,13 +111,13 @@
 
                             {{-- For Sell --}}
                             <div class="col-md-6">
-                                {{ Form::radio('property_type', 0, null, ['class' => 'form-check-input', 'id' => 'property_type', 'required' => true, isset($list->propery_type) && $list->getRawOriginal('propery_type') == 0 ? 'checked' : '']) }}
+                                {{ Form::radio('property_type', 0, null, ['class' => 'form-check-input', 'id' => 'property_type', isset($list->propery_type) && $list->getRawOriginal('propery_type') == 0 ? 'checked' : '']) }}
                                 {{ Form::label('property_type', __('For Sell'), ['class' => 'form-check-label']) }}
                             </div>
 
                             {{-- For Rent --}}
                             <div class="col-md-6">
-                                {{ Form::radio('property_type', 1, null, ['class' => 'form-check-input', 'id' => 'property_type', 'required' => true, isset($list->propery_type) && $list->getRawOriginal('propery_type') == 1 ? 'checked' : '']) }}
+                                {{ Form::radio('property_type', 1, null, ['class' => 'form-check-input', 'id' => 'property_type', isset($list->propery_type) && $list->getRawOriginal('propery_type') == 1 ? 'checked' : '']) }}
                                 {{ Form::label('property_type', __('For Rent'), ['class' => 'form-check-label']) }}
                             </div>
                         </div>
@@ -126,7 +126,7 @@
                     {{-- Property Classification --}}
                     <div class="col-md-12 col-12 form-group mandatory">
                         {{ Form::label('property_classification', __('Property Classification'), ['class' => 'form-label col-12 ']) }}
-                        <select name="property_classification" id="property_classification" class="form-select form-control-sm" data-parsley-minSelect='1' required>
+                        <select name="property_classification" id="property_classification" class="form-select form-control-sm" data-parsley-minSelect='1'>
                             <option value="">{{ __('Choose Classification') }}</option>
                             <option value="1" {{ $list->getRawOriginal('property_classification') == 1 ? 'selected' : '' }}>{{ __('Sell/Long Term Rent') }}</option>
                             <option value="2" {{ $list->getRawOriginal('property_classification') == 2 ? 'selected' : '' }}>{{ __('Commercial') }}</option>
@@ -160,10 +160,6 @@
                         <div class="form-group">
                             {{ Form::label('available_rooms', __('Total Available Rooms'), ['class' => 'form-label col-12']) }}
                             {{ Form::number('available_rooms', isset($list->available_rooms) ? $list->available_rooms : null, ['class' => 'form-control', 'min' => '0']) }}
-                        </div>
-                        <div class="form-group">
-                            {{ Form::label('agent_addons', __('Agent Addons'), ['class' => 'form-label col-12']) }}
-                            {{ Form::textarea('agent_addons', isset($list->agent_addons) ? $list->agent_addons : null, ['class' => 'form-control', 'rows' => '3', 'placeholder' => __('Agent Addons (JSON format)')]) }}
                         </div>
 
                         {{-- Revenue Information --}}
@@ -207,17 +203,6 @@
                         </div>
                     </div>
 
-                    {{-- Duration --}}
-                    <div class="col-md-12 col-12 form-group mandatory" id='duration'>
-                        {{ Form::label('Duration', __('Duration For Price'), ['class' => 'form-label col-12 ']) }}
-                        <select name="price_duration" id="price_duration"class="choosen-select form-select form-control-sm" data-parsley-minSelect='1'>
-                            <option value="">{{ __("Select Duration") }}</option>
-                            <option value="Daily" {{ $list->rentduration == 'Daily' ? 'selected' : '' }}> {{ __('Daily') }} </option>
-                            <option value="Monthly" {{ $list->rentduration == 'Monthly' ? 'selected' : '' }}> {{ __('Monthly') }} </option>
-                            <option value="Yearly" {{ $list->rentduration == 'Yearly' ? 'selected' : '' }}> {{ __('Yearly') }} </option>
-                            <option value="Quarterly" {{ $list->rentduration == 'Quarterly' ? 'selected' : '' }}> {{ __('Quarterly') }} </option>
-                        </select>
-                    </div>
 
                     {{-- Price --}}
                     <div class="control-label col-12 form-group mandatory price-field">
@@ -266,9 +251,17 @@
                             <div class="corresponding-day-list">
                                 <!-- Added days will appear here -->
                             </div>
-                            {{ Form::hidden('corresponding_day', isset($list->corresponding_day) ? $list->corresponding_day : '', ['id' => 'corresponding_day_json']) }}
+                            {{ Form::hidden('corresponding_day', isset($list->corresponding_day) ? (is_string($list->corresponding_day) ? $list->corresponding_day : json_encode($list->corresponding_day)) : '', ['id' => 'corresponding_day_json']) }}
                         </div>
                         <small class="text-muted">{{ __('Format: [{"from": "10:00AM", "to": "02:00PM", "day": "saturday"}]') }}</small>
+                    </div>
+
+                    {{-- Agent Addons --}}
+                    <div class="form-group">
+                        {{ Form::label('agent_addons', __('Agent Addons'), ['class' => 'form-label col-12']) }}
+                        {{ Form::textarea('agent_addons', isset($list->agent_addons) ? (is_string($list->agent_addons) ? $list->agent_addons : json_encode($list->agent_addons, JSON_PRETTY_PRINT)) : null, ['class' => 'form-control', 'rows' => '5', 'placeholder' => __('Agent Addons (JSON format)'), 'id' => 'agent_addons_field']) }}
+                        <small class="text-muted">{{ __('Enter valid JSON format. Example: [{"name": "Breakfast", "price": 15.00}, {"name": "WiFi", "price": 5.00}]') }}</small>
+                        <div class="invalid-feedback" id="agent_addons_error"></div>
                     </div>
                 </div>
             </div>
@@ -283,7 +276,7 @@
                     {{-- Meta Title --}}
                     <div class="col-md-6 col-sm-12 form-group">
                         {{ Form::label('title', __('Meta Title'), ['class' => 'form-label text-center']) }}
-                        <textarea id="edit_meta_title" name="edit_meta_title" class="form-control" oninput="getWordCount('edit_meta_title','edit_meta_title_count','12.9px arial')" rows="2" {{ system_setting('seo_settings') != '' && system_setting('seo_settings') == 1 ? 'required' : '' }} style="height: 75px" placeholder="{{ __('Meta Title') }}">{{ $list->meta_title }}</textarea>
+                        <textarea id="edit_meta_title" name="edit_meta_title" class="form-control" oninput="getWordCount('edit_meta_title','edit_meta_title_count','12.9px arial')" rows="2" style="height: 75px" placeholder="{{ __('Meta Title') }}">{{ $list->meta_title }}</textarea>
                         <br>
                         <h6 id="edit_meta_title_count">0</h6>
                     </div>
@@ -365,7 +358,7 @@
 
                             {{-- DropDown --}}
                             @if ($res->type_of_parameter == 'dropdown')
-                                <select name="{{ 'par_' . $res->id }}" class="choosen-select form-select form-control-sm" selected="false" {{ $res->is_required == 1 ? 'required' : '' }} >
+                                <select name="{{ 'par_' . $res->id }}" class="choosen-select form-select form-control-sm" selected="false">
                                     <option value=""></option>
                                     @foreach ($res->type_values as $key => $value)
                                         <option value="{{ $value }}"
@@ -378,30 +371,30 @@
                             {{-- Radio Button --}}
                             @if ($res->type_of_parameter == 'radiobutton')
                                 @foreach ($res->type_values as $key => $value)
-                                    <input type="radio" name="{{ 'par_' . $res->id }}" id="" value={{ $value }} class="form-check-input" {{ $res->assigned_parameter && $res->assigned_parameter->value == $value ? 'checked' : '' }} {{ $res->is_required == 1 ? 'required' : '' }} >
+                                    <input type="radio" name="{{ 'par_' . $res->id }}" id="" value={{ $value }} class="form-check-input" {{ $res->assigned_parameter && $res->assigned_parameter->value == $value ? 'checked' : '' }}>
                                     {{ $value }}
                                 @endforeach
                             @endif
 
                             {{-- Number --}}
                             @if ($res->type_of_parameter == 'number')
-                                <input type="number" name="{{ 'par_' . $res->id }}" id="" class="form-control" value="{{ $res->assigned_parameter  && $res->assigned_parameter != 'null' ? $res->assigned_parameter->value : '' }}" {{ $res->is_required == 1 ? 'required' : '' }}>
+                                <input type="number" name="{{ 'par_' . $res->id }}" id="" class="form-control" value="{{ $res->assigned_parameter  && $res->assigned_parameter != 'null' ? $res->assigned_parameter->value : '' }}">
                             @endif
 
                             {{-- TextBox --}}
                             @if ($res->type_of_parameter == 'textbox')
-                                <input type="text" name="{{ 'par_' . $res->id }}" id="" class="form-control" value="{{ $res->assigned_parameter && $res->assigned_parameter->value != 'null' ? $res->assigned_parameter->value : '' }}" {{ $res->is_required == 1 ? 'required' : '' }}>
+                                <input type="text" name="{{ 'par_' . $res->id }}" id="" class="form-control" value="{{ $res->assigned_parameter && $res->assigned_parameter->value != 'null' ? $res->assigned_parameter->value : '' }}">
                             @endif
 
                             {{-- TextArea --}}
                             @if ($res->type_of_parameter == 'textarea')
-                                <textarea name="{{ 'par_' . $res->id }}" id="" class="form-control" cols="30" rows="3" value="{{ $res->assigned_parameter && $res->assigned_parameter->value != 'null' ? $res->assigned_parameter->value : '' }}" {{ $res->is_required == 1 ? 'required' : '' }}>{{ $res->assigned_parameter && $res->assigned_parameter->value != 'null' ? $res->assigned_parameter->value : '' }}</textarea>
+                                <textarea name="{{ 'par_' . $res->id }}" id="" class="form-control" cols="30" rows="3" value="{{ $res->assigned_parameter && $res->assigned_parameter->value != 'null' ? $res->assigned_parameter->value : '' }}">{{ $res->assigned_parameter && $res->assigned_parameter->value != 'null' ? $res->assigned_parameter->value : '' }}</textarea>
                             @endif
 
                             {{-- CheckBox --}}
                             @if ($res->type_of_parameter == 'checkbox')
                                 @foreach ($res->type_values as $key => $value)
-                                    <input type="checkbox" name="{{ 'par_' . $res->id . '[]' }}" id="" class="form-check-input" value={{ $value }} {{ !empty($res->assigned_parameter->value) && in_array($value, $res->assigned_parameter->value) ? 'Checked' : '' }} {{ $res->is_required == 1 ? 'required' : '' }}>{{ $value }}
+                                    <input type="checkbox" name="{{ 'par_' . $res->id . '[]' }}" id="" class="form-check-input" value={{ $value }} {{ !empty($res->assigned_parameter->value) && in_array($value, $res->assigned_parameter->value) ? 'Checked' : '' }}>{{ $value }}
                                 @endforeach
                             @endif
 
@@ -411,7 +404,7 @@
                                     <a href="{{ url('') . config('global.IMG_PATH') . config('global.PARAMETER_IMG_PATH') . '/' . $res->assigned_parameter->value }}" class="text-center col-12" style="text-align: center"> Click here to View</a> OR
                                     <input type="file" class='form-control' name="{{ 'par_' . $res->id }}" id='edit_param_img'>
                                 @else
-                                    <input type="file" class='form-control' name="{{ 'par_' . $res->id }}" id='edit_param_img' {{ $res->is_required == 1 ? 'required' : '' }}>
+                                    <input type="file" class='form-control' name="{{ 'par_' . $res->id }}" id='edit_param_img'>
                                 @endif
                                 <input type="hidden" name="{{ 'par_' . $res->id }}" value="{{ $res->assigned_parameter ? $res->assigned_parameter->value : '' }}">
                             @endif
@@ -451,17 +444,17 @@
                                         <tr class="room-row">
                                             <td>
                                                 <input type="hidden" name="hotel_rooms[{{ $index }}][id]" value="{{ $room->id }}">
-                                                <input type="text" class="form-control" name="hotel_rooms[{{ $index }}][room_number]" value="{{ $room->room_number }}" required>
+                                                <input type="text" class="form-control" name="hotel_rooms[{{ $index }}][room_number]" value="{{ $room->room_number }}">
                                             </td>
                                             <td>
-                                                <select class="form-control" name="hotel_rooms[{{ $index }}][room_type_id]" required>
+                                                <select class="form-control" name="hotel_rooms[{{ $index }}][room_type_id]">
                                                     @foreach(App\Models\HotelRoomType::where('status', 1)->get() as $roomType)
                                                         <option value="{{ $roomType->id }}" {{ $room->room_type_id == $roomType->id ? 'selected' : '' }}>{{ $roomType->name }}</option>
                                                     @endforeach
                                                 </select>
                                             </td>
                                             <td>
-                                                <input type="number" class="form-control" name="hotel_rooms[{{ $index }}][price_per_night]" value="{{ $room->price_per_night }}" min="0" step="0.01" required>
+                                                <input type="number" class="form-control" name="hotel_rooms[{{ $index }}][price_per_night]" value="{{ $room->price_per_night }}" min="0" step="0.01">
                                             </td>
                                             <td>
                                                 <input type="number" class="form-control" name="hotel_rooms[{{ $index }}][discount_percentage]" value="{{ $room->discount_percentage }}" min="0" max="100" step="0.01">
@@ -511,45 +504,45 @@
                                 <div class="col-md-12 col-12 form-group mandatory">
                                     {{ Form::label('city', __('City'), ['class' => 'form-label col-12 ']) }}
                                     {!! Form::hidden('city', isset($list->city) ? $list->city : '', ['class' => 'form-control ', 'id' => 'city']) !!}
-                                    <input id="searchInput" value="{{ isset($list->city) ? $list->city : '' }}"  class="controls form-control" type="text" placeholder="{{ __('City') }}" required>
+                                    <input id="searchInput" value="{{ isset($list->city) ? $list->city : '' }}"  class="controls form-control" type="text" placeholder="{{ __('City') }}">
                                     {{-- {{ Form::text('city', isset($list->city) ? $list->city : '', ['class' => 'form-control ', 'placeholder' => 'City', 'id' => 'city']) }} --}}
                                 </div>
 
                                 {{-- Country --}}
                                 <div class="col-md-6 form-group mandatory">
                                     {{ Form::label('country', __('Country'), ['class' => 'form-label col-12 ']) }}
-                                    {{ Form::text('country', isset($list->country) ? $list->country : '', ['class' => 'form-control ', 'placeholder' => trans('Country'), 'id' => 'country', 'required' => true]) }}
+                                    {{ Form::text('country', isset($list->country) ? $list->country : '', ['class' => 'form-control ', 'placeholder' => trans('Country'), 'id' => 'country']) }}
                                 </div>
 
                                 {{-- State --}}
                                 <div class="col-md-6 form-group mandatory">
                                     {{ Form::label('state', __('State'), ['class' => 'form-label col-12 ']) }}
-                                    {{ Form::text('state', isset($list->state) ? $list->state : '', ['class' => 'form-control ', 'placeholder' => trans('State'), 'id' => 'state', 'required' => true]) }}
+                                    {{ Form::text('state', isset($list->state) ? $list->state : '', ['class' => 'form-control ', 'placeholder' => trans('State'), 'id' => 'state']) }}
                                 </div>
 
 
                                 {{-- Latitude --}}
                                 <div class="col-md-6 form-group mandatory">
                                     {{ Form::label('latitude', __('Latitude'), ['class' => 'form-label col-12 ']) }}
-                                    {!! Form::text('latitude', isset($list->latitude) ? $list->latitude : '', ['class' => 'form-control ', 'id' => 'latitude', 'step' => 'any', 'readonly' => true, 'required' => true, 'placeholder' => trans('Latitude')]) !!}
+                                    {!! Form::text('latitude', isset($list->latitude) ? $list->latitude : '', ['class' => 'form-control ', 'id' => 'latitude', 'step' => 'any', 'readonly' => true, 'placeholder' => trans('Latitude')]) !!}
                                 </div>
 
                                 {{-- Longitude --}}
                                 <div class="col-md-6 form-group  mandatory">
                                     {{ Form::label('longitude', __('Longitude'), ['class' => 'form-label col-12 ']) }}
-                                    {!! Form::text('longitude', isset($list->longitude) ? $list->longitude : '', ['class' => 'form-control ', 'id' => 'longitude', 'step' => 'any', 'readonly' => true, 'required' => true, 'placeholder' => trans('Longitude')]) !!}
+                                    {!! Form::text('longitude', isset($list->longitude) ? $list->longitude : '', ['class' => 'form-control ', 'id' => 'longitude', 'step' => 'any', 'readonly' => true, 'placeholder' => trans('Longitude')]) !!}
                                 </div>
 
                                 {{-- Client Address --}}
                                 <div class="col-md-12 col-12 form-group mandatory">
                                     {{ Form::label('address', __('Client Address'), ['class' => 'form-label col-12 ']) }}
-                                    {{ Form::textarea('client_address', isset($list->client_address) ? $list->client_address : (system_setting('company_address') ?? ""), ['class' => 'form-control ', 'placeholder' => trans('Client Address'), 'rows' => '4', 'id' => 'client-address', 'autocomplete' => 'off', 'required' => 'true']) }}
+                                    {{ Form::textarea('client_address', isset($list->client_address) ? $list->client_address : (system_setting('company_address') ?? ""), ['class' => 'form-control ', 'placeholder' => trans('Client Address'), 'rows' => '4', 'id' => 'client-address', 'autocomplete' => 'off']) }}
                                 </div>
 
                                 {{-- Address --}}
                                 <div class="col-md-12 col-12 form-group mandatory">
                                     {{ Form::label('address', __('Address'), ['class' => 'form-label col-12 ']) }}
-                                    {{ Form::textarea('address', isset($list->address) ? $list->address : '', ['class' => 'form-control ', 'placeholder' => trans('Address'), 'rows' => '4', 'id' => 'address', 'autocomplete' => 'off', 'required' => 'true']) }}
+                                    {{ Form::textarea('address', isset($list->address) ? $list->address : '', ['class' => 'form-control ', 'placeholder' => trans('Address'), 'rows' => '4', 'id' => 'address', 'autocomplete' => 'off']) }}
                                 </div>
                             </div>
                         </div>
@@ -568,7 +561,7 @@
                         {{-- Title Image --}}
                         <div class="col-md-3 col-sm-12 form-group mandatory card title_card">
                             {{ Form::label('filepond_title', __('Title Image'), ['class' => 'form-label col-12 ']) }}
-                            <input type="file" class="filepond" id="filepond_title" name="title_image" {{ $list->title_image == '' ? 'required' : '' }} accept="image/png,image/jpg,image/jpeg">
+                            <input type="file" class="filepond" id="filepond_title" name="title_image" accept="image/png,image/jpg,image/jpeg">
                             @if ($list->title_image)
                                 <div class="card1 title_img mt-2">
                                     <img src="{{ $list->title_image }}" alt="Image" class="card1-img">
@@ -832,12 +825,10 @@
             });
             if ($('input[name="property_type"]:checked').val() == 0) {
                 $('#duration').hide();
-                $('#price_duration').removeAttr('required');
                 $('#price_duration').val('');
                 $('.price-field').hide();
             } else {
                 $('#duration').show();
-                $('#price_duration').attr('required', 'true');
                 $('#price_duration').val('');
                 $('.price-field').show();
             }
@@ -853,11 +844,9 @@
 
             if (selectedType == 1) {
                 $('#duration').show();
-                $('#price_duration').attr('required', 'true');
                 $('.price-field').show();
             } else {
                 $('#duration').hide();
-                $('#price_duration').removeAttr('required');
                 $('#price_duration').val('');
                 $('.price-field').hide();
             }
@@ -1060,17 +1049,14 @@
                 if (propertyClassification == 4) { // Vacation Homes
                     $('.vacation-home-fields').show();
                     $('.price-field').show(); // Show price for vacation homes
-                    $('#price').attr('required', 'true');
                 } else if (propertyClassification == 5) { // Hotel Booking
                     $('.hotel-fields').show();
                     $('.hotel-rooms').show();
                     $('.policy-data-field').hide(); // Hide policy data for hotels
                     $('.price-field').hide(); // Hide price for hotels
-                    $('#price').removeAttr('required');
                 } else {
                     $('.policy-data-field').show(); // Show policy data for non-hotels
                     $('.price-field').show(); // Show price for non-hotels
-                    $('#price').attr('required', 'true');
                 }
             }
 
@@ -1090,17 +1076,17 @@
                 var newRow = `
                     <tr class="room-row">
                         <td>
-                            <input type="text" class="form-control" name="hotel_rooms[${roomIndex}][room_number]" required>
+                            <input type="text" class="form-control" name="hotel_rooms[${roomIndex}][room_number]">
                         </td>
                         <td>
-                            <select class="form-control" name="hotel_rooms[${roomIndex}][room_type_id]" required>
+                            <select class="form-control" name="hotel_rooms[${roomIndex}][room_type_id]">
                                 @foreach(App\Models\HotelRoomType::where('status', 1)->get() as $roomType)
                                     <option value="{{ $roomType->id }}">{{ $roomType->name }}</option>
                                 @endforeach
                             </select>
                         </td>
                         <td>
-                            <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][price_per_night]" min="0" step="0.01" required>
+                            <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][price_per_night]" min="0" step="0.01">
                         </td>
                         <td>
                             <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][discount_percentage]" value="0" min="0" max="100" step="0.01">
@@ -1224,6 +1210,40 @@
                 hours = hours ? hours : 12; // the hour '0' should be '12'
                 return hours.toString().padStart(2, '0') + ':' + minutes + ampm;
             }
+
+            // Validate JSON format for agent_addons field
+            $('#agent_addons_field').on('blur', function() {
+                var value = $(this).val().trim();
+                if (value) {
+                    try {
+                        JSON.parse(value);
+                        $(this).removeClass('is-invalid').addClass('is-valid');
+                        $('#agent_addons_error').text('');
+                    } catch (e) {
+                        $(this).removeClass('is-valid').addClass('is-invalid');
+                        $('#agent_addons_error').text('Invalid JSON format. Please check your syntax.');
+                    }
+                } else {
+                    $(this).removeClass('is-invalid is-valid');
+                    $('#agent_addons_error').text('');
+                }
+            });
+
+            // Form validation before submit
+            $('#myForm').on('submit', function(e) {
+                var agentAddonsValue = $('#agent_addons_field').val().trim();
+                if (agentAddonsValue) {
+                    try {
+                        JSON.parse(agentAddonsValue);
+                    } catch (e) {
+                        e.preventDefault();
+                        $('#agent_addons_field').addClass('is-invalid');
+                        $('#agent_addons_error').text('Invalid JSON format. Please fix the syntax before submitting.');
+                        $('#agent_addons_field').focus();
+                        return false;
+                    }
+                }
+            });
         });
     </script>
 @endsection

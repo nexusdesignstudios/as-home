@@ -198,7 +198,22 @@ class PropertController extends Controller
                 $saveProperty->meta_keywords = $request->keywords;
                 $saveProperty->rentduration = $request->price_duration;
                 $saveProperty->is_premium = $request->is_premium;
-                $saveProperty->corresponding_day = $request->corresponding_day;
+
+                // Handle corresponding_day field
+                if ($request->has('corresponding_day') && !empty($request->corresponding_day)) {
+                    $correspondingDay = $request->corresponding_day;
+                    // If it's already a JSON string, validate it
+                    if (is_string($correspondingDay)) {
+                        $decoded = json_decode($correspondingDay, true);
+                        if (json_last_error() === JSON_ERROR_NONE) {
+                            $saveProperty->corresponding_day = $correspondingDay;
+                        }
+                    } else {
+                        $saveProperty->corresponding_day = $correspondingDay;
+                    }
+                } else {
+                    $saveProperty->corresponding_day = null;
+                }
 
                 // Set vacation home specific fields if property classification is vacation_homes (4)
                 if (isset($request->property_classification) && $request->property_classification == 4) {
@@ -253,7 +268,6 @@ class PropertController extends Controller
                     $saveProperty->hotel_apartment_type_id = $request->hotel_apartment_type_id;
                     $saveProperty->check_in = $request->check_in;
                     $saveProperty->check_out = $request->check_out;
-                    $saveProperty->agent_addons = $request->agent_addons;
                     $saveProperty->available_rooms = $request->available_rooms;
                     $saveProperty->rent_package = $request->rent_package;
                     $saveProperty->revenue_user_name = $request->revenue_user_name ?? null;
@@ -262,6 +276,22 @@ class PropertController extends Controller
                     $saveProperty->reservation_user_name = $request->reservation_user_name ?? null;
                     $saveProperty->reservation_phone_number = $request->reservation_phone_number ?? null;
                     $saveProperty->reservation_email = $request->reservation_email ?? null;
+                }
+
+                // Handle agent_addons field (available for all property types)
+                if ($request->has('agent_addons') && !empty($request->agent_addons)) {
+                    $agentAddons = $request->agent_addons;
+                    // If it's already a JSON string, validate it
+                    if (is_string($agentAddons)) {
+                        $decoded = json_decode($agentAddons, true);
+                        if (json_last_error() === JSON_ERROR_NONE) {
+                            $saveProperty->agent_addons = $agentAddons;
+                        }
+                    } else {
+                        $saveProperty->agent_addons = $agentAddons;
+                    }
+                } else {
+                    $saveProperty->agent_addons = null;
                 }
 
                 $saveProperty->save();
@@ -560,54 +590,6 @@ class PropertController extends Controller
         if (!has_permissions('update', 'property')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         } else {
-            $request->validate([
-                'slug'              => 'nullable|regex:/^[a-z0-9-]+$/|unique:propertys,slug_id,' . $id . ',id',
-                'area_description'  => 'nullable|string',
-                'company_employee_username' => 'nullable|string',
-                'company_employee_email' => 'nullable|email',
-                'company_employee_phone_number' => 'nullable|string',
-                'gallery_images.*'  => 'nullable|image|mimes:jpg,png,jpeg|max:2048',
-                'documents.*'       => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
-                'title_image'       => 'nullable|image|mimes:jpg,png,jpeg|max:2048',
-                'meta_image'        => 'nullable|image|mimes:jpg,png,jpeg|max:5120',
-                'property_classification' => 'required|integer|min:1|max:5',
-                'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
-                'revenue_user_name' => 'nullable|string',
-                'revenue_phone_number' => 'nullable|string',
-                'revenue_email' => 'nullable|email',
-                'reservation_user_name' => 'nullable|string',
-                'reservation_phone_number' => 'nullable|string',
-                'reservation_email' => 'nullable|email',
-                'available_dates'   => 'nullable|json|required_if:property_classification,4',
-                'refund_policy'     => 'nullable|in:flexible,non-refundable',
-                'policy_data'       => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
-                'price'             => 'required_unless:property_classification,5|numeric|min:1|max:9223372036854775807',
-                'weekend_commission' => 'nullable|numeric|min:0|max:100|required_unless:property_classification,5',
-                'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
-                    // Regular expression to validate YouTube URLs
-                    $youtubePattern = '/^(https?\:\/\/)?(www\.youtube\.com|youtu\.be)\/.+$/';
-
-                    if (!preg_match($youtubePattern, $value)) {
-                        return $fail("The Video Link must be a valid YouTube URL.");
-                    }
-
-                    // Transform youtu.be short URL to full YouTube URL for validation
-                    if (strpos($value, 'youtu.be') !== false) {
-                        $value = 'https://www.youtube.com/watch?v=' . substr(parse_url($value, PHP_URL_PATH), 1);
-                    }
-
-                    // Get the headers of the URL
-                    $headers = @get_headers($value);
-
-                    // Check if the URL is accessible
-                    if (!$headers || strpos($headers[0], '200') === false) {
-                        return $fail("The Video Link must be accessible.");
-                    }
-                }]
-            ], [], [
-                'documents.*' => 'document :position'
-            ]);
-
             try {
 
                 DB::beginTransaction();
@@ -626,9 +608,9 @@ class PropertController extends Controller
                 $UpdateProperty->company_employee_phone_number = $request->company_employee_phone_number ?? null;
                 $UpdateProperty->address = $request->address;
                 $UpdateProperty->client_address = $request->client_address;
-                $UpdateProperty->propery_type = $request->property_type;
+                $UpdateProperty->setAttribute('propery_type', $request->property_type);
                 $UpdateProperty->price = $request->price;
-                $UpdateProperty->propery_type = $request->property_type;
+                $UpdateProperty->setAttribute('propery_type', $request->property_type);
                 $UpdateProperty->property_classification = $request->property_classification;
                 $UpdateProperty->price = $request->price;
                 $UpdateProperty->state = (isset($request->state)) ? $request->state : '';
@@ -643,7 +625,22 @@ class PropertController extends Controller
                 $UpdateProperty->meta_keywords = (isset($request->Keywords)) ? $request->Keywords : '';
 
                 $UpdateProperty->rentduration = $request->price_duration;
-                $UpdateProperty->corresponding_day = $request->corresponding_day;
+
+                // Handle corresponding_day field
+                if ($request->has('corresponding_day') && !empty($request->corresponding_day)) {
+                    $correspondingDay = $request->corresponding_day;
+                    // If it's already a JSON string, validate it
+                    if (is_string($correspondingDay)) {
+                        $decoded = json_decode($correspondingDay, true);
+                        if (json_last_error() === JSON_ERROR_NONE) {
+                            $UpdateProperty->corresponding_day = $correspondingDay;
+                        }
+                    } else {
+                        $UpdateProperty->corresponding_day = $correspondingDay;
+                    }
+                } else {
+                    $UpdateProperty->corresponding_day = null;
+                }
 
                 // Set vacation home specific fields if property classification is vacation_homes (4)
                 if (isset($request->property_classification) && $request->property_classification == 4) {
@@ -657,7 +654,6 @@ class PropertController extends Controller
                     $UpdateProperty->hotel_apartment_type_id = $request->hotel_apartment_type_id ?? null;
                     $UpdateProperty->check_in = $request->check_in ?? null;
                     $UpdateProperty->check_out = $request->check_out ?? null;
-                    $UpdateProperty->agent_addons = $request->agent_addons ?? null;
                     $UpdateProperty->available_rooms = $request->available_rooms ?? null;
                     $UpdateProperty->rent_package = $request->rent_package ?? null;
                     $UpdateProperty->revenue_user_name = $request->revenue_user_name ?? null;
@@ -668,19 +664,56 @@ class PropertController extends Controller
                     $UpdateProperty->reservation_email = $request->reservation_email ?? null;
                 }
 
+                // Handle agent_addons field (available for all property types)
+                if ($request->has('agent_addons') && !empty($request->agent_addons)) {
+                    $agentAddons = $request->agent_addons;
+                    // If it's already a JSON string, validate it
+                    if (is_string($agentAddons)) {
+                        $decoded = json_decode($agentAddons, true);
+                        if (json_last_error() === JSON_ERROR_NONE) {
+                            $UpdateProperty->agent_addons = $agentAddons;
+                        }
+                    } else {
+                        $UpdateProperty->agent_addons = $agentAddons;
+                    }
+                } else {
+                    $UpdateProperty->agent_addons = null;
+                }
+
                 if ($request->hasFile('title_image')) {
                     \unlink_image($UpdateProperty->title_image);
-                    $UpdateProperty->title_image = \store_image($request->file('title_image'), 'PROPERTY_TITLE_IMG_PATH');
+                    $UpdateProperty->setAttribute('title_image', \store_image($request->file('title_image'), 'PROPERTY_TITLE_IMG_PATH'));
                 }
 
                 if ($request->hasFile('3d_image')) {
                     \unlink_image($UpdateProperty->three_d_image);
-                    $UpdateProperty->three_d_image = \store_image($request->file('3d_image'), '3D_IMG_PATH');
+                    $UpdateProperty->setAttribute('three_d_image', \store_image($request->file('3d_image'), '3D_IMG_PATH'));
                 }
 
                 if ($request->hasFile('meta_image')) {
                     \unlink_image($UpdateProperty->meta_image);
-                    $UpdateProperty->meta_image = \store_image($request->file('meta_image'), 'PROPERTY_SEO_IMG_PATH');
+                    $UpdateProperty->setAttribute('meta_image', \store_image($request->file('meta_image'), 'PROPERTY_SEO_IMG_PATH'));
+                }
+
+                // Optional identity and ownership documents (no validation)
+                if ($request->hasFile('identity_proof')) {
+                    \unlink_image($UpdateProperty->identity_proof);
+                    $UpdateProperty->setAttribute('identity_proof', \store_image($request->file('identity_proof'), 'PROPERTY_IDENTITY_PROOF_PATH'));
+                }
+
+                if ($request->hasFile('national_id_passport')) {
+                    \unlink_image($UpdateProperty->national_id_passport);
+                    $UpdateProperty->setAttribute('national_id_passport', \store_image($request->file('national_id_passport'), 'PROPERTY_NATIONAL_ID_PATH'));
+                }
+
+                if ($request->hasFile('utilities_bills')) {
+                    \unlink_image($UpdateProperty->utilities_bills);
+                    $UpdateProperty->setAttribute('utilities_bills', \store_image($request->file('utilities_bills'), 'PROPERTY_UTILITIES_PATH'));
+                }
+
+                if ($request->hasFile('power_of_attorney')) {
+                    \unlink_image($UpdateProperty->power_of_attorney);
+                    $UpdateProperty->setAttribute('power_of_attorney', \store_image($request->file('power_of_attorney'), 'PROPERTY_POA_PATH'));
                 }
 
                 $UpdateProperty->update();
@@ -703,9 +736,9 @@ class PropertController extends Controller
                         $update_parameter = new AssignParameters();
                         $update_parameter->parameter_id = $par->id;
                         if (($request->hasFile('par_' . $par->id))) {
-                            $update_parameter->value = \store_image($request->file('par_' . $par->id), 'PARAMETER_IMG_PATH');
+                            $update_parameter->setAttribute('value', \store_image($request->file('par_' . $par->id), 'PARAMETER_IMG_PATH'));
                         } else {
-                            $update_parameter->value = is_array($request->input('par_' . $par->id)) || $request->input('par_' . $par->id) == null ? json_encode($request->input('par_' . $par->id), JSON_FORCE_OBJECT) : ($request->input('par_' . $par->id));
+                            $update_parameter->setAttribute('value', is_array($request->input('par_' . $par->id)) || $request->input('par_' . $par->id) == null ? json_encode($request->input('par_' . $par->id), JSON_FORCE_OBJECT) : ($request->input('par_' . $par->id)));
                         }
                         $update_parameter->modal()->associate($UpdateProperty);
                         $update_parameter->save();
@@ -769,6 +802,132 @@ class PropertController extends Controller
                     CityImage::updateOrCreate(array('city' => $request->city));
                 }
                 // END :: ADD CITY DATA
+
+                // START :: UPDATE HOTEL ROOMS
+                if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->hotel_rooms) && !empty($request->hotel_rooms)) {
+                    try {
+                        \App\Models\HotelRoom::where('property_id', $UpdateProperty->id)->delete();
+                        foreach ($request->hotel_rooms as $room) {
+                            HotelRoom::create([
+                                'property_id' => $UpdateProperty->id,
+                                'room_type_id' => $room['room_type_id'] ?? null,
+                                'room_number' => $room['room_number'] ?? null,
+                                'price_per_night' => isset($room['price_per_night']) ? (float)$room['price_per_night'] : 0,
+                                'discount_percentage' => isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : 0,
+                                'refund_policy' => $room['refund_policy'] ?? 'flexible',
+                                'nonrefundable_percentage' => isset($room['nonrefundable_percentage']) ? (float)$room['nonrefundable_percentage'] : 0,
+                                'availability_type' => isset($room['availability_type']) ? (int)$room['availability_type'] : null,
+                                'available_dates' => $room['available_dates'] ?? null,
+                                'weekend_commission' => isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : null,
+                                'description' => $room['description'] ?? null,
+                                'status' => $room['status'] ?? 1
+                            ]);
+                        }
+                    } catch (\Exception $e) {
+                        throw $e;
+                    }
+                }
+                // END :: UPDATE HOTEL ROOMS
+
+                // START :: UPDATE ADDONS PACKAGES
+                if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->addons_packages) && !empty($request->addons_packages)) {
+                    try {
+                        // Cleanup existing
+                        \App\Models\PropertyHotelAddonValue::where('property_id', $UpdateProperty->id)->delete();
+                        \App\Models\AddonsPackage::where('property_id', $UpdateProperty->id)->delete();
+
+                        // Ensure folder exists
+                        $addonFolderPath = public_path('images') . config('global.HOTEL_ADDON_PATH');
+                        if (!is_dir($addonFolderPath)) {
+                            mkdir($addonFolderPath, 0777, true);
+                        }
+
+                        foreach ($request->addons_packages as $packageIndex => $package) {
+                            // Create package
+                            $addonsPackage = new \App\Models\AddonsPackage();
+                            $addonsPackage->name = $package['name'] ?? null;
+                            $addonsPackage->room_type_id = $package['room_type_id'] ?? null;
+                            $addonsPackage->description = $package['description'] ?? null;
+                            $addonsPackage->property_id = $UpdateProperty->id;
+                            $addonsPackage->status = $package['status'] ?? 'active';
+                            $addonsPackage->price = isset($package['price']) ? $package['price'] : null;
+                            $addonsPackage->save();
+
+                            // Process addon values for this package
+                            if (isset($package['addon_values']) && !empty($package['addon_values'])) {
+                                foreach ($package['addon_values'] as $addonIndex => $addon) {
+                                    $addonField = \App\Models\HotelAddonField::where('id', $addon['hotel_addon_field_id'] ?? null)->where('status', 'active')->first();
+                                    if (!$addonField) {
+                                        continue;
+                                    }
+                                    $value = $addon['value'] ?? null;
+
+                                    // Handle file uploads
+                                    if ($addonField->field_type == 'file' && $request->hasFile('addons_packages.' . $packageIndex . '.addon_values.' . $addonIndex . '.value')) {
+                                        $file = $request->file('addons_packages.' . $packageIndex . '.addon_values.' . $addonIndex . '.value');
+                                        $fileName = microtime(true) . '.' . $file->extension();
+                                        $file->move($addonFolderPath, $fileName);
+                                        $value = $fileName;
+                                    } elseif ($addonField->field_type == 'checkbox' && is_array($value)) {
+                                        $value = json_encode($value);
+                                    } elseif (in_array($addonField->field_type, ['radio', 'dropdown'])) {
+                                        $validValue = \App\Models\HotelAddonFieldValue::where('hotel_addon_field_id', $addon['hotel_addon_field_id'] ?? null)
+                                            ->where('value', $value)
+                                            ->exists();
+                                        if (!$validValue) {
+                                            continue;
+                                        }
+                                    }
+
+                                    \App\Models\PropertyHotelAddonValue::create([
+                                        'property_id' => $UpdateProperty->id,
+                                        'hotel_addon_field_id' => $addon['hotel_addon_field_id'] ?? null,
+                                        'value' => $value,
+                                        'static_price' => $addon['static_price'] ?? null,
+                                        'multiply_price' => $addon['multiply_price'] ?? null,
+                                        'package_id' => $addonsPackage->id
+                                    ]);
+                                }
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        throw $e;
+                    }
+                }
+                // END :: UPDATE ADDONS PACKAGES
+
+                // START :: UPDATE CERTIFICATES
+                if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->certificates) && !empty($request->certificates)) {
+                    try {
+                        // Cleanup existing
+                        \App\Models\PropertyCertificate::where('property_id', $UpdateProperty->id)->delete();
+
+                        // Ensure folder exists
+                        $certificateFolderPath = public_path('images') . config('global.PROPERTY_CERTIFICATE_PATH');
+                        if (!is_dir($certificateFolderPath)) {
+                            mkdir($certificateFolderPath, 0777, true);
+                        }
+
+                        foreach ($request->certificates as $certificateIndex => $certificate) {
+                            $propertyCertificate = new \App\Models\PropertyCertificate();
+                            $propertyCertificate->title = $certificate['title'] ?? null;
+                            $propertyCertificate->description = $certificate['description'] ?? null;
+                            $propertyCertificate->property_id = $UpdateProperty->id;
+
+                            if ($request->hasFile('certificates.' . $certificateIndex . '.file')) {
+                                $file = $request->file('certificates.' . $certificateIndex . '.file');
+                                $fileName = microtime(true) . '.' . $file->extension();
+                                $file->move($certificateFolderPath, $fileName);
+                                $propertyCertificate->file = $fileName;
+                            }
+
+                            $propertyCertificate->save();
+                        }
+                    } catch (\Exception $e) {
+                        throw $e;
+                    }
+                }
+                // END :: UPDATE CERTIFICATES
 
                 DB::commit();
                 ResponseService::successRedirectResponse('Data Updated Successfully');

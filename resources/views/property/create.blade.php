@@ -155,10 +155,6 @@
                     {{ Form::label('available_rooms', __('Total Available Rooms'), ['class' => 'form-label col-12']) }}
                     {{ Form::number('available_rooms', null, ['class' => 'form-control', 'min' => '0']) }}
                 </div>
-                <div class="form-group">
-                    {{ Form::label('agent_addons', __('Agent Addons'), ['class' => 'form-label col-12']) }}
-                    {{ Form::textarea('agent_addons', null, ['class' => 'form-control', 'rows' => '3', 'placeholder' => __('Agent Addons (JSON format)')]) }}
-                </div>
 
                 {{-- Revenue Information --}}
                 <div class="form-group">
@@ -342,6 +338,14 @@
                             {{ Form::hidden('corresponding_day', '', ['id' => 'corresponding_day_json']) }}
                         </div>
                         <small class="text-muted">{{ __('Format: [{"from": "10:00AM", "to": "02:00PM", "day": "saturday"}]') }}</small>
+                    </div>
+
+                    {{-- Agent Addons --}}
+                    <div class="form-group">
+                        {{ Form::label('agent_addons', __('Agent Addons'), ['class' => 'form-label col-12']) }}
+                        {{ Form::textarea('agent_addons', null, ['class' => 'form-control', 'rows' => '5', 'placeholder' => __('Agent Addons (JSON format)'), 'id' => 'agent_addons_field']) }}
+                        <small class="text-muted">{{ __('Enter valid JSON format. Example: [{"name": "Breakfast", "price": 15.00}, {"name": "WiFi", "price": 5.00}]') }}</small>
+                        <div class="invalid-feedback" id="agent_addons_error"></div>
                     </div>
                 </div>
             </div>
@@ -1317,6 +1321,40 @@
             hours = hours ? hours : 12; // the hour '0' should be '12'
             return hours.toString().padStart(2, '0') + ':' + minutes + ampm;
         }
+
+        // Validate JSON format for agent_addons field
+        $('#agent_addons_field').on('blur', function() {
+            var value = $(this).val().trim();
+            if (value) {
+                try {
+                    JSON.parse(value);
+                    $(this).removeClass('is-invalid').addClass('is-valid');
+                    $('#agent_addons_error').text('');
+                } catch (e) {
+                    $(this).removeClass('is-valid').addClass('is-invalid');
+                    $('#agent_addons_error').text('Invalid JSON format. Please check your syntax.');
+                }
+            } else {
+                $(this).removeClass('is-invalid is-valid');
+                $('#agent_addons_error').text('');
+            }
+        });
+
+        // Form validation before submit
+        $('#myForm').on('submit', function(e) {
+            var agentAddonsValue = $('#agent_addons_field').val().trim();
+            if (agentAddonsValue) {
+                try {
+                    JSON.parse(agentAddonsValue);
+                } catch (e) {
+                    e.preventDefault();
+                    $('#agent_addons_field').addClass('is-invalid');
+                    $('#agent_addons_error').text('Invalid JSON format. Please fix the syntax before submitting.');
+                    $('#agent_addons_field').focus();
+                    return false;
+                }
+            }
+        });
 
         // Trigger change event on page load to set initial state
         $('#property_classification').trigger('change');
