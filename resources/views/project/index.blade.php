@@ -78,6 +78,11 @@
                                     <th scope="col" data-field="category.category" data-align="center"> {{ __('Category') }}</th>
                                     <th scope="col" data-field="type" data-align="center" data-sortable="true" data-formatter="projectTypeFormatter"> {{ __('Type') }}</th>
                                     <th scope="col" data-field="release_date" data-align="center" data-sortable="true" data-formatter="dateFormatter"> {{ __('Release Date') }}</th>
+                                    <th scope="col" data-field="bedroom" data-align="center" data-sortable="true"> {{ __('Bedroom') }}</th>
+                                    <th scope="col" data-field="bathroom" data-align="center" data-sortable="true"> {{ __('Bathroom') }}</th>
+                                    <th scope="col" data-field="garage" data-align="center" data-sortable="true"> {{ __('Garage') }}</th>
+                                    <th scope="col" data-field="year_built" data-align="center" data-sortable="true"> {{ __('Year Built') }}</th>
+                                    <th scope="col" data-field="lot_size" data-align="center" data-sortable="true"> {{ __('Lot Size') }}</th>
                                     <th scope="col" data-field="image" data-align="center" data-formatter="imageFormatter" data-sortable="false"> {{ __('Image') }}</th>
                                     @if (has_permissions('update', 'project'))
                                         <th scope="col" data-field="status" data-sortable="false" data-align="center" data-formatter="projectEnableDisableSwitchFormatter" data-width="5%"> {{ __('Enable/Disable') }}</th>

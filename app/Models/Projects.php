@@ -34,6 +34,11 @@ class Projects extends Model
         'request_status',
         'total_click',
         'release_date',
+        'bedroom',
+        'bathroom',
+        'garage',
+        'year_built',
+        'lot_size',
     );
     protected $appends = [
         'is_promoted',

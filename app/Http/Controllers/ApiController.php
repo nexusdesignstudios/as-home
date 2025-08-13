@@ -4496,6 +4496,21 @@ class ApiController extends Controller
             if ($request->release_date) {
                 $project->release_date = $request->release_date;
             }
+            if ($request->bedroom) {
+                $project->bedroom = $request->bedroom;
+            }
+            if ($request->bathroom) {
+                $project->bathroom = $request->bathroom;
+            }
+            if ($request->garage) {
+                $project->garage = $request->garage;
+            }
+            if ($request->year_built) {
+                $project->year_built = $request->year_built;
+            }
+            if ($request->lot_size) {
+                $project->lot_size = $request->lot_size;
+            }
             if ($request->id) {
                 if ($project->title !== $request->title) {
                     $title = !empty($request->title) ? $request->title : $project->title;

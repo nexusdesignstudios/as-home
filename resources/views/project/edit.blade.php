@@ -94,6 +94,36 @@
                         {{ Form::label('release_date', __('Release Date'), ['class' => 'form-label col-12 ']) }}
                         {{ Form::date('release_date', $project->release_date, [ 'class' => 'form-control', 'placeholder' => __('Release Date'), 'id' => 'release_date' ]) }}
                     </div>
+
+                    {{-- Property Details --}}
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            {{ Form::label('bedroom', __('Bedroom'), ['class' => 'form-label col-12 ']) }}
+                            {{ Form::text('bedroom', $project->bedroom, [ 'class' => 'form-control', 'placeholder' => __('Bedroom'), 'id' => 'bedroom' ]) }}
+                        </div>
+                        <div class="col-md-6 form-group">
+                            {{ Form::label('bathroom', __('Bathroom'), ['class' => 'form-label col-12 ']) }}
+                            {{ Form::text('bathroom', $project->bathroom, [ 'class' => 'form-control', 'placeholder' => __('Bathroom'), 'id' => 'bathroom' ]) }}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            {{ Form::label('garage', __('Garage'), ['class' => 'form-label col-12 ']) }}
+                            {{ Form::text('garage', $project->garage, [ 'class' => 'form-control', 'placeholder' => __('Garage'), 'id' => 'garage' ]) }}
+                        </div>
+                        <div class="col-md-6 form-group">
+                            {{ Form::label('year_built', __('Year Built'), ['class' => 'form-label col-12 ']) }}
+                            {{ Form::text('year_built', $project->year_built, [ 'class' => 'form-control', 'placeholder' => __('Year Built'), 'id' => 'year_built' ]) }}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12 form-group">
+                            {{ Form::label('lot_size', __('Lot Size'), ['class' => 'form-label col-12 ']) }}
+                            {{ Form::text('lot_size', $project->lot_size, [ 'class' => 'form-control', 'placeholder' => __('Lot Size'), 'id' => 'lot_size' ]) }}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

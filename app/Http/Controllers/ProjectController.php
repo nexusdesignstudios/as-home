@@ -115,6 +115,11 @@ class ProjectController extends Controller
             $project->video_link = $request->video_link;
             $project->type = $request->project_type;
             $project->release_date = $request->release_date;
+            $project->bedroom = $request->bedroom;
+            $project->bathroom = $request->bathroom;
+            $project->garage = $request->garage;
+            $project->year_built = $request->year_built;
+            $project->lot_size = $request->lot_size;
             if ($request->hasFile('image')) {
                 $project->image = store_image($request->file('image'), 'PROJECT_TITLE_IMG_PATH');
             }
@@ -202,7 +207,7 @@ class ProjectController extends Controller
 
         if (isset($_GET['search']) && !empty($_GET['search'])) {
             $search = $_GET['search'];
-            $sql = $sql->where('id', 'LIKE', "%$search%")->orwhere('title', 'LIKE', "%$search%")->orwhere('location', 'LIKE', "%$search%")->orwhereHas('category', function ($query) use ($search) {
+            $sql = $sql->where('id', 'LIKE', "%$search%")->orwhere('title', 'LIKE', "%$search%")->orwhere('location', 'LIKE', "%$search%")->orwhere('bedroom', 'LIKE', "%$search%")->orwhere('bathroom', 'LIKE', "%$search%")->orwhere('garage', 'LIKE', "%$search%")->orwhere('year_built', 'LIKE', "%$search%")->orwhere('lot_size', 'LIKE', "%$search%")->orwhereHas('category', function ($query) use ($search) {
                 $query->where('category', 'LIKE', "%$search%");
             })->orWhereHas('customer', function ($query) use ($search) {
                 $query->where('name', 'LIKE', "%$search%")->orwhere('email', 'LIKE', "%$search%");
@@ -350,6 +355,11 @@ class ProjectController extends Controller
             $project->video_link = $request->video_link;
             $project->type = $request->project_type;
             $project->release_date = $request->release_date;
+            $project->bedroom = $request->bedroom;
+            $project->bathroom = $request->bathroom;
+            $project->garage = $request->garage;
+            $project->year_built = $request->year_built;
+            $project->lot_size = $request->lot_size;
             if ($request->hasFile('image')) {
                 $project->image = store_image($request->file('image'), 'PROJECT_TITLE_IMG_PATH');
             }
