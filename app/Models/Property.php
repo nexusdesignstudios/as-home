@@ -22,6 +22,7 @@ class Property extends Model
         'company_employee_username',
         'company_employee_email',
         'company_employee_phone_number',
+        'company_employee_whatsappnumber',
         'address',
         'client_address',
         'propery_type',

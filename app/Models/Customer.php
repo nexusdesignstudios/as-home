@@ -25,6 +25,7 @@ class Customer extends Authenticatable
         'password',
         'auth_id',
         'mobile',
+        'whatsappnumber',
         'profile',
         'address',
         'fcm_id',

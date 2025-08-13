@@ -1256,6 +1256,11 @@
                   "type": "text"
                 },
                 {
+                  "key": "whatsappnumber",
+                  "value": "9876543210",
+                  "type": "text"
+                },
+                {
                   "key": "address",
                   "value": "123 Main St, City",
                   "type": "text"
@@ -2002,6 +2007,31 @@
                   "type": "text"
                 },
                 {
+                  "key": "area_description",
+                  "value": "Located in a prime area with easy access to amenities",
+                  "type": "text"
+                },
+                {
+                  "key": "company_employee_username",
+                  "value": "john_agent",
+                  "type": "text"
+                },
+                {
+                  "key": "company_employee_email",
+                  "value": "john@company.com",
+                  "type": "text"
+                },
+                {
+                  "key": "company_employee_phone_number",
+                  "value": "+1234567890",
+                  "type": "text"
+                },
+                {
+                  "key": "company_employee_whatsappnumber",
+                  "value": "+1234567890",
+                  "type": "text"
+                },
+                {
                   "key": "category_id",
                   "value": "1",
                   "type": "text"
@@ -2236,6 +2266,31 @@
                 {
                   "key": "description",
                   "value": "Updated description for luxury apartment",
+                  "type": "text"
+                },
+                {
+                  "key": "area_description",
+                  "value": "Updated area description with improved amenities",
+                  "type": "text"
+                },
+                {
+                  "key": "company_employee_username",
+                  "value": "john_agent_updated",
+                  "type": "text"
+                },
+                {
+                  "key": "company_employee_email",
+                  "value": "john.updated@company.com",
+                  "type": "text"
+                },
+                {
+                  "key": "company_employee_phone_number",
+                  "value": "+1234567891",
+                  "type": "text"
+                },
+                {
+                  "key": "company_employee_whatsappnumber",
+                  "value": "+1234567891",
                   "type": "text"
                 },
                 {

@@ -557,6 +557,7 @@ class ApiController extends Controller
                     'name',
                     'email',
                     'mobile',
+                    'whatsappnumber',
                     'fcm_id',
                     'address',
                     'notification',
@@ -929,6 +930,7 @@ class ApiController extends Controller
             'company_employee_username' => 'nullable|string',
             'company_employee_email' => 'nullable|email',
             'company_employee_phone_number' => 'nullable|string',
+            'company_employee_whatsappnumber' => 'nullable|string',
             'category_id'       => 'required',
             'property_type'     => 'required',
             'property_classification' => 'nullable|integer|between:1,5',
@@ -1042,6 +1044,7 @@ class ApiController extends Controller
             $saveProperty->company_employee_username = (isset($request->company_employee_username)) ? $request->company_employee_username : null;
             $saveProperty->company_employee_email = (isset($request->company_employee_email)) ? $request->company_employee_email : null;
             $saveProperty->company_employee_phone_number = (isset($request->company_employee_phone_number)) ? $request->company_employee_phone_number : null;
+            $saveProperty->company_employee_whatsappnumber = (isset($request->company_employee_whatsappnumber)) ? $request->company_employee_whatsappnumber : null;
             $saveProperty->address = $request->address;
             $saveProperty->client_address = (isset($request->client_address)) ? $request->client_address : '';
             $saveProperty->propery_type = $request->property_type;
@@ -1479,6 +1482,7 @@ class ApiController extends Controller
             'company_employee_username' => 'nullable|string',
             'company_employee_email' => 'nullable|email',
             'company_employee_phone_number' => 'nullable|string',
+            'company_employee_whatsappnumber' => 'nullable|string',
             'category_id'           => 'nullable',
             'slug_id'               => 'nullable',
             'property_type'         => 'nullable',
@@ -1651,6 +1655,10 @@ class ApiController extends Controller
 
                     if (isset($request->company_employee_phone_number)) {
                         $property->company_employee_phone_number = $request->company_employee_phone_number;
+                    }
+
+                    if (isset($request->company_employee_whatsappnumber)) {
+                        $property->company_employee_whatsappnumber = $request->company_employee_whatsappnumber;
                     }
 
                     if (isset($request->address)) {

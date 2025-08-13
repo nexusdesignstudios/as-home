@@ -471,6 +471,7 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['company_employee_username'] = $row->company_employee_user_name;
         $tempRow['company_employee_phone_number'] = $row->company_employee_phone_number;
         $tempRow['company_employee_email'] = $row->company_employee_email;
+        $tempRow['company_employee_whatsappnumber'] = $row->company_employee_whatsappnumber;
         // Add revenue and reservation fields
         $tempRow['revenue_user_name'] = $row->revenue_user_name;
         $tempRow['revenue_phone_number'] = $row->revenue_phone_number;
