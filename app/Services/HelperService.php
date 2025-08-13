@@ -373,6 +373,37 @@ class HelperService
                             ],
                         )
                     );
+                case 'selling_or_renting_contract':
+                    return array(
+                        'title' => 'Selling or Renting All Cases Contract',
+                        'type' => 'selling_or_renting_contract_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_address',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'agreement_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'le_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'contract_date',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
             }
         }
 
@@ -417,6 +448,10 @@ class HelperService
             [
                 'title' => 'Monthly Tax Invoice',
                 'type' => 'monthly_tax_invoice',
+            ],
+            [
+                'title' => 'Selling or Renting All Cases Contract',
+                'type' => 'selling_or_renting_contract',
             ],
         );
     }

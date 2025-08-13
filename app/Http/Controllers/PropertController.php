@@ -1488,6 +1488,51 @@ class PropertController extends Controller
                     Log::error("Something Went Wrong in Property Status Update Mail Sending");
                 }
 
+                // Send contract email when property is approved
+                if ($request->request_status == "approved") {
+                    try {
+                        if (!empty($propertyData->customer->email)) {
+                            // Get Data of email type
+                            $contractEmailTypeData = HelperService::getEmailTemplatesTypes("selling_or_renting_contract");
+
+                            // Email Template
+                            $contractTemplateData = system_setting($contractEmailTypeData['type']);
+                            $appName = env("APP_NAME") ?? "eBroker";
+
+                            // Get current date for contract
+                            $currentDate = now();
+                            $agreementYear = $currentDate->format('d F Y');
+                            $contractDate = $currentDate->format('F d, Y');
+
+                            // Generate LE ID (you can modify this logic as needed)
+                            $leId = 'LE-' . $propertyData->id; // This can be made dynamic if needed
+
+                            $variables = array(
+                                'app_name' => $appName,
+                                'partner_name' => $propertyData->customer->name,
+                                'partner_address' => $propertyData->customer->address ?? 'Address not provided',
+                                'agreement_year' => $agreementYear,
+                                'le_id' => $leId,
+                                'contract_date' => $contractDate,
+                            );
+
+                            if (empty($contractTemplateData)) {
+                                $contractTemplateData = "Your Partner Agreement with {app_name}";
+                            }
+                            $contractTemplate = HelperService::replaceEmailVariables($contractTemplateData, $variables);
+
+                            $contractData = array(
+                                'email_template' => $contractTemplate,
+                                'email' => $propertyData->customer->email,
+                                'title' => $contractEmailTypeData['title'],
+                            );
+                            HelperService::sendMail($contractData);
+                        }
+                    } catch (Exception $e) {
+                        Log::error("Something Went Wrong in Contract Email Sending: " . $e->getMessage());
+                    }
+                }
+
 
 
                 // Send Notification

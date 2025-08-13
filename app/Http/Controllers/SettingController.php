@@ -836,7 +836,7 @@ class SettingController extends Controller
         if (!has_permissions('read', 'email_templates')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
-        $types = array('verify_mail', 'reset_password', 'welcome_mail', 'property_status', 'project_status', 'property_ads_status', 'user_status', 'agent_verification_status', 'reservation_confirmation', 'monthly_tax_invoice');
+        $types = array('verify_mail', 'reset_password', 'welcome_mail', 'property_status', 'project_status', 'property_ads_status', 'user_status', 'agent_verification_status', 'reservation_confirmation', 'monthly_tax_invoice', 'selling_or_renting_contract');
         if (!in_array($type, $types)) {
             ResponseService::errorRedirectResponse("Type is invalid");
         }
