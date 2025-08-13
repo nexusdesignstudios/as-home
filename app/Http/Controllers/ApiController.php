@@ -6044,18 +6044,12 @@ class ApiController extends Controller
             $offset = isset($request->offset) ? $request->offset : 0;
             $limit = isset($request->limit) ? $request->limit : 10;
 
-            // Create a property query
+            // Create a property query with basic filters
             $propertyQuery = Property::whereIn('propery_type', [0, 1])->where(function ($query) {
                 return $query->where(['status' => 1, 'request_status' => 'approved']);
             });
 
-            // If Property Type Passed
-            $property_type = $request->property_type;  //0 : Sell 1:Rent
-            if (isset($property_type) && (!empty($property_type) || $property_type == 0)) {
-                $propertyQuery = $propertyQuery->clone()->where('propery_type', $property_type);
-            }
-
-            // If Property Classification Passed
+            // Property Classification should be applied first
             if ($request->has('property_classification') && !empty($request->property_classification)) {
                 $propertyQuery = $propertyQuery->clone()->where('property_classification', $request->property_classification);
 
@@ -6063,6 +6057,12 @@ class ApiController extends Controller
                 if ($request->property_classification == 5 && $request->has('hotel_apartment_type_id') && !empty($request->hotel_apartment_type_id)) {
                     $propertyQuery = $propertyQuery->clone()->where('hotel_apartment_type_id', $request->hotel_apartment_type_id);
                 }
+            }
+
+            // If Property Type Passed (after property classification)
+            $property_type = $request->property_type;  //0 : Sell 1:Rent
+            if (isset($property_type) && (!empty($property_type) || $property_type == 0)) {
+                $propertyQuery = $propertyQuery->clone()->where('propery_type', $property_type);
             }
 
             // If Category Id is Passed
