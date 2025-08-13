@@ -1087,22 +1087,21 @@ class PropertController extends Controller
             $tempRow = $row->toArray();
             $tempRow['property_type_raw'] = $row->getRawOriginal('propery_type');
 
-            if ($row->added_by == 0) {
-                if (has_permissions('update', 'property')) {
+            // Always show edit button for properties that are approved
+            if (has_permissions('update', 'property')) {
+                if ($row->request_status == "approved") {
                     $operate = BootstrapTableService::editButton(route('property.edit', $row->id), false);
-                }
-                if (has_permissions('delete', 'property')) {
-                    $operate .= BootstrapTableService::deleteButton(route('property.destroy', $row->id));
-                }
-            } else {
-                if (has_permissions('update', 'property')) {
+                } else {
+                    // Show Change Status button for properties that are not approved
                     $requestStatusButtonCustomClasses = ["btn", "icon", "btn-warning", "btn-sm", "rounded-pill", "request-status-btn"];
                     $requestStatusButtonCustomAttributes = ["id" => $row->id, "title" => trans('Change Status'), "data-toggle" => "modal", "data-bs-target" => "#changeRequestStatusModal", "data-bs-toggle" => "modal"];
                     $operate = BootstrapTableService::button('fa fa-exclamation-circle', '', $requestStatusButtonCustomClasses, $requestStatusButtonCustomAttributes);
                 }
-                if (has_permissions('delete', 'property')) {
-                    $operate .= BootstrapTableService::deleteButton(route('property.destroy', $row->id));
-                }
+            }
+
+            // Add delete button if user has permission
+            if (has_permissions('delete', 'property')) {
+                $operate .= BootstrapTableService::deleteButton(route('property.destroy', $row->id));
             }
             $onlyDeleteOperate = BootstrapTableService::deleteButton(route('property.destroy', $row->id));
 
