@@ -619,22 +619,20 @@ class ApiController extends Controller
 
                 // Update Profile
                 if ($request->hasFile('profile')) {
-                    $destinationPath = public_path('images') . config('global.USER_IMG_PATH');
-                    if (!is_dir($destinationPath)) {
-                        mkdir($destinationPath, 0777, true);
-                    }
-
                     $old_image = $customer->profile;
                     $profile = $request->file('profile');
-                    $imageName = microtime(true) . "." . $profile->getClientOriginalExtension();
 
-                    if ($profile->move($destinationPath, $imageName)) {
+                    // Use store_image function for consistent file handling
+                    $imageName = store_image($profile, 'USER_IMG_PATH');
+
+                    if ($imageName) {
                         $customer->profile = $imageName;
+
+                        // Delete old image if it exists
                         if ($old_image != '') {
-                            if (file_exists(public_path('images') . config('global.USER_IMG_PATH') . $old_image)) {
-                                unlink(public_path('images') . config('global.USER_IMG_PATH') . $old_image);
-                            }
+                            unlink_image($old_image);
                         }
+
                         $customer->update();
                     }
                 }
