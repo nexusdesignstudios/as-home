@@ -7773,7 +7773,7 @@ class ApiController extends Controller
                 'source_property' => $sourcePropertyData,
                 'target_property' => $targetPropertyData
             );
-            return ApiResponseService::successResponse("Properties compared successfully", $data);
+            return ApiResponseService::successResponseReturn("Properties compared successfully", $data);
         } catch (Exception $e) {
             return ApiResponseService::errorResponse($e->getMessage());
         }
