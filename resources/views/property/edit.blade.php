@@ -503,9 +503,7 @@
                                 {{-- City --}}
                                 <div class="col-md-12 col-12 form-group mandatory">
                                     {{ Form::label('city', __('City'), ['class' => 'form-label col-12 ']) }}
-                                    {!! Form::hidden('city', isset($list->city) ? $list->city : '', ['class' => 'form-control ', 'id' => 'city']) !!}
-                                    <input id="searchInput" value="{{ isset($list->city) ? $list->city : '' }}"  class="controls form-control" type="text" placeholder="{{ __('City') }}">
-                                    {{-- {{ Form::text('city', isset($list->city) ? $list->city : '', ['class' => 'form-control ', 'placeholder' => 'City', 'id' => 'city']) }} --}}
+                                    {{ Form::text('city', isset($list->city) ? $list->city : '', ['class' => 'form-control controls', 'placeholder' => __('City'), 'id' => 'searchInput']) }}
                                 </div>
 
                                 {{-- Country --}}
@@ -641,7 +639,7 @@
 
                         <div class="col-md-3">
                             {{ Form::label('video_link', __('Video Link'), ['class' => 'form-label col-12 ']) }}
-                            {{ Form::text('video_link', isset($list->video_link) ? $list->video_link : '', ['class' => 'form-control ', 'placeholder' => trans('Video Link'), 'id' => 'address', 'autocomplete' => 'off']) }}
+                            {{ Form::text('video_link', isset($list->video_link) ? $list->video_link : '', ['class' => 'form-control ', 'placeholder' => trans('Video Link'), 'id' => 'video_link', 'autocomplete' => 'off']) }}
 
                         </div>
                     </div>
@@ -683,6 +681,8 @@
             var longitude = parseFloat($('#longitude').val()) || 78.96288;
 
             console.log("Map initialization with coordinates:", latitude, longitude);
+            console.log("Raw latitude value:", $('#latitude').val());
+            console.log("Raw longitude value:", $('#longitude').val());
 
             var map = new google.maps.Map(document.getElementById('map'), {
                 center: {
@@ -725,7 +725,6 @@
 
                             // Do something with the city, state, country, and full address
                             $('#searchInput').val(city);
-                            $('#city').val(city);
                             $('#country').val(country);
                             $('#state').val(state);
                             $('#address').val(full_address);
@@ -794,20 +793,14 @@
                     console.log(place);
 
                     if (place.address_components[i].types[0] == 'locality') {
-                        $('#city').val(place.address_components[i].long_name);
-
-
+                        $('#searchInput').val(place.address_components[i].long_name);
                     }
                     if (place.address_components[i].types[0] == 'country') {
                         $('#country').val(place.address_components[i].long_name);
-
-
                     }
                     if (place.address_components[i].types[0] == 'administrative_area_level_1') {
                         console.log(place.address_components[i].long_name);
                         $('#state').val(place.address_components[i].long_name);
-
-
                     }
                 }
                 var latitude = place.geometry.location.lat();
@@ -819,6 +812,15 @@
         }
 
         $(document).ready(function() {
+            // Debug form values on page load
+            console.log("Form values on page load:");
+            console.log("City:", $('#searchInput').val());
+            console.log("Country:", $('#country').val());
+            console.log("State:", $('#state').val());
+            console.log("Latitude:", $('#latitude').val());
+            console.log("Longitude:", $('#longitude').val());
+            console.log("Address:", $('#address').val());
+
             $('.reset-form').on('click',function(e){
                 e.preventDefault();
                 $('#myForm')[0].reset();
@@ -1231,6 +1233,15 @@
 
             // Form validation before submit
             $('#myForm').on('submit', function(e) {
+                // Debug form values before submission
+                console.log("Form values before submission:");
+                console.log("City:", $('#searchInput').val());
+                console.log("Country:", $('#country').val());
+                console.log("State:", $('#state').val());
+                console.log("Latitude:", $('#latitude').val());
+                console.log("Longitude:", $('#longitude').val());
+                console.log("Address:", $('#address').val());
+
                 var agentAddonsValue = $('#agent_addons_field').val().trim();
                 if (agentAddonsValue) {
                     try {
