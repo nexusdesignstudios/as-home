@@ -6681,7 +6681,7 @@ class ApiController extends Controller
                     $projectArray['created_at'] = $project->created_at->diffForHumans();
                     return $projectArray;
                 });
-                ApiResponseService::successResponse("Data Fetched Successfully", $data, array('total' => $total));
+                return ApiResponseService::successResponseReturn("Data Fetched Successfully", $data, array('total' => $total));
             }
         } catch (Exception $e) {
             ApiResponseService::errorResponse();
@@ -6758,7 +6758,7 @@ class ApiController extends Controller
                 }
                 return $project;
             });
-            ApiResponseService::successResponse("Data Fetched Successfully", $data, array('total' => $total));
+            return ApiResponseService::successResponseReturn("Data Fetched Successfully", $data, array('total' => $total));
         } catch (Exception $e) {
             ApiResponseService::errorResponse();
         }
