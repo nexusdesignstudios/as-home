@@ -1134,7 +1134,11 @@ class PropertController extends Controller
             $tempRow['edit_status_url'] = $row->added_by == 0 && $row->request_status == "approved" ? 'updatepropertystatus' : null;
             $tempRow['price'] = $price;
             $featured = count($row->advertisement) ? '<div class="featured_tag"><div class="featured_lable">Featured</div></div>' : '';
-            $tempRow['Property_name'] = '<div class="propetrty_name d-flex"><img class="property_image" alt="" src="' . $row->title_image . '"><div class="property_detail"><div class="property_title">' . $row->title . '</div>' . $featured . '</div></div></div>';
+
+            // Rewrite title_image URL if using S3
+            $titleImageUrl = $this->rewriteImageUrl($row->title_image);
+
+            $tempRow['Property_name'] = '<div class="propetrty_name d-flex"><img class="property_image" alt="" src="' . $titleImageUrl . '"><div class="property_detail"><div class="property_title">' . $row->title . '</div>' . $featured . '</div></div></div>';
 
             if ($row->added_by != 0) {
                 $tempRow['added_by'] = $row->customer->name;
@@ -1665,5 +1669,37 @@ class PropertController extends Controller
         } catch (Exception $e) {
             Log::error("Something Went Wrong in Contract Email Sending for type {$contractType}: " . $e->getMessage());
         }
+    }
+
+    /**
+     * Rewrite image URL to use S3 if configured
+     *
+     * @param string $imageUrl
+     * @return string
+     */
+    private function rewriteImageUrl($imageUrl)
+    {
+        // Only rewrite when using S3
+        $disk = env('FILESYSTEM_DISK', config('filesystems.default', 'local'));
+        if ($disk !== 's3') {
+            return $imageUrl;
+        }
+
+        $s3Base = rtrim((string) config('filesystems.disks.s3.url')
+            ?: (string) config('filesystems.disks.s3.endpoint'), '/');
+        if ($s3Base === '') {
+            $bucket = config('filesystems.disks.s3.bucket');
+            $region = config('filesystems.disks.s3.region');
+            $s3Base = "https://{$bucket}.s3.{$region}.amazonaws.com";
+        }
+
+        // Match URLs that contain /images/, /json/, or /assets/images/ from any domain
+        if (preg_match('#^https?://[^/]+(/images/[^/]+.*)$#', $imageUrl, $matches)) {
+            return $s3Base . $matches[1];
+        } elseif (preg_match('#^https?://[^/]+(/json/[^/]+.*)$#', $imageUrl, $matches)) {
+            return $s3Base . $matches[1];
+        }
+
+        return $imageUrl;
     }
 }
