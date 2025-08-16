@@ -8323,13 +8323,17 @@ class ApiController extends Controller
                     $propertiesByCities = [];
                     foreach ($citiesData as $city) {
                         if (!empty($city->getRawOriginal('image'))) {
-                            $url = $city->image;
-                            $relativePath = parse_url($url, PHP_URL_PATH);
-                            if (file_exists(public_path()  . $relativePath)) {
-                                array_push($propertiesByCities, ['City' => $city->city, 'Count' => $city->property_count, 'image' => $city->image]);
-                                continue;
-                            }
+                            $rewrittenImageUrl = $this->rewriteImageUrl($city->image);
+
+                            array_push($propertiesByCities, [
+                                'City' => $city->city,
+                                'Count' => $city->property_count,
+                                'image' => $rewrittenImageUrl
+                            ]);
+                            continue;
                         }
+
+                        // في حالة عدم وجود صورة، استخدم Unsplash
                         $resultArray = $this->getUnsplashData($city);
                         array_push($propertiesByCities, $resultArray);
                     }
@@ -8343,7 +8347,31 @@ class ApiController extends Controller
         }
         return $sections;
     }
+    private function rewriteImageUrl($imageUrl)
+    {
+        // Only rewrite when using S3
+        $disk = env('FILESYSTEM_DISK', config('filesystems.default', 'local'));
+        if ($disk !== 's3') {
+            return $imageUrl;
+        }
 
+        $s3Base = rtrim((string) config('filesystems.disks.s3.url')
+            ?: (string) config('filesystems.disks.s3.endpoint'), '/');
+        if ($s3Base === '') {
+            $bucket = config('filesystems.disks.s3.bucket');
+            $region = config('filesystems.disks.s3.region');
+            $s3Base = "https://{$bucket}.s3.{$region}.amazonaws.com";
+        }
+
+        // Match URLs that contain /images/, /json/, or /assets/images/ from any domain
+        if (preg_match('#^https?://[^/]+(/images/[^/]+.*)$#', $imageUrl, $matches)) {
+            return $s3Base . $matches[1];
+        } elseif (preg_match('#^https?://[^/]+(/json/[^/]+.*)$#', $imageUrl, $matches)) {
+            return $s3Base . $matches[1];
+        }
+
+        return $imageUrl;
+    }
     /**
      * Get the data of a property
      */
