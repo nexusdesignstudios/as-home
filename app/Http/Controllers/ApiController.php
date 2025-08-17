@@ -921,6 +921,13 @@ class ApiController extends Controller
     //* START :: post_property   *//
     public function post_property(Request $request)
     {
+        // Override PHP upload limits for this endpoint
+        ini_set('upload_max_filesize', '100M');
+        ini_set('post_max_size', '100M');
+        ini_set('max_execution_time', 300);
+        ini_set('max_input_time', 300);
+        ini_set('memory_limit', '512M');
+
         $validator = Validator::make($request->all(), [
             'title'             => 'required',
             'description'       => 'required',
@@ -933,15 +940,15 @@ class ApiController extends Controller
             'property_type'     => 'required',
             'property_classification' => 'nullable|integer|between:1,5',
             'address'           => 'required',
-            'title_image'       => 'required|file|max:3000|mimes:jpeg,png,jpg',
-            'three_d_image'     => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
-            'documents.*'       => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
-            'policy_data'       => 'mimes:pdf,doc,docx,txt|max:5120',
+            'title_image'       => 'required|file|mimes:jpeg,png,jpg',
+            'three_d_image'     => 'nullable|mimes:jpg,jpeg,png,gif',
+            'documents.*'       => 'nullable|mimes:pdf,doc,docx,txt',
+            'policy_data'       => 'mimes:pdf,doc,docx,txt',
             'weekend_commission' => 'nullable|numeric|min:0|max:100',
-            'identity_proof'    => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
-            'national_id_passport' => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
-            'utilities_bills'   => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
-            'power_of_attorney' => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
+            'identity_proof'    => 'nullable|mimes:jpg,jpeg,png,gif',
+            'national_id_passport' => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx',
+            'utilities_bills'   => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx',
+            'power_of_attorney' => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx',
             'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
             'available_dates'   => 'nullable|json|required_if:property_classification,4',
             'refund_policy'     => 'nullable|in:flexible,non-refundable',
@@ -1006,7 +1013,7 @@ class ApiController extends Controller
             'certificates'      => 'nullable|array',
             'certificates.*.title' => 'required_with:certificates',
             'certificates.*.description' => 'nullable|string',
-            'certificates.*.file' => 'required_with:certificates|file|max:5120|mimes:jpeg,png,jpg,pdf,doc,docx',
+            'certificates.*.file' => 'required_with:certificates|file|mimes:jpeg,png,jpg,pdf,doc,docx',
             'revenue_user_name' => 'nullable|string',
             'revenue_phone_number' => 'nullable|string',
             'revenue_email' => 'nullable|email',
@@ -1471,6 +1478,13 @@ class ApiController extends Controller
     /// This api use for update and delete  property
     public function update_post_property(Request $request)
     {
+        // Override PHP upload limits for this endpoint
+        ini_set('upload_max_filesize', '100M');
+        ini_set('post_max_size', '100M');
+        ini_set('max_execution_time', 300);
+        ini_set('max_input_time', 300);
+        ini_set('memory_limit', '512M');
+
         $validator = Validator::make($request->all(), [
             'id'                    => 'required|exists:propertys,id',
             'action_type'           => 'required',
@@ -1496,16 +1510,16 @@ class ApiController extends Controller
             'meta_description'      => 'nullable',
             'meta_keywords'         => 'nullable',
             'is_premium'            => 'nullable',
-            'title_image'           => 'nullable|file|max:3000|mimes:jpeg,png,jpg',
-            'three_d_image'         => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
+            'title_image'           => 'nullable|file|mimes:jpeg,png,jpg',
+            'three_d_image'         => 'nullable|mimes:jpg,jpeg,png,gif',
             'remove_three_d_image'  => 'nullable|in:0,1',
-            'documents.*'           => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
-            'policy_data'           => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
+            'documents.*'           => 'nullable|mimes:pdf,doc,docx,txt',
+            'policy_data'           => 'nullable|mimes:pdf,doc,docx,txt',
             'weekend_commission'    => 'nullable|numeric|min:0|max:100',
-            'identity_proof'        => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
-            'national_id_passport'  => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
-            'utilities_bills'       => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
-            'power_of_attorney'     => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
+            'identity_proof'        => 'nullable|mimes:jpg,jpeg,png,gif',
+            'national_id_passport'  => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx',
+            'utilities_bills'       => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx',
+            'power_of_attorney'     => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx',
             'property_classification' => 'nullable|integer|between:1,5',
             'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
             'available_dates'   => 'nullable|json|required_if:property_classification,4',
@@ -1579,7 +1593,7 @@ class ApiController extends Controller
             'certificates.*.id' => 'nullable|exists:property_certificates,id',
             'certificates.*.title' => 'required_with:certificates',
             'certificates.*.description' => 'nullable|string',
-            'certificates.*.file' => 'required_with:certificates|file|max:5120|mimes:jpeg,png,jpg,pdf,doc,docx',
+            'certificates.*.file' => 'required_with:certificates|file|mimes:jpeg,png,jpg,pdf,doc,docx',
             'revenue_user_name' => 'nullable|string',
             'revenue_phone_number' => 'nullable|string',
             'revenue_email' => 'nullable|email',
@@ -3292,8 +3306,8 @@ class ApiController extends Controller
             'sender_id' => 'required',
             'receiver_id' => 'required',
             'property_id' => 'required',
-            'file' => 'nullable|mimes:png,jpg,jpeg,pdf,doc,docx|max:2024',
-            'audio' => 'nullable|mimes:mpeg,m4a,mp3,mp4|max:5024'
+            'file' => 'nullable|mimes:png,jpg,jpeg,pdf,doc,docx',
+            'audio' => 'nullable|mimes:mpeg,m4a,mp3,mp4'
         ]);
         if ($validator->fails()) {
             return response()->json([
@@ -4395,7 +4409,7 @@ class ApiController extends Controller
             $validator = Validator::make($request->all(), [
                 'title'         => 'required',
                 'description'   => 'required',
-                'image'         => 'required|file|max:3000|mimes:jpeg,png,jpg',
+                'image'         => 'required|file|mimes:jpeg,png,jpg',
                 'category_id'   => 'required',
                 'city'          => 'required',
                 'state'         => 'required',
@@ -7569,7 +7583,7 @@ class ApiController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'package_id' => 'required|exists:packages,id',
-                'file' => 'required|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:3072',
+                'file' => 'required|file|mimes:jpeg,png,jpg,pdf,doc,docx',
             ]);
 
             if ($validator->fails()) {
@@ -7636,7 +7650,7 @@ class ApiController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'payment_transaction_id' => 'required',
-                'file' => 'required|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:3072',
+                'file' => 'required|file|mimes:jpeg,png,jpg,pdf,doc,docx',
             ]);
 
             if ($validator->fails()) {
