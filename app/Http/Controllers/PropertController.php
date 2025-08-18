@@ -1090,11 +1090,9 @@ class PropertController extends Controller
             // Initialize operate variable
             $operate = '';
 
-            // Always show edit button for properties that are approved
+            // Always show edit button for all properties
             if (has_permissions('update', 'property')) {
-                if ($row->request_status == "approved") {
-                    $operate = BootstrapTableService::editButton(route('property.edit', $row->id), false);
-                }
+                $operate = BootstrapTableService::editButton(route('property.edit', $row->id), false);
             }
 
             // Always show Update Property Status button
