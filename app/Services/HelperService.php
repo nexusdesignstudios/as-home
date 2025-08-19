@@ -590,6 +590,37 @@ class HelperService
                             ],
                         )
                     );
+                case 'property_client_meeting':
+                    return array(
+                        'title' => 'Property Client Meeting Notification',
+                        'type' => 'property_client_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'customer_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'client_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'corresponding_day',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'client_number',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'client_email',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
             }
         }
 
@@ -662,6 +693,10 @@ class HelperService
             [
                 'title' => 'Hotel Booking Contract',
                 'type' => 'hotel_booking',
+            ],
+            [
+                'title' => 'Property Client Meeting Notification',
+                'type' => 'property_client_meeting',
             ],
         );
     }

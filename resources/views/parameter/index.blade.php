@@ -4,6 +4,10 @@
     {{ __('Facility') }}
 @endsection
 
+@section('css')
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+@endsection
+
 @section('page-title')
     <div class="page-title">
         <div class="row">
@@ -109,8 +113,8 @@
                                         <th scope="col" data-field="type_of_parameter"> {{ __('Type') }}</th>
                                         <th scope="col" data-field="is_required" data-formatter="yesNoStatusFormatter"> {{ __('Is Required ?') }}</th>
                                         <th scope="col" data-field="value" data-sortable="true">{{ __('Value') }}</th>
-                                        @if (has_permissions('update', 'facility'))
-                                            <th scope="col" data-field="operate" data-sortable="false" data-events="parameterEvents">{{ __('Action') }} </th>
+                                        @if (has_permissions('update', 'facility') || has_permissions('delete', 'facility'))
+                                            <th scope="col" data-field="operate" data-sortable="false" data-events="parameterEvents" data-formatter="actionFormatter">{{ __('Action') }} </th>
                                         @endif
                                     </tr>
                                 </thead>
@@ -188,6 +192,21 @@
                 search: p.search
             };
         }
+
+        function actionFormatter(value, row, index) {
+            let html = '';
+
+            @if (has_permissions('update', 'facility'))
+                html += '<button class="btn btn-sm btn-primary edit_btn" data-bs-toggle="modal" data-bs-target="#editModal" title="{{ __("Edit") }}"><i class="bi bi-pencil-square"></i></button>';
+            @endif
+
+            @if (has_permissions('delete', 'facility'))
+                html += '&nbsp;<button class="btn btn-sm btn-danger delete_btn" title="{{ __("Delete") }}"><i class="bi bi-trash"></i></button>';
+            @endif
+
+            return html;
+        }
+
         window.parameterEvents = {
             'click .edit_btn': function(e, value, row, index) {
                 $("#edit_id").val(row.id);
@@ -203,6 +222,51 @@
                 }else{
                     $("#edit-is-required").prop('checked', false);
                 }
+            },
+            'click .delete_btn': function(e, value, row, index) {
+                Swal.fire({
+                    title: '{{ __("Are you sure?") }}',
+                    text: "{{ __('You won\'t be able to revert this!') }}",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: '{{ __("Yes, delete it!") }}',
+                    cancelButtonText: '{{ __("Cancel") }}'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            url: '{{ url("parameters") }}/' + row.id,
+                            type: 'DELETE',
+                            data: {
+                                _token: '{{ csrf_token() }}'
+                            },
+                            success: function(response) {
+                                if (response.error === false) {
+                                    Swal.fire(
+                                        '{{ __("Deleted!") }}',
+                                        response.message,
+                                        'success'
+                                    );
+                                    $('#table_list').bootstrapTable('refresh');
+                                } else {
+                                    Swal.fire(
+                                        '{{ __("Error!") }}',
+                                        response.message,
+                                        'error'
+                                    );
+                                }
+                            },
+                            error: function(xhr) {
+                                Swal.fire(
+                                    '{{ __("Error!") }}',
+                                    '{{ __("Something went wrong!") }}',
+                                    'error'
+                                );
+                            }
+                        });
+                    }
+                });
             }
         }
         window.onload = function() {

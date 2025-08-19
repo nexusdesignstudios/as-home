@@ -83,6 +83,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::post('interested_users', [ApiController::class, 'interested_users']);
     Route::post('change-property-status', [ApiController::class, 'changePropertyStatus']);
     Route::post('save-property-question-answers', [ApiController::class, 'savePropertyQuestionAnswers']);
+    Route::post('send-property-client-email', [ApiController::class, 'sendPropertyClientEmail']);
     Route::get('get_favourite_property', [ApiController::class, 'get_favourite_property']);
     Route::get('get_property_inquiry', [ApiController::class, 'get_property_inquiry']);
     Route::get('get-added-properties', [ApiController::class, 'getAddedProperties']);

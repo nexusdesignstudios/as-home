@@ -81,6 +81,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 use App\Services\ApiResponseService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Twilio\Exceptions\RestException;
@@ -8640,6 +8641,94 @@ class ApiController extends Controller
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
+    /**
+     * Send email to property customer with client details
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function sendPropertyClientEmail(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'property_id' => 'required|exists:propertys,id',
+            'client_name' => 'required|string',
+            'client_number' => 'required|string',
+            'client_email' => 'required|email'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'error' => true,
+                'message' => $validator->errors()->first()
+            ], 422);
+        }
+
+        try {
+            // Get property with customer
+            $property = Property::with('customer')->findOrFail($request->property_id);
+
+            if (!$property->customer) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Property customer not found'
+                ], 404);
+            }
+
+            // Get Data of email type
+            $emailTypeData = HelperService::getEmailTemplatesTypes("property_client_meeting");
+
+            // Email Template
+            $emailTemplateData = system_setting($emailTypeData['type']);
+            $appName = Setting::where('type', 'app_name')->first();
+            $appNameValue = $appName ? $appName->data : config('app.name');
+
+            // Handle corresponding day (could be JSON)
+            $correspondingDay = '';
+            if ($property->corresponding_day) {
+                if (is_array($property->corresponding_day)) {
+                    $correspondingDay = implode(', ', $property->corresponding_day);
+                } else {
+                    $correspondingDay = $property->corresponding_day;
+                }
+            }
+
+            // Prepare variables for email template
+            $variables = array(
+                'app_name' => $appNameValue,
+                'customer_name' => $property->customer->name,
+                'client_name' => $request->client_name,
+                'corresponding_day' => $correspondingDay,
+                'client_number' => $request->client_number,
+                'client_email' => $request->client_email,
+            );
+
+            if (empty($emailTemplateData)) {
+                $emailTemplateData = "Dear {customer_name}, Mr. {client_name} will see you in {corresponding_day}. His contact details: Phone: {client_number}, Email: {client_email}";
+            }
+
+            $emailTemplate = HelperService::replaceEmailVariables($emailTemplateData, $variables);
+
+            $data = array(
+                'email_template' => $emailTemplate,
+                'email' => $property->customer->email,
+                'title' => $emailTypeData['title'],
+            );
+
+            // Send email
+            HelperService::sendMail($data);
+
+            return response()->json([
+                'error' => false,
+                'message' => 'Email sent successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => true,
+                'message' => 'Failed to send email: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function getPropertyQuestionFields(Request $request)
     {
         $validator = Validator::make($request->all(), [
