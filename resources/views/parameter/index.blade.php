@@ -6,6 +6,19 @@
 
 @section('css')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <style>
+        /* Fix opacity issues with action buttons */
+        .table .btn {
+            opacity: 1 !important;
+        }
+        .bootstrap-table .fixed-table-container .table tbody tr td .btn {
+            opacity: 1 !important;
+        }
+        .table-hover tbody tr:hover .btn {
+            opacity: 1 !important;
+        }
+    </style>
 @endsection
 
 @section('page-title')
@@ -183,6 +196,12 @@
 
 @section('script')
     <script>
+        // Set up AJAX CSRF token
+        $.ajaxSetup({
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            }
+        });
         function queryParams(p) {
             return {
                 sort: p.sort,
@@ -193,15 +212,15 @@
             };
         }
 
-        function actionFormatter(value, row, index) {
+                                function actionFormatter(value, row, index) {
             let html = '';
 
             @if (has_permissions('update', 'facility'))
-                html += '<button class="btn btn-sm btn-primary edit_btn" data-bs-toggle="modal" data-bs-target="#editModal" title="{{ __("Edit") }}"><i class="bi bi-pencil-square"></i></button>';
+                html += '<button class="btn btn-sm btn-primary edit_btn" data-bs-toggle="modal" data-bs-target="#editModal" title="{{ __("Edit") }}" style="opacity: 1 !important;"><i class="bi bi-pencil-square"></i></button>';
             @endif
 
             @if (has_permissions('delete', 'facility'))
-                html += '&nbsp;<button class="btn btn-sm btn-danger delete_btn" title="{{ __("Delete") }}"><i class="bi bi-trash"></i></button>';
+                html += '&nbsp;<button class="btn btn-sm btn-danger delete_btn" title="{{ __("Delete") }}" style="opacity: 1 !important;"><i class="bi bi-trash"></i></button>';
             @endif
 
             return html;
@@ -224,6 +243,8 @@
                 }
             },
             'click .delete_btn': function(e, value, row, index) {
+                e.preventDefault();
+
                 Swal.fire({
                     title: '{{ __("Are you sure?") }}',
                     text: "{{ __('You won\'t be able to revert this!') }}",
@@ -238,17 +259,19 @@
                         $.ajax({
                             url: '{{ url("parameters") }}/' + row.id,
                             type: 'DELETE',
-                            data: {
-                                _token: '{{ csrf_token() }}'
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                             },
                             success: function(response) {
                                 if (response.error === false) {
-                                    Swal.fire(
-                                        '{{ __("Deleted!") }}',
-                                        response.message,
-                                        'success'
-                                    );
-                                    $('#table_list').bootstrapTable('refresh');
+                                    Swal.fire({
+                                        title: '{{ __("Deleted!") }}',
+                                        text: response.message,
+                                        icon: 'success',
+                                        confirmButtonText: '{{ __("OK") }}'
+                                    }).then(() => {
+                                        $('#table_list').bootstrapTable('refresh');
+                                    });
                                 } else {
                                     Swal.fire(
                                         '{{ __("Error!") }}',
@@ -258,6 +281,7 @@
                                 }
                             },
                             error: function(xhr) {
+                                console.error(xhr);
                                 Swal.fire(
                                     '{{ __("Error!") }}',
                                     '{{ __("Something went wrong!") }}',

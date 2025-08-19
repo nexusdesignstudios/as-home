@@ -8653,7 +8653,8 @@ class ApiController extends Controller
             'property_id' => 'required|exists:propertys,id',
             'client_name' => 'required|string',
             'client_number' => 'required|string',
-            'client_email' => 'required|email'
+            'client_email' => 'required|email',
+            'corresponding_day' => 'required|string'
         ]);
 
         if ($validator->fails()) {
@@ -8682,15 +8683,8 @@ class ApiController extends Controller
             $appName = Setting::where('type', 'app_name')->first();
             $appNameValue = $appName ? $appName->data : config('app.name');
 
-            // Handle corresponding day (could be JSON)
-            $correspondingDay = '';
-            if ($property->corresponding_day) {
-                if (is_array($property->corresponding_day)) {
-                    $correspondingDay = implode(', ', $property->corresponding_day);
-                } else {
-                    $correspondingDay = $property->corresponding_day;
-                }
-            }
+            // Get corresponding day from request
+            $correspondingDay = $request->corresponding_day;
 
             // Prepare variables for email template
             $variables = array(

@@ -44,7 +44,7 @@ class ParameterController extends Controller
             $opt_value = null;
 
             // Convert The option data to json encode
-            if(isset($request->opt)){
+            if (isset($request->opt)) {
                 $opt_value = json_encode($request->opt, JSON_FORCE_OBJECT);
             }
 
@@ -187,6 +187,51 @@ class ParameterController extends Controller
             $parameter->update();
 
             ResponseService::successRedirectResponse('Parameter Updated Successfully');
+        }
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function destroy($id)
+    {
+        if (!has_permissions('delete', 'facility')) {
+            return response()->json([
+                'error' => true,
+                'message' => PERMISSION_ERROR_MSG
+            ]);
+        }
+
+        try {
+            $parameter = parameter::find($id);
+
+            if (!$parameter) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Parameter not found'
+                ]);
+            }
+
+            // Delete the image file if it exists
+            if ($parameter->image) {
+                unlink_image($parameter->image);
+            }
+
+            // Delete the parameter
+            $parameter->delete();
+
+            return response()->json([
+                'error' => false,
+                'message' => 'Parameter deleted successfully'
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'error' => true,
+                'message' => 'Something went wrong: ' . $e->getMessage()
+            ]);
         }
     }
 }
