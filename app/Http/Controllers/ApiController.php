@@ -3761,33 +3761,30 @@ class ApiController extends Controller
     }
     public function getCitiesData(Request $request)
     {
-        // Get Offset and Limit from payload request
-        $offset = isset($request->offset) ? $request->offset : 0;
-        $limit = isset($request->limit) ? $request->limit : 10;
-        $city_arr = array();
-        $citiesQuery = CityImage::where('status', 1)->withCount(['property' => function ($query) {
-            $query->whereIn('propery_type', [0, 1])->where(['status' => 1, 'request_status' => 'approved']);
-        }])->having('property_count', '>', 0);
-        $totalData = $citiesQuery->clone()->count();
-        $citiesData = $citiesQuery->clone()->orderBy('property_count', 'DESC')->skip($offset)->take($limit)->get();
-        foreach ($citiesData as $city) {
-            if (!empty($city->getRawOriginal('image'))) {
-                $url = $city->image;
-                $relativePath = parse_url($url, PHP_URL_PATH);
-                if (file_exists(public_path()  . $relativePath)) {
+        try {
+            // Get Offset and Limit from payload request
+            $offset = isset($request->offset) ? $request->offset : 0;
+            $limit = isset($request->limit) ? $request->limit : 10;
+            $city_arr = array();
+            $citiesQuery = CityImage::where('status', 1)->withCount(['property' => function ($query) {
+                $query->whereIn('propery_type', [0, 1])->where(['status' => 1, 'request_status' => 'approved']);
+            }])->having('property_count', '>', 0);
+            $totalData = $citiesQuery->clone()->count();
+            $citiesData = $citiesQuery->clone()->orderBy('property_count', 'DESC')->skip($offset)->take($limit)->get();
+            foreach ($citiesData as $city) {
+                if (!empty($city->getRawOriginal('image'))) {
+                    // Always use stored image URL when available; do not gate by local file existence
                     array_push($city_arr, ['City' => $city->city, 'Count' => $city->property_count, 'image' => $city->image]);
                     continue;
                 }
+                $resultArray = $this->getUnsplashData($city);
+                array_push($city_arr, $resultArray);
             }
-            $resultArray = $this->getUnsplashData($city);
-            array_push($city_arr, $resultArray);
+            return ApiResponseService::successResponseReturn("Data Fetched Successfully", $city_arr, array('total' => $totalData));
+        } catch (Exception $e) {
+            ApiResponseService::logErrorResponse($e, 'getCitiesData failed');
+            ApiResponseService::errorResponse();
         }
-        $response['error'] = false;
-        $response['data'] = $city_arr;
-        $response['total'] = $totalData;
-        $response['message'] = "Data Fetched Successfully";
-
-        return response()->json($response);
     }
 
     public function get_facilities(Request $request)
