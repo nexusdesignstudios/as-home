@@ -621,6 +621,37 @@ class HelperService
                             ],
                         )
                     );
+                case 'inquiry_form':
+                    return array(
+                        'title' => 'New Inquiry Form Submission',
+                        'type' => 'inquiry_form_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'first_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'last_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'email',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'subject',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'message',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
             }
         }
 
@@ -697,6 +728,10 @@ class HelperService
             [
                 'title' => 'Property Client Meeting Notification',
                 'type' => 'property_client_meeting',
+            ],
+            [
+                'title' => 'Inquiry Form Submission',
+                'type' => 'inquiry_form',
             ],
         );
     }

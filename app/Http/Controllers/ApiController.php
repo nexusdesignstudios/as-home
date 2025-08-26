@@ -4059,6 +4059,34 @@ class ApiController extends Controller
             $contactrequest->subject = $request->subject;
             $contactrequest->message = $request->message;
             $contactrequest->save();
+
+            // Send inquiry email to Ayman using template
+            try {
+                $emailTypeData = HelperService::getEmailTemplatesTypes('inquiry_form');
+                $templateData = system_setting('inquiry_form_mail_template');
+                $variables = array(
+                    'app_name' => env('APP_NAME') ?? 'eBroker',
+                    'first_name' => $request->first_name,
+                    'last_name' => $request->last_name,
+                    'email' => $request->email,
+                    'subject' => $request->subject,
+                    'message' => $request->message,
+                );
+                if (empty($templateData)) {
+                    $templateData = 'New Inquiry from {first_name} {last_name} ({email}) with subject "{subject}". Message: {message}';
+                }
+                $emailTemplate = HelperService::replaceEmailVariables($templateData, $variables);
+
+                $data = array(
+                    'email_template' => $emailTemplate,
+                    'email' => 'Ayman.yehia@As-home-group.com',
+                    'title' => $emailTypeData['title'],
+                );
+                HelperService::sendMail($data);
+            } catch (Exception $e) {
+                // Do not fail the API if email fails; log instead
+                Log::error('Failed to send inquiry email: ' . $e->getMessage());
+            }
             $response['error'] = false;
             $response['message'] = "Contact Request Send successfully";
         } else {
