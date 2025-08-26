@@ -107,7 +107,7 @@
                             data-pagination-successively-size="3" data-query-params="queryParams">
                             <thead class="thead-dark">
                                 <tr>
-                                    <th scope="col" data-field="id" data-sortable="true"> {{ __('ID') }}</th>
+                                    <th scope="col" data-field="id" data-sortable="true">Ref</th>
                                     <th scope="col" data-field="added_by" data-align="center" data-sortable="false"> {{ __('Client Name') }}</th>
                                     <th scope="col" data-field="mobile" data-align="center" data-sortable="false"> {{ __('Mobile') }} </th>
                                     <th scope="col" data-field="client_address" data-align="center" data-sortable="false">{{ __('Client Address') }}</th>
@@ -127,6 +127,7 @@
                                     <th scope="col" data-field="gallery-images-btn" data-align="center" data-sortable="false" data-events="actionEvents"> {{ __('Gallery Images') }}</th>
                                     <th scope="col" data-field="documents-btn" data-align="center" data-sortable="false" data-events="actionEvents"> {{ __('Documents') }}</th>
                                     <th scope="col" data-field="video_link" data-sortable="false" data-align="center" data-formatter="videoLinkFormatter"> {{ __('Video Link') }}</th>
+                                    <th scope="col" data-field="preview" data-formatter="previewFormatter" data-align="center" data-sortable="false">{{ __('Preview') }}</th>
                                     @if (has_permissions('update', 'property'))
                                         <th scope="col" data-field="operate" data-align="center" data-sortable="false" data-events="actionEvents"> {{ __('Action') }}</th>
                                     @endif
@@ -420,5 +421,23 @@
             $('#changeRequestStatusModal').find('.btn-close').removeAttr('disabled');
             $('#changeRequestStatusModal').find('.close-btn').removeAttr('disabled');
         }
+        function createSlug(title) {
+    return title
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
+function previewFormatter(value, row, index) {
+    const baseUrl = 'https://ashome-eg.com/properties-details/';
+    const slug = createSlug(row.title);
+    const previewUrl = baseUrl + slug + '/';
+
+    return `<a href="${previewUrl}" target="_blank" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-external-link"></i> Preview
+            </a>`;
+}
     </script>
 @endsection
