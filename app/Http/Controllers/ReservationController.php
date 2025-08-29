@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use App\Services\ReservationService;
 use App\Services\ApiResponseService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -447,82 +448,86 @@ class ReservationController extends Controller
             ApiResponseService::errorResponse('Selected dates are not available');
         }
 
-        try {
-            $customerId = Auth::guard('sanctum')->user()->id;
-            $discountInfo = $this->calculateCustomerDiscount(
-                $customerId,
-                $modelType,
-                $request->payment['amount']
-            );
+        // Use database transaction to ensure data consistency
+        return DB::transaction(function () use ($request, $modelType, $model) {
+            try {
+                $customerId = Auth::guard('sanctum')->user()->id;
+                $discountInfo = $this->calculateCustomerDiscount(
+                    $customerId,
+                    $modelType,
+                    $request->payment['amount']
+                );
 
+                // Generate a unique transaction ID
+                $transactionId = Str::uuid()->toString();
 
-            // Generate a unique transaction ID
-            $transactionId = Str::uuid()->toString();
+                // Create temporary reservation to hold the details
+                $reservation = Reservation::create([
+                    'customer_id' => Auth::guard('sanctum')->user()->id,
+                    'reservable_id' => $request->reservable_id,
+                    'reservable_type' => $modelType,
+                    'check_in_date' => $request->check_in_date,
+                    'check_out_date' => $request->check_out_date,
+                    'number_of_guests' => $request->number_of_guests ?? 1,
+                    'total_price' => $discountInfo['final_amount'],
+                    'special_requests' => $request->special_requests,
+                    'status' => 'pending',
+                    'payment_status' => 'unpaid',
+                    'payment_method' => 'paymob',
+                    'transaction_id' => $transactionId,
+                ]);
 
-            // Create temporary reservation to hold the details
-            $reservation = Reservation::create([
-                'customer_id' => Auth::guard('sanctum')->user()->id,
-                'reservable_id' => $request->reservable_id,
-                'reservable_type' => $modelType,
-                'check_in_date' => $request->check_in_date,
-                'check_out_date' => $request->check_out_date,
-                'number_of_guests' => $request->number_of_guests ?? 1,
-                'total_price' => $discountInfo['final_amount'],
-                'special_requests' => $request->special_requests,
-                'status' => 'pending',
-                'payment_status' => 'unpaid',
-                'payment_method' => 'paymob',
-                'transaction_id' => $transactionId,
-            ]);
+                // Create payment record
+                $payment = PaymobPayment::create([
+                    'customer_id' => Auth::guard('sanctum')->user()->id,
+                    'transaction_id' => $transactionId,
+                    'amount' => $discountInfo['final_amount'],
+                    'currency' => config('paymob.currency', 'EGP'),
+                    'status' => 'pending',
+                    'payment_method' => 'paymob',
+                    'reservable_id' => $request->reservable_id,
+                    'reservable_type' => $modelType,
+                    'reservation_id' => $reservation->id,
+                ]);
 
-            // Create payment record
-            $payment = PaymobPayment::create([
-                'customer_id' => Auth::guard('sanctum')->user()->id,
-                'transaction_id' => $transactionId,
-                'amount' => $discountInfo['final_amount'],
-                'currency' => config('paymob.currency', 'EGP'),
-                'status' => 'pending',
-                'payment_method' => 'paymob',
-                'reservable_id' => $request->reservable_id,
-                'reservable_type' => $modelType,
-                'reservation_id' => $reservation->id,
-            ]);
+                // Get the PaymobController to handle the payment
+                $paymentController = app(\App\Http\Controllers\PaymobController::class);
 
-            // Get the PaymobController to handle the payment
-            $paymentController = app(\App\Http\Controllers\PaymobController::class);
+                // Create the payment intent
+                $paymentData = [
+                    'payment_method' => 'paymob',
+                    'paymob_api_key' => config('paymob.api_key'),
+                    'paymob_integration_id' => config('paymob.integration_id'),
+                    'paymob_iframe_id' => config('paymob.iframe_id'),
+                    'paymob_currency' => config('paymob.currency'),
+                ];
 
-            // Create the payment intent
-            $paymentData = [
-                'payment_method' => 'paymob',
-                'paymob_api_key' => config('paymob.api_key'),
-                'paymob_integration_id' => config('paymob.integration_id'),
-                'paymob_iframe_id' => config('paymob.iframe_id'),
-                'paymob_currency' => config('paymob.currency'),
-            ];
+                $metadata = [
+                    'email' => $request->payment['email'],
+                    'first_name' => $request->payment['first_name'],
+                    'last_name' => $request->payment['last_name'],
+                    'phone' => $request->payment['phone'],
+                    'payment_transaction_id' => $transactionId,
+                ];
 
-            $metadata = [
-                'email' => $request->payment['email'],
-                'first_name' => $request->payment['first_name'],
-                'last_name' => $request->payment['last_name'],
-                'phone' => $request->payment['phone'],
-                'payment_transaction_id' => $transactionId,
-            ];
+                // Create payment service
+                $paymentService = app(\App\Services\Payment\PaymentService::class)->create($paymentData);
 
-            // Create payment service
-            $paymentService = app(\App\Services\Payment\PaymentService::class)->create($paymentData);
+                // Create payment intent
+                $paymentIntent = $paymentService->createAndFormatPaymentIntent($discountInfo['final_amount'], $metadata);
 
-            // Create payment intent
-            $paymentIntent = $paymentService->createAndFormatPaymentIntent($discountInfo['final_amount'], $metadata);
-
-            ApiResponseService::successResponse('Reservation and payment intent created successfully', [
-                'reservation' => $reservation,
-                'payment_intent' => $paymentIntent,
-                'transaction_id' => $transactionId,
-                'discount_info' => $discountInfo,
-            ]);
-        } catch (\Exception $e) {
-            ApiResponseService::errorResponse('Failed to create reservation with payment: ' . $e->getMessage());
-        }
+                return ApiResponseService::successResponse('Reservation and payment intent created successfully', [
+                    'reservation' => $reservation,
+                    'payment_intent' => $paymentIntent,
+                    'transaction_id' => $transactionId,
+                    'discount_info' => $discountInfo,
+                ]);
+            } catch (\Exception $e) {
+                // If any exception occurs, the transaction will be automatically rolled back
+                // This ensures the reservation and payment records are not created if payment fails
+                throw new \Exception('Failed to create reservation with payment: ' . $e->getMessage());
+            }
+        });
     }
     private function calculateCustomerDiscount($customerId, $reservableType, $originalAmount)
     {
