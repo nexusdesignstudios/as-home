@@ -12,6 +12,7 @@ use App\Services\ReservationService;
 use App\Services\ApiResponseService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -448,19 +449,23 @@ class ReservationController extends Controller
             ApiResponseService::errorResponse('Selected dates are not available');
         }
 
-        // Use database transaction to ensure data consistency
-        return DB::transaction(function () use ($request, $modelType, $model) {
-            try {
-                $customerId = Auth::guard('sanctum')->user()->id;
-                $discountInfo = $this->calculateCustomerDiscount(
-                    $customerId,
-                    $modelType,
-                    $request->payment['amount']
-                );
+        try {
+            $customerId = Auth::guard('sanctum')->user()->id;
+            $discountInfo = $this->calculateCustomerDiscount(
+                $customerId,
+                $modelType,
+                $request->payment['amount']
+            );
 
-                // Generate a unique transaction ID
-                $transactionId = Str::uuid()->toString();
+            // Generate a unique transaction ID that's compatible with Paymob
+            // Paymob expects merchant_order_id to be a string, so we'll use a timestamp-based ID
+            $transactionId = 'RES_' . time() . '_' . Auth::guard('sanctum')->user()->id . '_' . rand(1000, 9999);
 
+            // Use database transaction only for database operations
+            $reservation = null;
+            $payment = null;
+
+            DB::transaction(function () use ($request, $modelType, $discountInfo, $transactionId, &$reservation, &$payment) {
                 // Create temporary reservation to hold the details
                 $reservation = Reservation::create([
                     'customer_id' => Auth::guard('sanctum')->user()->id,
@@ -489,45 +494,57 @@ class ReservationController extends Controller
                     'reservable_type' => $modelType,
                     'reservation_id' => $reservation->id,
                 ]);
+            });
 
-                // Get the PaymobController to handle the payment
-                $paymentController = app(\App\Http\Controllers\PaymobController::class);
+            // Create the payment intent outside of the transaction (external API call)
+            $paymentData = [
+                'payment_method' => 'paymob',
+                'paymob_api_key' => config('paymob.api_key'),
+                'paymob_integration_id' => config('paymob.integration_id'),
+                'paymob_iframe_id' => config('paymob.iframe_id'),
+                'paymob_currency' => config('paymob.currency'),
+            ];
 
-                // Create the payment intent
-                $paymentData = [
-                    'payment_method' => 'paymob',
-                    'paymob_api_key' => config('paymob.api_key'),
-                    'paymob_integration_id' => config('paymob.integration_id'),
-                    'paymob_iframe_id' => config('paymob.iframe_id'),
-                    'paymob_currency' => config('paymob.currency'),
-                ];
+            $metadata = [
+                'email' => $request->payment['email'],
+                'first_name' => $request->payment['first_name'],
+                'last_name' => $request->payment['last_name'],
+                'phone' => $request->payment['phone'],
+                'payment_transaction_id' => $transactionId,
+            ];
 
-                $metadata = [
-                    'email' => $request->payment['email'],
-                    'first_name' => $request->payment['first_name'],
-                    'last_name' => $request->payment['last_name'],
-                    'phone' => $request->payment['phone'],
-                    'payment_transaction_id' => $transactionId,
-                ];
+            // Create payment service
+            $paymentService = app(\App\Services\Payment\PaymentService::class)->create($paymentData);
 
-                // Create payment service
-                $paymentService = app(\App\Services\Payment\PaymentService::class)->create($paymentData);
+            // Create payment intent
+            $paymentIntent = $paymentService->createAndFormatPaymentIntent($discountInfo['final_amount'], $metadata);
 
-                // Create payment intent
-                $paymentIntent = $paymentService->createAndFormatPaymentIntent($discountInfo['final_amount'], $metadata);
-
-                return ApiResponseService::successResponse('Reservation and payment intent created successfully', [
-                    'reservation' => $reservation,
-                    'payment_intent' => $paymentIntent,
-                    'transaction_id' => $transactionId,
-                    'discount_info' => $discountInfo,
-                ]);
-            } catch (\Exception $e) {
-                // If any exception occurs, the transaction will be automatically rolled back
-                // This ensures the reservation and payment records are not created if payment fails
-                throw new \Exception('Failed to create reservation with payment: ' . $e->getMessage());
+            return ApiResponseService::successResponse('Reservation and payment intent created successfully', [
+                'reservation' => $reservation,
+                'payment_intent' => $paymentIntent,
+                'transaction_id' => $transactionId,
+                'discount_info' => $discountInfo,
+            ]);
+        } catch (\Exception $e) {
+            // If payment intent creation fails, we should clean up the created records
+            if (isset($reservation) && isset($payment)) {
+                try {
+                    DB::transaction(function () use ($reservation, $payment) {
+                        $payment->delete();
+                        $reservation->delete();
+                    });
+                } catch (\Exception $cleanupException) {
+                    // Log cleanup failure but don't throw it
+                    Log::error('Failed to cleanup reservation and payment after payment intent failure', [
+                        'reservation_id' => $reservation->id ?? null,
+                        'payment_id' => $payment->id ?? null,
+                        'cleanup_error' => $cleanupException->getMessage()
+                    ]);
+                }
             }
-        });
+
+            throw new \Exception('Failed to create reservation with payment: ' . $e->getMessage());
+        }
     }
     private function calculateCustomerDiscount($customerId, $reservableType, $originalAmount)
     {

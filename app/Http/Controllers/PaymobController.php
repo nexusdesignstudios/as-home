@@ -34,6 +34,15 @@ class PaymobController extends Controller
             $data = $request->all();
             Log::info('Paymob callback received - Parsed to json:', ['data' => json_encode($data)]);
 
+            // Add more detailed logging to debug the transaction ID issue
+            Log::info('Paymob callback - Full data structure:', [
+                'obj_exists' => isset($data['obj']),
+                'order_exists' => isset($data['obj']['order']),
+                'merchant_order_id_exists' => isset($data['obj']['order']['merchant_order_id']),
+                'merchant_order_id_value' => $data['obj']['order']['merchant_order_id'] ?? 'NOT_FOUND',
+                'full_obj' => $data['obj'] ?? 'NOT_FOUND'
+            ]);
+
             $transactionId = $data['obj']['order']['merchant_order_id'];
             $paymentStatus = $data['obj']['success'] ? 'succeed' : 'failed';
             $paymobOrderId = $data['obj']['order']['id'];
@@ -45,16 +54,26 @@ class PaymobController extends Controller
             Log::info('Paymob callback received - Paymob Transaction ID:', ['paymob_transaction_id' => $paymobTransactionId]);
 
             try {
+                // Log all payment records to debug the transaction ID issue
+                $allPayments = PaymobPayment::where('status', 'pending')->get(['id', 'transaction_id', 'reservation_id']);
+                Log::info('Paymob callback - All pending payments:', [
+                    'payments' => $allPayments->toArray(),
+                    'searching_for_transaction_id' => $transactionId
+                ]);
+
                 $payment = PaymobPayment::where('transaction_id', $transactionId)->first();
                 if ($payment) {
-                    $payment->status = $paymentStatus;
-                    $payment->paymob_order_id = $paymobOrderId;
-                    $payment->paymob_transaction_id = $paymobTransactionId;
-                    $payment->transaction_data = json_encode($data);
-                    $payment->save();
+                    // Only update if not already updated by the fallback logic
+                    if ($payment->status === 'pending') {
+                        $payment->status = $paymentStatus;
+                        $payment->paymob_order_id = $paymobOrderId;
+                        $payment->paymob_transaction_id = $paymobTransactionId;
+                        $payment->transaction_data = json_encode($data);
+                        $payment->save();
+                    }
 
                     // Update reservation status
-                    if ($payment->reservation_id) {
+                    if ($payment && $payment->reservation_id) {
                         $reservation = Reservation::find($payment->reservation_id);
                         if ($reservation) {
                             $reservation->status = $paymentStatus === 'succeed' ? 'confirmed' : 'cancelled';
@@ -168,6 +187,25 @@ class PaymobController extends Controller
                     Log::warning('Payment not found for transaction', [
                         'transaction_id' => $transactionId
                     ]);
+
+                    // Try to find payment by Paymob transaction ID as fallback
+                    $paymentByPaymobId = PaymobPayment::where('paymob_transaction_id', $paymobTransactionId)->first();
+                    if ($paymentByPaymobId) {
+                        Log::info('Payment found by Paymob transaction ID', [
+                            'paymob_transaction_id' => $paymobTransactionId,
+                            'payment_id' => $paymentByPaymobId->id
+                        ]);
+
+                        // Update the payment with the correct transaction ID
+                        $paymentByPaymobId->transaction_id = $transactionId;
+                        $paymentByPaymobId->status = $paymentStatus;
+                        $paymentByPaymobId->paymob_order_id = $paymobOrderId;
+                        $paymentByPaymobId->paymob_transaction_id = $paymobTransactionId;
+                        $paymentByPaymobId->transaction_data = json_encode($data);
+                        $paymentByPaymobId->save();
+
+                        $payment = $paymentByPaymobId;
+                    }
                 }
             } catch (\Exception $e) {
                 Log::error('Error processing payment data', [
@@ -298,8 +336,9 @@ class PaymobController extends Controller
                 ? 'App\\Models\\Property'
                 : 'App\\Models\\HotelRoom';
 
-            // Generate a unique transaction ID
-            $transactionId = Str::uuid()->toString();
+            // Generate a unique transaction ID that's compatible with Paymob
+            // Paymob expects merchant_order_id to be a string, so we'll use a timestamp-based ID
+            $transactionId = 'RES_' . time() . '_' . Auth::guard('sanctum')->user()->id . '_' . rand(1000, 9999);
 
             // Create temporary reservation to hold the details
             $reservation = Reservation::create([
