@@ -463,7 +463,49 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['assign_facilities'] = $row->assign_facilities;
         $tempRow['is_verified'] = $row->is_user_verified;
         $tempRow['availability_type'] = $row->availability_type;
-        $tempRow['available_dates'] = $row->available_dates;
+
+        // Ensure available_dates has proper structure with type field
+        $availableDates = $row->available_dates ?? [];
+        if (is_array($availableDates)) {
+            foreach ($availableDates as $key => $dateInfo) {
+                if (is_array($dateInfo)) {
+                    // Ensure each date entry has the required fields
+                    if (!isset($dateInfo['price'])) {
+                        $availableDates[$key]['price'] = 0;
+                    }
+                    if (!isset($dateInfo['type'])) {
+                        // Set default type based on availability_type
+                        if ($row->availability_type === 'busy_days') {
+                            $availableDates[$key]['type'] = 'dead';
+                        } else {
+                            $availableDates[$key]['type'] = 'open';
+                        }
+                    }
+                    // Ensure type is one of the allowed values
+                    $allowedTypes = ['dead', 'open', 'reserved'];
+                    if (!in_array($availableDates[$key]['type'], $allowedTypes)) {
+                        if ($row->availability_type === 'busy_days') {
+                            $availableDates[$key]['type'] = 'dead';
+                        } else {
+                            $availableDates[$key]['type'] = 'open';
+                        }
+                    }
+                    // If type is reserved, ensure reservation_id exists
+                    if ($availableDates[$key]['type'] === 'reserved' && !isset($dateInfo['reservation_id'])) {
+                        $availableDates[$key]['reservation_id'] = null;
+                    }
+                } else {
+                    // If the date entry is not an array, convert it to one with defaults
+                    $defaultType = ($row->availability_type === 'busy_days') ? 'dead' : 'open';
+                    $availableDates[$key] = [
+                        'price' => 0,
+                        'type' => $defaultType
+                    ];
+                }
+            }
+        }
+        $tempRow['available_dates'] = $availableDates;
+
         $tempRow['corresponding_day'] = $row->corresponding_day;
         $tempRow['property_classification'] = $row->getRawOriginal('property_classification');
         $tempRow['rent_package'] = $row->rent_package;
