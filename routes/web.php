@@ -41,7 +41,7 @@ use App\Http\Controllers\HotelRoomTypeController;
 use App\Http\Controllers\HotelPropertiesController;
 use App\Http\Controllers\TransactionsController;
 use App\Http\Controllers\HotelApartmentTypeController;
-use App\Http\Controllers\ReservationsController;
+use App\Http\Controllers\ReservationsAdminController;
 use App\Http\Controllers\PropertyQuestionFormController;
 
 
@@ -294,11 +294,11 @@ Route::middleware(['language'])->group(function () {
         /// END :: HOTEL PROPERTIES ROUTE
 
         /// START :: RESERVATIONS ROUTE
-        Route::get('reservations', [ReservationsController::class, 'index'])->name('reservations.index');
-        Route::get('reservations-list', [ReservationsController::class, 'getReservationsList'])->name('reservations.list');
-        Route::post('reservations/{id}/update-status', [ReservationsController::class, 'updateStatus'])->name('reservations.update-status');
-        Route::get('reservations/{id}/details', [ReservationsController::class, 'getReservationDetails'])->name('reservations.details');
-        Route::get('reservations-statistics', [ReservationsController::class, 'getStatistics'])->name('reservations.statistics');
+        Route::get('reservations', [ReservationsAdminController::class, 'index'])->name('reservations.index');
+        Route::get('reservations-list', [ReservationsAdminController::class, 'getReservationsList'])->name('reservations.list');
+        Route::post('reservations/{id}/update-status', [ReservationsAdminController::class, 'updateStatus'])->name('reservations.update-status');
+        Route::get('reservations/{id}/details', [ReservationsAdminController::class, 'getReservationDetails'])->name('reservations.details');
+        Route::get('reservations-statistics', [ReservationsAdminController::class, 'getStatistics'])->name('reservations.statistics');
         /// END :: RESERVATIONS ROUTE
 
         /// START :: PROPERTY TERMS & CONDITIONS
