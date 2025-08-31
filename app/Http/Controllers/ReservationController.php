@@ -546,6 +546,66 @@ class ReservationController extends Controller
             throw new \Exception('Failed to create reservation with payment: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Get reservations for properties owned by a specific customer.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPropertyOwnerReservations(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'customer_id' => 'required|integer|exists:customers,id',
+            'property_id' => 'nullable|integer|exists:propertys,id',
+            'status' => 'nullable|string',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+
+        if ($validator->fails()) {
+            ApiResponseService::errorResponse('Validation failed', $validator->errors());
+        }
+
+        $customerId = $request->customer_id;
+        $propertyId = $request->property_id;
+        $status = $request->status ? explode(',', $request->status) : null;
+        $perPage = $request->per_page ?? 10;
+
+        // Start building the query for reservations on properties owned by the customer
+        $query = Reservation::where('reservable_type', 'App\\Models\\Property');
+
+        if ($propertyId) {
+            // If specific property is provided, check if it belongs to the customer
+            $query->where('reservable_id', $propertyId)
+                ->whereHas('reservable', function ($propertyQuery) use ($customerId) {
+                    $propertyQuery->where('added_by', $customerId);
+                });
+        } else {
+            // Get all properties owned by the customer
+            $query->whereHas('reservable', function ($propertyQuery) use ($customerId) {
+                $propertyQuery->where('added_by', $customerId);
+            });
+        }
+
+        // Add status filter if provided
+        if ($status) {
+            $query->whereIn('status', $status);
+        }
+
+        // Add relationships and pagination
+        $reservations = $query->with([
+            'customer:id,name,email,mobile',
+            'reservable' => function ($q) {
+                $q->with('category:id,category,image');
+            }
+        ])
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+
+        ApiResponseService::successResponse('Property owner reservations retrieved successfully', [
+            'reservations' => $reservations
+        ]);
+    }
     private function calculateCustomerDiscount($customerId, $reservableType, $originalAmount)
     {
         $completedBookings = Reservation::where('customer_id', $customerId)
