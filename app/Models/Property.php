@@ -566,7 +566,49 @@ class Property extends Model
 
     public function getAvailableDatesAttribute($value)
     {
-        return $value ? json_decode($value, true) : [];
+        $decodedValue = $value ? (is_string($value) ? json_decode($value, true) : $value) : [];
+
+        // Ensure proper structure with type field
+        if (is_array($decodedValue)) {
+            foreach ($decodedValue as $key => $dateInfo) {
+                if (is_array($dateInfo)) {
+                    // Ensure each date entry has the required fields
+                    if (!isset($dateInfo['price'])) {
+                        $decodedValue[$key]['price'] = 0;
+                    }
+                    if (!isset($dateInfo['type'])) {
+                        // Set default type based on availability_type
+                        if ($this->availability_type === 'busy_days') {
+                            $decodedValue[$key]['type'] = 'dead';
+                        } else {
+                            $decodedValue[$key]['type'] = 'open';
+                        }
+                    }
+                    // Ensure type is one of the allowed values
+                    $allowedTypes = ['dead', 'open', 'reserved'];
+                    if (!in_array($decodedValue[$key]['type'], $allowedTypes)) {
+                        if ($this->availability_type === 'busy_days') {
+                            $decodedValue[$key]['type'] = 'dead';
+                        } else {
+                            $decodedValue[$key]['type'] = 'open';
+                        }
+                    }
+                    // If type is reserved, ensure reservation_id exists
+                    if ($decodedValue[$key]['type'] === 'reserved' && !isset($dateInfo['reservation_id'])) {
+                        $decodedValue[$key]['reservation_id'] = null;
+                    }
+                } else {
+                    // If the date entry is not an array, convert it to one with defaults
+                    $defaultType = ($this->availability_type === 'busy_days') ? 'dead' : 'open';
+                    $decodedValue[$key] = [
+                        'price' => 0,
+                        'type' => $defaultType
+                    ];
+                }
+            }
+        }
+
+        return $decodedValue;
     }
 
     public function setAvailableDatesAttribute($value)
@@ -604,7 +646,7 @@ class Property extends Model
             }
         }
 
-        $this->attributes['available_dates'] = is_array($value) ? json_encode($value) : $value;
+        $this->attributes['available_dates'] = is_array($value) ? json_encode($value) : (is_string($value) ? $value : json_encode([]));
     }
 
     protected $casts = [
@@ -612,7 +654,6 @@ class Property extends Model
         'status' => 'integer',
         'property_classification' => 'integer',
         'availability_type' => 'integer',
-        'available_dates' => 'json',
         'corresponding_day' => 'json',
         'agent_addons' => 'json'
     ];

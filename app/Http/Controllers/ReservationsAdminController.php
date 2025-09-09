@@ -10,7 +10,7 @@ use App\Services\BootstrapTableService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class ReservationsController extends Controller
+class ReservationsAdminController extends Controller
 {
     /**
      * Display a listing of reservations.

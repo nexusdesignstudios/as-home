@@ -294,6 +294,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 // Admin routes
 Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
     Route::get('/reservations', [App\Http\Controllers\ReservationController::class, 'getAllReservations']);
+    Route::get('/property-owner-reservations', [App\Http\Controllers\ReservationController::class, 'getPropertyOwnerReservations']);
     Route::put('/reservations/{id}/status', [App\Http\Controllers\ReservationController::class, 'updateReservationStatus']);
 });
 
