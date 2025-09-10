@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 class ReservationService
 {
     /**
-     * Create a new reservation and update available dates.
+     * Create a new reservation and update available dates only if confirmed.
      *
      * @param array $data
      * @return \App\Models\Reservation
@@ -36,14 +36,17 @@ class ReservationService
                 'transaction_id' => $data['transaction_id'] ?? null,
             ]);
 
-            // Update available dates in the reservable model
-            $this->updateAvailableDates(
-                $data['reservable_type'],
-                $data['reservable_id'],
-                $data['check_in_date'],
-                $data['check_out_date'],
-                $reservation->id
-            );
+            // Only update available dates if the reservation is confirmed
+            // Pending reservations should not block other bookings
+            if (($data['status'] ?? 'pending') === 'confirmed') {
+                $this->updateAvailableDates(
+                    $data['reservable_type'],
+                    $data['reservable_id'],
+                    $data['check_in_date'],
+                    $data['check_out_date'],
+                    $reservation->id
+                );
+            }
 
             return $reservation;
         });

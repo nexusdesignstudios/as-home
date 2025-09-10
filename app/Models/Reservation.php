@@ -80,7 +80,7 @@ class Reservation extends Model
     {
         $query = self::where('reservable_id', $reservableId)
             ->where('reservable_type', $reservableType)
-            ->whereIn('status', ['pending', 'confirmed'])
+            ->where('status', 'confirmed')
             ->where(function ($query) use ($checkInDate, $checkOutDate) {
                 // Check if the dates overlap
                 $query->where(function ($q) use ($checkInDate, $checkOutDate) {

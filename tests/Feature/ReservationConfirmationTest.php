@@ -90,6 +90,65 @@ class ReservationConfirmationTest extends TestCase
     }
 
     /**
+     * Test that pending reservations don't block other bookings.
+     */
+    public function test_pending_reservations_dont_block_other_bookings()
+    {
+        // Create test data
+        $customer1 = Customer::factory()->create();
+        $customer2 = Customer::factory()->create();
+        $property = Property::factory()->create([
+            'available_dates' => [
+                [
+                    'from' => '2024-01-01',
+                    'to' => '2024-12-31',
+                    'price' => 100,
+                    'type' => 'open'
+                ]
+            ]
+        ]);
+
+        // Create a pending reservation for customer1
+        $pendingReservation = Reservation::create([
+            'customer_id' => $customer1->id,
+            'reservable_id' => $property->id,
+            'reservable_type' => 'App\\Models\\Property',
+            'check_in_date' => '2024-06-01',
+            'check_out_date' => '2024-06-05',
+            'number_of_guests' => 2,
+            'total_price' => 400,
+            'status' => 'pending',
+            'payment_status' => 'unpaid',
+            'special_requests' => 'Test request'
+        ]);
+
+        // Check if the same dates are still available for customer2
+        $isAvailable = $this->reservationService->areDatesAvailable(
+            'App\\Models\\Property',
+            $property->id,
+            '2024-06-01',
+            '2024-06-05'
+        );
+
+        // The dates should still be available because the first reservation is pending
+        $this->assertTrue($isAvailable, 'Pending reservations should not block other bookings');
+
+        // Now confirm the first reservation
+        $this->reservationService->handleReservationConfirmation($pendingReservation, 'paid');
+
+        // Check if the same dates are now unavailable for customer2
+        $isAvailableAfterConfirmation = $this->reservationService->areDatesAvailable(
+            'App\\Models\\Property',
+            $property->id,
+            '2024-06-01',
+            '2024-06-05'
+        );
+
+        // The dates should now be unavailable because the reservation is confirmed
+        $this->assertFalse($isAvailableAfterConfirmation, 'Confirmed reservations should block other bookings');
+    }
+
+    /**
      * Test that the service method handles errors gracefully.
      */
     public function test_service_method_handles_errors_gracefully()
