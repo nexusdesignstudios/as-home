@@ -332,11 +332,25 @@ class ReservationController extends Controller
         }
 
         try {
+            $oldStatus = $reservation->status;
+            $newStatus = $request->status;
+
+            // If changing from pending to confirmed, use the service method to handle the full confirmation logic
+            if ($oldStatus === 'pending' && $newStatus === 'confirmed') {
+                $paymentStatus = $request->payment_status ?? 'paid';
+                $this->reservationService->handleReservationConfirmation($reservation, $paymentStatus);
+
+                ApiResponseService::successResponse('Reservation confirmed successfully. Available dates updated and confirmation email sent.', [
+                    'reservation' => $reservation->fresh()
+                ]);
+                return;
+            }
+
             // If cancelling, use the service to update available dates
-            if ($request->status === 'cancelled' && $reservation->status !== 'cancelled') {
+            if ($newStatus === 'cancelled' && $oldStatus !== 'cancelled') {
                 $reservation = $this->reservationService->cancelReservation($id);
             } else {
-                $reservation->status = $request->status;
+                $reservation->status = $newStatus;
 
                 if ($request->has('payment_status')) {
                     $reservation->payment_status = $request->payment_status;
@@ -349,6 +363,14 @@ class ReservationController extends Controller
                 'reservation' => $reservation
             ]);
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to update reservation status via API', [
+                'reservation_id' => $id,
+                'old_status' => $oldStatus ?? 'unknown',
+                'new_status' => $newStatus ?? 'unknown',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             ApiResponseService::errorResponse('Failed to update reservation: ' . $e->getMessage());
         }
     }

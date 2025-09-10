@@ -216,18 +216,49 @@ class ReservationsAdminController extends Controller
         ]);
 
         $reservation = Reservation::findOrFail($id);
-        $reservation->status = $request->status;
+        $oldStatus = $reservation->status;
+        $newStatus = $request->status;
 
-        if ($request->has('payment_status')) {
-            $reservation->payment_status = $request->payment_status;
+        try {
+            // If changing from pending to confirmed, use the service method to handle the full confirmation logic
+            if ($oldStatus === 'pending' && $newStatus === 'confirmed') {
+                $reservationService = app(\App\Services\ReservationService::class);
+                $paymentStatus = $request->payment_status ?? 'paid';
+                $reservationService->handleReservationConfirmation($reservation, $paymentStatus);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Reservation confirmed successfully. Available dates updated and confirmation email sent.'
+                ]);
+            } else {
+                // For other status changes, use the existing logic
+                $reservation->status = $newStatus;
+
+                if ($request->has('payment_status')) {
+                    $reservation->payment_status = $request->payment_status;
+                }
+
+                $reservation->save();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Reservation status updated successfully'
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to update reservation status', [
+                'reservation_id' => $id,
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update reservation status: ' . $e->getMessage()
+            ], 500);
         }
-
-        $reservation->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Reservation status updated successfully'
-        ]);
     }
 
     /**

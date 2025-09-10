@@ -415,6 +415,131 @@ class ReservationService
     }
 
     /**
+     * Handle reservation confirmation logic (extracted from PaymobController).
+     * This method handles the same logic that occurs when a Paymob payment succeeds.
+     *
+     * @param \App\Models\Reservation $reservation
+     * @param string $paymentStatus
+     * @return void
+     */
+    public function handleReservationConfirmation($reservation, $paymentStatus = 'paid')
+    {
+        try {
+            // Update reservation status and payment status
+            $reservation->status = 'confirmed';
+            $reservation->payment_status = $paymentStatus;
+            $reservation->save();
+
+            \Illuminate\Support\Facades\Log::info('Reservation status updated via admin confirmation', [
+                'reservation_id' => $reservation->id,
+                'status' => $reservation->status,
+                'payment_status' => $reservation->payment_status
+            ]);
+
+            // Update available dates
+            try {
+                $this->updateAvailableDates(
+                    $reservation->reservable_type,
+                    $reservation->reservable_id,
+                    $reservation->check_in_date,
+                    $reservation->check_out_date,
+                    $reservation->id
+                );
+
+                \Illuminate\Support\Facades\Log::info('Available dates updated successfully via admin confirmation', [
+                    'reservation_id' => $reservation->id
+                ]);
+
+                // Send reservation confirmation email
+                $this->sendReservationConfirmationEmail($reservation);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to update available dates via admin confirmation', [
+                    'error' => $e->getMessage(),
+                    'reservation_id' => $reservation->id,
+                    'trace' => $e->getTraceAsString()
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to handle reservation confirmation', [
+                'error' => $e->getMessage(),
+                'reservation_id' => $reservation->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Send reservation confirmation email.
+     *
+     * @param \App\Models\Reservation $reservation
+     * @return void
+     */
+    protected function sendReservationConfirmationEmail($reservation)
+    {
+        try {
+            $customer = $reservation->customer;
+            if ($customer && $customer->email) {
+                // Get Data of email type
+                $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("reservation_confirmation");
+
+                // Email Template
+                $reservationConfirmationTemplateData = system_setting($emailTypeData['type']);
+                $appName = env("APP_NAME") ?? "eBroker";
+
+                // Get property name
+                $propertyName = '';
+                if ($reservation->reservable_type === 'App\Models\Property') {
+                    $propertyName = $reservation->reservable->title ?? 'Property';
+                } elseif ($reservation->reservable_type === 'App\Models\HotelRoom') {
+                    $propertyName = $reservation->reservable->property->title ?? 'Hotel Room';
+                }
+
+                // Get currency symbol
+                $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+                $variables = array(
+                    'app_name' => $appName,
+                    'user_name' => $customer->name,
+                    'reservation_id' => $reservation->id,
+                    'property_name' => $propertyName,
+                    'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
+                    'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
+                    'number_of_guests' => $reservation->number_of_guests,
+                    'total_price' => number_format($reservation->total_price, 2),
+                    'currency_symbol' => $currencySymbol,
+                    'payment_status' => ucfirst($reservation->payment_status),
+                    'transaction_id' => $reservation->transaction_id,
+                    'special_requests' => $reservation->special_requests ?? 'None',
+                );
+
+                if (empty($reservationConfirmationTemplateData)) {
+                    $reservationConfirmationTemplateData = "Your reservation has been confirmed!";
+                }
+                $reservationConfirmationTemplate = \App\Services\HelperService::replaceEmailVariables($reservationConfirmationTemplateData, $variables);
+
+                $data = array(
+                    'email_template' => $reservationConfirmationTemplate,
+                    'email' => $customer->email,
+                    'title' => $emailTypeData['title'],
+                );
+                \App\Services\HelperService::sendMail($data);
+
+                \Illuminate\Support\Facades\Log::info('Reservation confirmation email sent successfully via admin confirmation', [
+                    'reservation_id' => $reservation->id,
+                    'customer_email' => $customer->email
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send reservation confirmation email via admin confirmation', [
+                'error' => $e->getMessage(),
+                'reservation_id' => $reservation->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
      * Check if dates are available for reservation.
      *
      * @param string $modelType

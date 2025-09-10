@@ -76,100 +76,21 @@ class PaymobController extends Controller
                     if ($payment && $payment->reservation_id) {
                         $reservation = Reservation::find($payment->reservation_id);
                         if ($reservation) {
-                            $reservation->status = $paymentStatus === 'succeed' ? 'confirmed' : 'cancelled';
-                            $reservation->payment_status = $paymentStatus === 'succeed' ? 'paid' : 'failed';
-                            $reservation->save();
-
-                            Log::info('Reservation status updated', [
-                                'reservation_id' => $reservation->id,
-                                'status' => $reservation->status,
-                                'payment_status' => $reservation->payment_status
-                            ]);
-
-                            // Only update available dates if payment was successful
                             if ($paymentStatus === 'succeed') {
-                                try {
-                                    $reservationService = app(\App\Services\ReservationService::class);
-                                    $reservationService->updateAvailableDates(
-                                        $reservation->reservable_type,
-                                        $reservation->reservable_id,
-                                        $reservation->check_in_date,
-                                        $reservation->check_out_date,
-                                        $reservation->id
-                                    );
+                                // Use the new service method for successful payments
+                                $reservationService = app(\App\Services\ReservationService::class);
+                                $reservationService->handleReservationConfirmation($reservation, 'paid');
+                            } else {
+                                // Handle failed payments
+                                $reservation->status = 'cancelled';
+                                $reservation->payment_status = 'failed';
+                                $reservation->save();
 
-                                    Log::info('Available dates updated successfully', [
-                                        'reservation_id' => $reservation->id
-                                    ]);
-
-                                    // Send reservation confirmation email
-                                    try {
-                                        $customer = $reservation->customer;
-                                        if ($customer && $customer->email) {
-                                            // Get Data of email type
-                                            $emailTypeData = HelperService::getEmailTemplatesTypes("reservation_confirmation");
-
-                                            // Email Template
-                                            $reservationConfirmationTemplateData = system_setting($emailTypeData['type']);
-                                            $appName = env("APP_NAME") ?? "eBroker";
-
-                                            // Get property name
-                                            $propertyName = '';
-                                            if ($reservation->reservable_type === 'App\Models\Property') {
-                                                $propertyName = $reservation->reservable->title ?? 'Property';
-                                            } elseif ($reservation->reservable_type === 'App\Models\HotelRoom') {
-                                                $propertyName = $reservation->reservable->property->title ?? 'Hotel Room';
-                                            }
-
-                                            // Get currency symbol
-                                            $currencySymbol = system_setting('currency_symbol') ?? '$';
-
-                                            $variables = array(
-                                                'app_name' => $appName,
-                                                'user_name' => $customer->name,
-                                                'reservation_id' => $reservation->id,
-                                                'property_name' => $propertyName,
-                                                'check_in_date' => $reservation->check_in_date->format('d M Y'),
-                                                'check_out_date' => $reservation->check_out_date->format('d M Y'),
-                                                'number_of_guests' => $reservation->number_of_guests,
-                                                'total_price' => number_format($reservation->total_price, 2),
-                                                'currency_symbol' => $currencySymbol,
-                                                'payment_status' => ucfirst($reservation->payment_status),
-                                                'transaction_id' => $payment->transaction_id,
-                                                'special_requests' => $reservation->special_requests ?? 'None',
-                                            );
-
-                                            if (empty($reservationConfirmationTemplateData)) {
-                                                $reservationConfirmationTemplateData = "Your reservation has been confirmed!";
-                                            }
-                                            $reservationConfirmationTemplate = HelperService::replaceEmailVariables($reservationConfirmationTemplateData, $variables);
-
-                                            $data = array(
-                                                'email_template' => $reservationConfirmationTemplate,
-                                                'email' => $customer->email,
-                                                'title' => $emailTypeData['title'],
-                                            );
-                                            HelperService::sendMail($data);
-
-                                            Log::info('Reservation confirmation email sent successfully', [
-                                                'reservation_id' => $reservation->id,
-                                                'customer_email' => $customer->email
-                                            ]);
-                                        }
-                                    } catch (\Exception $e) {
-                                        Log::error('Failed to send reservation confirmation email', [
-                                            'error' => $e->getMessage(),
-                                            'reservation_id' => $reservation->id,
-                                            'trace' => $e->getTraceAsString()
-                                        ]);
-                                    }
-                                } catch (\Exception $e) {
-                                    Log::error('Failed to update available dates', [
-                                        'error' => $e->getMessage(),
-                                        'reservation_id' => $reservation->id,
-                                        'trace' => $e->getTraceAsString()
-                                    ]);
-                                }
+                                Log::info('Reservation cancelled due to failed payment', [
+                                    'reservation_id' => $reservation->id,
+                                    'status' => $reservation->status,
+                                    'payment_status' => $reservation->payment_status
+                                ]);
                             }
                         } else {
                             Log::warning('Reservation not found', [
