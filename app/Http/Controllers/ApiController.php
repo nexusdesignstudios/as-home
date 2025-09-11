@@ -7871,7 +7871,7 @@ class ApiController extends Controller
                     $propertyData->is_premium = $propertyData->is_premium == 1;
                     return $propertyData;
                 });
-            return ApiResponseService::successResponse("Similar properties fetched successfully", $getAllSimilarProperties);
+            return ApiResponseService::successResponseReturn("Similar properties fetched successfully", $getAllSimilarProperties);
         } catch (Exception $e) {
             return ApiResponseService::errorResponse($e->getMessage());
         }
