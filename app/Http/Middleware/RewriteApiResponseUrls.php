@@ -37,12 +37,6 @@ class RewriteApiResponseUrls
                     } else {
                         $response->setContent(json_encode($rewritten));
                     }
-
-                    // Log the rewriting process for debugging
-                    Log::info('RewriteApiResponseUrls: JSON response processed', [
-                        'contentType' => $contentType,
-                        'responseType' => $response instanceof JsonResponse ? 'JsonResponse' : 'Other',
-                    ]);
                 }
                 return $response;
             }
@@ -75,12 +69,6 @@ class RewriteApiResponseUrls
                     $value = $this->rewriteStringUrls($value);
 
                     if ($value !== $originalValue) {
-                        // Log URL rewrites for debugging
-                        Log::debug('RewriteApiResponseUrls: URL rewritten', [
-                            'key' => $key,
-                            'from' => $originalValue,
-                            'to' => $value,
-                        ]);
                     }
 
                     $data[$key] = $value;
