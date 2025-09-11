@@ -624,7 +624,7 @@ class ReservationController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
 
-        ApiResponseService::successResponse('Property owner reservations retrieved successfully', [
+        return ApiResponseService::successResponse('Property owner reservations retrieved successfully', [
             'reservations' => $reservations
         ]);
     }
