@@ -20,21 +20,50 @@ class Chats extends Model
         parent::boot();
         static::deleting(static function ($chat) {
             if (collect($chat)->isNotEmpty()) {
-                // before delete() method call this
+                // Check if using S3
+                $disk = env('FILESYSTEM_DISK', config('filesystems.default', 'local'));
 
                 // Delete File
                 if ($chat->getRawOriginal('file') != '') {
                     $file = $chat->getRawOriginal('file');
-                    if (file_exists(public_path('images') . config('global.CHAT_FILE') . $file)) {
-                        unlink(public_path('images') . config('global.CHAT_FILE') . $file);
+
+                    if ($disk === 's3') {
+                        // Delete from S3
+                        $relativeDir = 'images/' . trim(config('global.CHAT_FILE'), '/');
+                        $s3Key = $relativeDir . '/' . $file;
+                        try {
+                            \Illuminate\Support\Facades\Storage::disk('s3')->delete($s3Key);
+                            \Illuminate\Support\Facades\Log::info('Chat file deleted from S3: ' . $s3Key);
+                        } catch (\Exception $e) {
+                            \Illuminate\Support\Facades\Log::error('Failed to delete chat file from S3: ' . $e->getMessage());
+                        }
+                    } else {
+                        // Fallback to local deletion
+                        if (file_exists(public_path('images') . config('global.CHAT_FILE') . $file)) {
+                            unlink(public_path('images') . config('global.CHAT_FILE') . $file);
+                        }
                     }
                 }
 
                 // Delete Audio
                 if ($chat->getRawOriginal('audio') != '') {
                     $audio = $chat->getRawOriginal('audio');
-                    if (file_exists(public_path('images') . config('global.CHAT_AUDIO') . $audio)) {
-                        unlink(public_path('images') . config('global.CHAT_AUDIO') . $audio);
+
+                    if ($disk === 's3') {
+                        // Delete from S3
+                        $relativeDir = 'images/' . trim(config('global.CHAT_FILE'), '/') . '/chat_audio';
+                        $s3Key = $relativeDir . '/' . $audio;
+                        try {
+                            \Illuminate\Support\Facades\Storage::disk('s3')->delete($s3Key);
+                            \Illuminate\Support\Facades\Log::info('Chat audio deleted from S3: ' . $s3Key);
+                        } catch (\Exception $e) {
+                            \Illuminate\Support\Facades\Log::error('Failed to delete chat audio from S3: ' . $e->getMessage());
+                        }
+                    } else {
+                        // Fallback to local deletion
+                        if (file_exists(public_path('images') . config('global.CHAT_AUDIO') . $audio)) {
+                            unlink(public_path('images') . config('global.CHAT_AUDIO') . $audio);
+                        }
                     }
                 }
             }
@@ -56,11 +85,47 @@ class Chats extends Model
     }
     public function getFileAttribute($file)
     {
-        return $file != "" ? url('') . config('global.IMG_PATH') . config('global.CHAT_FILE') . $file : '';
+        if (empty($file)) {
+            return '';
+        }
+
+        // Check if using S3
+        $disk = env('FILESYSTEM_DISK', config('filesystems.default', 'local'));
+
+        if ($disk === 's3') {
+            // Get S3 URL
+            $s3Url = env('AWS_URL');
+            $bucket = env('AWS_BUCKET');
+            $relativeDir = 'images/' . trim(config('global.CHAT_FILE'), '/');
+
+            // Return full S3 URL
+            return $s3Url . '/' . $bucket . '/' . $relativeDir . '/' . $file;
+        } else {
+            // Fallback to local path
+            return url('') . config('global.IMG_PATH') . config('global.CHAT_FILE') . $file;
+        }
     }
     public function getAudioAttribute($value)
     {
-        return $value != "" ? url('') . config('global.IMG_PATH') . config('global.CHAT_AUDIO') . $value : '';
+        if (empty($value)) {
+            return '';
+        }
+
+        // Check if using S3
+        $disk = env('FILESYSTEM_DISK', config('filesystems.default', 'local'));
+
+        if ($disk === 's3') {
+            // Get S3 URL
+            $s3Url = env('AWS_URL');
+            $bucket = env('AWS_BUCKET');
+            $relativeDir = 'images/' . trim(config('global.CHAT_FILE'), '/') . '/chat_audio';
+
+            // Return full S3 URL
+            return $s3Url . '/' . $bucket . '/' . $relativeDir . '/' . $value;
+        } else {
+            // Fallback to local path
+            return url('') . config('global.IMG_PATH') . config('global.CHAT_AUDIO') . $value;
+        }
     }
 
     public function setMessageAttribute($value)
