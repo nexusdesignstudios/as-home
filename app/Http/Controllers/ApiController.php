@@ -3342,37 +3342,31 @@ class ApiController extends Controller
 
         $fcm_id = array();
         $chat = new Chats();
-        $chat->sender_id = $request->sender_id;
-        $chat->receiver_id = $request->receiver_id;
-        $chat->property_id = $request->property_id;
-        $chat->message = $request->message;
-        $chat->approval_status = isset($request->approval_status) ? $request->approval_status : 'pending';
+        $chat->fill([
+            'sender_id' => $request->sender_id,
+            'receiver_id' => $request->receiver_id,
+            'property_id' => $request->property_id,
+            'message' => $request->message,
+            'approval_status' => isset($request->approval_status) ? $request->approval_status : 'pending'
+        ]);
 
-        $destinationPath = public_path('images') . config('global.CHAT_FILE');
-        if (!is_dir($destinationPath)) {
-            mkdir($destinationPath, 0777, true);
-        }
+        // S3 storage is now handled by store_image function
         // Files upload
         if ($request->hasFile('file')) {
             $file = $request->file('file');
-            $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
-            $file->move($destinationPath, $fileName);
-            $chat->file = $fileName;
+            $fileFilename = store_image($file, 'CHAT_FILE');
+            $chat->setAttribute('file', $fileFilename);
         } else {
-            $chat->file = '';
+            $chat->setAttribute('file', '');
         }
 
-        $audiodestinationPath = public_path('images') . config('global.CHAT_AUDIO');
-        if (!is_dir($audiodestinationPath)) {
-            mkdir($audiodestinationPath, 0777, true);
-        }
+        // S3 storage is now handled by store_image function
         if ($request->hasFile('audio')) {
             $file = $request->file('audio');
-            $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
-            $file->move($audiodestinationPath, $fileName);
-            $chat->audio = $fileName;
+            $audioFilename = store_image($file, 'CHAT_FILE', 'chat_audio');
+            $chat->setAttribute('audio', $audioFilename);
         } else {
-            $chat->audio = '';
+            $chat->setAttribute('audio', '');
         }
         $chat->save();
 
@@ -3441,7 +3435,7 @@ class ApiController extends Controller
             'time_ago' => $chat->created_at->diffForHumans(now(), CarbonInterface::DIFF_RELATIVE_AUTO, true),
             'property_id' => (string)$Property->id,
             'property_title_image' => $Property->title_image,
-            'title' => $Property->title,
+            'property_title' => $Property->title,
             'chat_message_type' => $chat_message_type,
             'created_at' => Carbon::parse($chat->created_at)->toIso8601ZuluString(),
             'unread_messages_count' => (string)$unreadMessagesCount
