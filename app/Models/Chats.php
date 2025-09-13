@@ -93,13 +93,12 @@ class Chats extends Model
         $disk = env('FILESYSTEM_DISK', config('filesystems.default', 'local'));
 
         if ($disk === 's3') {
-            // Get S3 URL
+            // Get S3 URL - AWS_URL already includes the bucket name in the URL
             $s3Url = env('AWS_URL');
-            $bucket = env('AWS_BUCKET');
             $relativeDir = 'images/' . trim(config('global.CHAT_FILE'), '/');
 
-            // Return full S3 URL
-            return $s3Url . '/' . $bucket . '/' . $relativeDir . '/' . $file;
+            // Return full S3 URL without duplicating the bucket name
+            return $s3Url . '/' . $relativeDir . '/' . $file;
         } else {
             // Fallback to local path
             return url('') . config('global.IMG_PATH') . config('global.CHAT_FILE') . $file;
@@ -115,13 +114,12 @@ class Chats extends Model
         $disk = env('FILESYSTEM_DISK', config('filesystems.default', 'local'));
 
         if ($disk === 's3') {
-            // Get S3 URL
+            // Get S3 URL - AWS_URL already includes the bucket name in the URL
             $s3Url = env('AWS_URL');
-            $bucket = env('AWS_BUCKET');
             $relativeDir = 'images/' . trim(config('global.CHAT_FILE'), '/') . '/chat_audio';
 
-            // Return full S3 URL
-            return $s3Url . '/' . $bucket . '/' . $relativeDir . '/' . $value;
+            // Return full S3 URL without duplicating the bucket name
+            return $s3Url . '/' . $relativeDir . '/' . $value;
         } else {
             // Fallback to local path
             return url('') . config('global.IMG_PATH') . config('global.CHAT_AUDIO') . $value;
