@@ -14,6 +14,7 @@ use App\Services\ResponseService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Http\UploadedFile;
 
 class ChatController extends Controller
 {
@@ -38,19 +39,21 @@ class ChatController extends Controller
         }
 
         $senderBlockedReciever = BlockedChatUser::where(['by_admin' => 1, 'user_id' => $request->receiver_id])->count();
-        if($senderBlockedReciever){
+        if ($senderBlockedReciever) {
             ResponseService::errorResponse("You have blocked user");
         }
         $recieverBlockedSender = BlockedChatUser::where(['by_user_id' => $request->receiver_id, 'user_id' => $request->sender_id])->count();
-        if($recieverBlockedSender){
+        if ($recieverBlockedSender) {
             ResponseService::errorResponse("You are blocked by user");
         }
 
         $chat = new Chats();
-        $chat->sender_id = $request->sender_by;
-        $chat->receiver_id = $request->receiver_id;
-        $chat->message = $request->message ? $request->message : null;
-        $chat->property_id = $request->property_id;
+        $chat->fill([
+            'sender_id' => $request->sender_by,
+            'receiver_id' => $request->receiver_id,
+            'message' => $request->message ? $request->message : null,
+            'property_id' => $request->property_id
+        ]);
 
         if ($request->receiver_id == '' || !isset($request->receiver_id)) {
             $response['error'] = true;
@@ -59,41 +62,44 @@ class ChatController extends Controller
 
         $audio_data = $request->aud;
         if ($audio_data) {
-
             // Decode the data URL and extract the raw audio data
             $audio_data = str_replace('data:audio/mp3; codecs=opus;base64,', '', $audio_data);
             $audio_data = base64_decode($audio_data);
 
-            // Save the audio data to a file
-            $filename = uniqid() . '.mp3';
-            $audiodestinationPath = public_path('images/chat_audio/') . $filename;
-            if (!is_dir(dirname($audiodestinationPath))) {
-                mkdir(dirname($audiodestinationPath), 0777, true);
-            }
+            // Create a temporary file
+            $tempFile = tempnam(sys_get_temp_dir(), 'audio_');
+            file_put_contents($tempFile, $audio_data);
 
-            file_put_contents($audiodestinationPath, $audio_data);
+            // Create an UploadedFile instance
+            $file = new \Illuminate\Http\UploadedFile(
+                $tempFile,
+                uniqid() . '.mp3',
+                'audio/mp3',
+                null,
+                true
+            );
 
+            // Use store_image function for S3 upload
+            $audioFilename = store_image($file, 'CHAT_FILE', 'chat_audio');
+            $chat->setAttribute('audio', $audioFilename);
 
-            $chat->audio = $filename;
+            // Remove the temporary file
+            @unlink($tempFile);
         }
-        $destinationPath = public_path('images') . config('global.CHAT_FILE');
-
-        if (!is_dir($destinationPath)) {
-            mkdir($destinationPath, 0777, true);
-        }
+        // S3 storage is now handled by store_image function
         if ($request->hasFile('attachment')) {
             $attachment = $request->file('attachment');
-            $imageName = microtime(true) . "." . $attachment->getClientOriginalExtension();
-            $attachment->move($destinationPath, $imageName);
-            $chat->file = $imageName;
+            $fileFilename = store_image($attachment, 'CHAT_FILE');
+            $chat->setAttribute('file', $fileFilename);
         } else {
-            $chat->file = '';
+            $chat->setAttribute('file', '');
         }
 
         $chat->save();
-        if($chat->sender_id == 0){
-            $senderUserProfile = !empty(Auth::user()->getRawOriginal('profile')) ? Auth::user()->profile : url('assets/images/faces/2.jpg');
-        }else{
+        if ($chat->sender_id == 0) {
+            $user = Auth::user();
+            $senderUserProfile = !empty($user->profile) ? $user->profile : url('assets/images/faces/2.jpg');
+        } else {
             $senderUserProfile = $chat->sender()->profile ?? null;
         }
 
@@ -145,7 +151,7 @@ class ChatController extends Controller
             'sound' => 'default',
             'property_id' => (string)$Property->id,
             'property_title_image' => $Property->title_image,
-            'title' => $Property->title,
+            'property_title' => $Property->title,
             'chat_message_type' => $chat_message_type,
             'user_profile' => $senderUserProfile
         );
@@ -164,7 +170,13 @@ class ChatController extends Controller
         }
 
         $userListQuery = Chats::with(['sender:id,name,profile', 'receiver:id,name,profile', 'property:id,title,title_image'])
-            ->select('id', 'sender_id', 'receiver_id', 'property_id', 'message', 'created_at',
+            ->select(
+                'id',
+                'sender_id',
+                'receiver_id',
+                'property_id',
+                'message',
+                'created_at',
                 DB::raw('COUNT(CASE WHEN is_read = 0 AND receiver_id = 0 THEN 1 END) AS unread_count')
             )
             ->where('sender_id', 0)
@@ -173,10 +185,10 @@ class ChatController extends Controller
             ->orderBy('id', 'desc');
 
         // User's List with Blocked Status
-        $user_list = $userListQuery->clone()->get()->map(function ($user){
-            if($user->sender_id){
+        $user_list = $userListQuery->clone()->get()->map(function ($user) {
+            if ($user->sender_id) {
                 $userId = $user->sender_id;
-            }else{
+            } else {
                 $userId = $user->reciever_id;
             }
             // Check if blocked
@@ -328,7 +340,8 @@ class ChatController extends Controller
         return response()->json($rows);
     }
 
-    public function blockUser($userId){
+    public function blockUser($userId)
+    {
         $validator = Validator::make(['userId' => $userId], [
             'userId' => 'required|exists:customers,id',
         ]);
@@ -349,7 +362,8 @@ class ChatController extends Controller
         }
     }
 
-    public function unBlockUser($userId){
+    public function unBlockUser($userId)
+    {
         $validator = Validator::make(['userId' => $userId], [
             'userId' => 'required|exists:customers,id',
         ]);
@@ -360,7 +374,7 @@ class ChatController extends Controller
 
         try {
             $getBlockedUserQuery = BlockedChatUser::where(["by_admin" => 1, "user_id" => $userId]);
-            if($getBlockedUserQuery->clone()->count()){
+            if ($getBlockedUserQuery->clone()->count()) {
                 $getBlockedUserQuery->delete();
 
 
@@ -369,13 +383,12 @@ class ChatController extends Controller
                     ->exists();
 
                 $data = array('is_blocked_by_user' => $isBlockedByUser);
-                ResponseService::successResponse("User Unblocked Successfully",$data);
-            }else{
+                ResponseService::successResponse("User Unblocked Successfully", $data);
+            } else {
                 ResponseService::errorResponse("User Already Unblocked");
             }
         } catch (Exception $e) {
             ResponseService::errorResponse("Something Went Wrong");
         }
     }
-
 }
