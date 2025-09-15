@@ -60,7 +60,9 @@ class Property extends Model
         'revenue_email',
         'reservation_user_name',
         'reservation_phone_number',
-        'reservation_email'
+        'reservation_email',
+        'instant_booking',
+        'refundable'
     ];
     protected $hidden = [
         'updated_at',
@@ -655,7 +657,9 @@ class Property extends Model
         'property_classification' => 'integer',
         'availability_type' => 'integer',
         'corresponding_day' => 'json',
-        'agent_addons' => 'json'
+        'agent_addons' => 'json',
+        'instant_booking' => 'boolean',
+        'refundable' => 'boolean'
     ];
 
     /**
@@ -1008,5 +1012,49 @@ class Property extends Model
         }
 
         return null;
+    }
+    
+    /**
+     * Get the instant_booking attribute.
+     *
+     * @param  mixed  $value
+     * @return bool
+     */
+    public function getInstantBookingAttribute($value)
+    {
+        return (bool) $value;
+    }
+
+    /**
+     * Set the instant_booking attribute.
+     *
+     * @param  mixed  $value
+     * @return void
+     */
+    public function setInstantBookingAttribute($value)
+    {
+        $this->attributes['instant_booking'] = (bool) $value;
+    }
+
+    /**
+     * Get the refundable attribute.
+     *
+     * @param  mixed  $value
+     * @return bool
+     */
+    public function getRefundableAttribute($value)
+    {
+        return (bool) $value;
+    }
+
+    /**
+     * Set the refundable attribute.
+     *
+     * @param  mixed  $value
+     * @return void
+     */
+    public function setRefundableAttribute($value)
+    {
+        $this->attributes['refundable'] = (bool) $value;
     }
 }
