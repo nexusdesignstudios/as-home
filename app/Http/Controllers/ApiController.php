@@ -1340,7 +1340,10 @@ class ApiController extends Controller
             // END :: ADD HOTEL ROOMS
 
             // START :: ADD ADDONS PACKAGES
-            if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->addons_packages) && !empty($request->addons_packages)) {
+            // Check if property classification is 5 (hotel) either from request or saved property
+            $isHotelProperty = (isset($request->property_classification) && $request->property_classification == 5) || 
+                              ($saveProperty->getRawOriginal('property_classification') == 5);
+            if ($isHotelProperty && isset($request->addons_packages) && !empty($request->addons_packages)) {
                 try {
                     // Create destination path for hotel addon files
                     $addonFolderPath = public_path('images') . config('global.HOTEL_ADDON_PATH');
@@ -2209,8 +2212,9 @@ class ApiController extends Controller
 
                         // We only use packages now - individual addon values are not supported
 
-                        // Handle addons packages
-                        if (isset($request->addons_packages) && !empty($request->addons_packages)) {
+                        // Handle addons packages - check if this is a hotel property (classification 5)
+                        $isHotelProperty = $property->getRawOriginal('property_classification') == 5;
+                        if ($isHotelProperty && isset($request->addons_packages) && !empty($request->addons_packages)) {
                             foreach ($request->addons_packages as $packageIndex => $package) {
                                 // Check if this is an update or new package
                                 if (isset($package['id']) && !empty($package['id'])) {
