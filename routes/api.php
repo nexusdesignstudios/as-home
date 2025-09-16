@@ -289,6 +289,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/reservations', [App\Http\Controllers\ReservationController::class, 'getCustomerReservations']);
     Route::get('/reservations/{id}', [App\Http\Controllers\ReservationController::class, 'getReservation']);
     Route::post('/reservations/{id}/cancel', [App\Http\Controllers\ReservationController::class, 'cancelReservation']);
+    Route::post('/reservations/{id}/update-status', [App\Http\Controllers\ReservationsAdminController::class, 'updateStatusApi'])->name('api.reservations.update-status');
 });
 
 // Admin routes

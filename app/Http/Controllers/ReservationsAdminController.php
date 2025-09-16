@@ -7,11 +7,23 @@ use App\Models\Property;
 use App\Models\HotelRoom;
 use App\Models\Customer;
 use App\Services\BootstrapTableService;
+use App\Services\ApiResponseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class ReservationsAdminController extends Controller
 {
+    protected $apiResponseService;
+
+    /**
+     * Create a new controller instance.
+     */
+    public function __construct()
+    {
+        $this->apiResponseService = app(\App\Services\ApiResponseService::class);
+    }
     /**
      * Display a listing of reservations.
      *
@@ -354,5 +366,99 @@ class ReservationsAdminController extends Controller
             'vacation_home_reservations' => $vacationHomeReservations,
             'hotel_reservations' => $hotelReservations
         ]);
+    }
+    
+    /**
+     * Update reservation status via API.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateStatusApi(Request $request, $id)
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'status' => 'required|in:pending,confirmed,cancelled,completed',
+            'payment_status' => 'nullable|in:paid,unpaid,partial'
+        ]);
+
+        if ($validator->fails()) {
+            return $this->apiResponseService->errorResponse('Validation failed', $validator->errors());
+        }
+
+        $reservation = Reservation::findOrFail($id);
+        
+        // // Check if user has permission to update this reservation
+        // $user = auth('sanctum')->user();
+        
+        // // For regular users, check if they own the property or are the customer
+        // $hasPermission = false;
+        
+        // if ($user) {
+        //     // If user is the customer who made the reservation
+        //     if ($reservation->customer_id == $user->id) {
+        //         $hasPermission = true;
+        //     } 
+        //     // If user is the property owner (for property reservations)
+        //     elseif ($reservation->reservable_type === 'App\\Models\\Property') {
+        //         $property = Property::find($reservation->reservable_id);
+        //         if ($property && $property->added_by == $user->id) {
+        //             $hasPermission = true;
+        //         }
+        //     }
+        //     // If user is the property owner (for hotel room reservations)
+        //     elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+        //         $room = HotelRoom::find($reservation->reservable_id);
+        //         if ($room && $room->property) {
+        //             $property = $room->property;
+        //             if ($property->added_by == $user->id) {
+        //                 $hasPermission = true;
+        //             }
+        //         }
+        //     }
+        // }
+        
+        // if (!$hasPermission) {
+        //     return $this->apiResponseService->errorResponse('You do not have permission to update this reservation', [], 403);
+        // }
+        
+        $oldStatus = $reservation->status;
+        $newStatus = $request->status;
+
+        try {
+            // If changing from pending to confirmed, use the service method to handle the full confirmation logic
+            if ($oldStatus === 'pending' && $newStatus === 'confirmed') {
+                $reservationService = app(\App\Services\ReservationService::class);
+                $paymentStatus = $request->payment_status ?? 'paid';
+                $reservationService->handleReservationConfirmation($reservation, $paymentStatus);
+
+                return $this->apiResponseService->successResponse('Reservation confirmed successfully. Available dates updated and confirmation email sent.', [
+                    'reservation' => $reservation->fresh()
+                ]);
+            } else {
+                // For other status changes, use the existing logic
+                $reservation->status = $newStatus;
+
+                if ($request->has('payment_status')) {
+                    $reservation->payment_status = $request->payment_status;
+                }
+
+                $reservation->save();
+
+                return $this->apiResponseService->successResponse('Reservation status updated successfully', [
+                    'reservation' => $reservation->fresh()
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to update reservation status via API', [
+                'reservation_id' => $id,
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return $this->apiResponseService->errorResponse('Failed to update reservation status: ' . $e->getMessage());
+        }
     }
 }
