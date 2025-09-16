@@ -1084,6 +1084,8 @@ class ApiController extends Controller
             $saveProperty->reservation_user_name = (isset($request->reservation_user_name)) ? $request->reservation_user_name : null;
             $saveProperty->reservation_phone_number = (isset($request->reservation_phone_number)) ? $request->reservation_phone_number : null;
             $saveProperty->reservation_email = (isset($request->reservation_email)) ? $request->reservation_email : null;
+            $saveProperty->instant_booking = (isset($request->instant_booking)) ? $request->instant_booking : null;
+            $saveProperty->refundable = (isset($request->refundable)) ? $request->refundable : null;
 
             // Set vacation home specific fields if property classification is vacation_homes (4)
             if (isset($request->property_classification) && $request->property_classification == 4) {
@@ -1679,6 +1681,14 @@ class ApiController extends Controller
 
                     if (isset($request->company_employee_whatsappnumber)) {
                         $property->company_employee_whatsappnumber = $request->company_employee_whatsappnumber;
+                    }
+
+                    if (isset($request->instant_booking)) {
+                        $property->instant_booking = $request->instant_booking;
+                    }
+                    
+                    if (isset($request->refundable)) {
+                        $property->refundable = $request->refundable;
                     }
 
                     if (isset($request->address)) {
