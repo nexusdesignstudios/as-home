@@ -96,6 +96,7 @@ class ReservationController extends Controller
         $validator = Validator::make($request->all(), [
             'reservable_id' => 'required|integer',
             'reservable_type' => 'required|in:property,hotel_room',
+            'property_id' => 'required|integer|exists:propertys,id',
             'check_in_date' => 'required|date|after_or_equal:today',
             'check_out_date' => 'required|date|after:check_in_date',
             'number_of_guests' => 'integer|min:1',
@@ -163,6 +164,7 @@ class ReservationController extends Controller
             'customer_id' => Auth::guard('sanctum')->user()->id,
             'reservable_id' => $request->reservable_id,
             'reservable_type' => $modelType,
+            'property_id' => $request->property_id,
             'check_in_date' => $request->check_in_date,
             'check_out_date' => $request->check_out_date,
             'number_of_guests' => $request->number_of_guests ?? 1,
@@ -414,6 +416,7 @@ class ReservationController extends Controller
         $validator = Validator::make($request->all(), [
             'reservable_id' => 'required|integer',
             'reservable_type' => 'required|in:property,hotel_room',
+            'property_id' => 'required|integer|exists:propertys,id',
             'check_in_date' => 'required|date|after_or_equal:today',
             'check_out_date' => 'required|date|after:check_in_date',
             'number_of_guests' => 'integer|min:1',
@@ -493,6 +496,7 @@ class ReservationController extends Controller
                     'customer_id' => Auth::guard('sanctum')->user()->id,
                     'reservable_id' => $request->reservable_id,
                     'reservable_type' => $modelType,
+                    'property_id' => $request->property_id,
                     'check_in_date' => $request->check_in_date,
                     'check_out_date' => $request->check_out_date,
                     'number_of_guests' => $request->number_of_guests ?? 1,
@@ -593,18 +597,15 @@ class ReservationController extends Controller
         $status = $request->status ? explode(',', $request->status) : null;
         $perPage = $request->per_page ?? 10;
 
-        // Start building the query for reservations on properties owned by the customer
-        $query = Reservation::where('reservable_type', 'App\\Models\\Property');
+        // Start building the query for reservations
+        $query = Reservation::query();
 
         if ($propertyId) {
-            // If specific property is provided, check if it belongs to the customer
-            $query->where('reservable_id', $propertyId)
-                ->whereHas('reservable', function ($propertyQuery) use ($customerId) {
-                    $propertyQuery->where('added_by', $customerId);
-                });
+            // If specific property is provided, filter by property_id
+            $query->where('property_id', $propertyId);
         } else {
             // Get all properties owned by the customer
-            $query->whereHas('reservable', function ($propertyQuery) use ($customerId) {
+            $query->whereHas('property', function ($propertyQuery) use ($customerId) {
                 $propertyQuery->where('added_by', $customerId);
             });
         }
@@ -617,15 +618,55 @@ class ReservationController extends Controller
         // Add relationships and pagination
         $reservations = $query->with([
             'customer:id,name,email,mobile',
+            'property:id,title,category_id,price,title_image',
             'reservable' => function ($q) {
-                $q->with('category:id,category,image');
+                // For property reservations, include category
+                if ($q->getMorphClass() === 'App\\Models\\Property') {
+                    $q->with('category:id,category,image');
+                }
+                // For hotel room reservations, include room type and property
+                elseif ($q->getMorphClass() === 'App\\Models\\HotelRoom') {
+                    $q->with([
+                        'roomType:id,name,description',
+                        'property:id,title,category_id,title_image'
+                    ]);
+                }
             }
         ])
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
 
+        // Transform the data to provide more context about each reservation
+        $formattedReservations = $reservations->through(function ($reservation) {
+            $data = $reservation->toArray();
+
+            // Add reservation type for easier frontend handling
+            $data['reservation_type'] = $reservation->reservable_type === 'App\\Models\\Property' ? 'property' : 'hotel_room';
+
+            // Add property information for hotel room reservations
+            if ($reservation->reservable_type === 'App\\Models\\HotelRoom' && isset($reservation->reservable->property)) {
+                $data['property_info'] = [
+                    'id' => $reservation->reservable->property->id,
+                    'title' => $reservation->reservable->property->title,
+                    'title_image' => $reservation->reservable->property->title_image
+                ];
+
+                // Add room type information
+                if (isset($reservation->reservable->roomType)) {
+                    $data['room_info'] = [
+                        'id' => $reservation->reservable->id,
+                        'room_number' => $reservation->reservable->room_number,
+                        'room_type' => $reservation->reservable->roomType->name,
+                        'price_per_night' => $reservation->reservable->price_per_night
+                    ];
+                }
+            }
+
+            return $data;
+        });
+
         return ApiResponseService::successResponse('Property owner reservations retrieved successfully', [
-            'reservations' => $reservations
+            'reservations' => $formattedReservations
         ]);
     }
     private function calculateCustomerDiscount($customerId, $reservableType, $originalAmount)

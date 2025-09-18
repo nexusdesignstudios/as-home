@@ -897,11 +897,19 @@ class Property extends Model
     }
 
     /**
-     * Get the reservations for this property.
+     * Get the reservations for this property as a reservable.
      */
     public function reservations()
     {
         return $this->morphMany(Reservation::class, 'reservable');
+    }
+
+    /**
+     * Get all reservations associated with this property (both direct and via hotel rooms).
+     */
+    public function allReservations()
+    {
+        return $this->hasMany(Reservation::class, 'property_id');
     }
 
     public function addons_packages()
@@ -1013,7 +1021,7 @@ class Property extends Model
 
         return null;
     }
-    
+
     /**
      * Get the instant_booking attribute.
      *

@@ -14,6 +14,7 @@ class Reservation extends Model
         'customer_id',
         'reservable_id',
         'reservable_type',
+        'property_id',
         'check_in_date',
         'check_out_date',
         'number_of_guests',
@@ -53,6 +54,14 @@ class Reservation extends Model
     public function payment()
     {
         return $this->hasOne(PaymobPayment::class);
+    }
+
+    /**
+     * Get the property associated with this reservation.
+     */
+    public function property()
+    {
+        return $this->belongsTo(Property::class);
     }
 
     /**
