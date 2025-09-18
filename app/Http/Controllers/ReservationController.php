@@ -579,10 +579,9 @@ class ReservationController extends Controller
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getPropertyOwnerReservations(Request $request)
+    public function getPropertyOwnerReservations(Request $request, $customer_id)
     {
         $validator = Validator::make($request->all(), [
-            'customer_id' => 'required|integer|exists:customers,id',
             'property_id' => 'nullable|integer|exists:propertys,id',
             'status' => 'nullable|string',
             'per_page' => 'nullable|integer|min:1|max:100',
@@ -592,7 +591,7 @@ class ReservationController extends Controller
             ApiResponseService::errorResponse('Validation failed', $validator->errors());
         }
 
-        $customerId = $request->customer_id;
+        $customerId = $customer_id;
         $propertyId = $request->property_id;
         $status = $request->status ? explode(',', $request->status) : null;
         $perPage = $request->per_page ?? 10;
