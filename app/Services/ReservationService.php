@@ -29,6 +29,7 @@ class ReservationService
                 'check_out_date' => $data['check_out_date'],
                 'number_of_guests' => $data['number_of_guests'] ?? 1,
                 'total_price' => $data['total_price'],
+                'property_id' => $data['property_id'],
                 'status' => $data['status'] ?? 'pending',
                 'special_requests' => $data['special_requests'] ?? null,
                 'payment_status' => $data['payment_status'] ?? 'unpaid',
