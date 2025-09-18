@@ -614,23 +614,13 @@ class ReservationController extends Controller
             $query->whereIn('status', $status);
         }
 
-        // Add relationships and pagination
+        // Add relationships and pagination with proper handling of polymorphic relationships
         $reservations = $query->with([
             'customer:id,name,email,mobile',
-            'property:id,title,category_id,price,title_image',
-            'reservable' => function ($q) {
-                // For property reservations, include category
-                if ($q->getMorphClass() === 'App\\Models\\Property') {
-                    $q->with('category:id,category,image');
-                }
-                // For hotel room reservations, include room type and property
-                elseif ($q->getMorphClass() === 'App\\Models\\HotelRoom') {
-                    $q->with([
-                        'roomType:id,name,description',
-                        'property:id,title,category_id,title_image'
-                    ]);
-                }
-            }
+            'property:id,title,category_id,price,title_image,property_classification',
+            'property.category:id,category,image',
+            // Use morphWith to correctly load relationships based on the model type
+            'reservable'
         ])
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
@@ -642,21 +632,39 @@ class ReservationController extends Controller
             // Add reservation type for easier frontend handling
             $data['reservation_type'] = $reservation->reservable_type === 'App\\Models\\Property' ? 'property' : 'hotel_room';
 
-            // Add property information for hotel room reservations
-            if ($reservation->reservable_type === 'App\\Models\\HotelRoom' && isset($reservation->reservable->property)) {
+            // Always include the main property information from the direct property relationship
+            if (isset($reservation->property)) {
                 $data['property_info'] = [
-                    'id' => $reservation->reservable->property->id,
-                    'title' => $reservation->reservable->property->title,
-                    'title_image' => $reservation->reservable->property->title_image
+                    'id' => $reservation->property->id,
+                    'title' => $reservation->property->title,
+                    'title_image' => $reservation->property->title_image,
+                    'property_classification' => $reservation->property->property_classification
                 ];
 
-                // Add room type information
-                if (isset($reservation->reservable->roomType)) {
+                // Add category information if available
+                if (isset($reservation->property->category)) {
+                    $data['property_info']['category'] = [
+                        'id' => $reservation->property->category->id,
+                        'name' => $reservation->property->category->category,
+                        'image' => $reservation->property->category->image
+                    ];
+                }
+            }
+
+            // Add specific information based on reservation type
+            if ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                // For hotel room reservations, add room-specific information
+                if (isset($reservation->reservable)) {
+                    $hotelRoom = $reservation->reservable;
+
+                    // Load the room type if available
+                    $roomTypeName = isset($hotelRoom->roomType) ? $hotelRoom->roomType->name : 'Unknown';
+
                     $data['room_info'] = [
-                        'id' => $reservation->reservable->id,
-                        'room_number' => $reservation->reservable->room_number,
-                        'room_type' => $reservation->reservable->roomType->name,
-                        'price_per_night' => $reservation->reservable->price_per_night
+                        'id' => $hotelRoom->id,
+                        'room_number' => $hotelRoom->room_number,
+                        'room_type' => $roomTypeName,
+                        'price_per_night' => $hotelRoom->price_per_night
                     ];
                 }
             }
