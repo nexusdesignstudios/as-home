@@ -94,7 +94,6 @@ class ReservationController extends Controller
     public function createReservation(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'reservable_id' => 'required|integer',
             'reservable_type' => 'required|in:property,hotel_room',
             'property_id' => 'required|integer|exists:propertys,id',
             'check_in_date' => 'required|date|after_or_equal:today',
@@ -102,6 +101,20 @@ class ReservationController extends Controller
             'number_of_guests' => 'integer|min:1',
             'special_requests' => 'nullable|string',
         ]);
+
+        // Add conditional validation rules based on reservable_type
+        if ($request->reservable_type === 'property') {
+            $validator->addRules([
+                'reservable_id' => 'required|integer|exists:propertys,id',
+            ]);
+        } else {
+            // For hotel_room, reservable_id should be an array of room objects with id and amount
+            $validator->addRules([
+                'reservable_id' => 'required|array',
+                'reservable_id.*.id' => 'required|integer|exists:hotel_rooms,id',
+                'reservable_id.*.amount' => 'required|numeric|min:0',
+            ]);
+        }
 
         // Custom validation for dates
         $checkInDate = Carbon::parse($request->check_in_date);
@@ -127,60 +140,123 @@ class ReservationController extends Controller
             ? 'App\\Models\\Property'
             : 'App\\Models\\HotelRoom';
 
-        // Get the model to calculate price
-        $model = $request->reservable_type === 'property'
-            ? Property::find($request->reservable_id)
-            : HotelRoom::find($request->reservable_id);
-
-        if (!$model) {
-            ApiResponseService::errorResponse('Item not found');
-        }
-
-        // Check availability first
-        $isAvailable = $this->reservationService->areDatesAvailable(
-            $modelType,
-            $request->reservable_id,
-            $request->check_in_date,
-            $request->check_out_date
-        );
-
-        if (!$isAvailable) {
-            ApiResponseService::errorResponse('Selected dates are not available');
-        }
-
-        // Calculate total price
-        $checkIn = Carbon::parse($request->check_in_date);
-        $checkOut = Carbon::parse($request->check_out_date);
-        $numberOfDays = $checkIn->diffInDays($checkOut);
-
-        $basePrice = $request->reservable_type === 'property'
-            ? $model->price
-            : $model->price_per_night;
-
-        $totalPrice = $basePrice * $numberOfDays;
-
-        // Create reservation data
-        $reservationData = [
-            'customer_id' => Auth::guard('sanctum')->user()->id,
-            'reservable_id' => $request->reservable_id,
-            'reservable_type' => $modelType,
-            'property_id' => $request->property_id,
-            'check_in_date' => $request->check_in_date,
-            'check_out_date' => $request->check_out_date,
-            'number_of_guests' => $request->number_of_guests ?? 1,
-            'total_price' => $totalPrice,
-            'special_requests' => $request->special_requests,
-            'status' => 'pending',
-            'payment_status' => 'unpaid',
-        ];
-
         try {
-            // Create the reservation
-            $reservation = $this->reservationService->createReservation($reservationData);
+            // Handle property reservations
+            if ($request->reservable_type === 'property') {
+                // Get the property model
+                $property = Property::find($request->reservable_id);
 
-            ApiResponseService::successResponse('Reservation created successfully', [
-                'reservation' => $reservation
-            ]);
+                if (!$property) {
+                    ApiResponseService::errorResponse('Property not found');
+                }
+
+                // Check availability first
+                $isAvailable = $this->reservationService->areDatesAvailable(
+                    $modelType,
+                    $request->reservable_id,
+                    $request->check_in_date,
+                    $request->check_out_date
+                );
+
+                if (!$isAvailable) {
+                    ApiResponseService::errorResponse('Selected dates are not available for this property');
+                }
+
+                // Calculate total price
+                $checkIn = Carbon::parse($request->check_in_date);
+                $checkOut = Carbon::parse($request->check_out_date);
+                $numberOfDays = $checkIn->diffInDays($checkOut);
+                $totalPrice = $property->price * $numberOfDays;
+
+                // Create reservation data
+                $reservationData = [
+                    'customer_id' => Auth::guard('sanctum')->user()->id,
+                    'reservable_id' => $request->reservable_id,
+                    'reservable_type' => $modelType,
+                    'property_id' => $request->property_id,
+                    'check_in_date' => $request->check_in_date,
+                    'check_out_date' => $request->check_out_date,
+                    'number_of_guests' => $request->number_of_guests ?? 1,
+                    'total_price' => $totalPrice,
+                    'special_requests' => $request->special_requests,
+                    'status' => 'pending',
+                    'payment_status' => 'unpaid',
+                ];
+
+                // Create the reservation
+                $reservation = $this->reservationService->createReservation($reservationData);
+
+                ApiResponseService::successResponse('Reservation created successfully', [
+                    'reservation' => $reservation
+                ]);
+            }
+            // Handle hotel room reservations
+            else {
+                $roomObjects = $request->reservable_id;
+                $reservations = [];
+                $totalAmount = 0;
+                $checkIn = Carbon::parse($request->check_in_date);
+                $checkOut = Carbon::parse($request->check_out_date);
+                $numberOfDays = $checkIn->diffInDays($checkOut);
+
+                // Validate all rooms exist and are available
+                foreach ($roomObjects as $roomObject) {
+                    $roomId = $roomObject['id'];
+                    $roomAmount = $roomObject['amount'];
+
+                    $room = HotelRoom::find($roomId);
+
+                    if (!$room) {
+                        ApiResponseService::errorResponse("Hotel room with ID {$roomId} not found");
+                    }
+
+                    // Check if the room belongs to the specified property
+                    if ($room->property_id != $request->property_id) {
+                        ApiResponseService::errorResponse("Room {$roomId} does not belong to the specified property");
+                    }
+
+                    // Check availability
+                    $isAvailable = $this->reservationService->areDatesAvailable(
+                        $modelType,
+                        $roomId,
+                        $request->check_in_date,
+                        $request->check_out_date
+                    );
+
+                    if (!$isAvailable) {
+                        ApiResponseService::errorResponse("Room {$roomId} is not available for the selected dates");
+                    }
+                }
+
+                // All validations passed, create reservations for each room
+                foreach ($roomObjects as $roomObject) {
+                    $roomId = $roomObject['id'];
+                    $roomAmount = $roomObject['amount'];
+                    $totalAmount += $roomAmount;
+
+                    $reservationData = [
+                        'customer_id' => Auth::guard('sanctum')->user()->id,
+                        'reservable_id' => $roomId,
+                        'reservable_type' => $modelType,
+                        'property_id' => $request->property_id,
+                        'check_in_date' => $request->check_in_date,
+                        'check_out_date' => $request->check_out_date,
+                        'number_of_guests' => $request->number_of_guests ?? 1,
+                        'total_price' => $roomAmount,
+                        'special_requests' => $request->special_requests,
+                        'status' => 'pending',
+                        'payment_status' => 'unpaid',
+                    ];
+
+                    $reservations[] = $this->reservationService->createReservation($reservationData);
+                }
+
+                ApiResponseService::successResponse('Multiple room reservations created successfully', [
+                    'reservations' => $reservations,
+                    'total_amount' => $totalAmount,
+                    'rooms_count' => count($reservations)
+                ]);
+            }
         } catch (\Exception $e) {
             ApiResponseService::errorResponse('Failed to create reservation: ' . $e->getMessage());
         }
@@ -414,7 +490,6 @@ class ReservationController extends Controller
     public function createReservationWithPayment(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'reservable_id' => 'required|integer',
             'reservable_type' => 'required|in:property,hotel_room',
             'property_id' => 'required|integer|exists:propertys,id',
             'check_in_date' => 'required|date|after_or_equal:today',
@@ -428,6 +503,20 @@ class ReservationController extends Controller
             'payment.last_name' => 'required|string',
             'payment.phone' => 'required|string',
         ]);
+
+        // Add conditional validation rules based on reservable_type
+        if ($request->reservable_type === 'property') {
+            $validator->addRules([
+                'reservable_id' => 'required|integer|exists:propertys,id',
+            ]);
+        } else {
+            // For hotel_room, reservable_id should be an array of room objects with id and amount
+            $validator->addRules([
+                'reservable_id' => 'required|array',
+                'reservable_id.*.id' => 'required|integer|exists:hotel_rooms,id',
+                'reservable_id.*.amount' => 'required|numeric|min:0',
+            ]);
+        }
 
         // Custom validation for dates
         $checkInDate = Carbon::parse($request->check_in_date);
@@ -453,74 +542,189 @@ class ReservationController extends Controller
             ? 'App\\Models\\Property'
             : 'App\\Models\\HotelRoom';
 
-        // Get the model to calculate price
-        $model = $request->reservable_type === 'property'
-            ? Property::find($request->reservable_id)
-            : HotelRoom::find($request->reservable_id);
-
-        if (!$model) {
-            ApiResponseService::errorResponse('Item not found');
-        }
-
-        // Check availability first
-        $isAvailable = $this->reservationService->areDatesAvailable(
-            $modelType,
-            $request->reservable_id,
-            $request->check_in_date,
-            $request->check_out_date
-        );
-
-        if (!$isAvailable) {
-            ApiResponseService::errorResponse('Selected dates are not available');
-        }
-
         try {
             $customerId = Auth::guard('sanctum')->user()->id;
-            $discountInfo = $this->calculateCustomerDiscount(
-                $customerId,
-                $modelType,
-                $request->payment['amount']
-            );
 
             // Generate a unique transaction ID that's compatible with Paymob
             // Paymob expects merchant_order_id to be a string, so we'll use a timestamp-based ID
-            $transactionId = 'RES_' . time() . '_' . Auth::guard('sanctum')->user()->id . '_' . rand(1000, 9999);
+            $transactionId = 'RES_' . time() . '_' . $customerId . '_' . rand(1000, 9999);
 
-            // Use database transaction only for database operations
-            $reservation = null;
-            $payment = null;
+            // Handle property reservations
+            if ($request->reservable_type === 'property') {
+                // Get the property model
+                $property = Property::find($request->reservable_id);
 
-            DB::transaction(function () use ($request, $modelType, $discountInfo, $transactionId, &$reservation, &$payment) {
-                // Create temporary reservation to hold the details
-                $reservation = Reservation::create([
-                    'customer_id' => Auth::guard('sanctum')->user()->id,
-                    'reservable_id' => $request->reservable_id,
-                    'reservable_type' => $modelType,
-                    'property_id' => $request->property_id,
-                    'check_in_date' => $request->check_in_date,
-                    'check_out_date' => $request->check_out_date,
-                    'number_of_guests' => $request->number_of_guests ?? 1,
-                    'total_price' => $discountInfo['final_amount'],
-                    'special_requests' => $request->special_requests,
-                    'status' => 'pending',
-                    'payment_status' => 'unpaid',
-                    'payment_method' => 'paymob',
-                    'transaction_id' => $transactionId,
-                ]);
+                if (!$property) {
+                    ApiResponseService::errorResponse('Property not found');
+                }
 
-                // Create payment record
-                $payment = PaymobPayment::create([
-                    'customer_id' => Auth::guard('sanctum')->user()->id,
-                    'transaction_id' => $transactionId,
-                    'amount' => $discountInfo['final_amount'],
-                    'currency' => config('paymob.currency', 'EGP'),
-                    'status' => 'pending',
-                    'payment_method' => 'paymob',
-                    'reservable_id' => $request->reservable_id,
-                    'reservable_type' => $modelType,
-                    'reservation_id' => $reservation->id,
-                ]);
-            });
+                // Check availability first
+                $isAvailable = $this->reservationService->areDatesAvailable(
+                    $modelType,
+                    $request->reservable_id,
+                    $request->check_in_date,
+                    $request->check_out_date
+                );
+
+                if (!$isAvailable) {
+                    ApiResponseService::errorResponse('Selected dates are not available for this property');
+                }
+
+                // Calculate discount
+                $discountInfo = $this->calculateCustomerDiscount(
+                    $customerId,
+                    $modelType,
+                    $request->payment['amount']
+                );
+
+                // Use database transaction
+                $reservation = null;
+                $payment = null;
+
+                DB::transaction(function () use ($request, $modelType, $discountInfo, $transactionId, &$reservation, &$payment) {
+                    // Create temporary reservation to hold the details
+                    $reservation = Reservation::create([
+                        'customer_id' => Auth::guard('sanctum')->user()->id,
+                        'reservable_id' => $request->reservable_id,
+                        'reservable_type' => $modelType,
+                        'property_id' => $request->property_id,
+                        'check_in_date' => $request->check_in_date,
+                        'check_out_date' => $request->check_out_date,
+                        'number_of_guests' => $request->number_of_guests ?? 1,
+                        'total_price' => $discountInfo['final_amount'],
+                        'special_requests' => $request->special_requests,
+                        'status' => 'pending',
+                        'payment_status' => 'unpaid',
+                        'payment_method' => 'paymob',
+                        'transaction_id' => $transactionId,
+                    ]);
+
+                    // Create payment record
+                    $payment = PaymobPayment::create([
+                        'customer_id' => Auth::guard('sanctum')->user()->id,
+                        'transaction_id' => $transactionId,
+                        'amount' => $discountInfo['final_amount'],
+                        'currency' => config('paymob.currency', 'EGP'),
+                        'status' => 'pending',
+                        'payment_method' => 'paymob',
+                        'reservable_id' => $request->reservable_id,
+                        'reservable_type' => $modelType,
+                        'reservation_id' => $reservation->id,
+                    ]);
+                });
+            }
+            // Handle hotel room reservations
+            else {
+                $roomObjects = $request->reservable_id;
+                $reservations = [];
+                $checkIn = Carbon::parse($request->check_in_date);
+                $checkOut = Carbon::parse($request->check_out_date);
+                $numberOfDays = $checkIn->diffInDays($checkOut);
+
+                // Validate all rooms exist and are available
+                foreach ($roomObjects as $roomObject) {
+                    $roomId = $roomObject['id'];
+                    $roomAmount = $roomObject['amount'];
+
+                    $room = HotelRoom::find($roomId);
+
+                    if (!$room) {
+                        ApiResponseService::errorResponse("Hotel room with ID {$roomId} not found");
+                    }
+
+                    // Check if the room belongs to the specified property
+                    if ($room->property_id != $request->property_id) {
+                        ApiResponseService::errorResponse("Room {$roomId} does not belong to the specified property");
+                    }
+
+                    // Check availability
+                    $isAvailable = $this->reservationService->areDatesAvailable(
+                        $modelType,
+                        $roomId,
+                        $request->check_in_date,
+                        $request->check_out_date
+                    );
+
+                    if (!$isAvailable) {
+                        ApiResponseService::errorResponse("Room {$roomId} is not available for the selected dates");
+                    }
+                }
+
+                // Calculate discount on the total payment amount
+                $discountInfo = $this->calculateCustomerDiscount(
+                    $customerId,
+                    $modelType,
+                    $request->payment['amount']
+                );
+
+                // Use database transaction
+                $payment = null;
+                $mainReservation = null; // This will be the first reservation, linked to the payment
+
+                DB::transaction(function () use ($request, $modelType, $roomObjects, $discountInfo, $transactionId, &$reservations, &$payment, &$mainReservation) {
+                    // Create reservations for each room
+                    foreach ($roomObjects as $index => $roomObject) {
+                        $roomId = $roomObject['id'];
+                        $roomAmount = $roomObject['amount'];
+
+                        // For the first room, create a reservation that will be linked to the payment
+                        if ($index === 0) {
+                            $mainReservation = Reservation::create([
+                                'customer_id' => Auth::guard('sanctum')->user()->id,
+                                'reservable_id' => $roomId,
+                                'reservable_type' => $modelType,
+                                'property_id' => $request->property_id,
+                                'check_in_date' => $request->check_in_date,
+                                'check_out_date' => $request->check_out_date,
+                                'number_of_guests' => $request->number_of_guests ?? 1,
+                                'total_price' => $roomAmount,
+                                'special_requests' => $request->special_requests,
+                                'status' => 'pending',
+                                'payment_status' => 'unpaid',
+                                'payment_method' => 'paymob',
+                                'transaction_id' => $transactionId,
+                            ]);
+
+                            $reservations[] = $mainReservation;
+
+                            // Create payment record linked to the first reservation
+                            $payment = PaymobPayment::create([
+                                'customer_id' => Auth::guard('sanctum')->user()->id,
+                                'transaction_id' => $transactionId,
+                                'amount' => $discountInfo['final_amount'], // Use the total discounted amount
+                                'currency' => config('paymob.currency', 'EGP'),
+                                'status' => 'pending',
+                                'payment_method' => 'paymob',
+                                'reservable_id' => $roomId,
+                                'reservable_type' => $modelType,
+                                'reservation_id' => $mainReservation->id,
+                            ]);
+                        } else {
+                            // For subsequent rooms, create reservations with the same transaction ID
+                            $reservation = Reservation::create([
+                                'customer_id' => Auth::guard('sanctum')->user()->id,
+                                'reservable_id' => $roomId,
+                                'reservable_type' => $modelType,
+                                'property_id' => $request->property_id,
+                                'check_in_date' => $request->check_in_date,
+                                'check_out_date' => $request->check_out_date,
+                                'number_of_guests' => $request->number_of_guests ?? 1,
+                                'total_price' => $roomAmount,
+                                'special_requests' => $request->special_requests,
+                                'status' => 'pending',
+                                'payment_status' => 'unpaid',
+                                'payment_method' => 'paymob',
+                                'transaction_id' => $transactionId, // Same transaction ID for all reservations
+                            ]);
+
+                            $reservations[] = $reservation;
+                        }
+                    }
+                });
+
+                // Set the reservation variable for the payment intent creation
+                $reservation = $mainReservation;
+            }
 
             // Create the payment intent outside of the transaction (external API call)
             $paymentData = [
@@ -545,27 +749,63 @@ class ReservationController extends Controller
             // Create payment intent
             $paymentIntent = $paymentService->createAndFormatPaymentIntent($discountInfo['final_amount'], $metadata);
 
-            return ApiResponseService::successResponse('Reservation and payment intent created successfully', [
-                'reservation' => $reservation,
-                'payment_intent' => $paymentIntent,
-                'transaction_id' => $transactionId,
-                'discount_info' => $discountInfo,
-            ]);
+            // Prepare response based on reservation type
+            if ($request->reservable_type === 'property') {
+                return ApiResponseService::successResponse('Reservation and payment intent created successfully', [
+                    'reservation' => $reservation,
+                    'payment_intent' => $paymentIntent,
+                    'transaction_id' => $transactionId,
+                    'discount_info' => $discountInfo,
+                ]);
+            } else {
+                return ApiResponseService::successResponse('Multiple room reservations and payment intent created successfully', [
+                    'reservations' => $reservations,
+                    'main_reservation_id' => $mainReservation->id,
+                    'payment_intent' => $paymentIntent,
+                    'transaction_id' => $transactionId,
+                    'discount_info' => $discountInfo,
+                    'rooms_count' => count($reservations)
+                ]);
+            }
         } catch (\Exception $e) {
             // If payment intent creation fails, we should clean up the created records
-            if (isset($reservation) && isset($payment)) {
-                try {
-                    DB::transaction(function () use ($reservation, $payment) {
-                        $payment->delete();
-                        $reservation->delete();
-                    });
-                } catch (\Exception $cleanupException) {
-                    // Log cleanup failure but don't throw it
-                    Log::error('Failed to cleanup reservation and payment after payment intent failure', [
-                        'reservation_id' => $reservation->id ?? null,
-                        'payment_id' => $payment->id ?? null,
-                        'cleanup_error' => $cleanupException->getMessage()
-                    ]);
+            if ($request->reservable_type === 'property') {
+                // Clean up single reservation
+                if (isset($reservation) && isset($payment)) {
+                    try {
+                        DB::transaction(function () use ($reservation, $payment) {
+                            $payment->delete();
+                            $reservation->delete();
+                        });
+                    } catch (\Exception $cleanupException) {
+                        // Log cleanup failure but don't throw it
+                        Log::error('Failed to cleanup reservation and payment after payment intent failure', [
+                            'reservation_id' => $reservation->id ?? null,
+                            'payment_id' => $payment->id ?? null,
+                            'cleanup_error' => $cleanupException->getMessage()
+                        ]);
+                    }
+                }
+            } else {
+                // Clean up multiple reservations
+                if (isset($reservations) && !empty($reservations) && isset($payment)) {
+                    try {
+                        DB::transaction(function () use ($reservations, $payment) {
+                            $payment->delete();
+
+                            // Delete all created reservations
+                            foreach ($reservations as $res) {
+                                $res->delete();
+                            }
+                        });
+                    } catch (\Exception $cleanupException) {
+                        // Log cleanup failure but don't throw it
+                        Log::error('Failed to cleanup multiple reservations and payment after payment intent failure', [
+                            'reservation_ids' => collect($reservations)->pluck('id')->toArray(),
+                            'payment_id' => $payment->id ?? null,
+                            'cleanup_error' => $cleanupException->getMessage()
+                        ]);
+                    }
                 }
             }
 
