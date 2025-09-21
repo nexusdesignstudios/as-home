@@ -959,7 +959,7 @@ class ApiController extends Controller
             'available_rooms'   => 'nullable|integer|min:0',
             'agent_addons'      => 'nullable|json',
             'instant_booking'   => 'nullable|boolean',
-            'refundable'        => 'nullable|boolean',
+            'non_refundable'        => 'nullable|boolean',
             'hotel_rooms'       => 'nullable|array',
             'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
             'hotel_rooms.*.max_guests' => 'nullable|integer|min:0',
@@ -1085,7 +1085,7 @@ class ApiController extends Controller
             $saveProperty->reservation_phone_number = (isset($request->reservation_phone_number)) ? $request->reservation_phone_number : null;
             $saveProperty->reservation_email = (isset($request->reservation_email)) ? $request->reservation_email : null;
             $saveProperty->instant_booking = (isset($request->instant_booking)) ? $request->instant_booking : null;
-            $saveProperty->refundable = (isset($request->refundable)) ? $request->refundable : null;
+            $saveProperty->non_refundable = (isset($request->non_refundable)) ? $request->non_refundable : null;
 
             // Set vacation home specific fields if property classification is vacation_homes (4)
             if (isset($request->property_classification) && $request->property_classification == 4) {
@@ -1538,7 +1538,7 @@ class ApiController extends Controller
             'agent_addons'      => 'nullable|json',
             'available_rooms'   => 'nullable|integer|min:0',
             'instant_booking'   => 'nullable|boolean',
-            'refundable'        => 'nullable|boolean',
+            'non_refundable'        => 'nullable|boolean',
             'hotel_rooms'       => 'nullable|array',
             'hotel_rooms.*.id'  => 'nullable|exists:hotel_rooms,id',
             'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
@@ -1687,8 +1687,8 @@ class ApiController extends Controller
                         $property->instant_booking = $request->instant_booking;
                     }
                     
-                    if (isset($request->refundable)) {
-                        $property->refundable = $request->refundable;
+                    if (isset($request->non_refundable)) {
+                        $property->non_refundable = $request->non_refundable;
                     }
 
                     if (isset($request->address)) {
