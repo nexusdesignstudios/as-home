@@ -223,7 +223,7 @@ class ReservationsAdminController extends Controller
         }
 
         $request->validate([
-            'status' => 'required|in:pending,confirmed,cancelled,completed',
+            'status' => 'required|in:pending,approved,confirmed,cancelled,completed',
             'payment_status' => 'nullable|in:paid,unpaid,partial'
         ]);
 
@@ -241,6 +241,24 @@ class ReservationsAdminController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Reservation confirmed successfully. Available dates updated and confirmation email sent.'
+                ]);
+            } elseif ($newStatus === 'approved') {
+                // Handle approved status - send approval email
+                $reservation->status = $newStatus;
+
+                if ($request->has('payment_status')) {
+                    $reservation->payment_status = $request->payment_status;
+                }
+
+                $reservation->save();
+
+                // Send approval email
+                $reservationService = app(\App\Services\ReservationService::class);
+                $reservationService->sendReservationApprovalEmail($reservation);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Reservation approved successfully. Approval email sent to customer.'
                 ]);
             } else {
                 // For other status changes, use the existing logic
@@ -367,7 +385,7 @@ class ReservationsAdminController extends Controller
             'hotel_reservations' => $hotelReservations
         ]);
     }
-    
+
     /**
      * Update reservation status via API.
      *
@@ -378,7 +396,7 @@ class ReservationsAdminController extends Controller
     public function updateStatusApi(Request $request, $id)
     {
         $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'status' => 'required|in:pending,confirmed,cancelled,completed',
+            'status' => 'required|in:pending,approved,confirmed,cancelled,completed',
             'payment_status' => 'nullable|in:paid,unpaid,partial'
         ]);
 
@@ -387,18 +405,18 @@ class ReservationsAdminController extends Controller
         }
 
         $reservation = Reservation::findOrFail($id);
-        
+
         // // Check if user has permission to update this reservation
         // $user = auth('sanctum')->user();
-        
+
         // // For regular users, check if they own the property or are the customer
         // $hasPermission = false;
-        
+
         // if ($user) {
         //     // If user is the customer who made the reservation
         //     if ($reservation->customer_id == $user->id) {
         //         $hasPermission = true;
-        //     } 
+        //     }
         //     // If user is the property owner (for property reservations)
         //     elseif ($reservation->reservable_type === 'App\\Models\\Property') {
         //         $property = Property::find($reservation->reservable_id);
@@ -417,11 +435,11 @@ class ReservationsAdminController extends Controller
         //         }
         //     }
         // }
-        
+
         // if (!$hasPermission) {
         //     return $this->apiResponseService->errorResponse('You do not have permission to update this reservation', [], 403);
         // }
-        
+
         $oldStatus = $reservation->status;
         $newStatus = $request->status;
 
@@ -433,6 +451,23 @@ class ReservationsAdminController extends Controller
                 $reservationService->handleReservationConfirmation($reservation, $paymentStatus);
 
                 return $this->apiResponseService->successResponse('Reservation confirmed successfully. Available dates updated and confirmation email sent.', [
+                    'reservation' => $reservation->fresh()
+                ]);
+            } elseif ($newStatus === 'approved') {
+                // Handle approved status - send approval email
+                $reservation->status = $newStatus;
+
+                if ($request->has('payment_status')) {
+                    $reservation->payment_status = $request->payment_status;
+                }
+
+                $reservation->save();
+
+                // Send approval email
+                $reservationService = app(\App\Services\ReservationService::class);
+                $reservationService->sendReservationApprovalEmail($reservation);
+
+                return $this->apiResponseService->successResponse('Reservation approved successfully. Approval email sent to customer.', [
                     'reservation' => $reservation->fresh()
                 ]);
             } else {

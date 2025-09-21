@@ -395,7 +395,7 @@ class ReservationController extends Controller
     public function updateReservationStatus(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'status' => 'required|in:pending,confirmed,cancelled,completed',
+            'status' => 'required|in:pending,approved,confirmed,cancelled,completed',
             'payment_status' => 'nullable|in:paid,unpaid,partial',
         ]);
 
@@ -427,6 +427,23 @@ class ReservationController extends Controller
             // If cancelling, use the service to update available dates
             if ($newStatus === 'cancelled' && $oldStatus !== 'cancelled') {
                 $reservation = $this->reservationService->cancelReservation($id);
+            } elseif ($newStatus === 'approved') {
+                // Handle approved status - send approval email
+                $reservation->status = $newStatus;
+
+                if ($request->has('payment_status')) {
+                    $reservation->payment_status = $request->payment_status;
+                }
+
+                $reservation->save();
+
+                // Send approval email
+                $this->reservationService->sendReservationApprovalEmail($reservation);
+
+                ApiResponseService::successResponse('Reservation approved successfully. Approval email sent to customer.', [
+                    'reservation' => $reservation
+                ]);
+                return;
             } else {
                 $reservation->status = $newStatus;
 
