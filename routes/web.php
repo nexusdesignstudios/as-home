@@ -519,3 +519,23 @@ Route::get('/payments/paymob-failed', function () {
 
 // Add direct web route for Paymob return
 Route::get('/payments/paymob/return', [App\Http\Controllers\PaymobController::class, 'handleReturn']);
+
+// Send money callbacks (no authentication required)
+// Route::post('/send-money/paymob/callback', [App\Http\Controllers\PaymobController::class, 'handleSendMoneyCallback']);
+Route::get('/send-money/paymob/return', [App\Http\Controllers\PaymobController::class, 'handleSendMoneyReturn']);
+
+// Send money return pages (no authentication required)
+Route::get('/send-money/success', function(\Illuminate\Http\Request $request) {
+    return view('send-money.success', [
+        'transaction_id' => $request->input('transaction_id'),
+        'send_money_id' => $request->input('send_money_id'),
+        'source' => $request->input('source', 'paymob')
+    ]);
+})->name('send-money.success');
+
+Route::get('/send-money/failed', function(\Illuminate\Http\Request $request) {
+    return view('send-money.failed', [
+        'transaction_id' => $request->input('transaction_id'),
+        'source' => $request->input('source', 'paymob')
+    ]);
+})->name('send-money.failed');
