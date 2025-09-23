@@ -5369,6 +5369,401 @@
         }
       ],
       "description": "Paymob payment integration endpoints for processing payments, refunds, and payouts. Includes both server-to-server API calls and user-facing payment flows."
+    },
+    {
+      "name": "Send Money",
+      "item": [
+        {
+          "name": "Create Send Money Transaction",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100.0,\n  \"recipient_customer_id\": 2,\n  \"notes\": \"Optional notes\",\n  \"payment\": {\n    \"email\": \"sender@example.com\",\n    \"first_name\": \"Sender\",\n    \"last_name\": \"Name\",\n    \"phone\": \"01234567890\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/send-money",
+              "host": ["{{base_url}}"],
+              "path": ["api", "send-money"]
+            },
+            "description": "Create a new send money transaction with Paymob payment integration. Returns payment intent with iframe URL for payment completion."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Customers for Send Money",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/send-money-customers?search=",
+              "host": ["{{base_url}}"],
+              "path": ["api", "send-money-customers"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search term to filter customers by name, email, or mobile"
+                }
+              ]
+            },
+            "description": "Get list of customers for send money recipient selection. Supports search functionality."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Customer Send Money Transactions",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/send-money?status=pending,completed&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "send-money"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending,completed",
+                  "description": "Filter by status (comma-separated: pending,processing,completed,failed,cancelled)"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination"
+                }
+              ]
+            },
+            "description": "Get send money transactions for the authenticated customer with pagination and filtering."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Specific Send Money Transaction",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/send-money/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "send-money", "1"]
+            },
+            "description": "Get details of a specific send money transaction by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Send Money Transaction",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/send-money/1/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["api", "send-money", "1", "cancel"]
+            },
+            "description": "Cancel a pending send money transaction. Only works for transactions with 'pending' status."
+          },
+          "response": []
+        },
+        {
+          "name": "Refund Send Money Transaction",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Customer requested refund\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/send-money/1/refund",
+              "host": ["{{base_url}}"],
+              "path": ["api", "send-money", "1", "refund"]
+            },
+            "description": "Process a refund for a completed send money transaction. Only works for transactions with 'completed' status and 'paid' payment status."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Send Money Transactions (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/send-money?status=completed&customer_id=1&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "send-money"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "completed",
+                  "description": "Filter by status"
+                },
+                {
+                  "key": "customer_id",
+                  "value": "1",
+                  "description": "Filter by customer ID"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination"
+                }
+              ]
+            },
+            "description": "Get all send money transactions (admin only). Supports filtering by status and customer ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Send Money Transaction Status (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\",\n  \"payment_status\": \"paid\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/send-money/1/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "send-money", "1", "status"]
+            },
+            "description": "Update send money transaction status (admin only). Can change both transaction status and payment status."
+          },
+          "response": []
+        },
+        {
+          "name": "Send Money Payment Callback (Webhook)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"obj\": {\n    \"id\": \"transaction_id\",\n    \"success\": true,\n    \"order\": {\n      \"id\": \"order_id\",\n      \"merchant_order_id\": \"SEND_1640995200_1_1234\",\n      \"amount_cents\": 10000,\n      \"currency\": \"EGP\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/send-money/paymob/callback",
+              "host": ["{{base_url}}"],
+              "path": ["api", "send-money", "paymob", "callback"]
+            },
+            "description": "Webhook endpoint for Paymob send money payment callbacks. This is called automatically by Paymob when a payment is processed. Do not call this manually."
+          },
+          "response": []
+        },
+        {
+          "name": "Send Money Payment Return URL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/send-money/paymob/return?success=true&merchant_order_id=SEND_1640995200_1_1234",
+              "host": ["{{base_url}}"],
+              "path": ["api", "send-money", "paymob", "return"],
+              "query": [
+                {
+                  "key": "success",
+                  "value": "true",
+                  "description": "Whether the payment was successful (true/false)"
+                },
+                {
+                  "key": "merchant_order_id",
+                  "value": "SEND_1640995200_1_1234",
+                  "description": "The send money transaction ID"
+                }
+              ]
+            },
+            "description": "URL that users are redirected to after completing send money payment. This is for reference only - users are redirected here by Paymob."
+          },
+          "response": []
+        }
+      ],
+      "description": "Send money functionality allowing users to send money to other customers using Paymob payment gateway. Includes transaction management, payment processing, and admin controls."
     }
   ],
   "event": [

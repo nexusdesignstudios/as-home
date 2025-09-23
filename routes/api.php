@@ -309,3 +309,29 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/reservations/{id}/payment', [App\Http\Controllers\ReservationController::class, 'getReservationPayment']);
     Route::post('/reservations/with-payment', [App\Http\Controllers\ReservationController::class, 'createReservationWithPayment']);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Send Money Routes
+|--------------------------------------------------------------------------
+*/
+
+// Send money callbacks (no authentication required)
+Route::post('/send-money/paymob/callback', [App\Http\Controllers\PaymobController::class, 'handleSendMoneyCallback']);
+Route::get('/send-money/paymob/return', [App\Http\Controllers\PaymobController::class, 'handleSendMoneyReturn']);
+
+// Customer routes (authenticated)
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/send-money', [App\Http\Controllers\SendMoneyController::class, 'createSendMoney']);
+    Route::get('/send-money', [App\Http\Controllers\SendMoneyController::class, 'getCustomerSendMoney']);
+    Route::get('/send-money/{id}', [App\Http\Controllers\SendMoneyController::class, 'getSendMoney']);
+    Route::post('/send-money/{id}/cancel', [App\Http\Controllers\SendMoneyController::class, 'cancelSendMoney']);
+    Route::post('/send-money/{id}/refund', [App\Http\Controllers\SendMoneyController::class, 'refundSendMoney']);
+    Route::get('/send-money-customers', [App\Http\Controllers\SendMoneyController::class, 'getCustomersForSendMoney']);
+});
+
+// Admin routes
+Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+    Route::get('/send-money', [App\Http\Controllers\SendMoneyController::class, 'getAllSendMoney']);
+    Route::put('/send-money/{id}/status', [App\Http\Controllers\SendMoneyController::class, 'updateSendMoneyStatus']);
+});

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PaymobPayment;
 use App\Models\PaymobPayoutTransaction;
+use App\Models\SendMoney;
 use App\Services\ApiResponseService;
 use App\Services\Payment\PaymentService;
 use App\Services\Payment\PaymobPayoutService;
@@ -935,6 +936,143 @@ class PaymobController extends Controller
             ]);
             ApiResponseService::errorResponse('Failed to process payout callback: ' . $e->getMessage(), null, 500);
             return;
+        }
+    }
+
+    /**
+     * Handle the callback from Paymob for send money transactions
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function handleSendMoneyCallback(Request $request)
+    {
+        try {
+            Log::info('Paymob send money callback received', $request->all());
+
+            // Validate HMAC if configured
+            if (config('paymob.hmac_secret')) {
+                $this->validateHmac($request);
+            }
+
+            $data = $request->all();
+            $transactionId = $data['obj']['order']['merchant_order_id'];
+            $paymentStatus = $data['obj']['success'] ? 'succeed' : 'failed';
+            $paymobOrderId = $data['obj']['order']['id'];
+            $paymobTransactionId = $data['obj']['id'];
+
+            Log::info('Paymob send money callback - Transaction ID:', ['transaction_id' => $transactionId]);
+            Log::info('Paymob send money callback - Payment Status:', ['status' => $paymentStatus]);
+
+            // Find the send money transaction
+            $sendMoney = SendMoney::where('transaction_id', $transactionId)->first();
+
+            if ($sendMoney) {
+                // Only update if not already updated
+                if ($sendMoney->status === 'pending') {
+                    $sendMoney->status = $paymentStatus === 'succeed' ? 'completed' : 'failed';
+                    $sendMoney->payment_status = $paymentStatus === 'succeed' ? 'paid' : 'failed';
+                    $sendMoney->paymob_order_id = $paymobOrderId;
+                    $sendMoney->paymob_transaction_id = $paymobTransactionId;
+                    $sendMoney->transaction_data = json_encode($data);
+                    $sendMoney->save();
+
+                    Log::info('Send money transaction updated successfully', [
+                        'send_money_id' => $sendMoney->id,
+                        'status' => $sendMoney->status,
+                        'payment_status' => $sendMoney->payment_status
+                    ]);
+                }
+            } else {
+                Log::warning('Send money transaction not found for callback', [
+                    'transaction_id' => $transactionId
+                ]);
+
+                // Try to find by Paymob transaction ID as fallback
+                $sendMoneyByPaymobId = SendMoney::where('paymob_transaction_id', $paymobTransactionId)->first();
+                if ($sendMoneyByPaymobId) {
+                    Log::info('Send money transaction found by Paymob transaction ID', [
+                        'paymob_transaction_id' => $paymobTransactionId,
+                        'send_money_id' => $sendMoneyByPaymobId->id
+                    ]);
+
+                    // Update the transaction with the correct transaction ID
+                    $sendMoneyByPaymobId->transaction_id = $transactionId;
+                    $sendMoneyByPaymobId->status = $paymentStatus === 'succeed' ? 'completed' : 'failed';
+                    $sendMoneyByPaymobId->payment_status = $paymentStatus === 'succeed' ? 'paid' : 'failed';
+                    $sendMoneyByPaymobId->paymob_order_id = $paymobOrderId;
+                    $sendMoneyByPaymobId->paymob_transaction_id = $paymobTransactionId;
+                    $sendMoneyByPaymobId->transaction_data = json_encode($data);
+                    $sendMoneyByPaymobId->save();
+
+                    $sendMoney = $sendMoneyByPaymobId;
+                }
+            }
+
+            ApiResponseService::successResponse('Send money callback processed successfully');
+            return;
+        } catch (\Exception $e) {
+            Log::error('Paymob send money callback error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            ApiResponseService::errorResponse('Failed to process send money callback: ' . $e->getMessage(), null, 500);
+            return;
+        }
+    }
+
+    /**
+     * Handle the return from Paymob send money payment page
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function handleSendMoneyReturn(Request $request)
+    {
+        Log::info('Paymob send money return received', $request->all());
+
+        try {
+            $success = $request->input('success') === 'true';
+            $transactionId = $request->input('merchant_order_id');
+
+            Log::info('Paymob send money return details', [
+                'success' => $success,
+                'transaction_id' => $transactionId
+            ]);
+
+            // Find the send money transaction
+            $sendMoney = SendMoney::where('transaction_id', $transactionId)->first();
+
+            if ($sendMoney && $success) {
+                Log::info('Send money transaction found and successful', [
+                    'send_money_id' => $sendMoney->id,
+                    'transaction_id' => $transactionId
+                ]);
+                return redirect()->route('send-money.success', [
+                    'transaction_id' => $transactionId,
+                    'send_money_id' => $sendMoney->id,
+                    'source' => 'paymob'
+                ]);
+            } else {
+                if (!$sendMoney) {
+                    Log::warning('Send money transaction not found for return', [
+                        'transaction_id' => $transactionId
+                    ]);
+                } else {
+                    Log::warning('Send money transaction found but not successful', [
+                        'send_money_id' => $sendMoney->id,
+                        'success' => $success
+                    ]);
+                }
+                return redirect()->route('send-money.failed', [
+                    'transaction_id' => $transactionId,
+                    'source' => 'paymob'
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Paymob send money return error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->route('send-money.failed', ['source' => 'paymob']);
         }
     }
 }
