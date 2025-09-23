@@ -982,6 +982,12 @@ class PaymobController extends Controller
                         'status' => $sendMoney->status,
                         'payment_status' => $sendMoney->payment_status
                     ]);
+                } else {
+                    Log::info('Send money transaction already processed', [
+                        'send_money_id' => $sendMoney->id,
+                        'current_status' => $sendMoney->status,
+                        'current_payment_status' => $sendMoney->payment_status
+                    ]);
                 }
             } else {
                 Log::warning('Send money transaction not found for callback', [
@@ -1006,6 +1012,11 @@ class PaymobController extends Controller
                     $sendMoneyByPaymobId->save();
 
                     $sendMoney = $sendMoneyByPaymobId;
+                } else {
+                    Log::error('Send money transaction not found in any table', [
+                        'transaction_id' => $transactionId,
+                        'paymob_transaction_id' => $paymobTransactionId
+                    ]);
                 }
             }
 
