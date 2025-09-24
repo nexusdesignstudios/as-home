@@ -67,7 +67,7 @@ class SendMoneyController extends Controller
             $paymentData = [
                 'payment_method' => 'paymob',
                 'paymob_api_key' => config('paymob.api_key'),
-                'paymob_integration_id' => config('paymob.integration_id'),
+                'paymob_integration_id' => config('5307586'),
                 'paymob_iframe_id' => config('paymob.iframe_id'),
                 'paymob_currency' => config('paymob.currency'),
             ];
@@ -339,7 +339,7 @@ class SendMoneyController extends Controller
             $paymentData = [
                 'payment_method' => 'paymob',
                 'paymob_api_key' => config('paymob.api_key'),
-                'paymob_integration_id' => config('paymob.integration_id'),
+                'paymob_integration_id' => config('5307586'),
                 'paymob_iframe_id' => config('paymob.iframe_id'),
                 'paymob_currency' => config('paymob.currency'),
             ];
