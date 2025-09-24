@@ -165,7 +165,6 @@
 
         <div class="buttons">
             <a href="/" class="btn btn-primary">Go to Dashboard</a>
-            <a href="/send-money" class="btn btn-secondary">View Transactions</a>
         </div>
 
         <p style="margin-top: 30px; color: #999; font-size: 14px;">
