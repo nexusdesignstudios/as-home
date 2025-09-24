@@ -54,6 +54,24 @@ class PaymobController extends Controller
             Log::info('Paymob callback received - Paymob Order ID:', ['order_id' => $paymobOrderId]);
             Log::info('Paymob callback received - Paymob Transaction ID:', ['paymob_transaction_id' => $paymobTransactionId]);
 
+            // Route callback based on transaction ID prefix
+            if (str_starts_with($transactionId, 'SEND_')) {
+                Log::info('Paymob callback - Send money transaction detected', [
+                    'transaction_id' => $transactionId
+                ]);
+                return $this->handleSendMoneyCallback($request);
+            } elseif (str_starts_with($transactionId, 'RES_')) {
+                Log::info('Paymob callback - Reservation transaction detected', [
+                    'transaction_id' => $transactionId
+                ]);
+                // Continue with existing reservation logic
+            } else {
+                Log::warning('Paymob callback - Unknown transaction type', [
+                    'transaction_id' => $transactionId
+                ]);
+                // Try to handle as reservation for backward compatibility
+            }
+
             try {
                 // Log all payment records to debug the transaction ID issue
                 $allPayments = PaymobPayment::where('status', 'pending')->get(['id', 'transaction_id', 'reservation_id']);

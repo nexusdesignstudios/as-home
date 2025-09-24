@@ -63,11 +63,11 @@ class SendMoneyController extends Controller
                 'notes' => $request->notes,
             ]);
 
-            // Create payment data for Paymob
+            // Create payment data for Paymob (using same integration as reservations)
             $paymentData = [
                 'payment_method' => 'paymob',
                 'paymob_api_key' => config('paymob.api_key'),
-                'paymob_integration_id' => config('paymob.send_money_integration_id'),
+                'paymob_integration_id' => config('paymob.integration_id'),
                 'paymob_iframe_id' => config('paymob.iframe_id'),
                 'paymob_currency' => config('paymob.currency'),
             ];
@@ -339,7 +339,7 @@ class SendMoneyController extends Controller
             $paymentData = [
                 'payment_method' => 'paymob',
                 'paymob_api_key' => config('paymob.api_key'),
-                'paymob_integration_id' => config('paymob.send_money_integration_id'),
+                'paymob_integration_id' => config('paymob.integration_id'),
                 'paymob_iframe_id' => config('paymob.iframe_id'),
                 'paymob_currency' => config('paymob.currency'),
             ];

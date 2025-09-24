@@ -520,8 +520,7 @@ Route::get('/payments/paymob-failed', function () {
 // Add direct web route for Paymob return
 Route::get('/payments/paymob/return', [App\Http\Controllers\PaymobController::class, 'handleReturn']);
 
-// Send money callbacks (no authentication required)
-// Route::post('/send-money/paymob/callback', [App\Http\Controllers\PaymobController::class, 'handleSendMoneyCallback']);
+// Send money callbacks (no authentication required) - using same callback as reservations
 Route::get('/send-money/paymob/return', [App\Http\Controllers\PaymobController::class, 'handleSendMoneyReturn']);
 
 // Send money return pages (no authentication required)
