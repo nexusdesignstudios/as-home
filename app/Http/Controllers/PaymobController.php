@@ -55,12 +55,21 @@ class PaymobController extends Controller
             Log::info('Paymob callback received - Paymob Transaction ID:', ['paymob_transaction_id' => $paymobTransactionId]);
 
             // Route callback based on transaction ID prefix
-            if (str_starts_with($transactionId, 'SEND_')) {
+            $isSendMoney = strpos($transactionId, 'SEND_') === 0;
+            $isReservation = strpos($transactionId, 'RES_') === 0;
+
+            Log::info('Paymob callback - Checking transaction type', [
+                'transaction_id' => $transactionId,
+                'is_send_money' => $isSendMoney,
+                'is_reservation' => $isReservation
+            ]);
+
+            if ($isSendMoney) {
                 Log::info('Paymob callback - Send money transaction detected', [
                     'transaction_id' => $transactionId
                 ]);
                 return $this->handleSendMoneyCallback($request);
-            } elseif (str_starts_with($transactionId, 'RES_')) {
+            } elseif ($isReservation) {
                 Log::info('Paymob callback - Reservation transaction detected', [
                     'transaction_id' => $transactionId
                 ]);
@@ -966,7 +975,7 @@ class PaymobController extends Controller
     public function handleSendMoneyCallback(Request $request)
     {
         try {
-            Log::info('Paymob send money callback received', $request->all());
+            Log::info('Paymob send money callback received - METHOD CALLED', $request->all());
 
             // Validate HMAC if configured
             if (config('paymob.hmac_secret')) {
