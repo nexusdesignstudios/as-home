@@ -15,8 +15,6 @@ return [
 
     'integration_id' => env('PAYMOB_INTEGRATION_ID', ''),
 
-    'send_money_integration_id' => env('PAYMOB_SEND_MONEY_INTEGRATION_ID', ''),
-
     'iframe_id' => env('PAYMOB_IFRAME_ID', ''),
 
     'hmac_secret' => env('PAYMOB_HMAC_SECRET', ''),

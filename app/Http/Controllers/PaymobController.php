@@ -48,29 +48,13 @@ class PaymobController extends Controller
             $paymentStatus = $data['obj']['success'] ? 'succeed' : 'failed';
             $paymobOrderId = $data['obj']['order']['id'];
             $paymobTransactionId = $data['obj']['id'];
-            $integrationId = $data['obj']['order']['integration_id'] ?? null;
-
-            Log::info('Paymob callback - Integration ID:', ['integration_id' => $integrationId]);
-
-            // Check if this is a send money transaction based on integration ID
-            if ($integrationId == config('paymob.send_money_integration_id')) {
-                Log::info('Paymob callback - Send money integration detected', [
-                    'integration_id' => $integrationId,
-                    'transaction_id' => $transactionId
-                ]);
-
-                // Handle send money callback
-                return $this->handleSendMoneyCallback($request);
-            }
 
             Log::info('Paymob callback received - Transaction ID:', ['transaction_id' => $transactionId]);
             Log::info('Paymob callback received - Payment Status:', ['status' => $paymentStatus]);
             Log::info('Paymob callback received - Paymob Order ID:', ['order_id' => $paymobOrderId]);
             Log::info('Paymob callback received - Paymob Transaction ID:', ['paymob_transaction_id' => $paymobTransactionId]);
 
-            // Check if this is a send money transaction (starts with 'SEND_')
             try {
-
                 // Log all payment records to debug the transaction ID issue
                 $allPayments = PaymobPayment::where('status', 'pending')->get(['id', 'transaction_id', 'reservation_id']);
                 Log::info('Paymob callback - All pending payments:', [
