@@ -194,7 +194,34 @@ class PaymobController extends Controller
                 'transaction_id' => $transactionId
             ]);
 
-            // Find the payment
+            // Route return based on transaction ID prefix
+            $isSendMoney = strpos($transactionId, 'SEND_') === 0;
+            $isReservation = strpos($transactionId, 'RES_') === 0;
+
+            Log::info('Paymob return - Checking transaction type', [
+                'transaction_id' => $transactionId,
+                'is_send_money' => $isSendMoney,
+                'is_reservation' => $isReservation
+            ]);
+
+            if ($isSendMoney) {
+                Log::info('Paymob return - Send money transaction detected', [
+                    'transaction_id' => $transactionId
+                ]);
+                return $this->handleSendMoneyReturn($request);
+            } elseif ($isReservation) {
+                Log::info('Paymob return - Reservation transaction detected', [
+                    'transaction_id' => $transactionId
+                ]);
+                // Continue with existing reservation logic
+            } else {
+                Log::warning('Paymob return - Unknown transaction type', [
+                    'transaction_id' => $transactionId
+                ]);
+                // Try to handle as reservation for backward compatibility
+            }
+
+            // Find the payment (for reservations)
             $payment = PaymobPayment::where('transaction_id', $transactionId)->first();
 
             if ($payment && $success) {
@@ -1066,7 +1093,7 @@ class PaymobController extends Controller
      */
     public function handleSendMoneyReturn(Request $request)
     {
-        Log::info('Paymob send money return received', $request->all());
+        Log::info('Paymob send money return received - METHOD CALLED', $request->all());
 
         try {
             $success = $request->input('success') === 'true';
