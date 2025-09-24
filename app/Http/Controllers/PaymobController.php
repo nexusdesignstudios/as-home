@@ -978,9 +978,9 @@ class PaymobController extends Controller
             Log::info('Paymob send money callback received - METHOD CALLED', $request->all());
 
             // Validate HMAC if configured
-            if (config('paymob.hmac_secret')) {
-                $this->validateHmac($request);
-            }
+            // if (config('paymob.hmac_secret')) {
+            //     $this->validateHmac($request);
+            // }
 
             $data = $request->all();
             $transactionId = $data['obj']['order']['merchant_order_id'];
