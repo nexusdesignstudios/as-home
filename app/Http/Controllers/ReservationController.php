@@ -34,6 +34,206 @@ class ReservationController extends Controller
     }
 
     /**
+     * Update room price in available dates.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateRoomPrice(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'room_type_id' => 'required|integer|exists:hotel_room_types,id',
+            'property_id' => 'required|integer|exists:propertys,id',
+            'price' => 'required|numeric|min:0',
+            'from' => 'required|date',
+            'to' => 'required|date|after:from',
+        ]);
+
+        if ($validator->fails()) {
+            return ApiResponseService::errorResponse('Validation failed', $validator->errors());
+        }
+
+        try {
+            // Get all rooms of the specified type in the property
+            $rooms = HotelRoom::where('property_id', $request->property_id)
+                ->where('room_type_id', $request->room_type_id)
+                ->get();
+
+            if ($rooms->isEmpty()) {
+                return ApiResponseService::errorResponse('No rooms found for the specified room type and property');
+            }
+
+            $updatedRooms = [];
+            $fromDate = Carbon::parse($request->from);
+            $toDate = Carbon::parse($request->to);
+
+            foreach ($rooms as $room) {
+                // Get current available dates
+                $availableDates = $room->available_dates ?? [];
+
+                if (!is_array($availableDates)) {
+                    $availableDates = [];
+                }
+
+                // Update the available dates with new price for the specified period
+                $updatedDates = $this->updatePriceInDateRange(
+                    $availableDates,
+                    $fromDate,
+                    $toDate,
+                    $request->price,
+                    $room
+                );
+
+                // Update the room
+                $room->available_dates = $updatedDates;
+                $room->save();
+
+                $updatedRooms[] = [
+                    'room_id' => $room->id,
+                    'room_number' => $room->room_number,
+                    'updated_dates' => $updatedDates
+                ];
+            }
+
+            return ApiResponseService::successResponse('Room prices updated successfully', [
+                'updated_rooms' => $updatedRooms,
+                'period' => [
+                    'from' => $fromDate->format('Y-m-d'),
+                    'to' => $toDate->format('Y-m-d'),
+                    'price' => $request->price
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return ApiResponseService::errorResponse('Failed to update room prices: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Update price in date range for available dates.
+     *
+     * @param array $availableDates
+     * @param Carbon $fromDate
+     * @param Carbon $toDate
+     * @param float $newPrice
+     * @param HotelRoom $room
+     * @return array
+     */
+    private function updatePriceInDateRange($availableDates, $fromDate, $toDate, $newPrice, $room)
+    {
+        $updatedDates = [];
+        $periodAdded = false;
+
+        foreach ($availableDates as $dateInfo) {
+            // Skip if this isn't a date range format
+            if (!isset($dateInfo['from']) || !isset($dateInfo['to'])) {
+                $updatedDates[] = $dateInfo;
+                continue;
+            }
+
+            $existingFrom = Carbon::parse($dateInfo['from']);
+            $existingTo = Carbon::parse($dateInfo['to']);
+
+            // Check if this range overlaps with our update period
+            if ($this->rangesOverlap($existingFrom, $existingTo, $fromDate, $toDate)) {
+                // Handle different overlap scenarios
+                $ranges = $this->splitRangeForPriceUpdate(
+                    $existingFrom,
+                    $existingTo,
+                    $fromDate,
+                    $toDate,
+                    $dateInfo,
+                    $newPrice,
+                    $room
+                );
+
+                $updatedDates = array_merge($updatedDates, $ranges);
+                $periodAdded = true;
+            } else {
+                // No overlap, keep the original range
+                $updatedDates[] = $dateInfo;
+            }
+        }
+
+        // If no existing range overlapped with our period, add a new range
+        if (!$periodAdded) {
+            $updatedDates[] = [
+                'from' => $fromDate->format('Y-m-d'),
+                'to' => $toDate->format('Y-m-d'),
+                'price' => $newPrice,
+                'type' => 'open',
+                'nonrefundable_percentage' => $room->nonrefundable_percentage ?? 0
+            ];
+        }
+
+        return $updatedDates;
+    }
+
+    /**
+     * Check if two date ranges overlap.
+     *
+     * @param Carbon $from1
+     * @param Carbon $to1
+     * @param Carbon $from2
+     * @param Carbon $to2
+     * @return bool
+     */
+    private function rangesOverlap($from1, $to1, $from2, $to2)
+    {
+        return $from1->lte($to2) && $from2->lte($to1);
+    }
+
+    /**
+     * Split a date range to accommodate price updates.
+     *
+     * @param Carbon $existingFrom
+     * @param Carbon $existingTo
+     * @param Carbon $updateFrom
+     * @param Carbon $updateTo
+     * @param array $dateInfo
+     * @param float $newPrice
+     * @param HotelRoom $room
+     * @return array
+     */
+    private function splitRangeForPriceUpdate($existingFrom, $existingTo, $updateFrom, $updateTo, $dateInfo, $newPrice, $room)
+    {
+        $ranges = [];
+
+        // Before period (if exists)
+        if ($existingFrom->lt($updateFrom)) {
+            $ranges[] = [
+                'from' => $existingFrom->format('Y-m-d'),
+                'to' => $updateFrom->copy()->subDay()->format('Y-m-d'),
+                'price' => $dateInfo['price'] ?? $room->price_per_night,
+                'type' => $dateInfo['type'] ?? 'open',
+                'nonrefundable_percentage' => $dateInfo['nonrefundable_percentage'] ?? $room->nonrefundable_percentage ?? 0
+            ];
+        }
+
+        // Updated period
+        $ranges[] = [
+            'from' => $updateFrom->format('Y-m-d'),
+            'to' => $updateTo->format('Y-m-d'),
+            'price' => $newPrice,
+            'type' => $dateInfo['type'] ?? 'open',
+            'nonrefundable_percentage' => $dateInfo['nonrefundable_percentage'] ?? $room->nonrefundable_percentage ?? 0
+        ];
+
+        // After period (if exists)
+        if ($existingTo->gt($updateTo)) {
+            $ranges[] = [
+                'from' => $updateTo->copy()->addDay()->format('Y-m-d'),
+                'to' => $existingTo->format('Y-m-d'),
+                'price' => $dateInfo['price'] ?? $room->price_per_night,
+                'type' => $dateInfo['type'] ?? 'open',
+                'nonrefundable_percentage' => $dateInfo['nonrefundable_percentage'] ?? $room->nonrefundable_percentage ?? 0
+            ];
+        }
+
+        return $ranges;
+    }
+
+    /**
      * Check availability for a property or room.
      *
      * @param Request $request

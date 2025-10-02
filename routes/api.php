@@ -299,6 +299,11 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::put('/reservations/{id}/status', [App\Http\Controllers\ReservationController::class, 'updateReservationStatus']);
 });
 
+// Room price update (authenticated users)
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/update-room-price', [App\Http\Controllers\ReservationController::class, 'updateRoomPrice']);
+});
+
 /* Reservation Payment Routes */
 Route::post('/payments/paymob/callback', [App\Http\Controllers\PaymobController::class, 'handleCallback']);
 Route::get('/payments/paymob/return', [App\Http\Controllers\PaymobController::class, 'handleReturn']);
