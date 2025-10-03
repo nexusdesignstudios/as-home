@@ -543,8 +543,8 @@ class ReservationsAdminController extends Controller
             $metadata = [
                 'email' => $customer->email,
                 'first_name' => $customer->name,
-                'last_name' => '',
-                'phone' => $customer->mobile ?? '',
+                'last_name' => $customer->name, // Use the same name for last_name to avoid blank field
+                'phone' => $customer->mobile ?? '1234567890', // Provide default phone if not available
                 'payment_transaction_id' => $transactionId,
             ];
 
