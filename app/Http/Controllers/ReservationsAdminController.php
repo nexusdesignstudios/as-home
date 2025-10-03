@@ -558,7 +558,9 @@ class ReservationsAdminController extends Controller
             \Illuminate\Support\Facades\Log::info('Payment intent created for reservation', [
                 'reservation_id' => $reservation->id,
                 'payment_intent' => $paymentIntent,
-                'iframe_url' => $paymentIntent['iframe_url'] ?? 'not_found'
+                'iframe_url' => $paymentIntent['iframe_url'] ?? 'not_found',
+                'payment_intent_keys' => array_keys($paymentIntent),
+                'full_response' => json_encode($paymentIntent, JSON_PRETTY_PRINT)
             ]);
 
             // Return the iframe URL from the payment intent
