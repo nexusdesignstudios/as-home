@@ -590,7 +590,7 @@ class ReservationService
                 );
 
                 if (empty($reservationApprovalTemplateData)) {
-                    $reservationApprovalTemplateData = "Your reservation has been approved! Please complete your payment to confirm your booking using the link below: <br><br><a href='{{payment_link}}' style='background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>Complete Payment</a><br><br>Your reservation will be confirmed once payment is completed.";
+                    $reservationApprovalTemplateData = "Your reservation has been approved! Please complete your payment to confirm your booking using the link below: <br><br><a href='{{payment_link}}'>Complete Payment</a><br><br>Your reservation will be confirmed once payment is completed.";
                 }
                 $reservationApprovalTemplate = \App\Services\HelperService::replaceEmailVariables($reservationApprovalTemplateData, $variables);
 
