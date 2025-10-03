@@ -454,7 +454,7 @@ class ReservationsAdminController extends Controller
                     'reservation' => $reservation->fresh()
                 ]);
             } elseif ($newStatus === 'approved') {
-                // Handle approved status - send approval email
+                // Handle approved status - send approval email with payment link
                 $reservation->status = $newStatus;
 
                 if ($request->has('payment_status')) {
@@ -463,12 +463,21 @@ class ReservationsAdminController extends Controller
 
                 $reservation->save();
 
-                // Send approval email
-                $reservationService = app(\App\Services\ReservationService::class);
-                $reservationService->sendReservationApprovalEmail($reservation);
+                // Generate payment link and send approval email
+                $paymentLink = $this->generatePaymentLinkForReservation($reservation);
 
-                return $this->apiResponseService->successResponse('Reservation approved successfully. Approval email sent to customer.', [
-                    'reservation' => $reservation->fresh()
+                if ($paymentLink) {
+                    $reservationService = app(\App\Services\ReservationService::class);
+                    $reservationService->sendReservationApprovalWithPaymentEmail($reservation, $paymentLink);
+                } else {
+                    // Fallback to regular approval email if payment link generation fails
+                    $reservationService = app(\App\Services\ReservationService::class);
+                    $reservationService->sendReservationApprovalEmail($reservation);
+                }
+
+                return $this->apiResponseService->successResponse('Reservation approved successfully. Approval email with payment link sent to customer.', [
+                    'reservation' => $reservation->fresh(),
+                    'payment_link' => $paymentLink
                 ]);
             } else {
                 // For other status changes, use the existing logic
@@ -495,5 +504,113 @@ class ReservationsAdminController extends Controller
 
             return $this->apiResponseService->errorResponse('Failed to update reservation status: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Generate payment link for a reservation.
+     *
+     * @param \App\Models\Reservation $reservation
+     * @return string|null
+     */
+    private function generatePaymentLinkForReservation($reservation)
+    {
+        try {
+            // Get customer information
+            $customer = $reservation->customer;
+            if (!$customer || !$customer->email) {
+                return null;
+            }
+
+            // Generate a unique transaction ID
+            $transactionId = 'RES_' . time() . '_' . $customer->id . '_' . rand(1000, 9999);
+
+            // Calculate discount
+            $discountInfo = $this->calculateCustomerDiscount(
+                $customer->id,
+                $reservation->reservable_type,
+                $reservation->total_price
+            );
+
+            // Create payment data
+            $paymentData = [
+                'payment_method' => 'paymob',
+                'paymob_api_key' => config('paymob.api_key'),
+                'paymob_integration_id' => config('paymob.integration_id'),
+                'paymob_iframe_id' => config('paymob.iframe_id'),
+                'paymob_currency' => config('paymob.currency'),
+            ];
+
+            $metadata = [
+                'email' => $customer->email,
+                'first_name' => $customer->name,
+                'last_name' => '',
+                'phone' => $customer->mobile ?? '',
+                'payment_transaction_id' => $transactionId,
+            ];
+
+            // Create payment service
+            $paymentService = app(\App\Services\Payment\PaymentService::class)->create($paymentData);
+
+            // Create payment intent
+            $paymentIntent = $paymentService->createAndFormatPaymentIntent($discountInfo['final_amount'], $metadata);
+
+            // Return the iframe URL from the payment intent
+            return $paymentIntent['iframe_url'] ?? null;
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to generate payment link for reservation', [
+                'reservation_id' => $reservation->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Calculate customer discount.
+     *
+     * @param int $customerId
+     * @param string $reservableType
+     * @param float $originalAmount
+     * @return array
+     */
+    private function calculateCustomerDiscount($customerId, $reservableType, $originalAmount)
+    {
+        $completedBookings = \App\Models\Reservation::where('customer_id', $customerId)
+            ->where('reservable_type', $reservableType)
+            ->where('status', 'confirmed')
+            ->count();
+
+        $discountPercentage = 0;
+
+        if ($reservableType === 'App\\Models\\Property') {
+            if ($completedBookings == 15) {
+                $discountPercentage = 10;
+            } elseif ($completedBookings == 10) {
+                $discountPercentage = 7;
+            } elseif ($completedBookings == 5) {
+                $discountPercentage = 3;
+            }
+        } elseif ($reservableType === 'App\\Models\\HotelRoom') {
+            if ($completedBookings == 20) {
+                $discountPercentage = 5;
+            } elseif ($completedBookings == 15) {
+                $discountPercentage = 4;
+            } elseif ($completedBookings == 10) {
+                $discountPercentage = 2;
+            }
+        }
+
+        $discountAmount = ($originalAmount * $discountPercentage) / 100;
+        $finalAmount = $originalAmount - $discountAmount;
+
+        return [
+            'original_amount' => $originalAmount,
+            'discount_percentage' => $discountPercentage,
+            'discount_amount' => $discountAmount,
+            'final_amount' => $finalAmount,
+            'completed_bookings' => $completedBookings
+        ];
     }
 }

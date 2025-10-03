@@ -544,6 +544,79 @@ class ReservationService
     }
 
     /**
+     * Send reservation approval email with payment link.
+     *
+     * @param \App\Models\Reservation $reservation
+     * @param string $paymentLink
+     * @return void
+     */
+    public function sendReservationApprovalWithPaymentEmail($reservation, $paymentLink)
+    {
+        try {
+            $customer = $reservation->customer;
+            if ($customer && $customer->email) {
+                // Get Data of email type
+                $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("reservation_approval_payment");
+
+                // Email Template
+                $reservationApprovalTemplateData = system_setting('reservation_approval_payment_mail_template');
+                $appName = env("APP_NAME") ?? "eBroker";
+
+                // Get property name
+                $propertyName = '';
+                if ($reservation->reservable_type === 'App\Models\Property') {
+                    $propertyName = $reservation->reservable->title ?? 'Property';
+                } elseif ($reservation->reservable_type === 'App\Models\HotelRoom') {
+                    $propertyName = $reservation->reservable->property->title ?? 'Hotel Room';
+                }
+
+                // Get currency symbol
+                $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+                $variables = array(
+                    'app_name' => $appName,
+                    'user_name' => $customer->name,
+                    'reservation_id' => $reservation->id,
+                    'property_name' => $propertyName,
+                    'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
+                    'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
+                    'number_of_guests' => $reservation->number_of_guests,
+                    'total_price' => number_format($reservation->total_price, 2),
+                    'currency_symbol' => $currencySymbol,
+                    'payment_status' => ucfirst($reservation->payment_status),
+                    'transaction_id' => $reservation->transaction_id,
+                    'special_requests' => $reservation->special_requests ?? 'None',
+                    'payment_link' => $paymentLink,
+                );
+
+                if (empty($reservationApprovalTemplateData)) {
+                    $reservationApprovalTemplateData = "Your reservation has been approved! Please complete your payment using the link below: <br><br><a href='{{payment_link}}' style='background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>Complete Payment</a>";
+                }
+                $reservationApprovalTemplate = \App\Services\HelperService::replaceEmailVariables($reservationApprovalTemplateData, $variables);
+
+                $data = array(
+                    'email_template' => $reservationApprovalTemplate,
+                    'email' => $customer->email,
+                    'title' => $emailTypeData['title'] ?? 'Reservation Approved - Payment Required',
+                );
+                \App\Services\HelperService::sendMail($data);
+
+                \Illuminate\Support\Facades\Log::info('Reservation approval with payment email sent successfully', [
+                    'reservation_id' => $reservation->id,
+                    'customer_email' => $customer->email,
+                    'payment_link' => $paymentLink
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send reservation approval with payment email', [
+                'error' => $e->getMessage(),
+                'reservation_id' => $reservation->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
      * Send reservation confirmation email.
      *
      * @param \App\Models\Reservation $reservation
