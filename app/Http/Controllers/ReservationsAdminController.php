@@ -475,7 +475,7 @@ class ReservationsAdminController extends Controller
                     $reservationService->sendReservationApprovalEmail($reservation);
                 }
 
-                return $this->apiResponseService->successResponse('Reservation approved successfully. Approval email with payment link sent to customer.', [
+                return $this->apiResponseService->successResponse('Reservation approved successfully. Payment link sent to customer. Reservation will be confirmed after payment.', [
                     'reservation' => $reservation->fresh(),
                     'payment_link' => $paymentLink
                 ]);
@@ -549,10 +549,17 @@ class ReservationsAdminController extends Controller
             ];
 
             // Create payment service
-            $paymentService = app(\App\Services\Payment\PaymentService::class)->create($paymentData);
+            $paymentService = \App\Services\Payment\PaymentService::create($paymentData);
 
             // Create payment intent
             $paymentIntent = $paymentService->createAndFormatPaymentIntent($discountInfo['final_amount'], $metadata);
+
+            // Log the payment intent for debugging
+            \Illuminate\Support\Facades\Log::info('Payment intent created for reservation', [
+                'reservation_id' => $reservation->id,
+                'payment_intent' => $paymentIntent,
+                'iframe_url' => $paymentIntent['iframe_url'] ?? 'not_found'
+            ]);
 
             // Return the iframe URL from the payment intent
             return $paymentIntent['iframe_url'] ?? null;
