@@ -589,10 +589,23 @@ class ReservationService
                     'payment_link' => $paymentLink,
                 );
 
+                // Log the variables for debugging
+                \Illuminate\Support\Facades\Log::info('Email variables for payment link email', [
+                    'reservation_id' => $reservation->id,
+                    'payment_link' => $paymentLink,
+                    'variables' => $variables
+                ]);
+
                 if (empty($reservationApprovalTemplateData)) {
                     $reservationApprovalTemplateData = "Your reservation has been approved! Please complete your payment to confirm your booking using the link below: <br><br><a href='{{payment_link}}'>Complete Payment</a><br><br>Your reservation will be confirmed once payment is completed.";
                 }
                 $reservationApprovalTemplate = \App\Services\HelperService::replaceEmailVariables($reservationApprovalTemplateData, $variables);
+
+                // Log the final email template for debugging
+                \Illuminate\Support\Facades\Log::info('Final email template after variable replacement', [
+                    'reservation_id' => $reservation->id,
+                    'final_template' => $reservationApprovalTemplate
+                ]);
 
                 $data = array(
                     'email_template' => $reservationApprovalTemplate,
