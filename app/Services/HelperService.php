@@ -788,6 +788,10 @@ class HelperService
                 'title' => 'Inquiry Form Submission',
                 'type' => 'inquiry_form',
             ],
+            [
+                'title' => 'Reservation Approval with Payment Link',
+                'type' => 'reservation_approval_payment',
+            ],
         );
     }
 
