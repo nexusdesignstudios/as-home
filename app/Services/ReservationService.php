@@ -614,6 +614,17 @@ class ReservationService
                 );
                 \App\Services\HelperService::sendMail($data);
 
+                // Send notification to customer
+                \App\Models\Notifications::create([
+                    'title' => 'Reservation Approved - Payment Required',
+                    'message' => 'Your reservation has been approved! Please complete your payment to confirm your booking. Click here to pay: ' . $paymentLink,
+                    'image' => '',
+                    'type' => '1',
+                    'send_type' => '0',
+                    'customers_id' => $customer->id,
+                    'propertys_id' => $reservation->property_id,
+                ]);
+
                 \Illuminate\Support\Facades\Log::info('Reservation approval with payment email sent successfully', [
                     'reservation_id' => $reservation->id,
                     'customer_email' => $customer->email,
