@@ -617,7 +617,7 @@ class ReservationService
                 // Send notification to customer
                 \App\Models\Notifications::create([
                     'title' => 'Reservation Approved - Payment Required',
-                    'message' => 'Your reservation has been approved! Please complete your payment to confirm your booking. Click here to pay: ' . $paymentLink,
+                    'message' => 'Your reservation has been approved! Please complete your payment to confirm your booking.<br><br><a href="' . $paymentLink . '" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Complete Payment</a>',
                     'image' => '',
                     'type' => '1',
                     'send_type' => '0',
