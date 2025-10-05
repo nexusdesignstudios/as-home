@@ -96,6 +96,9 @@ class SendMoneyController extends Controller
                 'payment_data' => $paymentIntent,
             ]);
 
+            // Send email and notification to sender
+            $this->sendSendMoneyEmailAndNotification($sendMoney, $paymentIntent['iframe_url']);
+
             return ApiResponseService::successResponse('Send money transaction created successfully', [
                 'send_money' => $sendMoney,
                 'payment_intent' => $paymentIntent,
@@ -365,6 +368,95 @@ class SendMoneyController extends Controller
         } catch (\Exception $e) {
             Log::error('Send money refund error: ' . $e->getMessage());
             return ApiResponseService::errorResponse('Failed to process refund: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Send email and notification for send money transaction.
+     *
+     * @param SendMoney $sendMoney
+     * @param string $paymentLink
+     * @return void
+     */
+    private function sendSendMoneyEmailAndNotification($sendMoney, $paymentLink)
+    {
+        try {
+            $customer = $sendMoney->customer;
+            $recipient = $sendMoney->recipient;
+
+            if ($customer && $customer->email) {
+                // Get currency symbol
+                $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+                // Prepare email variables
+                $variables = [
+                    'app_name' => env("APP_NAME") ?? "eBroker",
+                    'sender_name' => $customer->name,
+                    'recipient_name' => $recipient->name,
+                    'amount' => number_format($sendMoney->amount, 2),
+                    'currency_symbol' => $currencySymbol,
+                    'transaction_id' => $sendMoney->transaction_id,
+                    'notes' => $sendMoney->notes ?? 'No notes provided',
+                    'payment_link' => $paymentLink,
+                ];
+
+                // Get email template
+                $emailTemplateData = system_setting('send_money_payment_mail_template');
+
+                if (empty($emailTemplateData)) {
+                    $emailTemplateData = 'Dear {sender_name},
+
+You have initiated a send money transaction to {recipient_name}.
+
+Transaction Details:
+- Transaction ID: {transaction_id}
+- Amount: {currency_symbol}{amount}
+- Recipient: {recipient_name}
+- Notes: {notes}
+
+Please complete your payment using the link below:
+
+<a href="{payment_link}">Complete Payment</a>
+
+Your transaction will be processed once payment is completed.
+
+Best regards,
+The Team';
+                }
+
+                // Replace variables in template
+                $emailTemplate = \App\Services\HelperService::replaceEmailVariables($emailTemplateData, $variables);
+
+                // Send email
+                $data = [
+                    'email_template' => $emailTemplate,
+                    'email' => $customer->email,
+                    'title' => 'Send Money Payment Required',
+                ];
+                \App\Services\HelperService::sendMail($data);
+
+                // Send notification to customer
+                \App\Models\Notifications::create([
+                    'title' => 'Send Money Payment Required',
+                    'message' => 'You have initiated a send money transaction to ' . $recipient->name . ' for ' . $currencySymbol . number_format($sendMoney->amount, 2) . '.<br><br><a href="' . $paymentLink . '" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Complete Payment</a>',
+                    'image' => '',
+                    'type' => '1',
+                    'send_type' => '0',
+                    'customers_id' => $customer->id,
+                ]);
+
+                Log::info('Send money email and notification sent successfully', [
+                    'send_money_id' => $sendMoney->id,
+                    'customer_email' => $customer->email,
+                    'payment_link' => $paymentLink
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to send send money email and notification', [
+                'send_money_id' => $sendMoney->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
         }
     }
 }

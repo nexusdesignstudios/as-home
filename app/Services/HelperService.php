@@ -766,6 +766,45 @@ class HelperService
                             ],
                         )
                     );
+                case 'send_money_payment':
+                    return array(
+                        'title' => 'Send Money Payment Required',
+                        'type' => 'send_money_payment_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'sender_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'recipient_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'transaction_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'notes',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'payment_link',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
                 default:
                     // Return null for invalid types to indicate error
                     return null;
@@ -853,6 +892,10 @@ class HelperService
             [
                 'title' => 'Reservation Approval with Payment Link',
                 'type' => 'reservation_approval_payment',
+            ],
+            [
+                'title' => 'Send Money Payment Required',
+                'type' => 'send_money_payment',
             ],
         );
     }
