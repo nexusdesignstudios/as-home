@@ -828,7 +828,7 @@
             if ($('input[name="property_type"]:checked').val() == 0) {
                 $('#duration').hide();
                 $('#price_duration').val('');
-                $('.price-field').hide();
+                $('.price-field').show();
             } else {
                 $('#duration').show();
                 $('#price_duration').val('');
@@ -850,7 +850,7 @@
             } else {
                 $('#duration').hide();
                 $('#price_duration').val('');
-                $('.price-field').hide();
+                $('.price-field').show();
             }
         });
         $(".RemoveBtngallary").click(function(e) {
@@ -1055,7 +1055,7 @@
                     $('.hotel-fields').show();
                     $('.hotel-rooms').show();
                     $('.policy-data-field').hide(); // Hide policy data for hotels
-                    $('.price-field').hide(); // Hide price for hotels
+                    $('.price-field').show(); // Show price for hotels
                 } else {
                     $('.policy-data-field').show(); // Show policy data for non-hotels
                     $('.price-field').show(); // Show price for non-hotels
