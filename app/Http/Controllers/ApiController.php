@@ -980,7 +980,7 @@ class ApiController extends Controller
             'addons_packages.*.room_type_id' => 'nullable|exists:hotel_room_types,id',
             'addons_packages.*.status' => 'nullable|in:active,inactive',
             'addons_packages.*.price' => 'nullable|numeric|min:0',
-            'addons_packages.*.addon_values' => 'required_with:addons_packages|array',
+            'addons_packages.*.addon_values' => 'nullable|array',
             'addons_packages.*.addon_values.*.hotel_addon_field_id' => 'required|exists:hotel_addon_fields,id',
             'addons_packages.*.addon_values.*.value' => 'required',
             'addons_packages.*.addon_values.*.static_price' => 'nullable|numeric|min:0',
@@ -1343,7 +1343,7 @@ class ApiController extends Controller
 
             // START :: ADD ADDONS PACKAGES
             // Check if property classification is 5 (hotel) either from request or saved property
-            $isHotelProperty = (isset($request->property_classification) && $request->property_classification == 5) || 
+            $isHotelProperty = (isset($request->property_classification) && $request->property_classification == 5) ||
                               ($saveProperty->getRawOriginal('property_classification') == 5);
             if ($isHotelProperty && isset($request->addons_packages) && !empty($request->addons_packages)) {
                 try {
@@ -1686,7 +1686,7 @@ class ApiController extends Controller
                     if (isset($request->instant_booking)) {
                         $property->instant_booking = $request->instant_booking;
                     }
-                    
+
                     if (isset($request->non_refundable)) {
                         $property->non_refundable = $request->non_refundable;
                     }
