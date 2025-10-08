@@ -2213,18 +2213,31 @@ class ApiController extends Controller
                     // END :: UPDATE HOTEL ROOMS
 
                     // START :: UPDATE HOTEL ADDON VALUES AND PACKAGES
-                    if (isset($request->property_classification) && $request->property_classification == 5) {
-                        // Create destination path for hotel addon files
-                        $addonFolderPath = public_path('images') . config('global.HOTEL_ADDON_PATH');
-                        if (!is_dir($addonFolderPath)) {
-                            mkdir($addonFolderPath, 0777, true);
-                        }
+                    // Always process addon packages if they are provided in the request
+                    // Create destination path for hotel addon files
+                    $addonFolderPath = public_path('images') . config('global.HOTEL_ADDON_PATH');
+                    if (!is_dir($addonFolderPath)) {
+                        mkdir($addonFolderPath, 0777, true);
+                    }
 
-                        // We only use packages now - individual addon values are not supported
+                    // We only use packages now - individual addon values are not supported
 
-                        // Handle addons packages - check if this is a hotel property (classification 5)
-                        $isHotelProperty = $property->getRawOriginal('property_classification') == 5;
-                        if ($isHotelProperty && isset($request->addons_packages) && !empty($request->addons_packages)) {
+                    if (isset($request->addons_packages) && !empty($request->addons_packages)) {
+                            // If no package IDs are provided, treat this as a full replacement:
+                            // delete all existing packages (and their addon values) and recreate from request
+                            $providedPackageIds = collect($request->addons_packages)
+                                ->pluck('id')
+                                ->filter()
+                                ->values();
+
+                            if ($providedPackageIds->isEmpty()) {
+                                $existingPackages = AddonsPackage::where('property_id', $property->id)->get();
+                                foreach ($existingPackages as $existingPackage) {
+                                    PropertyHotelAddonValue::where('package_id', $existingPackage->id)->delete();
+                                    $existingPackage->delete();
+                                }
+                            }
+
                             foreach ($request->addons_packages as $packageIndex => $package) {
                                 // Check if this is an update or new package
                                 if (isset($package['id']) && !empty($package['id'])) {
@@ -2351,22 +2364,21 @@ class ApiController extends Controller
                                     }
                                 }
                             }
-                        }
+                    }
 
-                        // Handle deleted packages
-                        if (isset($request->deleted_package_ids) && !empty($request->deleted_package_ids)) {
-                            foreach ($request->deleted_package_ids as $packageId) {
-                                $packageToDelete = AddonsPackage::where('id', $packageId)
-                                    ->where('property_id', $property->id)
-                                    ->first();
+                    // Handle deleted packages even if no new packages were sent
+                    if (isset($request->deleted_package_ids) && !empty($request->deleted_package_ids)) {
+                        foreach ($request->deleted_package_ids as $packageId) {
+                            $packageToDelete = AddonsPackage::where('id', $packageId)
+                                ->where('property_id', $property->id)
+                                ->first();
 
-                                if ($packageToDelete) {
-                                    // Delete associated addon values first
-                                    PropertyHotelAddonValue::where('package_id', $packageToDelete->id)->delete();
+                            if ($packageToDelete) {
+                                // Delete associated addon values first
+                                PropertyHotelAddonValue::where('package_id', $packageToDelete->id)->delete();
 
-                                    // Then delete the package
-                                    $packageToDelete->delete();
-                                }
+                                // Then delete the package
+                                $packageToDelete->delete();
                             }
                         }
                     }
