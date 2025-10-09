@@ -836,7 +836,7 @@ class SettingController extends Controller
         if (!has_permissions('read', 'email_templates')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
-        $types = array('verify_mail', 'reset_password', 'welcome_mail', 'property_status', 'project_status', 'property_ads_status', 'user_status', 'agent_verification_status', 'reservation_confirmation', 'reservation_approval', 'monthly_tax_invoice', 'selling_or_renting_contract', 'basic_package_self_managed', 'basic_package_renting_self_managed', 'premium_package_renting', 'vacation_homes_self_managed_basic_package', 'vacation_homes_ashome_managed_premium_package', 'hotel_booking', 'property_client_meeting', 'inquiry_form', 'reservation_approval_payment', 'send_money_payment', 'refund_approval', 'reservation_cancellation');
+        $types = array('verify_mail', 'reset_password', 'welcome_mail', 'property_status', 'project_status', 'property_ads_status', 'user_status', 'agent_verification_status', 'reservation_confirmation', 'reservation_approval', 'monthly_tax_invoice', 'vacation_homes_basic_tax_invoice', 'vacation_homes_premium_tax_invoice', 'hotel_booking_tax_invoice', 'selling_or_renting_contract', 'basic_package_self_managed', 'basic_package_renting_self_managed', 'premium_package_renting', 'vacation_homes_self_managed_basic_package', 'vacation_homes_ashome_managed_premium_package', 'hotel_booking', 'property_client_meeting', 'inquiry_form', 'reservation_approval_payment', 'send_money_payment', 'refund_approval', 'reservation_cancellation');
         if (!in_array($type, $types)) {
             ResponseService::errorRedirectResponse("Type is invalid");
         }

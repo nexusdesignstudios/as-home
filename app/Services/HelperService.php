@@ -428,6 +428,159 @@ class HelperService
                             ],
                         )
                     );
+                case 'vacation_homes_basic_tax_invoice':
+                    return array(
+                        'title' => 'Vacation Homes Basic Package Tax Invoice',
+                        'type' => 'vacation_homes_basic_tax_invoice_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'owner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'month_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_reservations',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_revenue',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'commission_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'commission_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'net_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_details',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_summary',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'vacation_homes_premium_tax_invoice':
+                    return array(
+                        'title' => 'Vacation Homes Premium Package Tax Invoice',
+                        'type' => 'vacation_homes_premium_tax_invoice_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'owner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'month_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_reservations',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_revenue',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'commission_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'commission_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'net_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_details',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_summary',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'hotel_booking_tax_invoice':
+                    return array(
+                        'title' => 'Hotel Booking Tax Invoice',
+                        'type' => 'hotel_booking_tax_invoice_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'owner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'month_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_reservations',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_revenue',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'commission_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'commission_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'net_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_details',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_summary',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
                 case 'selling_or_renting_contract':
                     return array(
                         'title' => 'Selling or Renting All Cases Contract',
@@ -926,6 +1079,18 @@ class HelperService
             [
                 'title' => 'Monthly Tax Invoice',
                 'type' => 'monthly_tax_invoice',
+            ],
+            [
+                'title' => 'Vacation Homes Basic Package Tax Invoice',
+                'type' => 'vacation_homes_basic_tax_invoice',
+            ],
+            [
+                'title' => 'Vacation Homes Premium Package Tax Invoice',
+                'type' => 'vacation_homes_premium_tax_invoice',
+            ],
+            [
+                'title' => 'Hotel Booking Tax Invoice',
+                'type' => 'hotel_booking_tax_invoice',
             ],
             [
                 'title' => 'Selling or Renting All Cases Contract',

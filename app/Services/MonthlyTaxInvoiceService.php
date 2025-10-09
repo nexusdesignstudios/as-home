@@ -189,8 +189,26 @@ class MonthlyTaxInvoiceService
             // Generate property summary HTML
             $propertySummary = $this->generatePropertySummaryHtml($reservations);
 
+            // Determine which email template to use based on property classification and rent package
+            $emailTemplateType = "monthly_tax_invoice"; // Default template
+
+            if ($property) {
+                $propertyClassification = $property->getRawOriginal('property_classification');
+                $rentPackage = $property->rent_package;
+
+                if ($propertyClassification == 4) { // Vacation homes
+                    if ($rentPackage == 'premium') {
+                        $emailTemplateType = "vacation_homes_premium_tax_invoice";
+                    } else {
+                        $emailTemplateType = "vacation_homes_basic_tax_invoice";
+                    }
+                } elseif ($propertyClassification == 5) { // Hotel booking
+                    $emailTemplateType = "hotel_booking_tax_invoice";
+                }
+            }
+
             // Get email template
-            $emailTypeData = HelperService::getEmailTemplatesTypes("monthly_tax_invoice");
+            $emailTypeData = HelperService::getEmailTemplatesTypes($emailTemplateType);
             $templateData = system_setting($emailTypeData['type']);
             $appName = env("APP_NAME") ?? "eBroker";
 
