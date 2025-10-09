@@ -446,7 +446,7 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['title_image'] = $row->title_image;
         $tempRow['title_image_hash'] = $row->title_image_hash != '' ? $row->title_image_hash : '';
         $tempRow['three_d_image'] = $row->three_d_image;
-        $tempRow['post_created'] = $row->created_at->diffForHumans();
+        $tempRow['post_created'] = $row->created_at ? $row->created_at->diffForHumans() : '';
         $tempRow['gallery'] = $row->gallery;
         $tempRow['documents'] = $row->documents;
         $tempRow['total_view'] = $row->total_click;
