@@ -533,6 +533,9 @@ class ReservationController extends Controller
         try {
             $reservation = $this->reservationService->cancelReservation($id);
 
+            // Send cancellation email to the customer
+            $this->sendReservationCancellationEmail($reservation);
+
             ApiResponseService::successResponse('Reservation cancelled successfully', [
                 'reservation' => $reservation
             ]);
@@ -627,6 +630,9 @@ class ReservationController extends Controller
             // If cancelling, use the service to update available dates
             if ($newStatus === 'cancelled' && $oldStatus !== 'cancelled') {
                 $reservation = $this->reservationService->cancelReservation($id);
+
+                // Send cancellation email to the customer
+                $this->sendReservationCancellationEmail($reservation);
             } elseif ($newStatus === 'approved') {
                 // Handle approved status - send approval email
                 $reservation->status = $newStatus;
@@ -1133,6 +1139,110 @@ class ReservationController extends Controller
             'reservations' => $formattedReservations
         ]);
     }
+    /**
+     * Send reservation cancellation email to customer
+     *
+     * @param Reservation $reservation
+     * @return void
+     */
+    private function sendReservationCancellationEmail($reservation)
+    {
+        try {
+            // Get customer information
+            $customer = $reservation->customer;
+
+            if (!$customer || !$customer->email) {
+                Log::warning('Cannot send reservation cancellation email: customer or email not found', [
+                    'reservation_id' => $reservation->id,
+                    'customer_id' => $reservation->customer_id
+                ]);
+                return;
+            }
+
+            // Get property information
+            $propertyName = 'Unknown Property';
+            if ($reservation->reservable_type === 'App\\Models\\Property') {
+                $property = Property::find($reservation->reservable_id);
+                if ($property) {
+                    $propertyName = $property->title;
+                }
+            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                $hotelRoom = HotelRoom::find($reservation->reservable_id);
+                if ($hotelRoom && $hotelRoom->property) {
+                    $propertyName = $hotelRoom->property->title;
+                }
+            }
+
+            // Format dates
+            $checkInDate = Carbon::parse($reservation->check_in_date)->format('Y-m-d');
+            $checkOutDate = Carbon::parse($reservation->check_out_date)->format('Y-m-d');
+
+            // Get currency symbol
+            $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+            // Prepare email variables
+            $variables = [
+                'app_name' => env("APP_NAME") ?? "eBroker",
+                'customer_name' => $customer->name,
+                'reservation_id' => $reservation->id,
+                'property_name' => $propertyName,
+                'check_in_date' => $checkInDate,
+                'check_out_date' => $checkOutDate,
+                'total_price' => number_format($reservation->total_price, 2),
+                'currency_symbol' => $currencySymbol,
+            ];
+
+            // Get email template
+            $emailTemplateData = system_setting('reservation_cancellation_mail_template');
+
+            if (empty($emailTemplateData)) {
+                Log::warning('Reservation cancellation email template not found, using default template');
+                $emailTemplateData = 'Dear {customer_name},
+
+We are writing to confirm that your reservation has been cancelled as requested.
+
+Reservation Details:
+- Reservation ID: {reservation_id}
+- Property: {property_name}
+- Check-in Date: {check_in_date}
+- Check-out Date: {check_out_date}
+- Total Amount: {currency_symbol}{total_price}
+
+If you requested a refund, please note that it will be processed according to our refund policy. Depending on your payment method, it may take 3-5 business days for the refund to appear in your account.
+
+If you did not request this cancellation or have any questions, please contact our customer support team immediately.
+
+Thank you for your understanding.
+
+Best regards,
+The {app_name} Team';
+            }
+
+            // Replace variables in template
+            $emailContent = HelperService::replaceEmailVariables($emailTemplateData, $variables);
+
+            // Send email
+            $data = [
+                'email' => $customer->email,
+                'title' => 'Your Reservation Has Been Cancelled',
+                'email_template' => $emailContent
+            ];
+
+            HelperService::sendMail($data);
+
+            Log::info('Reservation cancellation email sent to customer', [
+                'customer_id' => $customer->id,
+                'customer_email' => $customer->email,
+                'reservation_id' => $reservation->id
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send reservation cancellation email: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'reservation_id' => $reservation->id
+            ]);
+        }
+    }
+
     private function calculateCustomerDiscount($customerId, $reservableType, $originalAmount)
     {
         $completedBookings = Reservation::where('customer_id', $customerId)
