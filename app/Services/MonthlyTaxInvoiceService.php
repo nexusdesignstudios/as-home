@@ -157,7 +157,26 @@ class MonthlyTaxInvoiceService
         try {
             // Calculate totals
             $totalRevenue = $reservations->sum('total_price');
-            $commissionRate = 10; // Default 10% commission rate - you can make this configurable
+            // Calculate commission based on property classification and rent package
+            // For simplicity, we'll use the first property's classification and rent package
+            // In a real-world scenario, you might want to calculate commission per property
+            $firstReservation = $reservations->first();
+            $property = null;
+
+            if ($firstReservation->reservable_type === 'App\\Models\\Property') {
+                $property = $firstReservation->reservable;
+            } elseif ($firstReservation->reservable_type === 'App\\Models\\HotelRoom') {
+                $property = $firstReservation->reservable->property;
+            }
+
+            if ($property) {
+                $propertyClassification = $property->getRawOriginal('property_classification');
+                $rentPackage = $property->rent_package;
+                $commissionRate = \App\Models\PropertyTax::getCommissionRate($propertyClassification, $rentPackage);
+            } else {
+                $commissionRate = 15; // Default fallback
+            }
+
             $commissionAmount = $totalRevenue * ($commissionRate / 100);
             $netAmount = $totalRevenue - $commissionAmount;
 
