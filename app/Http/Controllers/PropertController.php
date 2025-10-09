@@ -88,8 +88,11 @@ class PropertController extends Controller
         } else {
             $request->validate([
                 'title'             => 'required',
+                'title_ar'          => 'nullable|string',
                 'description'       => 'required',
+                'description_ar'    => 'nullable|string',
                 'area_description'  => 'nullable|string',
+                'area_description_ar' => 'nullable|string',
                 'company_employee_username' => 'nullable|string',
                 'company_employee_email' => 'nullable|email',
                 'company_employee_phone_number' => 'nullable|string',
@@ -172,9 +175,12 @@ class PropertController extends Controller
                 $saveProperty = new Property();
                 $saveProperty->category_id = $request->category;
                 $saveProperty->title = $request->title;
+                $saveProperty->title_ar = $request->title_ar ?? null;
                 $saveProperty->slug_id = $request->slug ?? generateUniqueSlug($request->title, 1);
                 $saveProperty->description = $request->description;
+                $saveProperty->description_ar = $request->description_ar ?? null;
                 $saveProperty->area_description = $request->area_description ?? null;
+                $saveProperty->area_description_ar = $request->area_description_ar ?? null;
                 $saveProperty->company_employee_username = $request->company_employee_username ?? null;
                 $saveProperty->company_employee_email = $request->company_employee_email ?? null;
                 $saveProperty->company_employee_phone_number = $request->company_employee_phone_number ?? null;
@@ -600,9 +606,12 @@ class PropertController extends Controller
                 }
                 $UpdateProperty->category_id = $request->category;
                 $UpdateProperty->title = $request->title;
+                $UpdateProperty->title_ar = $request->title_ar ?? null;
                 $UpdateProperty->slug_id = $request->slug ?? generateUniqueSlug($request->title, 1, null, $id);
                 $UpdateProperty->description = $request->description;
+                $UpdateProperty->description_ar = $request->description_ar ?? null;
                 $UpdateProperty->area_description = $request->area_description ?? null;
+                $UpdateProperty->area_description_ar = $request->area_description_ar ?? null;
                 $UpdateProperty->company_employee_username = $request->company_employee_username ?? null;
                 $UpdateProperty->company_employee_email = $request->company_employee_email ?? null;
                 $UpdateProperty->company_employee_phone_number = $request->company_employee_phone_number ?? null;
