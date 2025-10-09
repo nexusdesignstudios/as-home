@@ -311,6 +311,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/payments/create-payment-intent', [App\Http\Controllers\PaymobController::class, 'createPaymentIntent']);
     Route::post('/payments/refund', [App\Http\Controllers\PaymobController::class, 'processRefund']);
     Route::get('/payments/refund-status', [App\Http\Controllers\PaymobController::class, 'getRefundStatus']);
+    Route::get('/payments/refund-approvals', [App\Http\Controllers\PaymobController::class, 'getPendingRefundApprovals']);
+    Route::get('/payments/refund-requests', [App\Http\Controllers\PaymobController::class, 'getCustomerRefundRequests']);
+    Route::post('/payments/refund-approvals/{id}', [App\Http\Controllers\PaymobController::class, 'updateRefundApprovalStatus']);
     Route::get('/reservations/{id}/payment', [App\Http\Controllers\ReservationController::class, 'getReservationPayment']);
     Route::post('/reservations/with-payment', [App\Http\Controllers\ReservationController::class, 'createReservationWithPayment']);
 });

@@ -4893,6 +4893,173 @@
           "response": []
         },
         {
+          "name": "Get Refund Approvals (Property Owner)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payments/refund-approvals?status=pending&property_id=1&per_page=15",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "refund-approvals"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "description": "Filter by refund status (pending, approved, rejected, processing, completed, failed)"
+                },
+                {
+                  "key": "property_id",
+                  "value": "1",
+                  "description": "Optional: Filter by property ID"
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Number of records per page (default: 15)"
+                }
+              ]
+            },
+            "description": "Get refund approvals for properties owned by the authenticated user. Property owners can view refund requests that require their approval."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Refund Approval Status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"approved\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments/refund-approvals/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "refund-approvals", "1"]
+            },
+            "description": "Update the approval status of a refund request. Property owners can approve or reject refund requests for their properties."
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Refund Request",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"rejected\",\n    \"rejection_reason\": \"Reservation has already been used\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments/refund-approvals/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "refund-approvals", "1"]
+            },
+            "description": "Reject a refund request with a reason. Property owners must provide a rejection reason when rejecting a refund request."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Customer Refund Requests",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payments/refund-requests?status=pending&per_page=15",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "refund-requests"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "description": "Filter by refund status (pending, approved, rejected, processing, completed, failed)"
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Number of records per page (default: 15)"
+                }
+              ]
+            },
+            "description": "Get refund requests made by the authenticated customer. Customers can view the status of their refund requests."
+          },
+          "response": []
+        },
+        {
           "name": "Process Bank Card Payout (Example)",
           "request": {
             "auth": {

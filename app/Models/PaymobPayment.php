@@ -23,6 +23,13 @@ class PaymobPayment extends Model
         'amount',
         'currency',
         'status',
+        'refund_status',
+        'refund_reason',
+        'requires_approval',
+        'approved_by',
+        'approved_at',
+        'rejection_reason',
+        'refund_amount',
         'payment_method',
         'transaction_data',
         'refund_data',
@@ -38,6 +45,9 @@ class PaymobPayment extends Model
      */
     protected $casts = [
         'amount' => 'float',
+        'refund_amount' => 'float',
+        'requires_approval' => 'boolean',
+        'approved_at' => 'datetime',
     ];
 
     /**
@@ -72,5 +82,77 @@ class PaymobPayment extends Model
     public function reservable()
     {
         return $this->morphTo();
+    }
+
+    /**
+     * Get the user who approved the refund.
+     */
+    public function approvedBy()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /**
+     * Check if refund requires approval.
+     *
+     * @return bool
+     */
+    public function requiresApproval()
+    {
+        return $this->requires_approval;
+    }
+
+    /**
+     * Check if refund is pending approval.
+     *
+     * @return bool
+     */
+    public function isPendingApproval()
+    {
+        return $this->refund_status === 'pending' && $this->requires_approval;
+    }
+
+    /**
+     * Check if refund has been approved.
+     *
+     * @return bool
+     */
+    public function isApproved()
+    {
+        return $this->refund_status === 'approved';
+    }
+
+    /**
+     * Check if refund has been rejected.
+     *
+     * @return bool
+     */
+    public function isRejected()
+    {
+        return $this->refund_status === 'rejected';
+    }
+
+    /**
+     * Scope a query to only include payments that require refund approval.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeRequiringApproval($query)
+    {
+        return $query->where('requires_approval', true)
+                     ->where('refund_status', 'pending');
+    }
+
+    /**
+     * Scope a query to only include payments with a specific refund status.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  string  $status
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeWithRefundStatus($query, $status)
+    {
+        return $query->where('refund_status', $status);
     }
 }

@@ -412,6 +412,74 @@ class PaymobController extends Controller
                 return;
             }
 
+            // Check if there's an associated reservation
+            $requiresApproval = false;
+            $reservation = null;
+
+            if ($payment->reservation_id) {
+                $reservation = Reservation::find($payment->reservation_id);
+
+                if ($reservation) {
+                    // Check if the reservation has already started
+                    $now = now();
+                    $checkInDate = \Carbon\Carbon::parse($reservation->check_in_date);
+
+                    // If current date is equal to or after check-in date, the reservation has started
+                    if ($now->startOfDay()->gte($checkInDate->startOfDay())) {
+                        $requiresApproval = true;
+                        Log::info('Refund requires approval as reservation has already started', [
+                            'reservation_id' => $reservation->id,
+                            'check_in_date' => $reservation->check_in_date,
+                            'current_date' => $now->toDateString()
+                        ]);
+                    }
+                }
+            }
+
+            // Update payment with refund request details
+            $payment->refund_status = $requiresApproval ? 'pending' : 'approved';
+            $payment->refund_reason = $reason;
+            $payment->requires_approval = $requiresApproval;
+            $payment->refund_amount = $amount;
+            $payment->save();
+
+            // If approval is required, notify the property owner and return
+            if ($requiresApproval) {
+                // Get property owner information
+                $propertyOwnerId = null;
+
+                if ($reservation) {
+                    if ($reservation->reservable_type === 'App\\Models\\Property') {
+                        $property = \App\Models\Property::find($reservation->reservable_id);
+                        if ($property) {
+                            $propertyOwnerId = $property->added_by;
+                        }
+                    } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                        $hotelRoom = \App\Models\HotelRoom::find($reservation->reservable_id);
+                        if ($hotelRoom && $hotelRoom->property) {
+                            $propertyOwnerId = $hotelRoom->property->added_by;
+                        }
+                    }
+                }
+
+                if ($propertyOwnerId) {
+                    // TODO: Send notification to property owner about refund request
+                    Log::info('Notification should be sent to property owner', [
+                        'property_owner_id' => $propertyOwnerId,
+                        'payment_id' => $payment->id,
+                        'refund_amount' => $amount
+                    ]);
+                }
+
+                ApiResponseService::successResponse('Refund request submitted and pending approval from property owner', [
+                    'payment_id' => $payment->id,
+                    'refund_status' => $payment->refund_status,
+                    'requires_approval' => $requiresApproval
+                ]);
+                return;
+            }
+
+            // If no approval is needed, process the refund immediately
             // Get the Paymob transaction ID from the stored transaction data
             $paymobTransactionId = $payment->paymob_transaction_id ?? $transactionId;
 
@@ -431,21 +499,19 @@ class PaymobController extends Controller
 
             // Update payment transaction status
             $payment->status = 'refunded';
+            $payment->refund_status = 'completed';
             $payment->refund_data = json_encode($refundResult);
             $payment->save();
 
             // If there's an associated reservation, cancel it
-            if ($payment->reservation_id) {
-                $reservation = Reservation::find($payment->reservation_id);
-                if ($reservation) {
-                    $reservation->status = 'cancelled';
-                    $reservation->payment_status = 'refunded';
-                    $reservation->save();
+            if ($reservation) {
+                $reservation->status = 'cancelled';
+                $reservation->payment_status = 'refunded';
+                $reservation->save();
 
-                    // Use the reservation service to handle the cancellation
-                    $reservationService = app(\App\Services\ReservationService::class);
-                    $reservationService->cancelReservation($payment->reservation_id);
-                }
+                // Use the reservation service to handle the cancellation
+                $reservationService = app(\App\Services\ReservationService::class);
+                $reservationService->cancelReservation($payment->reservation_id);
             }
 
             ApiResponseService::successResponse('Refund processed successfully', $refundResult);
@@ -864,6 +930,299 @@ class PaymobController extends Controller
         } catch (\Exception $e) {
             Log::error('Paymob get bank transaction types error: ' . $e->getMessage());
             ApiResponseService::errorResponse('Failed to get bank transaction types: ' . $e->getMessage(), null, 500);
+            return;
+        }
+    }
+
+    /**
+     * Update refund approval status
+     *
+     * @param Request $request
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateRefundApprovalStatus(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'status' => 'required|string|in:approved,rejected',
+                'rejection_reason' => 'required_if:status,rejected|nullable|string|max:255',
+            ]);
+
+            $status = $request->input('status');
+            $rejectionReason = $request->input('rejection_reason');
+            $userId = Auth::guard('sanctum')->user()->id;
+
+            // Find the payment record
+            $payment = PaymobPayment::where('id', $id)
+                ->where('requires_approval', true)
+                ->where('refund_status', 'pending')
+                ->first();
+
+            if (!$payment) {
+                ApiResponseService::errorResponse('Refund request not found or not pending approval', null, 404);
+                return;
+            }
+
+            // Check if the user is the property owner
+            $propertyOwnerId = null;
+            $reservation = $payment->reservation;
+
+            if ($reservation) {
+                if ($reservation->reservable_type === 'App\\Models\\Property') {
+                    $property = \App\Models\Property::find($reservation->reservable_id);
+                    if ($property) {
+                        $propertyOwnerId = $property->added_by;
+                    }
+                } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                    $hotelRoom = \App\Models\HotelRoom::find($reservation->reservable_id);
+                    if ($hotelRoom && $hotelRoom->property) {
+                        $propertyOwnerId = $hotelRoom->property->added_by;
+                    }
+                }
+            }
+
+            if ($propertyOwnerId !== $userId) {
+                ApiResponseService::errorResponse('You are not authorized to update this refund request', null, 403);
+                return;
+            }
+
+            // Update the payment record based on the approval status
+            if ($status === 'approved') {
+                // Process the refund
+                $paymobTransactionId = $payment->paymob_transaction_id ?? $payment->transaction_id;
+                $amount = $payment->refund_amount;
+                $reason = $payment->refund_reason;
+
+                $paymentData = [
+                    'payment_method' => 'paymob',
+                    'paymob_api_key' => config('paymob.api_key'),
+                    'paymob_integration_id' => config('paymob.integration_id'),
+                    'paymob_iframe_id' => config('paymob.iframe_id'),
+                    'paymob_currency' => config('paymob.currency'),
+                ];
+
+                // Create payment service
+                $paymentService = PaymentService::create($paymentData);
+
+                // Process refund
+                $refundResult = $paymentService->refundTransaction($paymobTransactionId, $amount, $reason);
+
+                // Update payment transaction status
+                $payment->status = 'refunded';
+                $payment->refund_status = 'completed';
+                $payment->refund_data = json_encode($refundResult);
+                $payment->approved_by = $userId;
+                $payment->approved_at = now();
+                $payment->save();
+
+                // If there's an associated reservation, cancel it
+                if ($reservation) {
+                    $reservation->status = 'cancelled';
+                    $reservation->payment_status = 'refunded';
+                    $reservation->save();
+
+                    // Use the reservation service to handle the cancellation
+                    $reservationService = app(\App\Services\ReservationService::class);
+                    $reservationService->cancelReservation($payment->reservation_id);
+                }
+
+                ApiResponseService::successResponse('Refund approved and processed successfully', [
+                    'payment_id' => $payment->id,
+                    'refund_status' => $payment->refund_status,
+                    'refund_result' => $refundResult
+                ]);
+            } else {
+                // Reject the refund
+                $payment->refund_status = 'rejected';
+                $payment->rejection_reason = $rejectionReason;
+                $payment->approved_by = $userId;
+                $payment->approved_at = now();
+                $payment->save();
+
+                // Notify the customer about the rejection
+                // TODO: Send notification to customer about refund rejection
+
+                ApiResponseService::successResponse('Refund request rejected successfully', [
+                    'payment_id' => $payment->id,
+                    'refund_status' => $payment->refund_status,
+                    'rejection_reason' => $payment->rejection_reason
+                ]);
+            }
+            return;
+        } catch (\Exception $e) {
+            Log::error('Failed to update refund approval status: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            ApiResponseService::errorResponse('Failed to update refund approval status: ' . $e->getMessage(), null, 500);
+            return;
+        }
+    }
+
+    /**
+     * Get refund approvals pending for property owner
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPendingRefundApprovals(Request $request)
+    {
+        try {
+            $request->validate([
+                'per_page' => 'integer|min:1|max:100',
+                'property_id' => 'integer|exists:propertys,id',
+                'status' => 'string|in:pending,approved,rejected,processing,completed,failed',
+            ]);
+
+            $perPage = $request->input('per_page', 15);
+            $propertyId = $request->input('property_id');
+            $status = $request->input('status', 'pending');
+            $userId = Auth::guard('sanctum')->user()->id;
+
+            // Start with payments that require approval
+            $query = PaymobPayment::with(['reservation', 'customer'])
+                ->where('refund_status', $status);
+
+            if ($status === 'pending') {
+                $query->where('requires_approval', true);
+            }
+
+            // Filter by property owner
+            if ($propertyId) {
+                // Filter by specific property
+                $query->whereHas('reservation', function ($q) use ($propertyId) {
+                    $q->where('property_id', $propertyId);
+                });
+            } else {
+                // Filter by all properties owned by this user
+                $query->whereHas('reservation.property', function ($q) use ($userId) {
+                    $q->where('added_by', $userId);
+                });
+            }
+
+            // Get the results with pagination
+            $refundApprovals = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+            // Transform the data to include more context
+            $formattedRefunds = $refundApprovals->through(function ($payment) {
+                $data = $payment->toArray();
+
+                // Add reservation details if available
+                if ($payment->reservation) {
+                    $data['reservation_details'] = [
+                        'id' => $payment->reservation->id,
+                        'check_in_date' => $payment->reservation->check_in_date,
+                        'check_out_date' => $payment->reservation->check_out_date,
+                        'status' => $payment->reservation->status,
+                        'total_price' => $payment->reservation->total_price,
+                    ];
+                }
+
+                // Add customer details if available
+                if ($payment->customer) {
+                    $data['customer_details'] = [
+                        'id' => $payment->customer->id,
+                        'name' => $payment->customer->name,
+                        'email' => $payment->customer->email,
+                        'mobile' => $payment->customer->mobile,
+                    ];
+                }
+
+                return $data;
+            });
+
+            ApiResponseService::successResponse('Refund approvals retrieved successfully', [
+                'refund_approvals' => $formattedRefunds->items(),
+                'pagination' => [
+                    'current_page' => $formattedRefunds->currentPage(),
+                    'last_page' => $formattedRefunds->lastPage(),
+                    'per_page' => $formattedRefunds->perPage(),
+                    'total' => $formattedRefunds->total(),
+                ]
+            ]);
+            return;
+        } catch (\Exception $e) {
+            Log::error('Failed to get refund approvals: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            ApiResponseService::errorResponse('Failed to get refund approvals: ' . $e->getMessage(), null, 500);
+            return;
+        }
+    }
+
+    /**
+     * Get customer refund requests
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getCustomerRefundRequests(Request $request)
+    {
+        try {
+            $request->validate([
+                'per_page' => 'integer|min:1|max:100',
+                'status' => 'string|in:pending,approved,rejected,processing,completed,failed',
+            ]);
+
+            $perPage = $request->input('per_page', 15);
+            $status = $request->input('status');
+            $customerId = Auth::guard('sanctum')->user()->id;
+
+            // Start with payments for this customer
+            $query = PaymobPayment::with(['reservation'])
+                ->where('customer_id', $customerId)
+                ->whereNotNull('refund_status');
+
+            // Filter by status if provided
+            if ($status) {
+                $query->where('refund_status', $status);
+            }
+
+            // Get the results with pagination
+            $refundRequests = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+            // Transform the data to include more context
+            $formattedRefunds = $refundRequests->through(function ($payment) {
+                $data = $payment->toArray();
+
+                // Add reservation details if available
+                if ($payment->reservation) {
+                    $data['reservation_details'] = [
+                        'id' => $payment->reservation->id,
+                        'check_in_date' => $payment->reservation->check_in_date,
+                        'check_out_date' => $payment->reservation->check_out_date,
+                        'status' => $payment->reservation->status,
+                        'total_price' => $payment->reservation->total_price,
+                    ];
+
+                    // Add property details if available
+                    if ($payment->reservation->property) {
+                        $data['property_details'] = [
+                            'id' => $payment->reservation->property->id,
+                            'title' => $payment->reservation->property->title,
+                            'title_image' => $payment->reservation->property->title_image ?? null,
+                        ];
+                    }
+                }
+
+                return $data;
+            });
+
+            ApiResponseService::successResponse('Refund requests retrieved successfully', [
+                'refund_requests' => $formattedRefunds->items(),
+                'pagination' => [
+                    'current_page' => $formattedRefunds->currentPage(),
+                    'last_page' => $formattedRefunds->lastPage(),
+                    'per_page' => $formattedRefunds->perPage(),
+                    'total' => $formattedRefunds->total(),
+                ]
+            ]);
+            return;
+        } catch (\Exception $e) {
+            Log::error('Failed to get customer refund requests: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            ApiResponseService::errorResponse('Failed to get customer refund requests: ' . $e->getMessage(), null, 500);
             return;
         }
     }
