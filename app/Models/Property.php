@@ -17,8 +17,11 @@ class Property extends Model
     protected $fillable = [
         'category_id',
         'title',
+        'title_ar',
         'description',
+        'description_ar',
         'area_description',
+        'area_description_ar',
         'company_employee_username',
         'company_employee_email',
         'company_employee_phone_number',
@@ -1021,7 +1024,7 @@ class Property extends Model
 
         return null;
     }
-    
+
     /**
      * Get the instant_booking attribute.
      *

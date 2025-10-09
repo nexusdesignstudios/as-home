@@ -2542,7 +2542,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/get_property?id={{property_id}}",
+              "raw": "{{base_url}}/api/get_property?id={{property_id}}&language={{language}}",
               "host": ["{{base_url}}"],
               "path": ["api", "get_property"],
               "query": [
@@ -2550,12 +2550,88 @@
                   "key": "id",
                   "value": "{{property_id}}",
                   "description": "Property ID"
+                },
+                {
+                  "key": "language",
+                  "value": "{{language}}",
+                  "description": "Optional language parameter (en, ar, or omit for both)",
+                  "disabled": true
                 }
               ]
             },
             "description": "Get property details by ID including all hotel-specific fields like check_in, check_out, agent_addons, and certificates"
           },
           "response": [
+            {
+              "name": "English Language Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/get_property?id={{property_id}}&language=en",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "get_property"],
+                  "query": [
+                    {
+                      "key": "id",
+                      "value": "{{property_id}}",
+                      "description": "Property ID"
+                    },
+                    {
+                      "key": "language",
+                      "value": "en",
+                      "description": "English language only"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"status\": true,\n  \"message\": \"Property retrieved successfully\",\n  \"data\": {\n    \"id\": 1,\n    \"title\": \"Luxury Villa with Sea View\",\n    \"description\": \"Luxury villa with amazing sea view, featuring modern design and elegant decorations\",\n    \"area_description\": \"Quiet and upscale area, close to the beach, restaurants and shops\",\n    \"property_type\": \"rent\",\n    \"price\": 5000,\n    \"address\": \"Palm Jumeirah, Dubai\"\n  }\n}"
+            },
+            {
+              "name": "Arabic Language Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/get_property?id={{property_id}}&language=ar",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "get_property"],
+                  "query": [
+                    {
+                      "key": "id",
+                      "value": "{{property_id}}",
+                      "description": "Property ID"
+                    },
+                    {
+                      "key": "language",
+                      "value": "ar",
+                      "description": "Arabic language only"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"status\": true,\n  \"message\": \"Property retrieved successfully\",\n  \"data\": {\n    \"id\": 1,\n    \"title_ar\": \"فيلا فاخرة مع إطلالة على البحر\",\n    \"description_ar\": \"فيلا فاخرة مع إطلالة رائعة على البحر، تتميز بتصميم عصري وديكورات راقية\",\n    \"area_description_ar\": \"منطقة هادئة وراقية، قريبة من الشاطئ والمطاعم والمحلات التجارية\",\n    \"property_type\": \"rent\",\n    \"price\": 5000,\n    \"address\": \"Palm Jumeirah, Dubai\"\n  }\n}"
+            },
             {
               "name": "Hotel Property Response",
               "originalRequest": {

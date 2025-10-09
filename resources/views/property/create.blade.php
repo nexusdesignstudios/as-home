@@ -71,6 +71,12 @@
                         {{ Form::text('title', '', [ 'class' => 'form-control ', 'placeholder' =>  __('Title'), 'required' => 'true', 'id' => 'title', ]) }}
                     </div>
 
+                    {{-- Title Arabic --}}
+                    <div class="col-md-12 col-12 form-group">
+                        {{ Form::label('title_ar', __('Title (Arabic)'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::text('title_ar', '', [ 'class' => 'form-control ', 'placeholder' =>  __('Title in Arabic'), 'id' => 'title_ar', ]) }}
+                    </div>
+
                     {{-- Slug --}}
                     <div class="col-md-12 col-12 form-group">
                         {{ Form::label('slug', __('Slug'), ['class' => 'form-label col-12 ']) }}
@@ -84,10 +90,22 @@
                         {{ Form::textarea('description', '', [ 'class' => 'form-control mb-3', 'rows' => '5', 'id' => '', 'required' => 'true', 'placeholder' => __('Description') ]) }}
                     </div>
 
+                    {{-- Description Arabic --}}
+                    <div class="col-md-12 col-12 form-group">
+                        {{ Form::label('description_ar', __('Description (Arabic)'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::textarea('description_ar', '', [ 'class' => 'form-control mb-3', 'rows' => '5', 'id' => 'description_ar', 'placeholder' => __('Description in Arabic') ]) }}
+                    </div>
+
                     {{-- Area Description --}}
                     <div class="col-md-12 col-12 form-group">
                         {{ Form::label('area_description', __('Area Description'), ['class' => 'form-label col-12 ']) }}
                         {{ Form::textarea('area_description', '', [ 'class' => 'form-control mb-3', 'rows' => '3', 'id' => 'area_description', 'placeholder' => __('Area Description') ]) }}
+                    </div>
+
+                    {{-- Area Description Arabic --}}
+                    <div class="col-md-12 col-12 form-group">
+                        {{ Form::label('area_description_ar', __('Area Description (Arabic)'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::textarea('area_description_ar', '', [ 'class' => 'form-control mb-3', 'rows' => '3', 'id' => 'area_description_ar', 'placeholder' => __('Area Description in Arabic') ]) }}
                     </div>
 
                     {{-- Company Employee Information --}}

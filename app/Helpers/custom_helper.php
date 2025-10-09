@@ -431,9 +431,13 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['id'] = $row->id;
         $tempRow['slug_id'] = $row->slug_id;
         $tempRow['title'] = $row->title;
+        $tempRow['title_ar'] = $row->title_ar;
         $tempRow['price'] = $row->price;
         $tempRow['category'] = $row->category;
         $tempRow['description'] = $row->description;
+        $tempRow['description_ar'] = $row->description_ar;
+        $tempRow['area_description'] = $row->area_description;
+        $tempRow['area_description_ar'] = $row->area_description_ar;
         $tempRow['address'] = $row->address;
         $tempRow['property_type'] = $row->propery_type;
         $tempRow['is_interest_available'] = $row->getRawOriginal('propery_type') == 0 || $row->getRawOriginal('propery_type') == 1 ? true : false;

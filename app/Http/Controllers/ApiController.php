@@ -692,7 +692,26 @@ class ApiController extends Controller
         } else {
             $current_user = null;
         }
-        $property = Property::with('customer', 'user', 'category:id,category,image,slug_id', 'assignfacilities.outdoorfacilities', 'parameters', 'favourite', 'interested_users', 'certificates')->where(['status' => 1, 'request_status' => 'approved']);
+
+        // Get language preference if specified
+        $language = $request->has('language') ? $request->language : null;
+
+        // Select fields based on language preference
+        $select = ['id', 'slug_id', 'title', 'price', 'description', 'address', 'propery_type', 'title_image', 'status', 'request_status', 'total_click', 'state', 'city', 'country', 'latitude', 'longitude', 'added_by', 'is_premium', 'property_classification', 'availability_type', 'available_dates', 'corresponding_day'];
+
+        // Always include Arabic fields unless specifically requesting English only
+        if ($language !== 'en') {
+            $select = array_merge($select, ['title_ar', 'description_ar', 'area_description_ar']);
+        }
+
+        // Always include English fields unless specifically requesting Arabic only
+        if ($language !== 'ar') {
+            $select = array_merge($select, ['area_description']);
+        }
+
+        $property = Property::select($select)
+            ->with('customer', 'user', 'category:id,category,image,slug_id', 'assignfacilities.outdoorfacilities', 'parameters', 'favourite', 'interested_users', 'certificates')
+            ->where(['status' => 1, 'request_status' => 'approved']);
 
         // If Property Classification is passed
         if ($request->has('property_classification') && !empty($request->property_classification)) {
@@ -931,8 +950,11 @@ class ApiController extends Controller
 
         $validator = Validator::make($request->all(), [
             'title'             => 'required',
+            'title_ar'          => 'nullable|string',
             'description'       => 'required',
+            'description_ar'    => 'nullable|string',
             'area_description'  => 'nullable|string',
+            'area_description_ar' => 'nullable|string',
             'company_employee_username' => 'nullable|string',
             'company_employee_email' => 'nullable|email',
             'company_employee_phone_number' => 'nullable|string',
@@ -1497,8 +1519,11 @@ class ApiController extends Controller
             'id'                    => 'required|exists:propertys,id',
             'action_type'           => 'required',
             'title'                 => 'nullable',
+            'title_ar'              => 'nullable|string',
             'description'           => 'nullable',
+            'description_ar'        => 'nullable|string',
             'area_description'      => 'nullable|string',
+            'area_description_ar'   => 'nullable|string',
             'company_employee_username' => 'nullable|string',
             'company_employee_email' => 'nullable|email',
             'company_employee_phone_number' => 'nullable|string',
