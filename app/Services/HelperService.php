@@ -805,6 +805,41 @@ class HelperService
                             ],
                         )
                     );
+                case 'refund_approval':
+                    return array(
+                        'title' => 'Refund Approval Notification',
+                        'type' => 'refund_approval_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'customer_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'refund_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'transaction_id',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
                 default:
                     // Return null for invalid types to indicate error
                     return null;
@@ -896,6 +931,10 @@ class HelperService
             [
                 'title' => 'Send Money Payment Required',
                 'type' => 'send_money_payment',
+            ],
+            [
+                'title' => 'Refund Approval Notification',
+                'type' => 'refund_approval',
             ],
         );
     }

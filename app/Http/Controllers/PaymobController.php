@@ -1025,6 +1025,9 @@ class PaymobController extends Controller
                     // Use the reservation service to handle the cancellation
                     $reservationService = app(\App\Services\ReservationService::class);
                     $reservationService->cancelReservation($payment->reservation_id);
+
+                    // Send email notification to the customer
+                    $this->sendRefundApprovalEmail($payment, $reservation);
                 }
 
                 ApiResponseService::successResponse('Refund approved and processed successfully', [
@@ -1308,6 +1311,106 @@ class PaymobController extends Controller
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
+
+    /**
+     * Send refund approval email to customer
+     *
+     * @param PaymobPayment $payment
+     * @param Reservation $reservation
+     * @return void
+     */
+    private function sendRefundApprovalEmail($payment, $reservation)
+    {
+        try {
+            // Get customer information
+            $customer = $payment->customer;
+
+            if (!$customer || !$customer->email) {
+                Log::warning('Cannot send refund approval email: customer or email not found', [
+                    'payment_id' => $payment->id,
+                    'customer_id' => $payment->customer_id
+                ]);
+                return;
+            }
+
+            // Get property information
+            $propertyName = 'Unknown Property';
+            if ($reservation->reservable_type === 'App\\Models\\Property') {
+                $property = \App\Models\Property::find($reservation->reservable_id);
+                if ($property) {
+                    $propertyName = $property->title;
+                }
+            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                $hotelRoom = \App\Models\HotelRoom::find($reservation->reservable_id);
+                if ($hotelRoom && $hotelRoom->property) {
+                    $propertyName = $hotelRoom->property->title;
+                }
+            }
+
+            // Get currency symbol
+            $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+            // Prepare email variables
+            $variables = [
+                'app_name' => env("APP_NAME") ?? "eBroker",
+                'customer_name' => $customer->name,
+                'reservation_id' => $reservation->id,
+                'property_name' => $propertyName,
+                'refund_amount' => number_format($payment->refund_amount, 2),
+                'currency_symbol' => $currencySymbol,
+                'transaction_id' => $payment->transaction_id,
+            ];
+
+            // Get email template
+            $emailTemplateData = system_setting('refund_approval_mail_template');
+
+            if (empty($emailTemplateData)) {
+                Log::warning('Refund approval email template not found, using default template');
+                $emailTemplateData = 'Dear {customer_name},
+
+We are pleased to inform you that your refund request has been approved.
+
+Refund Details:
+- Reservation ID: {reservation_id}
+- Property: {property_name}
+- Refund Amount: {currency_symbol}{refund_amount}
+- Transaction ID: {transaction_id}
+
+Your refund has been processed and should be reflected in your account within 3-5 business days, depending on your bank\'s processing time.
+
+If you have any questions or need further assistance, please don\'t hesitate to contact our customer support team.
+
+Thank you for your patience and understanding.
+
+Best regards,
+The {app_name} Team';
+            }
+
+            // Replace variables in template
+            $emailContent = HelperService::replaceEmailVariables($emailTemplateData, $variables);
+
+            // Send email
+            $data = [
+                'email' => $customer->email,
+                'title' => 'Your Refund Request Has Been Approved',
+                'email_template' => $emailContent
+            ];
+
+            HelperService::sendMail($data);
+
+            Log::info('Refund approval email sent to customer', [
+                'customer_id' => $customer->id,
+                'customer_email' => $customer->email,
+                'payment_id' => $payment->id
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send refund approval email: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'payment_id' => $payment->id
+            ]);
+        }
+    }
+
     public function handlePayoutCallback(Request $request)
     {
         try {
