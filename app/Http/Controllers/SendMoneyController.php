@@ -25,13 +25,9 @@ class SendMoneyController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:1',
-            'recipient_customer_id' => 'required|integer|exists:customers,id',
+            'recipient_id' => 'required|integer|exists:customers,id',
+            'customer_id' => 'required|integer|exists:customers,id',
             'notes' => 'nullable|string|max:500',
-            'payment' => 'required|array',
-            'payment.email' => 'required|email',
-            'payment.first_name' => 'required|string',
-            'payment.last_name' => 'required|string',
-            'payment.phone' => 'required|string',
         ]);
 
         if ($validator->fails()) {
@@ -39,16 +35,28 @@ class SendMoneyController extends Controller
         }
 
         try {
-            $customerId = Auth::guard('sanctum')->user()->id;
+            // Get customer ID from request
+            $customerId = $request->customer_id;
 
-            // Generate a unique transaction ID
-            $transactionId = 'SEND_' . time() . '_' . $customerId . '_' . rand(1000, 9999);
+            // Get sender details
+            $senderCustomer = Customer::find($customerId);
+            if (!$senderCustomer) {
+                return ApiResponseService::errorResponse('Sender customer not found');
+            }
 
             // Get recipient customer details
-            $recipientCustomer = Customer::find($request->recipient_customer_id);
+            $recipientCustomer = Customer::find($request->recipient_id);
             if (!$recipientCustomer) {
                 return ApiResponseService::errorResponse('Recipient customer not found');
             }
+
+            // Prevent sending money to oneself
+            if ($customerId == $request->recipient_id) {
+                return ApiResponseService::errorResponse('You cannot send money to yourself');
+            }
+
+            // Generate a unique transaction ID
+            $transactionId = 'SEND_' . time() . '_' . $customerId . '_' . rand(1000, 9999);
 
             // Create send money record
             $sendMoney = SendMoney::create([
@@ -59,7 +67,7 @@ class SendMoneyController extends Controller
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
                 'payment_method' => 'paymob',
-                'recipient_customer_id' => $request->recipient_customer_id,
+                'recipient_customer_id' => $request->recipient_id,
                 'notes' => $request->notes,
             ]);
 
@@ -72,14 +80,24 @@ class SendMoneyController extends Controller
                 'paymob_currency' => config('paymob.currency'),
             ];
 
+            // Extract first and last name from customer's full name
+            $nameParts = explode(' ', $senderCustomer->name);
+            $firstName = $nameParts[0] ?? '';
+            $lastName = count($nameParts) > 1 ? end($nameParts) : '';
+
+            // Use customer information for payment metadata
             $metadata = [
-                'email' => $request->payment['email'],
-                'first_name' => $request->payment['first_name'],
-                'last_name' => $request->payment['last_name'],
-                'phone' => $request->payment['phone'],
+                'email' => $senderCustomer->email,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'phone' => $senderCustomer->mobile,
                 'payment_transaction_id' => $transactionId,
                 'send_money_id' => $sendMoney->id,
-                'recipient_customer_id' => $request->recipient_customer_id,
+                'sender_id' => $customerId,
+                'sender_name' => $senderCustomer->name,
+                'sender_email' => $senderCustomer->email,
+                'sender_phone' => $senderCustomer->mobile,
+                'recipient_customer_id' => $request->recipient_id,
                 'recipient_name' => $recipientCustomer->name,
                 'recipient_email' => $recipientCustomer->email,
                 'recipient_phone' => $recipientCustomer->mobile,
@@ -103,6 +121,16 @@ class SendMoneyController extends Controller
                 'send_money' => $sendMoney,
                 'payment_intent' => $paymentIntent,
                 'transaction_id' => $transactionId,
+                'sender' => [
+                    'id' => $senderCustomer->id,
+                    'name' => $senderCustomer->name,
+                    'email' => $senderCustomer->email,
+                ],
+                'recipient' => [
+                    'id' => $recipientCustomer->id,
+                    'name' => $recipientCustomer->name,
+                    'email' => $recipientCustomer->email,
+                ],
             ]);
 
         } catch (\Exception $e) {
