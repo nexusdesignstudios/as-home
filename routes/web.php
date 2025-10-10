@@ -415,6 +415,7 @@ Route::middleware(['language'])->group(function () {
             Route::post('/update', [PropertyQuestionFormController::class, 'update'])->name('property-question-form.update');
             Route::post('/status', [PropertyQuestionFormController::class, 'status'])->name('property-question-form.status');
             Route::delete('/{id}', [PropertyQuestionFormController::class, 'destroy'])->name('property-question-form.delete');
+            Route::get('/answers', [PropertyQuestionFormController::class, 'answers'])->name('property-question-form.answers');
             Route::get('/{classification?}', [PropertyQuestionFormController::class, 'index'])->name('property-question-form.index');
         });
 

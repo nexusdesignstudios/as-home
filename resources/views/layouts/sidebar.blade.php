@@ -154,6 +154,9 @@
                             <li class="submenu-item">
                                 <a href="{{ route('property-question-form.index', 'hotel_booking') }}">{{ __('Hotel Forms') }}</a>
                             </li>
+                            <li class="submenu-item">
+                                <a href="{{ route('property-question-form.answers') }}">{{ __('View Question Answers') }}</a>
+                            </li>
                         </ul>
                     </li>
                 @endif

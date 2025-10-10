@@ -234,4 +234,45 @@ class PropertyQuestionFormController extends Controller
             ResponseService::logErrorResponse($e, trans('Something Went Wrong'));
         }
     }
+
+    /**
+     * Display property question answers.
+     *
+     * @param Request $request
+     * @return \Illuminate\Contracts\View\View
+     */
+    public function answers(Request $request)
+    {
+        if (!has_permissions('read', 'property_question_form')) {
+            return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
+        }
+
+        $propertyId = $request->property_id;
+        $classification = $request->classification;
+
+        // If no property ID is provided, show a form to select a property
+        if (!$propertyId) {
+            $properties = \App\Models\Property::select('id', 'title', 'property_classification')
+                ->when($classification, function($query) use ($classification) {
+                    $query->where('property_classification', $classification);
+                })
+                ->orderBy('title')
+                ->get();
+
+            return view('property-question-form.select-property', compact('properties', 'classification'));
+        }
+
+        // Get the property details
+        $property = \App\Models\Property::with(['propertyQuestionAnswers' => function($query) {
+            $query->with('property_question_field');
+        }])->findOrFail($propertyId);
+
+        // Get all question fields for this property's classification
+        $allFields = PropertyQuestionField::where('property_classification', $property->getRawOriginal('property_classification'))
+            ->where('status', 'active')
+            ->with('field_values')
+            ->get();
+
+        return view('property-question-form.answers', compact('property', 'allFields'));
+    }
 }
