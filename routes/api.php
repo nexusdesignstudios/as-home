@@ -71,6 +71,7 @@ Route::post('mortgage_calc', [ApiController::class, 'mortgage_calc']);
 
 Route::get('get_app_settings', [ApiController::class, 'get_app_settings']);
 /*********************************************************************** */
+Route::post('save-property-question-answers', [ApiController::class, 'savePropertyQuestionAnswers']);
 
 /** Authenticated APIS */
 Route::group(['middleware' => ['auth:sanctum']], function () {
@@ -82,7 +83,6 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::post('delete_property', [ApiController::class, 'delete_property']);
     Route::post('interested_users', [ApiController::class, 'interested_users']);
     Route::post('change-property-status', [ApiController::class, 'changePropertyStatus']);
-    Route::post('save-property-question-answers', [ApiController::class, 'savePropertyQuestionAnswers']);
     Route::post('send-property-client-email', [ApiController::class, 'sendPropertyClientEmail']);
     Route::get('get_favourite_property', [ApiController::class, 'get_favourite_property']);
     Route::get('get_property_inquiry', [ApiController::class, 'get_property_inquiry']);
