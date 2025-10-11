@@ -697,7 +697,7 @@ class ApiController extends Controller
         $language = $request->has('language') ? $request->language : null;
 
         // Select fields based on language preference
-        $select = ['id', 'slug_id', 'title', 'price', 'description', 'address', 'propery_type', 'title_image', 'status', 'request_status', 'total_click', 'state', 'city', 'country', 'latitude', 'longitude', 'added_by', 'is_premium', 'property_classification', 'availability_type', 'available_dates', 'corresponding_day'];
+        $select = ['id', 'slug_id', 'title', 'price', 'description', 'address', 'propery_type', 'title_image', 'status', 'request_status', 'total_click', 'state', 'city', 'country', 'latitude', 'longitude', 'added_by', 'is_premium', 'property_classification', 'availability_type', 'available_dates', 'corresponding_day', 'instant_booking', 'non_refundable'];
 
         // Always include Arabic fields unless specifically requesting English only
         if ($language !== 'en') {
