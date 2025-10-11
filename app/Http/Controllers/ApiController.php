@@ -697,7 +697,7 @@ class ApiController extends Controller
         $language = $request->has('language') ? $request->language : null;
 
         // Select fields based on language preference
-        $select = ['id', 'slug_id', 'title', 'price', 'description', 'address', 'propery_type', 'title_image', 'status', 'request_status', 'total_click', 'state', 'city', 'country', 'latitude', 'longitude', 'added_by', 'is_premium', 'property_classification', 'availability_type', 'available_dates', 'corresponding_day', 'instant_booking', 'non_refundable'];
+        $select = ['id', 'slug_id', 'title', 'price', 'description', 'address', 'propery_type', 'title_image', 'status', 'request_status', 'total_click', 'state', 'city', 'country', 'latitude', 'longitude', 'added_by', 'is_premium', 'property_classification', 'availability_type', 'available_dates', 'corresponding_day', 'instant_booking', 'non_refundable', 'title_ar', 'description_ar', 'area_description_ar', 'area_description'];
 
         // Always include Arabic fields unless specifically requesting English only
         if ($language !== 'en') {
@@ -5118,7 +5118,7 @@ class ApiController extends Controller
 
                     $getSimilarProperties = get_property_details($getSimilarPropertiesQueryData, $loggedInUserData);
                 } else if ($request->has('slug_id')) {
-                    $getSimilarPropertiesQueryData = Property::where(['post_type' => 1, 'added_by' => $loggedInUserID])->where('slug_id', '!=', $request->slug_id)->select('id', 'slug_id', 'category_id', 'title', 'added_by', 'address', 'city', 'country', 'state', 'propery_type', 'price', 'created_at', 'title_image')->orderBy('id', 'desc')->limit(10)->get();
+                    $getSimilarPropertiesQueryData = Property::where(['post_type' => 1, 'added_by' => $loggedInUserID])->where('slug_id', '!=', $request->slug_id)->select('id', 'slug_id', 'category_id', 'title', 'added_by', 'address', 'city', 'country', 'state', 'propery_type', 'price', 'created_at', 'title_image', 'instant_booking', 'non_refundable', 'title_ar', 'description_ar', 'area_description_ar', 'area_description')->orderBy('id', 'desc')->limit(10)->get();
                     $getSimilarProperties = get_property_details($getSimilarPropertiesQueryData, $loggedInUserData);
                 } else {
                     $getSimilarProperties = array();
