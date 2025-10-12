@@ -714,6 +714,7 @@ class ReservationController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'reservable_type' => 'required|in:property,hotel_room',
+            'review_url' => 'nullable|url',
             'property_id' => 'required|integer|exists:propertys,id',
             'check_in_date' => 'required|date|after_or_equal:today',
             'check_out_date' => 'required|date|after:check_in_date',
@@ -820,6 +821,7 @@ class ReservationController extends Controller
                         'payment_status' => 'unpaid',
                         'payment_method' => 'paymob',
                         'transaction_id' => $transactionId,
+                        'review_url' => $request->review_url,
                     ]);
 
                     // Create payment record
@@ -906,6 +908,7 @@ class ReservationController extends Controller
                                 'payment_status' => 'unpaid',
                                 'payment_method' => 'paymob',
                                 'transaction_id' => $transactionId,
+                                'review_url' => $request->review_url,
                             ]);
 
                             $reservations[] = $mainReservation;
@@ -938,6 +941,7 @@ class ReservationController extends Controller
                                 'payment_status' => 'unpaid',
                                 'payment_method' => 'paymob',
                                 'transaction_id' => $transactionId, // Same transaction ID for all reservations
+                                'review_url' => $request->review_url,
                             ]);
 
                             $reservations[] = $reservation;

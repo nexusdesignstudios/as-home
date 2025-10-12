@@ -24,6 +24,7 @@ class Reservation extends Model
         'payment_status',
         'payment_method',
         'transaction_id',
+        'review_url',
     ];
 
     protected $casts = [

@@ -682,6 +682,7 @@ class ReservationService
                     'payment_status' => ucfirst($reservation->payment_status),
                     'transaction_id' => $reservation->transaction_id,
                     'special_requests' => $reservation->special_requests ?? 'None',
+                    'review_url' => $reservation->review_url ?? '',
                 );
 
                 if (empty($reservationConfirmationTemplateData)) {
