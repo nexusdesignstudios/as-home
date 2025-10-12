@@ -1243,6 +1243,70 @@ The {app_name} Team';
         }
     }
 
+    /**
+     * Get reservation counts for a specific customer (vacation homes and hotel rooms separately).
+     *
+     * @param int $customer_id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getCustomerReservationCounts($customer_id)
+    {
+        try {
+            // Validate customer exists
+            $customer = \App\Models\Customer::find($customer_id);
+            if (!$customer) {
+                return ApiResponseService::errorResponse('Customer not found');
+            }
+
+            // Get vacation homes (properties) reservation count
+            $vacationHomesCount = Reservation::where('customer_id', $customer_id)
+                ->where('reservable_type', 'App\\Models\\Property')
+                ->count();
+
+            // Get hotel rooms reservation count
+            $hotelRoomsCount = Reservation::where('customer_id', $customer_id)
+                ->where('reservable_type', 'App\\Models\\HotelRoom')
+                ->count();
+
+            // Get total count
+            $totalCount = $vacationHomesCount + $hotelRoomsCount;
+
+            // Get counts by status for vacation homes
+            $vacationHomesByStatus = Reservation::where('customer_id', $customer_id)
+                ->where('reservable_type', 'App\\Models\\Property')
+                ->selectRaw('status, COUNT(*) as count')
+                ->groupBy('status')
+                ->pluck('count', 'status')
+                ->toArray();
+
+            // Get counts by status for hotel rooms
+            $hotelRoomsByStatus = Reservation::where('customer_id', $customer_id)
+                ->where('reservable_type', 'App\\Models\\HotelRoom')
+                ->selectRaw('status, COUNT(*) as count')
+                ->groupBy('status')
+                ->pluck('count', 'status')
+                ->toArray();
+
+            return ApiResponseService::successResponse('Customer reservation counts retrieved successfully', [
+                'customer_id' => $customer_id,
+                'customer_name' => $customer->name,
+                'customer_email' => $customer->email,
+                'total_reservations' => $totalCount,
+                'vacation_homes' => [
+                    'total_count' => $vacationHomesCount,
+                    'by_status' => $vacationHomesByStatus
+                ],
+                'hotel_rooms' => [
+                    'total_count' => $hotelRoomsCount,
+                    'by_status' => $hotelRoomsByStatus
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return ApiResponseService::errorResponse('Failed to get customer reservation counts: ' . $e->getMessage());
+        }
+    }
+
     private function calculateCustomerDiscount($customerId, $reservableType, $originalAmount)
     {
         $completedBookings = Reservation::where('customer_id', $customerId)
