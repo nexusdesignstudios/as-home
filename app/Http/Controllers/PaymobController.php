@@ -1475,7 +1475,7 @@ As-home Asset Management Team';
             ];
 
             // Get email template
-            $emailTemplateData = system_setting('refund_rejection_mail_template');
+            $emailTemplateData = system_setting('refund_rejection');
 
             if (empty($emailTemplateData)) {
                 Log::warning('Refund rejection email template not found, using default template');

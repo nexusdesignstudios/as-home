@@ -38,7 +38,7 @@ As-home Asset Management Team';
 
         // Add the email template to the settings table
         Setting::updateOrCreate(
-            ['type' => 'refund_rejection_mail_template'],
+            ['type' => 'refund_rejection'],
             ['data' => $emailTemplate]
         );
     }
@@ -51,6 +51,6 @@ As-home Asset Management Team';
     public function down()
     {
         // Remove the email template from the settings table
-        Setting::where('type', 'refund_rejection_mail_template')->delete();
+        Setting::where('type', 'refund_rejection')->delete();
     }
 }

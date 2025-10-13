@@ -528,8 +528,11 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['reservation_phone_number'] = $row->reservation_phone_number;
         $tempRow['reservation_email'] = $row->reservation_email;
 
+        // Add certificates for all properties
+        $tempRow['certificates'] = $row->certificates;
+
         // Add hotel-specific fields
-        if ($row->getRawOriginal('property_classification') == 5) {
+        // if ($row->getRawOriginal('property_classification') == 5) {
             // Hotel name field removed
             $tempRow['refund_policy'] = $row->refund_policy;
             $tempRow['hotel_rooms'] = $row->hotel_rooms;
@@ -539,8 +542,7 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
             $tempRow['check_out'] = $row->check_out;
             $tempRow['agent_addons'] = $row->agent_addons;
             $tempRow['available_rooms'] = $row->available_rooms;
-            $tempRow['certificates'] = $row->certificates;
-        }
+        // }
 
         // Get Property Inquiry Data on the basis of current user and status is completed
         $inquiry = PropertysInquiry::where('customers_id', $current_user)->where('propertys_id', $row->id)->where('status', 2)->first();
