@@ -35,19 +35,81 @@ class PaymobController extends Controller
             $data = $request->all();
             Log::info('Paymob callback received - Parsed to json:', ['data' => json_encode($data)]);
 
-            // Add more detailed logging to debug the transaction ID issue
-            Log::info('Paymob callback - Full data structure:', [
-                'obj_exists' => isset($data['obj']),
-                'order_exists' => isset($data['obj']['order']),
-                'merchant_order_id_exists' => isset($data['obj']['order']['merchant_order_id']),
-                'merchant_order_id_value' => $data['obj']['order']['merchant_order_id'] ?? 'NOT_FOUND',
-                'full_obj' => $data['obj'] ?? 'NOT_FOUND'
-            ]);
+            // Check callback type and handle accordingly
+            $callbackType = $data['type'] ?? 'UNKNOWN';
+            Log::info('Paymob callback - Callback type:', ['type' => $callbackType]);
 
-            $transactionId = $data['obj']['order']['merchant_order_id'];
-            $paymentStatus = $data['obj']['success'] ? 'succeed' : 'failed';
-            $paymobOrderId = $data['obj']['order']['id'];
-            $paymobTransactionId = $data['obj']['id'];
+            // Initialize variables
+            $transactionId = null;
+            $paymentStatus = 'failed';
+            $paymobOrderId = null;
+            $paymobTransactionId = null;
+
+            // Handle different callback types
+            if ($callbackType === 'TOKEN') {
+                Log::info('Paymob callback - TOKEN callback received', [
+                    'token_id' => $data['obj']['id'] ?? 'unknown',
+                    'order_id' => $data['obj']['order_id'] ?? 'unknown'
+                ]);
+
+                // For TOKEN callbacks, we need to find the payment by order_id
+                $paymobOrderId = $data['obj']['order_id'] ?? null;
+                if ($paymobOrderId) {
+                    // Find payment by Paymob order ID
+                    $payment = PaymobPayment::where('paymob_order_id', $paymobOrderId)->first();
+                    if ($payment) {
+                        $transactionId = $payment->transaction_id;
+                        $paymentStatus = 'succeed'; // TOKEN callback means payment was successful
+                        $paymobTransactionId = $data['obj']['id'] ?? null;
+
+                        Log::info('Paymob callback - Payment found by order ID', [
+                            'payment_id' => $payment->id,
+                            'transaction_id' => $transactionId,
+                            'order_id' => $paymobOrderId
+                        ]);
+                    } else {
+                        Log::warning('Paymob callback - No payment found for order ID', [
+                            'order_id' => $paymobOrderId
+                        ]);
+                        return ApiResponseService::successResponse('TOKEN callback received but no payment found');
+                    }
+                } else {
+                    Log::warning('Paymob callback - No order ID in TOKEN callback');
+                    return ApiResponseService::successResponse('TOKEN callback received but no order ID');
+                }
+            } else {
+                // Default case: TRANSACTION callback or unknown type (treat as TRANSACTION for backward compatibility)
+                Log::info('Paymob callback - TRANSACTION callback received (default case)', [
+                    'callback_type' => $callbackType
+                ]);
+
+                // Add more detailed logging to debug the transaction ID issue
+                Log::info('Paymob callback - Full data structure:', [
+                    'obj_exists' => isset($data['obj']),
+                    'order_exists' => isset($data['obj']['order']),
+                    'merchant_order_id_exists' => isset($data['obj']['order']['merchant_order_id']),
+                    'merchant_order_id_value' => $data['obj']['order']['merchant_order_id'] ?? 'NOT_FOUND',
+                    'full_obj' => $data['obj'] ?? 'NOT_FOUND'
+                ]);
+
+                // Safely extract data with proper error handling
+                $transactionId = $data['obj']['order']['merchant_order_id'] ?? null;
+                $paymentStatus = ($data['obj']['success'] ?? false) ? 'succeed' : 'failed';
+                $paymobOrderId = $data['obj']['order']['id'] ?? null;
+                $paymobTransactionId = $data['obj']['id'] ?? null;
+            }
+
+            // Validate required data
+            if (!$transactionId) {
+                Log::error('Paymob callback - Missing transaction ID', [
+                    'callback_type' => $callbackType,
+                    'data_structure' => $data,
+                    'obj_exists' => isset($data['obj']),
+                    'order_exists' => isset($data['obj']['order']),
+                    'merchant_order_id_exists' => isset($data['obj']['order']['merchant_order_id'])
+                ]);
+                return ApiResponseService::errorResponse('Missing transaction ID in callback data');
+            }
 
             Log::info('Paymob callback received - Transaction ID:', ['transaction_id' => $transactionId]);
             Log::info('Paymob callback received - Payment Status:', ['status' => $paymentStatus]);
@@ -1720,10 +1782,20 @@ As-home Asset Management Team';
             // }
 
             $data = $request->all();
-            $transactionId = $data['obj']['order']['merchant_order_id'];
-            $paymentStatus = $data['obj']['success'] ? 'succeed' : 'failed';
-            $paymobOrderId = $data['obj']['order']['id'];
-            $paymobTransactionId = $data['obj']['id'];
+
+            // Safely extract data with proper error handling
+            $transactionId = $data['obj']['order']['merchant_order_id'] ?? null;
+            $paymentStatus = ($data['obj']['success'] ?? false) ? 'succeed' : 'failed';
+            $paymobOrderId = $data['obj']['order']['id'] ?? null;
+            $paymobTransactionId = $data['obj']['id'] ?? null;
+
+            // Validate required data
+            if (!$transactionId) {
+                Log::error('Paymob send money callback - Missing transaction ID', [
+                    'data_structure' => $data
+                ]);
+                return ApiResponseService::errorResponse('Missing transaction ID in callback data');
+            }
 
             Log::info('Paymob send money callback - Transaction ID:', ['transaction_id' => $transactionId]);
             Log::info('Paymob send money callback - Payment Status:', ['status' => $paymentStatus]);
