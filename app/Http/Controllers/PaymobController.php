@@ -275,8 +275,28 @@ class PaymobController extends Controller
                             if (count($transactionParts) >= 3) {
                                 $customerId = $transactionParts[2];
 
-                                // First, try to find payment by Paymob order ID (more specific)
-                                if ($paymobOrderId) {
+                                // First, try to find payment by transaction ID directly
+                                $paymentByTransactionId = PaymobPayment::where('transaction_id', $transactionId)->first();
+
+                                if ($paymentByTransactionId) {
+                                    Log::info('Payment found by exact transaction ID match', [
+                                        'payment_id' => $paymentByTransactionId->id,
+                                        'transaction_id' => $transactionId,
+                                        'reservation_id' => $paymentByTransactionId->reservation_id
+                                    ]);
+
+                                    // Update payment with status and Paymob transaction ID
+                                    $paymentByTransactionId->status = $paymentStatus;
+                                    $paymentByTransactionId->paymob_order_id = $paymobOrderId;
+                                    $paymentByTransactionId->paymob_transaction_id = $paymobTransactionId;
+                                    $paymentByTransactionId->transaction_data = json_encode($data);
+                                    $paymentByTransactionId->save();
+
+                                    $payment = $paymentByTransactionId;
+                                }
+
+                                // If not found by transaction ID, try to find payment by Paymob order ID (more specific)
+                                if (!isset($payment) && $paymobOrderId) {
                                     $paymentByOrderId = PaymobPayment::where('paymob_order_id', $paymobOrderId)->first();
                                     if ($paymentByOrderId) {
                                         Log::info('Payment found by Paymob order ID in fallback', [

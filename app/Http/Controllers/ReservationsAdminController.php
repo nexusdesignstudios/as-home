@@ -554,6 +554,38 @@ class ReservationsAdminController extends Controller
             // Create payment intent
             $paymentIntent = $paymentService->createAndFormatPaymentIntent($discountInfo['final_amount'], $metadata);
 
+            // Create or update payment record with the new transaction ID
+            $payment = \App\Models\PaymobPayment::updateOrCreate(
+                ['reservation_id' => $reservation->id],
+                [
+                    'customer_id' => $customer->id,
+                    'transaction_id' => $transactionId,
+                    'amount' => $discountInfo['final_amount'],
+                    'currency' => config('paymob.currency', 'EGP'),
+                    'status' => 'pending',
+                    'payment_method' => 'paymob',
+                    'reservable_id' => $reservation->reservable_id,
+                    'reservable_type' => $reservation->reservable_type,
+                ]
+            );
+
+            // Update the payment record with Paymob order ID if available
+            if (isset($paymentIntent['id'])) {
+                $payment->paymob_order_id = $paymentIntent['id'];
+                $payment->save();
+
+                \Illuminate\Support\Facades\Log::info('Payment record created/updated with Paymob order ID', [
+                    'payment_id' => $payment->id,
+                    'transaction_id' => $payment->transaction_id,
+                    'paymob_order_id' => $payment->paymob_order_id,
+                    'reservation_id' => $payment->reservation_id
+                ]);
+            }
+
+            // Update the reservation with the new transaction ID
+            $reservation->transaction_id = $transactionId;
+            $reservation->save();
+
             // Log the payment intent for debugging
             \Illuminate\Support\Facades\Log::info('Payment intent created for reservation', [
                 'reservation_id' => $reservation->id,
