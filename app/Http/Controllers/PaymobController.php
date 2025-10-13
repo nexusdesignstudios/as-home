@@ -114,34 +114,6 @@ class PaymobController extends Controller
                         $payment->save();
                     }
 
-                    // Update reservation status
-                    if ($payment && $payment->reservation_id) {
-                        $reservation = Reservation::find($payment->reservation_id);
-                        if ($reservation) {
-                            if ($paymentStatus === 'succeed') {
-                                // Use the new service method for successful payments
-                                $reservationService = app(\App\Services\ReservationService::class);
-                                $reservationService->handleReservationConfirmation($reservation, 'paid');
-                            } else {
-                                // Handle failed payments
-                                $reservation->status = 'cancelled';
-                                $reservation->payment_status = 'failed';
-                                $reservation->save();
-
-                                Log::info('Reservation cancelled due to failed payment', [
-                                    'reservation_id' => $reservation->id,
-                                    'status' => $reservation->status,
-                                    'payment_status' => $reservation->payment_status
-                                ]);
-                            }
-                        } else {
-                            Log::warning('Reservation not found', [
-                                'reservation_id' => $payment->reservation_id,
-                                'payment_id' => $payment->id
-                            ]);
-                        }
-                    }
-
                     Log::info('Payment updated successfully', [
                         'payment_id' => $payment->id,
                         'status' => $paymentStatus
@@ -273,6 +245,40 @@ class PaymobController extends Controller
                     'transaction_id' => $transactionId,
                     'trace' => $e->getTraceAsString()
                 ]);
+            }
+
+            // Update reservation status if payment was found/updated
+            if (isset($payment) && $payment && $payment->reservation_id) {
+                $reservation = Reservation::find($payment->reservation_id);
+                if ($reservation) {
+                    if ($paymentStatus === 'succeed') {
+                        // Use the new service method for successful payments
+                        $reservationService = app(\App\Services\ReservationService::class);
+                        $reservationService->handleReservationConfirmation($reservation, 'paid');
+
+                        Log::info('Reservation confirmed due to successful payment', [
+                            'reservation_id' => $reservation->id,
+                            'status' => $reservation->status,
+                            'payment_status' => $reservation->payment_status
+                        ]);
+                    } else {
+                        // Handle failed payments
+                        $reservation->status = 'cancelled';
+                        $reservation->payment_status = 'failed';
+                        $reservation->save();
+
+                        Log::info('Reservation cancelled due to failed payment', [
+                            'reservation_id' => $reservation->id,
+                            'status' => $reservation->status,
+                            'payment_status' => $reservation->payment_status
+                        ]);
+                    }
+                } else {
+                    Log::warning('Reservation not found for payment', [
+                        'reservation_id' => $payment->reservation_id,
+                        'payment_id' => $payment->id
+                    ]);
+                }
             }
 
             // Log final payment status
