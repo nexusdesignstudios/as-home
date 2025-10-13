@@ -1044,7 +1044,7 @@ class PaymobController extends Controller
                 $payment->save();
 
                 // Notify the customer about the rejection
-                // TODO: Send notification to customer about refund rejection
+                $this->sendRefundRejectionEmail($payment, $reservation, $rejectionReason);
 
                 ApiResponseService::successResponse('Refund request rejected successfully', [
                     'payment_id' => $payment->id,
@@ -1353,11 +1353,17 @@ class PaymobController extends Controller
             // Prepare email variables
             $variables = [
                 'app_name' => env("APP_NAME") ?? "eBroker",
+                'user_name' => $customer->name,
                 'customer_name' => $customer->name,
                 'reservation_id' => $reservation->id,
                 'property_name' => $propertyName,
+                'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
+                'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
                 'refund_amount' => number_format($payment->refund_amount, 2),
                 'currency_symbol' => $currencySymbol,
+                'refund_method' => $payment->payment_method ?? 'Original Payment Method',
+                'refund_date' => $payment->refund_date ? $payment->refund_date->format('d M Y') : now()->format('d M Y'),
+                'refund_processing_time' => '3-5',
                 'transaction_id' => $payment->transaction_id,
             ];
 
@@ -1366,24 +1372,26 @@ class PaymobController extends Controller
 
             if (empty($emailTemplateData)) {
                 Log::warning('Refund approval email template not found, using default template');
-                $emailTemplateData = 'Dear {customer_name},
+                $emailTemplateData = 'Dear {user_name},
+We\'re writing to confirm that your refund for the cancelled reservation has been successfully processed.
 
-We are pleased to inform you that your refund request has been approved.
+Refund Details
+Reservation ID: {reservation_id}
+Property: {property_name}
+Check-in Date: {check_in_date}
+Check-out Date: {check_out_date}
+Refund Amount: {currency_symbol}{refund_amount}
+Refund Method: {refund_method}
+Refund Date: {refund_date}
 
-Refund Details:
-- Reservation ID: {reservation_id}
-- Property: {property_name}
-- Refund Amount: {currency_symbol}{refund_amount}
-- Transaction ID: {transaction_id}
+Please note that depending on your payment provider or bank, it may take up to {refund_processing_time} business days for the refunded amount to appear in your account.
 
-Your refund has been processed and should be reflected in your account within 3-5 business days, depending on your bank\'s processing time.
+We appreciate your patience and understanding. If you have any questions regarding your refund, feel free to contact our support team at support@as-home.com.
 
-If you have any questions or need further assistance, please don\'t hesitate to contact our customer support team.
+Thank you for choosing As-home. We hope to have the opportunity to host you again soon at one of our vacation homes or hotel stays.
 
-Thank you for your patience and understanding.
-
-Best regards,
-The {app_name} Team';
+Warm regards,
+As-home Asset Management Team';
             }
 
             // Replace variables in template
@@ -1405,6 +1413,114 @@ The {app_name} Team';
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to send refund approval email: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'payment_id' => $payment->id
+            ]);
+        }
+    }
+
+    /**
+     * Send refund rejection email to customer
+     *
+     * @param \App\Models\PaymobPayment $payment
+     * @param \App\Models\Reservation $reservation
+     * @param string $rejectionReason
+     * @return void
+     */
+    private function sendRefundRejectionEmail($payment, $reservation, $rejectionReason)
+    {
+        try {
+            // Get customer information
+            $customer = $payment->customer;
+
+            if (!$customer || !$customer->email) {
+                Log::warning('Cannot send refund rejection email: customer or email not found', [
+                    'payment_id' => $payment->id,
+                    'customer_id' => $payment->customer_id
+                ]);
+                return;
+            }
+
+            // Get property information
+            $propertyName = 'Unknown Property';
+            if ($reservation->reservable_type === 'App\\Models\\Property') {
+                $property = \App\Models\Property::find($reservation->reservable_id);
+                if ($property) {
+                    $propertyName = $property->title;
+                }
+            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                $hotelRoom = \App\Models\HotelRoom::find($reservation->reservable_id);
+                if ($hotelRoom && $hotelRoom->property) {
+                    $propertyName = $hotelRoom->property->title;
+                }
+            }
+
+            // Get currency symbol
+            $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+            // Prepare email variables
+            $variables = [
+                'app_name' => env("APP_NAME") ?? "eBroker",
+                'user_name' => $customer->name,
+                'customer_name' => $customer->name,
+                'reservation_id' => $reservation->id,
+                'property_name' => $propertyName,
+                'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
+                'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
+                'refund_amount' => number_format($payment->refund_amount, 2),
+                'currency_symbol' => $currencySymbol,
+                'rejection_reason' => $rejectionReason,
+                'rejection_date' => now()->format('d M Y'),
+                'transaction_id' => $payment->transaction_id,
+            ];
+
+            // Get email template
+            $emailTemplateData = system_setting('refund_rejection_mail_template');
+
+            if (empty($emailTemplateData)) {
+                Log::warning('Refund rejection email template not found, using default template');
+                $emailTemplateData = 'Dear {user_name},
+
+We regret to inform you that your refund request has been declined.
+
+Refund Request Details:
+Reservation ID: {reservation_id}
+Property: {property_name}
+Check-in Date: {check_in_date}
+Check-out Date: {check_out_date}
+Requested Refund Amount: {currency_symbol}{refund_amount}
+Rejection Date: {rejection_date}
+
+Reason for Rejection:
+{rejection_reason}
+
+We understand this may be disappointing, and we apologize for any inconvenience this may cause. If you believe this decision was made in error or if you have additional information that might change our assessment, please contact our support team at support@as-home.com.
+
+We value your business and hope to have the opportunity to serve you better in the future.
+
+Best regards,
+As-home Asset Management Team';
+            }
+
+            // Replace variables in template
+            $emailContent = HelperService::replaceEmailVariables($emailTemplateData, $variables);
+
+            // Send email
+            $data = [
+                'email' => $customer->email,
+                'title' => 'Refund Request Declined',
+                'email_template' => $emailContent
+            ];
+
+            HelperService::sendMail($data);
+
+            Log::info('Refund rejection email sent to customer', [
+                'customer_id' => $customer->id,
+                'customer_email' => $customer->email,
+                'payment_id' => $payment->id
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send refund rejection email: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'payment_id' => $payment->id
             ]);
