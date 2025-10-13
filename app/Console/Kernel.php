@@ -18,6 +18,7 @@ class Kernel extends ConsoleKernel
     protected $commands = [
         SeedPropertyDataCommand::class,
         GenerateMonthlyTaxInvoices::class,
+        \App\Console\Commands\SendCheckoutReminders::class,
     ];
 
     /**
@@ -38,6 +39,11 @@ class Kernel extends ConsoleKernel
         $schedule->command('tax:generate-monthly-invoices')
             ->monthlyOn(1, '09:00')
             ->appendOutputTo(storage_path('logs/monthly-tax-invoices.log'));
+
+        // Send daily checkout reminders at 9 AM every day
+        $schedule->command('reservations:send-checkout-reminders')
+            ->dailyAt('09:00')
+            ->appendOutputTo(storage_path('logs/checkout-reminders.log'));
     }
 
     /**

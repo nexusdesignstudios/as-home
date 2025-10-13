@@ -1351,4 +1351,188 @@ The {app_name} Team';
             'completed_bookings' => $completedBookings
         ];
     }
+
+    /**
+     * Send daily checkout reminder emails to customers whose reservations are checking out today.
+     * This method is designed to be called by a cronjob.
+     *
+     * @return array
+     */
+    public function sendDailyCheckoutReminders()
+    {
+        try {
+            $today = Carbon::today();
+            $sentCount = 0;
+            $failedCount = 0;
+            $errors = [];
+
+            Log::info('Starting daily checkout reminders process', [
+                'date' => $today->format('Y-m-d')
+            ]);
+
+            // Get all reservations checking out today with confirmed status
+            $reservations = Reservation::whereDate('check_out_date', $today)
+                ->where('status', 'confirmed')
+                ->with(['customer', 'property'])
+                ->get();
+
+            if ($reservations->isEmpty()) {
+                Log::info('No reservations found for checkout today', [
+                    'date' => $today->format('Y-m-d')
+                ]);
+                return [
+                    'success' => true,
+                    'message' => 'No reservations found for checkout today',
+                    'sent_count' => 0,
+                    'failed_count' => 0
+                ];
+            }
+
+            Log::info('Found reservations for checkout reminders', [
+                'count' => $reservations->count(),
+                'date' => $today->format('Y-m-d')
+            ]);
+
+            foreach ($reservations as $reservation) {
+                try {
+                    $this->sendCheckoutReminderEmail($reservation);
+                    $sentCount++;
+
+                    Log::info('Checkout reminder email sent successfully', [
+                        'reservation_id' => $reservation->id,
+                        'customer_id' => $reservation->customer_id,
+                        'customer_email' => $reservation->customer->email ?? 'N/A'
+                    ]);
+                } catch (\Exception $e) {
+                    $failedCount++;
+                    $errorMessage = "Failed to send checkout reminder for reservation {$reservation->id}: " . $e->getMessage();
+                    $errors[] = $errorMessage;
+
+                    Log::error($errorMessage, [
+                        'reservation_id' => $reservation->id,
+                        'customer_id' => $reservation->customer_id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                }
+            }
+
+            $result = [
+                'success' => true,
+                'message' => "Daily checkout reminders completed. Sent: {$sentCount}, Failed: {$failedCount}",
+                'sent_count' => $sentCount,
+                'failed_count' => $failedCount,
+                'total_reservations' => $reservations->count(),
+                'date' => $today->format('Y-m-d')
+            ];
+
+            if (!empty($errors)) {
+                $result['errors'] = $errors;
+            }
+
+            Log::info('Daily checkout reminders process completed', $result);
+
+            return $result;
+
+        } catch (\Exception $e) {
+            $errorMessage = 'Failed to process daily checkout reminders: ' . $e->getMessage();
+            Log::error($errorMessage, [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $errorMessage,
+                'sent_count' => 0,
+                'failed_count' => 0
+            ];
+        }
+    }
+
+    /**
+     * Send checkout reminder email to a specific customer.
+     *
+     * @param Reservation $reservation
+     * @return void
+     */
+    private function sendCheckoutReminderEmail($reservation)
+    {
+        // Get customer information
+        $customer = $reservation->customer;
+
+        if (!$customer || !$customer->email) {
+            throw new \Exception('Customer or email not found for reservation ' . $reservation->id);
+        }
+
+        // Get property information
+        $propertyName = 'Unknown Property';
+        if ($reservation->reservable_type === 'App\\Models\\Property') {
+            $property = Property::find($reservation->reservable_id);
+            if ($property) {
+                $propertyName = $property->title;
+            }
+        } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+            $hotelRoom = HotelRoom::find($reservation->reservable_id);
+            if ($hotelRoom && $hotelRoom->property) {
+                $propertyName = $hotelRoom->property->title;
+            }
+        }
+
+        // Get currency symbol
+        $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+        // Prepare email variables
+        $variables = [
+            'app_name' => env("APP_NAME") ?? "eBroker",
+            'customer_name' => $customer->name,
+            'reservation_id' => $reservation->id,
+            'property_name' => $propertyName,
+            'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
+            'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
+            'total_price' => number_format($reservation->total_price, 2),
+            'currency_symbol' => $currencySymbol,
+            'number_of_guests' => $reservation->number_of_guests,
+            'special_requests' => $reservation->special_requests ?? 'None',
+        ];
+
+        // Get email template
+        $emailTemplateData = system_setting('checkout_reminder_mail_template');
+
+        if (empty($emailTemplateData)) {
+            Log::warning('Checkout reminder email template not found, using default template');
+            $emailTemplateData = 'Dear {customer_name},
+
+This is a friendly reminder that your reservation is checking out today.
+
+Reservation Details:
+- Reservation ID: {reservation_id}
+- Property: {property_name}
+- Check-in Date: {check_in_date}
+- Check-out Date: {check_out_date}
+- Number of Guests: {number_of_guests}
+- Total Amount: {currency_symbol}{total_price}
+
+Please ensure you have completed the checkout process and returned any keys or access cards as required.
+
+If you have any questions or need assistance, please don\'t hesitate to contact our support team.
+
+Thank you for choosing As-home. We hope you had a wonderful stay!
+
+Best regards,
+As-home Asset Management Team';
+        }
+
+        // Replace variables in template
+        $emailContent = HelperService::replaceEmailVariables($emailTemplateData, $variables);
+
+        // Send email
+        $data = [
+            'email' => $customer->email,
+            'title' => 'Checkout Reminder - Your Reservation Ends Today',
+            'email_template' => $emailContent
+        ];
+
+        HelperService::sendMail($data);
+    }
 }
