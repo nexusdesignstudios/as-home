@@ -540,7 +540,7 @@ class PaymobController extends Controller
 
             // Find the payment (for reservations)
             $payment = null;
-            
+
             // First try to find by Paymob order ID (most reliable)
             if ($paymobOrderId) {
                 $payment = PaymobPayment::where('paymob_order_id', $paymobOrderId)->first();
@@ -552,7 +552,7 @@ class PaymobController extends Controller
                     ]);
                 }
             }
-            
+
             // If not found by order ID, try by transaction ID
             if (!$payment && $transactionId) {
                 $payment = PaymobPayment::where('transaction_id', $transactionId)->first();
@@ -573,20 +573,20 @@ class PaymobController extends Controller
                     if ($paymobTransactionId) $payment->paymob_transaction_id = $paymobTransactionId;
                     if ($transactionId) $payment->transaction_id = $transactionId;
                     $payment->save();
-                    
+
                     Log::info('Payment record updated in handleReturn', [
                         'payment_id' => $payment->id,
                         'status' => $payment->status,
                         'reservation_id' => $payment->reservation_id
                     ]);
-                    
+
                     // Update reservation status if payment was successful
                     if ($success && $payment->reservation_id) {
                         $reservation = \App\Models\Reservation::find($payment->reservation_id);
                         if ($reservation) {
                             $reservationService = app(\App\Services\ReservationService::class);
                             $reservationService->handleReservationConfirmation($reservation, 'paid');
-                            
+
                             Log::info('Reservation confirmed in handleReturn', [
                                 'reservation_id' => $reservation->id,
                                 'status' => $reservation->status,
@@ -595,7 +595,7 @@ class PaymobController extends Controller
                         }
                     }
                 }
-                
+
                 if ($success) {
                     Log::info('Payment found and successful', [
                         'payment_id' => $payment->id,
