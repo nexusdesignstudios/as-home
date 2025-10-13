@@ -1014,6 +1014,19 @@ class ReservationController extends Controller
 
             // Create payment intent
             $paymentIntent = $paymentService->createAndFormatPaymentIntent($discountInfo['final_amount'], $metadata);
+            
+            // Update payment record with Paymob order ID
+            if (isset($payment) && isset($paymentIntent['id'])) {
+                $payment->paymob_order_id = $paymentIntent['id'];
+                $payment->save();
+                
+                Log::info('Payment record updated with Paymob order ID', [
+                    'payment_id' => $payment->id,
+                    'transaction_id' => $payment->transaction_id,
+                    'paymob_order_id' => $payment->paymob_order_id,
+                    'reservation_id' => $payment->reservation_id
+                ]);
+            }
 
             // Log after payment intent is created
             Log::info('Payment intent created with Paymob', [
