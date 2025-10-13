@@ -837,7 +837,23 @@ class ReservationController extends Controller
                         'reservable_type' => $modelType,
                         'reservation_id' => $reservation->id,
                     ]);
+
+                    // Log payment creation for debugging
+                    Log::info('Payment record created in database transaction', [
+                        'payment_id' => $payment->id,
+                        'transaction_id' => $payment->transaction_id,
+                        'status' => $payment->status,
+                        'reservation_id' => $payment->reservation_id
+                    ]);
                 });
+
+                // Log payment record after transaction is committed
+                Log::info('Payment record committed to database', [
+                    'payment_id' => $payment->id,
+                    'transaction_id' => $payment->transaction_id,
+                    'status' => $payment->status,
+                    'reservation_id' => $payment->reservation_id
+                ]);
             }
             // Handle hotel room reservations
             else {
@@ -926,6 +942,14 @@ class ReservationController extends Controller
                                 'reservable_type' => $modelType,
                                 'reservation_id' => $mainReservation->id,
                             ]);
+
+                            // Log payment creation for debugging
+                            Log::info('Hotel room payment record created in database transaction', [
+                                'payment_id' => $payment->id,
+                                'transaction_id' => $payment->transaction_id,
+                                'status' => $payment->status,
+                                'reservation_id' => $payment->reservation_id
+                            ]);
                         } else {
                             // For subsequent rooms, create reservations with the same transaction ID
                             $reservation = Reservation::create([
@@ -950,9 +974,23 @@ class ReservationController extends Controller
                     }
                 });
 
+                // Log payment record after transaction is committed
+                Log::info('Hotel room payment record committed to database', [
+                    'payment_id' => $payment->id,
+                    'transaction_id' => $payment->transaction_id,
+                    'status' => $payment->status,
+                    'reservation_id' => $payment->reservation_id
+                ]);
+
                 // Set the reservation variable for the payment intent creation
                 $reservation = $mainReservation;
             }
+
+            // Log before creating payment intent
+            Log::info('About to create payment intent with Paymob', [
+                'transaction_id' => $transactionId,
+                'amount' => $discountInfo['final_amount']
+            ]);
 
             // Create the payment intent outside of the transaction (external API call)
             $paymentData = [
@@ -976,6 +1014,12 @@ class ReservationController extends Controller
 
             // Create payment intent
             $paymentIntent = $paymentService->createAndFormatPaymentIntent($discountInfo['final_amount'], $metadata);
+
+            // Log after payment intent is created
+            Log::info('Payment intent created with Paymob', [
+                'transaction_id' => $transactionId,
+                'payment_intent' => $paymentIntent
+            ]);
 
             // Prepare response based on reservation type
             if ($request->reservable_type === 'property') {

@@ -89,6 +89,20 @@ class PaymobController extends Controller
                     'searching_for_transaction_id' => $transactionId
                 ]);
 
+                // Also check all payments (not just pending) to see if the payment exists
+                $allPaymentsAllStatuses = PaymobPayment::where('transaction_id', $transactionId)->get(['id', 'transaction_id', 'status', 'reservation_id']);
+                Log::info('Paymob callback - All payments with this transaction ID:', [
+                    'payments' => $allPaymentsAllStatuses->toArray(),
+                    'transaction_id' => $transactionId
+                ]);
+
+                // Check for similar transaction IDs (in case of formatting issues)
+                $similarPayments = PaymobPayment::where('transaction_id', 'LIKE', '%' . substr($transactionId, -10) . '%')->get(['id', 'transaction_id', 'status', 'reservation_id']);
+                Log::info('Paymob callback - Similar transaction IDs found:', [
+                    'payments' => $similarPayments->toArray(),
+                    'search_pattern' => '%' . substr($transactionId, -10) . '%'
+                ]);
+
                 $payment = PaymobPayment::where('transaction_id', $transactionId)->first();
                 if ($payment) {
                     // Only update if not already updated by the fallback logic
@@ -154,6 +168,103 @@ class PaymobController extends Controller
                         $paymentByPaymobId->save();
 
                         $payment = $paymentByPaymobId;
+                    } else {
+                        // Try to find payment by reservation ID if it's a reservation transaction
+                        if ($isReservation) {
+                            // Extract reservation ID from transaction ID (format: RES_timestamp_customerId_random)
+                            $transactionParts = explode('_', $transactionId);
+                            if (count($transactionParts) >= 3) {
+                                $customerId = $transactionParts[2];
+
+                                // Find the most recent payment for this customer
+                                $recentPayment = PaymobPayment::where('customer_id', $customerId)
+                                    ->where('status', 'pending')
+                                    ->orderBy('created_at', 'desc')
+                                    ->first();
+
+                                if ($recentPayment) {
+                                    Log::info('Payment found by customer ID and recent creation', [
+                                        'customer_id' => $customerId,
+                                        'payment_id' => $recentPayment->id,
+                                        'original_transaction_id' => $recentPayment->transaction_id
+                                    ]);
+
+                                    // Update the payment with the correct transaction ID
+                                    $recentPayment->transaction_id = $transactionId;
+                                    $recentPayment->status = $paymentStatus;
+                                    $recentPayment->paymob_order_id = $paymobOrderId;
+                                    $recentPayment->paymob_transaction_id = $paymobTransactionId;
+                                    $recentPayment->transaction_data = json_encode($data);
+                                    $recentPayment->save();
+
+                                    $payment = $recentPayment;
+                                } else {
+                                    // Try to find any payment created in the last 5 minutes
+                                    $recentPayments = PaymobPayment::where('customer_id', $customerId)
+                                        ->where('created_at', '>=', now()->subMinutes(5))
+                                        ->orderBy('created_at', 'desc')
+                                        ->get();
+
+                                    if ($recentPayments->isNotEmpty()) {
+                                        Log::info('Found recent payments for customer', [
+                                            'customer_id' => $customerId,
+                                            'recent_payments_count' => $recentPayments->count(),
+                                            'recent_payments' => $recentPayments->pluck('transaction_id')->toArray()
+                                        ]);
+
+                                        // Use the most recent one
+                                        $recentPayment = $recentPayments->first();
+
+                                        Log::info('Using most recent payment as fallback', [
+                                            'payment_id' => $recentPayment->id,
+                                            'original_transaction_id' => $recentPayment->transaction_id
+                                        ]);
+
+                                        // Update the payment with the correct transaction ID
+                                        $recentPayment->transaction_id = $transactionId;
+                                        $recentPayment->status = $paymentStatus;
+                                        $recentPayment->paymob_order_id = $paymobOrderId;
+                                        $recentPayment->paymob_transaction_id = $paymobTransactionId;
+                                        $recentPayment->transaction_data = json_encode($data);
+                                        $recentPayment->save();
+
+                                        $payment = $recentPayment;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Final fallback: if no payment is found, create one
+                        if (!$payment && $isReservation) {
+                            Log::warning('No payment found, creating fallback payment record', [
+                                'transaction_id' => $transactionId,
+                                'customer_id' => $customerId ?? 'unknown'
+                            ]);
+
+                            // Extract customer ID from transaction ID
+                            $transactionParts = explode('_', $transactionId);
+                            $customerId = count($transactionParts) >= 3 ? $transactionParts[2] : null;
+
+                            if ($customerId) {
+                                // Create a fallback payment record
+                                $payment = PaymobPayment::create([
+                                    'customer_id' => $customerId,
+                                    'transaction_id' => $transactionId,
+                                    'amount' => $data['obj']['amount_cents'] / 100, // Convert from cents
+                                    'currency' => $data['obj']['currency'] ?? 'EGP',
+                                    'status' => $paymentStatus,
+                                    'payment_method' => 'paymob',
+                                    'paymob_order_id' => $paymobOrderId,
+                                    'paymob_transaction_id' => $paymobTransactionId,
+                                    'transaction_data' => json_encode($data),
+                                ]);
+
+                                Log::info('Fallback payment record created', [
+                                    'payment_id' => $payment->id,
+                                    'transaction_id' => $payment->transaction_id
+                                ]);
+                            }
+                        }
                     }
                 }
             } catch (\Exception $e) {
@@ -161,6 +272,21 @@ class PaymobController extends Controller
                     'error' => $e->getMessage(),
                     'transaction_id' => $transactionId,
                     'trace' => $e->getTraceAsString()
+                ]);
+            }
+
+            // Log final payment status
+            if (isset($payment) && $payment) {
+                Log::info('Payment callback processing completed successfully', [
+                    'payment_id' => $payment->id,
+                    'transaction_id' => $payment->transaction_id,
+                    'status' => $payment->status,
+                    'reservation_id' => $payment->reservation_id
+                ]);
+            } else {
+                Log::error('Payment callback processing failed - no payment found or created', [
+                    'transaction_id' => $transactionId,
+                    'paymob_transaction_id' => $paymobTransactionId
                 ]);
             }
 
