@@ -210,59 +210,113 @@ class PaymobController extends Controller
                             if (count($transactionParts) >= 3) {
                                 $customerId = $transactionParts[2];
 
-                                // Find the most recent payment for this customer
-                                $recentPayment = PaymobPayment::where('customer_id', $customerId)
-                                    ->where('status', 'pending')
-                                    ->orderBy('created_at', 'desc')
-                                    ->first();
-
-                                if ($recentPayment) {
-                                    Log::info('Payment found by customer ID and recent creation', [
-                                        'customer_id' => $customerId,
-                                        'payment_id' => $recentPayment->id,
-                                        'original_transaction_id' => $recentPayment->transaction_id
-                                    ]);
-
-                                    // Update the payment with the correct transaction ID
-                                    $recentPayment->transaction_id = $transactionId;
-                                    $recentPayment->status = $paymentStatus;
-                                    $recentPayment->paymob_order_id = $paymobOrderId;
-                                    $recentPayment->paymob_transaction_id = $paymobTransactionId;
-                                    $recentPayment->transaction_data = json_encode($data);
-                                    $recentPayment->save();
-
-                                    $payment = $recentPayment;
-                                } else {
-                                    // Try to find any payment created in the last 5 minutes
-                                    $recentPayments = PaymobPayment::where('customer_id', $customerId)
-                                        ->where('created_at', '>=', now()->subMinutes(5))
-                                        ->orderBy('created_at', 'desc')
-                                        ->get();
-
-                                    if ($recentPayments->isNotEmpty()) {
-                                        Log::info('Found recent payments for customer', [
-                                            'customer_id' => $customerId,
-                                            'recent_payments_count' => $recentPayments->count(),
-                                            'recent_payments' => $recentPayments->pluck('transaction_id')->toArray()
-                                        ]);
-
-                                        // Use the most recent one
-                                        $recentPayment = $recentPayments->first();
-
-                                        Log::info('Using most recent payment as fallback', [
-                                            'payment_id' => $recentPayment->id,
-                                            'original_transaction_id' => $recentPayment->transaction_id
+                                // First, try to find payment by Paymob order ID (more specific)
+                                if ($paymobOrderId) {
+                                    $paymentByOrderId = PaymobPayment::where('paymob_order_id', $paymobOrderId)->first();
+                                    if ($paymentByOrderId) {
+                                        Log::info('Payment found by Paymob order ID in fallback', [
+                                            'paymob_order_id' => $paymobOrderId,
+                                            'payment_id' => $paymentByOrderId->id,
+                                            'original_transaction_id' => $paymentByOrderId->transaction_id
                                         ]);
 
                                         // Update the payment with the correct transaction ID
-                                        $recentPayment->transaction_id = $transactionId;
-                                        $recentPayment->status = $paymentStatus;
-                                        $recentPayment->paymob_order_id = $paymobOrderId;
-                                        $recentPayment->paymob_transaction_id = $paymobTransactionId;
-                                        $recentPayment->transaction_data = json_encode($data);
-                                        $recentPayment->save();
+                                        $paymentByOrderId->transaction_id = $transactionId;
+                                        $paymentByOrderId->status = $paymentStatus;
+                                        $paymentByOrderId->paymob_order_id = $paymobOrderId;
+                                        $paymentByOrderId->paymob_transaction_id = $paymobTransactionId;
+                                        $paymentByOrderId->transaction_data = json_encode($data);
+                                        $paymentByOrderId->save();
 
-                                        $payment = $recentPayment;
+                                        $payment = $paymentByOrderId;
+                                    }
+                                }
+
+                                // If still not found, try to find by customer ID and recent creation
+                                if (!$payment) {
+                                    // Try to find payment by similar transaction ID pattern first
+                                    $similarTransactionId = 'RES_' . $transactionParts[1] . '_' . $customerId . '_%';
+                                    $similarPayment = PaymobPayment::where('customer_id', $customerId)
+                                        ->where('transaction_id', 'LIKE', $similarTransactionId)
+                                        ->where('status', 'pending')
+                                        ->orderBy('created_at', 'desc')
+                                        ->first();
+
+                                    if ($similarPayment) {
+                                        Log::info('Payment found by similar transaction ID pattern', [
+                                            'customer_id' => $customerId,
+                                            'payment_id' => $similarPayment->id,
+                                            'original_transaction_id' => $similarPayment->transaction_id,
+                                            'pattern' => $similarTransactionId
+                                        ]);
+
+                                        // Update the payment with the correct transaction ID
+                                        $similarPayment->transaction_id = $transactionId;
+                                        $similarPayment->status = $paymentStatus;
+                                        $similarPayment->paymob_order_id = $paymobOrderId;
+                                        $similarPayment->paymob_transaction_id = $paymobTransactionId;
+                                        $similarPayment->transaction_data = json_encode($data);
+                                        $similarPayment->save();
+
+                                        $payment = $similarPayment;
+                                    }
+
+                                    // If still not found, find the most recent payment for this customer
+                                    if (!$payment) {
+                                        $recentPayment = PaymobPayment::where('customer_id', $customerId)
+                                            ->where('status', 'pending')
+                                            ->orderBy('created_at', 'desc')
+                                            ->first();
+
+                                        if ($recentPayment) {
+                                            Log::info('Payment found by customer ID and recent creation', [
+                                                'customer_id' => $customerId,
+                                                'payment_id' => $recentPayment->id,
+                                                'original_transaction_id' => $recentPayment->transaction_id
+                                            ]);
+
+                                            // Update the payment with the correct transaction ID
+                                            $recentPayment->transaction_id = $transactionId;
+                                            $recentPayment->status = $paymentStatus;
+                                            $recentPayment->paymob_order_id = $paymobOrderId;
+                                            $recentPayment->paymob_transaction_id = $paymobTransactionId;
+                                            $recentPayment->transaction_data = json_encode($data);
+                                            $recentPayment->save();
+
+                                            $payment = $recentPayment;
+                                        } else {
+                                            // Try to find any payment created in the last 5 minutes
+                                            $recentPayments = PaymobPayment::where('customer_id', $customerId)
+                                                ->where('created_at', '>=', now()->subMinutes(5))
+                                                ->orderBy('created_at', 'desc')
+                                                ->get();
+
+                                            if ($recentPayments->isNotEmpty()) {
+                                                Log::info('Found recent payments for customer', [
+                                                    'customer_id' => $customerId,
+                                                    'recent_payments_count' => $recentPayments->count(),
+                                                    'recent_payments' => $recentPayments->pluck('transaction_id')->toArray()
+                                                ]);
+
+                                                // Use the most recent one
+                                                $recentPayment = $recentPayments->first();
+
+                                                Log::info('Using most recent payment as fallback', [
+                                                    'payment_id' => $recentPayment->id,
+                                                    'original_transaction_id' => $recentPayment->transaction_id
+                                                ]);
+
+                                                // Update the payment with the correct transaction ID
+                                                $recentPayment->transaction_id = $transactionId;
+                                                $recentPayment->status = $paymentStatus;
+                                                $recentPayment->paymob_order_id = $paymobOrderId;
+                                                $recentPayment->paymob_transaction_id = $paymobTransactionId;
+                                                $recentPayment->transaction_data = json_encode($data);
+                                                $recentPayment->save();
+
+                                                $payment = $recentPayment;
+                                            }
+                                        }
                                     }
                                 }
                             }
