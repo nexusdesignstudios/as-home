@@ -1818,7 +1818,9 @@ class ApiController extends Controller
                     }
 
                     // Set vacation home specific fields if property classification is vacation_homes (4)
-                    if (isset($request->property_classification) && $request->property_classification == 4) {
+                    $propertyClassification = isset($request->property_classification) ? $request->property_classification : $property->property_classification;
+
+                    if ($propertyClassification == 4) {
                         if (isset($request->availability_type)) {
                             $property->availability_type = $request->availability_type;
                         }
@@ -1828,7 +1830,7 @@ class ApiController extends Controller
                     }
 
                     // Set hotel specific fields if property classification is hotel (5)
-                    if (isset($request->property_classification) && $request->property_classification == 5) {
+                    if ($propertyClassification == 5) {
                         if (isset($request->refund_policy)) {
                             $property->refund_policy = $request->refund_policy;
                         }
