@@ -1048,6 +1048,53 @@ class HelperService
                             ],
                         )
                     );
+                case 'reservation_rejection':
+                    return array(
+                        'title' => 'Reservation Rejection Notification',
+                        'type' => 'reservation_rejection_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'customer_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_in_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_out_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'number_of_guests',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_price',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'rejection_reason',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
                 case 'reservation_cancellation':
                     return array(
                         'title' => 'Reservation Cancellation Notification',
@@ -1245,6 +1292,10 @@ class HelperService
             [
                 'title' => 'Refund Rejection Notification',
                 'type' => 'refund_rejection',
+            ],
+            [
+                'title' => 'Reservation Rejection Notification',
+                'type' => 'reservation_rejection',
             ],
             [
                 'title' => 'Reservation Cancellation Notification',

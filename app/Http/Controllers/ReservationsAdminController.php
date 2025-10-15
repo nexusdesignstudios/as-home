@@ -396,8 +396,9 @@ class ReservationsAdminController extends Controller
     public function updateStatusApi(Request $request, $id)
     {
         $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'status' => 'required|in:pending,approved,confirmed,cancelled,completed',
-            'payment_status' => 'nullable|in:paid,unpaid,partial'
+            'status' => 'required|in:pending,approved,confirmed,cancelled,completed,rejected',
+            'payment_status' => 'nullable|in:paid,unpaid,partial',
+            'rejection_reason' => 'nullable|string|max:500'
         ]);
 
         if ($validator->fails()) {
@@ -478,6 +479,41 @@ class ReservationsAdminController extends Controller
                 return $this->apiResponseService->successResponse('Reservation approved successfully. Payment link sent to customer. Reservation will be confirmed after payment.', [
                     'reservation' => $reservation->fresh(),
                     'payment_link' => $paymentLink
+                ]);
+            } elseif ($newStatus === 'cancelled') {
+                // Handle cancelled status - send cancellation email
+                $reservation->status = $newStatus;
+
+                if ($request->has('payment_status')) {
+                    $reservation->payment_status = $request->payment_status;
+                }
+
+                $reservation->save();
+
+                // Send cancellation email to the customer
+                $this->sendReservationCancellationEmail($reservation);
+
+                return $this->apiResponseService->successResponse('Reservation cancelled successfully. Cancellation email sent to customer.', [
+                    'reservation' => $reservation->fresh()
+                ]);
+            } elseif ($newStatus === 'rejected') {
+                // Handle rejected status - send rejection email
+                $reservation->status = $newStatus;
+
+                if ($request->has('payment_status')) {
+                    $reservation->payment_status = $request->payment_status;
+                }
+
+                $reservation->save();
+
+                // Get rejection reason if provided
+                $rejectionReason = $request->rejection_reason ?? 'The property is not available for the requested dates.';
+
+                // Send rejection email to the customer
+                $this->sendReservationRejectionEmail($reservation, $rejectionReason);
+
+                return $this->apiResponseService->successResponse('Reservation rejected successfully. Rejection email sent to customer.', [
+                    'reservation' => $reservation->fresh()
                 ]);
             } else {
                 // For other status changes, use the existing logic
@@ -653,5 +689,222 @@ class ReservationsAdminController extends Controller
             'final_amount' => $finalAmount,
             'completed_bookings' => $completedBookings
         ];
+    }
+
+    /**
+     * Send reservation rejection email to customer
+     *
+     * @param \App\Models\Reservation $reservation
+     * @param string $rejectionReason
+     * @return void
+     */
+    private function sendReservationRejectionEmail($reservation, $rejectionReason)
+    {
+        try {
+            // Get customer information
+            $customer = $reservation->customer;
+
+            if (!$customer || !$customer->email) {
+                \Illuminate\Support\Facades\Log::warning('Cannot send reservation rejection email: customer or email not found', [
+                    'reservation_id' => $reservation->id,
+                    'customer_id' => $reservation->customer_id
+                ]);
+                return;
+            }
+
+            // Get property information
+            $propertyName = 'Unknown Property';
+            if ($reservation->reservable_type === 'App\\Models\\Property') {
+                $property = \App\Models\Property::find($reservation->reservable_id);
+                if ($property) {
+                    $propertyName = $property->title;
+                }
+            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                $hotelRoom = \App\Models\HotelRoom::find($reservation->reservable_id);
+                if ($hotelRoom && $hotelRoom->property) {
+                    $propertyName = $hotelRoom->property->title;
+                }
+            }
+
+            // Format dates
+            $checkInDate = $reservation->check_in_date ? $reservation->check_in_date->format('Y-m-d') : 'N/A';
+            $checkOutDate = $reservation->check_out_date ? $reservation->check_out_date->format('Y-m-d') : 'N/A';
+
+            // Get currency symbol
+            $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+            // Prepare email variables
+            $variables = [
+                'app_name' => env("APP_NAME") ?? "eBroker",
+                'customer_name' => $customer->name,
+                'reservation_id' => $reservation->id,
+                'property_name' => $propertyName,
+                'check_in_date' => $checkInDate,
+                'check_out_date' => $checkOutDate,
+                'number_of_guests' => $reservation->number_of_guests,
+                'total_price' => number_format($reservation->total_price, 2),
+                'currency_symbol' => $currencySymbol,
+                'rejection_reason' => $rejectionReason,
+            ];
+
+            // Get email template
+            $emailTemplateData = system_setting('reservation_rejection_mail_template');
+
+            if (empty($emailTemplateData)) {
+                \Illuminate\Support\Facades\Log::warning('Reservation rejection email template not found, using default template');
+                $emailTemplateData = '<p>Dear {customer_name},</p>
+
+<p>We regret to inform you that your reservation request has been declined.</p>
+
+<p><strong>Reservation Details:</strong></p>
+<ul>
+<li><strong>Reservation ID:</strong> {reservation_id}</li>
+<li><strong>Property:</strong> {property_name}</li>
+<li><strong>Check-in Date:</strong> {check_in_date}</li>
+<li><strong>Check-out Date:</strong> {check_out_date}</li>
+<li><strong>Number of Guests:</strong> {number_of_guests}</li>
+<li><strong>Total Amount:</strong> {currency_symbol}{total_price}</li>
+</ul>
+
+<p><strong>Reason for Rejection:</strong><br>
+{rejection_reason}</p>
+
+<p>We understand this may be disappointing, and we apologize for any inconvenience this may cause. Our team has carefully reviewed your reservation request and unfortunately, we are unable to accommodate it at this time.</p>
+
+<p>If you have any questions or would like to discuss alternative options, please do not hesitate to contact our customer support team.</p>
+
+<p>We value your interest in our properties and hope to have the opportunity to serve you in the future.</p>
+
+<p>Best regards,<br>
+The {app_name} Team</p>';
+            }
+
+            // Replace variables in template
+            $emailContent = \App\Services\HelperService::replaceEmailVariables($emailTemplateData, $variables);
+
+            // Send email
+            $data = [
+                'email' => $customer->email,
+                'title' => 'Your Reservation Request Has Been Declined',
+                'email_template' => $emailContent
+            ];
+
+            \App\Services\HelperService::sendMail($data);
+
+            \Illuminate\Support\Facades\Log::info('Reservation rejection email sent to customer', [
+                'customer_id' => $customer->id,
+                'customer_email' => $customer->email,
+                'reservation_id' => $reservation->id
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send reservation rejection email: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'reservation_id' => $reservation->id
+            ]);
+        }
+    }
+
+    /**
+     * Send reservation cancellation email to customer
+     *
+     * @param \App\Models\Reservation $reservation
+     * @return void
+     */
+    private function sendReservationCancellationEmail($reservation)
+    {
+        try {
+            // Get customer information
+            $customer = $reservation->customer;
+
+            if (!$customer || !$customer->email) {
+                \Illuminate\Support\Facades\Log::warning('Cannot send reservation cancellation email: customer or email not found', [
+                    'reservation_id' => $reservation->id,
+                    'customer_id' => $reservation->customer_id
+                ]);
+                return;
+            }
+
+            // Get property information
+            $propertyName = 'Unknown Property';
+            if ($reservation->reservable_type === 'App\\Models\\Property') {
+                $property = \App\Models\Property::find($reservation->reservable_id);
+                if ($property) {
+                    $propertyName = $property->title;
+                }
+            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                $hotelRoom = \App\Models\HotelRoom::find($reservation->reservable_id);
+                if ($hotelRoom && $hotelRoom->property) {
+                    $propertyName = $hotelRoom->property->title;
+                }
+            }
+
+            // Format dates
+            $checkInDate = $reservation->check_in_date ? $reservation->check_in_date->format('Y-m-d') : 'N/A';
+            $checkOutDate = $reservation->check_out_date ? $reservation->check_out_date->format('Y-m-d') : 'N/A';
+
+            // Get currency symbol
+            $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+            // Prepare email variables
+            $variables = [
+                'app_name' => env("APP_NAME") ?? "eBroker",
+                'customer_name' => $customer->name,
+                'reservation_id' => $reservation->id,
+                'property_name' => $propertyName,
+                'check_in_date' => $checkInDate,
+                'check_out_date' => $checkOutDate,
+                'total_price' => number_format($reservation->total_price, 2),
+                'currency_symbol' => $currencySymbol,
+            ];
+
+            // Get email template
+            $emailTemplateData = system_setting('reservation_cancellation_mail_template');
+
+            if (empty($emailTemplateData)) {
+                \Illuminate\Support\Facades\Log::warning('Reservation cancellation email template not found, using default template');
+                $emailTemplateData = 'Dear {customer_name},
+
+We are writing to confirm that your reservation has been cancelled.
+
+Reservation Details:
+- Reservation ID: {reservation_id}
+- Property: {property_name}
+- Check-in Date: {check_in_date}
+- Check-out Date: {check_out_date}
+- Total Amount: {currency_symbol}{total_price}
+
+If you requested a refund, please note that it will be processed according to our refund policy. Depending on your payment method, it may take 3-5 business days for the refund to appear in your account.
+
+If you did not request this cancellation or have any questions, please contact our customer support team immediately.
+
+Thank you for your understanding.
+
+Best regards,
+The {app_name} Team';
+            }
+
+            // Replace variables in template
+            $emailContent = \App\Services\HelperService::replaceEmailVariables($emailTemplateData, $variables);
+
+            // Send email
+            $data = [
+                'email' => $customer->email,
+                'title' => 'Your Reservation Has Been Cancelled',
+                'email_template' => $emailContent
+            ];
+
+            \App\Services\HelperService::sendMail($data);
+
+            \Illuminate\Support\Facades\Log::info('Reservation cancellation email sent to customer', [
+                'customer_id' => $customer->id,
+                'customer_email' => $customer->email,
+                'reservation_id' => $reservation->id
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send reservation cancellation email: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'reservation_id' => $reservation->id
+            ]);
+        }
     }
 }
