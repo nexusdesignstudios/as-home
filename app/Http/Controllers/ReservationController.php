@@ -125,7 +125,10 @@ class ReservationController extends Controller
         $updatedDates = [];
         $periodAdded = false;
 
-        foreach ($availableDates as $dateInfo) {
+        // First, deduplicate existing ranges to prevent accumulation of duplicates
+        $deduplicatedDates = $this->deduplicateDateRanges($availableDates);
+
+        foreach ($deduplicatedDates as $dateInfo) {
             // Skip if this isn't a date range format
             if (!isset($dateInfo['from']) || !isset($dateInfo['to'])) {
                 $updatedDates[] = $dateInfo;
@@ -167,7 +170,8 @@ class ReservationController extends Controller
             ];
         }
 
-        return $updatedDates;
+        // Final deduplication to ensure clean result
+        return $this->deduplicateDateRanges($updatedDates);
     }
 
     /**
@@ -232,6 +236,45 @@ class ReservationController extends Controller
         }
 
         return $ranges;
+    }
+
+    /**
+     * Deduplicate date ranges to prevent accumulation of duplicates.
+     *
+     * @param array $dateRanges
+     * @return array
+     */
+    private function deduplicateDateRanges($dateRanges)
+    {
+        if (!is_array($dateRanges)) {
+            return [];
+        }
+
+        $deduplicated = [];
+        $seen = [];
+
+        foreach ($dateRanges as $range) {
+            // Skip invalid ranges
+            if (!isset($range['from']) || !isset($range['to'])) {
+                continue;
+            }
+
+            // Create a unique key for this range
+            $key = $range['from'] . '|' . $range['to'] . '|' . ($range['price'] ?? '') . '|' . ($range['type'] ?? 'open');
+
+            // Only add if we haven't seen this exact range before
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $deduplicated[] = $range;
+            }
+        }
+
+        // Sort ranges by date for consistency
+        usort($deduplicated, function ($a, $b) {
+            return strcmp($a['from'], $b['from']);
+        });
+
+        return $deduplicated;
     }
 
     /**
