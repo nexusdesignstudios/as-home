@@ -1576,6 +1576,7 @@ class ApiController extends Controller
             'hotel_rooms.*.availability_type' => 'nullable|integer|in:1,2',
             'hotel_rooms.*.available_dates' => 'nullable|json',
             'hotel_rooms.*.weekend_commission' => 'nullable|numeric|min:0|max:100',
+            'hotel_rooms.*.available_rooms' => 'nullable|integer|min:0',
             'hotel_apartment_type_id' => 'nullable|exists:hotel_apartment_types,id',
             'rent_package' => 'nullable|in:basic,premium',
             'addons_packages'       => 'nullable|array',
@@ -2183,50 +2184,102 @@ class ApiController extends Controller
 
                         // Handle hotel rooms
                         if (isset($request->hotel_rooms) && !empty($request->hotel_rooms)) {
+                            \Log::info('Processing hotel rooms', [
+                                'total_rooms' => count($request->hotel_rooms),
+                                'property_id' => $property->id
+                            ]);
+                            
                             // Process added/updated rooms
-                            foreach ($request->hotel_rooms as $room) {
+                            foreach ($request->hotel_rooms as $index => $room) {
+                                \Log::info('Processing room', [
+                                    'index' => $index,
+                                    'room_id' => $room['id'] ?? 'new',
+                                    'room_type_id' => $room['room_type_id'] ?? 'missing',
+                                    'has_id' => isset($room['id']) && !empty($room['id']) && $room['id'] !== null,
+                                    'room_data' => $room
+                                ]);
+                                
                                 if (isset($room['id']) && !empty($room['id']) && $room['id'] !== null) {
                                     // Update existing room
                                     $hotelRoom = HotelRoom::find($room['id']);
                                     if ($hotelRoom && $hotelRoom->property_id == $property->id) {
+                                        // Parse available_dates if it's a JSON string
+                                        $availableDates = $room['available_dates'] ?? $hotelRoom->available_dates;
+                                        if (is_string($availableDates)) {
+                                            $availableDates = json_decode($availableDates, true) ?? $hotelRoom->available_dates;
+                                        }
+                                        
                                         $hotelRoom->room_type_id = $room['room_type_id'];
                                         $hotelRoom->room_number = $room['room_number'];
-                                        $hotelRoom->price_per_night = $room['price_per_night'];
-                                        $hotelRoom->discount_percentage = $room['discount_percentage'] ?? $hotelRoom->discount_percentage;
-                                        $hotelRoom->nonrefundable_percentage = $room['nonrefundable_percentage'] ?? $hotelRoom->nonrefundable_percentage;
+                                        $hotelRoom->price_per_night = (float)$room['price_per_night'];
+                                        $hotelRoom->discount_percentage = isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : $hotelRoom->discount_percentage;
+                                        $hotelRoom->nonrefundable_percentage = isset($room['nonrefundable_percentage']) ? (float)$room['nonrefundable_percentage'] : $hotelRoom->nonrefundable_percentage;
                                         $hotelRoom->refund_policy = $room['refund_policy'] ?? $hotelRoom->refund_policy;
-                                        $hotelRoom->availability_type = $room['availability_type'] ?? $hotelRoom->availability_type;
-                                        $hotelRoom->available_dates = $room['available_dates'] ?? $hotelRoom->available_dates;
+                                        $hotelRoom->availability_type = isset($room['availability_type']) ? (int)$room['availability_type'] : $hotelRoom->availability_type;
+                                        $hotelRoom->available_dates = $availableDates;
                                         $hotelRoom->weekend_commission = isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : $hotelRoom->weekend_commission;
                                         $hotelRoom->description = $room['description'] ?? $hotelRoom->description;
-                                        $hotelRoom->status = $room['status'] ?? $hotelRoom->status;
+                                        $hotelRoom->status = isset($room['status']) ? (bool)$room['status'] : $hotelRoom->status;
                                         $hotelRoom->max_guests = isset($room['max_guests']) ? (int)$room['max_guests'] : $hotelRoom->max_guests;
+                                        if (isset($room['available_rooms'])) {
+                                            $hotelRoom->available_rooms = (int)$room['available_rooms'];
+                                        }
                                         $hotelRoom->save();
                                     }
                                 } else {
                                     // Create new room
+                                    \Log::info('Creating new room', [
+                                        'room_data' => $room,
+                                        'property_id' => $property->id
+                                    ]);
+                                    
+                                    // Validate required fields for new room
+                                    if (!isset($room['room_type_id']) || !isset($room['price_per_night'])) {
+                                        \Log::error('Missing required fields for new room', [
+                                            'room_data' => $room,
+                                            'missing_fields' => [
+                                                'room_type_id' => !isset($room['room_type_id']),
+                                                'price_per_night' => !isset($room['price_per_night'])
+                                            ]
+                                        ]);
+                                        continue; // Skip this room if required fields are missing
+                                    }
+                                    
                                     try {
+                                        // Parse available_dates if it's a JSON string
+                                        $availableDates = $room['available_dates'] ?? [];
+                                        if (is_string($availableDates)) {
+                                            $availableDates = json_decode($availableDates, true) ?? [];
+                                        }
+                                        
                                         $newRoom = HotelRoom::create([
                                             'property_id' => $property->id,
                                             'room_type_id' => $room['room_type_id'],
-                                            'room_number' => $room['room_number'],
-                                            'price_per_night' => $room['price_per_night'],
-                                            'discount_percentage' => $room['discount_percentage'] ?? 0,
-                                            'nonrefundable_percentage' => $room['nonrefundable_percentage'] ?? 0,
+                                            'room_number' => $room['room_number'] ?? "0",
+                                            'price_per_night' => (float)$room['price_per_night'],
+                                            'discount_percentage' => isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : 0,
+                                            'nonrefundable_percentage' => isset($room['nonrefundable_percentage']) ? (float)$room['nonrefundable_percentage'] : 0,
                                             'refund_policy' => $room['refund_policy'] ?? 'flexible',
-                                            'availability_type' => $room['availability_type'] ?? null,
-                                            'available_dates' => $room['available_dates'] ?? null,
-                                            'weekend_commission' => isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : null,
-                                            'description' => $room['description'] ?? null,
-                                            'status' => $room['status'] ?? 1,
-                                            'max_guests' => isset($room['max_guests']) ? (int)$room['max_guests'] : null
+                                            'availability_type' => isset($room['availability_type']) ? (int)$room['availability_type'] : 1,
+                                            'available_dates' => $availableDates,
+                                            'weekend_commission' => isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : 0,
+                                            'description' => $room['description'] ?? "",
+                                            'status' => isset($room['status']) ? (bool)$room['status'] : true,
+                                            'max_guests' => isset($room['max_guests']) ? (int)$room['max_guests'] : 1,
+                                            'available_rooms' => isset($room['available_rooms']) ? (int)$room['available_rooms'] : 1
                                         ]);
-                                        \Log::info('New hotel room created successfully', ['room_id' => $newRoom->id, 'property_id' => $property->id]);
+                                        \Log::info('New hotel room created successfully', [
+                                            'room_id' => $newRoom->id, 
+                                            'property_id' => $property->id,
+                                            'room_type_id' => $newRoom->room_type_id,
+                                            'price_per_night' => $newRoom->price_per_night
+                                        ]);
                                     } catch (\Exception $e) {
                                         \Log::error('Failed to create new hotel room', [
                                             'error' => $e->getMessage(),
                                             'room_data' => $room,
-                                            'property_id' => $property->id
+                                            'property_id' => $property->id,
+                                            'trace' => $e->getTraceAsString()
                                         ]);
                                     }
                                 }
@@ -2244,6 +2297,11 @@ class ApiController extends Controller
                                     }
                                 }
                             }
+                            
+                            \Log::info('Hotel rooms processing completed', [
+                                'total_processed' => count($request->hotel_rooms),
+                                'property_id' => $property->id
+                            ]);
                         }
                     }
                     // END :: UPDATE HOTEL ROOMS
