@@ -47,10 +47,21 @@ class ReservationController extends Controller
             'property_id' => 'required|integer|exists:propertys,id',
             'price' => 'required|numeric|min:0',
             'from' => 'required|date',
-            'to' => 'required|date|after:from',
+            'to' => 'required|date|after_or_equal:from',
+        ], [
+            'to.after_or_equal' => 'The to date must be after or equal to the from date.',
+        ]);
+
+        // Debug: Log the request data and validation rules
+        \Log::info('UpdateRoomPrice Request:', [
+            'data' => $request->all(),
+            'validation_rules' => [
+                'to' => 'required|date|after_or_equal:from'
+            ]
         ]);
 
         if ($validator->fails()) {
+            \Log::error('Validation failed:', $validator->errors()->toArray());
             return ApiResponseService::errorResponse('Validation failed', $validator->errors());
         }
 
