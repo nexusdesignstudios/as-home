@@ -2186,7 +2186,8 @@ class ApiController extends Controller
                         if (isset($request->hotel_rooms) && !empty($request->hotel_rooms)) {
                             \Log::info('Processing hotel rooms', [
                                 'total_rooms' => count($request->hotel_rooms),
-                                'property_id' => $property->id
+                                'property_id' => $property->id,
+                                'all_rooms_data' => $request->hotel_rooms
                             ]);
                             
                             // Process added/updated rooms
