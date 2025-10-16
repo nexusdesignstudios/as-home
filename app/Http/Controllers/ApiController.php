@@ -2185,7 +2185,7 @@ class ApiController extends Controller
                         if (isset($request->hotel_rooms) && !empty($request->hotel_rooms)) {
                             // Process added/updated rooms
                             foreach ($request->hotel_rooms as $room) {
-                                if (isset($room['id']) && !empty($room['id'])) {
+                                if (isset($room['id']) && !empty($room['id']) && $room['id'] !== null) {
                                     // Update existing room
                                     $hotelRoom = HotelRoom::find($room['id']);
                                     if ($hotelRoom && $hotelRoom->property_id == $property->id) {
@@ -2205,21 +2205,30 @@ class ApiController extends Controller
                                     }
                                 } else {
                                     // Create new room
-                                    HotelRoom::create([
-                                        'property_id' => $property->id,
-                                        'room_type_id' => $room['room_type_id'],
-                                        'room_number' => $room['room_number'],
-                                        'price_per_night' => $room['price_per_night'],
-                                        'discount_percentage' => $room['discount_percentage'] ?? 0,
-                                        'nonrefundable_percentage' => $room['nonrefundable_percentage'] ?? 0,
-                                        'refund_policy' => $room['refund_policy'] ?? 'flexible',
-                                        'availability_type' => $room['availability_type'] ?? null,
-                                        'available_dates' => $room['available_dates'] ?? null,
-                                        'weekend_commission' => isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : null,
-                                        'description' => $room['description'] ?? null,
-                                        'status' => $room['status'] ?? 1,
-                                        'max_guests' => isset($room['max_guests']) ? (int)$room['max_guests'] : null
-                                    ]);
+                                    try {
+                                        $newRoom = HotelRoom::create([
+                                            'property_id' => $property->id,
+                                            'room_type_id' => $room['room_type_id'],
+                                            'room_number' => $room['room_number'],
+                                            'price_per_night' => $room['price_per_night'],
+                                            'discount_percentage' => $room['discount_percentage'] ?? 0,
+                                            'nonrefundable_percentage' => $room['nonrefundable_percentage'] ?? 0,
+                                            'refund_policy' => $room['refund_policy'] ?? 'flexible',
+                                            'availability_type' => $room['availability_type'] ?? null,
+                                            'available_dates' => $room['available_dates'] ?? null,
+                                            'weekend_commission' => isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : null,
+                                            'description' => $room['description'] ?? null,
+                                            'status' => $room['status'] ?? 1,
+                                            'max_guests' => isset($room['max_guests']) ? (int)$room['max_guests'] : null
+                                        ]);
+                                        \Log::info('New hotel room created successfully', ['room_id' => $newRoom->id, 'property_id' => $property->id]);
+                                    } catch (\Exception $e) {
+                                        \Log::error('Failed to create new hotel room', [
+                                            'error' => $e->getMessage(),
+                                            'room_data' => $room,
+                                            'property_id' => $property->id
+                                        ]);
+                                    }
                                 }
                             }
 
