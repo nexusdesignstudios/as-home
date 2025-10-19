@@ -3435,7 +3435,7 @@ class ApiController extends Controller
             'receiver_id' => 'required',
             'property_id' => 'required',
             'file' => 'nullable|mimes:png,jpg,jpeg,pdf,doc,docx',
-            'audio' => 'nullable|mimes:mpeg,m4a,mp3,mp4'
+            'audio' => 'nullable|mimes:mpeg,m4a,mp3,mp4,webm'
         ]);
         if ($validator->fails()) {
             return response()->json([
