@@ -1097,7 +1097,7 @@ class HelperService
                     );
                 case 'reservation_cancellation':
                     return array(
-                        'title' => 'Reservation Cancellation Notification',
+                        'title' => 'Your Booking Request Has Been Declined',
                         'type' => 'reservation_cancellation_mail_template',
                         'required_fields' => array(
                             [
@@ -1365,7 +1365,7 @@ class HelperService
                 'type' => 'reservation_rejection',
             ],
             [
-                'title' => 'Reservation Cancellation Notification',
+                'title' => 'Your Booking Request Has Been Declined',
                 'type' => 'reservation_cancellation',
             ],
             [
