@@ -1050,7 +1050,7 @@ class HelperService
                     );
                 case 'reservation_rejection':
                     return array(
-                        'title' => 'Reservation Rejection Notification',
+                        'title' => 'Your Booking Request has been Declined',
                         'type' => 'reservation_rejection_mail_template',
                         'required_fields' => array(
                             [
@@ -1361,7 +1361,7 @@ class HelperService
                 'type' => 'refund_rejection',
             ],
             [
-                'title' => 'Reservation Rejection Notification',
+                'title' => 'Your Booking Request has been Declined',
                 'type' => 'reservation_rejection',
             ],
             [
@@ -1404,7 +1404,7 @@ class HelperService
             $adminMail = env('MAIL_FROM_ADDRESS');
             Mail::send('mail-templates.mail-template', $data, function ($message) use ($data, $adminMail) {
                 $message->to($data['email'])->subject($data['title']);
-                $message->from($adminMail, 'Admin');
+                $message->from($adminMail, 'As Home Team');
             });
         } catch (Exception $e) {
             if ($requiredEmailException == true) {

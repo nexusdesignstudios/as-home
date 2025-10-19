@@ -785,7 +785,7 @@ The {app_name} Team</p>';
             // Send email
             $data = [
                 'email' => $customer->email,
-                'title' => 'Your Reservation Request Has Been Declined',
+                'title' => 'Your Booking Request has been Declined',
                 'email_template' => $emailContent
             ];
 
