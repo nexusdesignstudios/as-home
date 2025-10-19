@@ -65,6 +65,7 @@ use App\Models\VerifyCustomer;
 use App\Models\BankReceiptFile;
 use App\Models\BlockedChatUser;
 use App\Models\Contactrequests;
+use App\Models\PaymentFormSubmission;
 use App\Models\HomepageSection;
 use App\Services\HelperService;
 use App\Models\AssignParameters;
@@ -9145,6 +9146,148 @@ class ApiController extends Controller
             return response()->json([
                 'error' => true,
                 'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Handle payment form submission
+     * Save form data to database and send email to property owner
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function submitPaymentForm(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'property_id' => 'required|exists:propertys,id',
+            'customer_name' => 'required|string|max:255',
+            'customer_phone' => 'required|string|max:20',
+            'customer_email' => 'required|email|max:255',
+            'card_number' => 'required|string|min:16|max:19',
+            'expiry_date' => 'required|string|max:7',
+            'cvv' => 'required|string|min:3|max:4',
+            'amount' => 'required|numeric|min:0',
+            'currency' => 'nullable|string|max:3',
+            'check_in_date' => 'required|date|after_or_equal:today',
+            'check_out_date' => 'required|date|after:check_in_date',
+            'number_of_guests' => 'required|integer|min:1',
+            'special_requests' => 'nullable|string',
+            'reservable_type' => 'required|in:property,hotel_room',
+            'reservable_data' => 'nullable|array',
+            'review_url' => 'nullable|url'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'error' => true,
+                'message' => $validator->errors()->first()
+            ], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Get property with owner information
+            $property = Property::with('customer')->findOrFail($request->property_id);
+
+            if (!$property->customer) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Property owner not found'
+                ], 404);
+            }
+
+            // Mask sensitive card information
+            $cardNumber = $request->card_number;
+            $maskedCardNumber = '**** **** **** ' . substr($cardNumber, -4);
+            $maskedCvv = str_repeat('*', strlen($request->cvv));
+
+            // Create payment form submission record
+            $submission = PaymentFormSubmission::create([
+                'property_id' => $request->property_id,
+                'customer_name' => $request->customer_name,
+                'customer_phone' => $request->customer_phone,
+                'customer_email' => $request->customer_email,
+                'card_number_masked' => $maskedCardNumber,
+                'expiry_date' => $request->expiry_date,
+                'cvv_masked' => $maskedCvv,
+                'amount' => $request->amount,
+                'currency' => $request->currency ?? 'EGP',
+                'check_in_date' => $request->check_in_date,
+                'check_out_date' => $request->check_out_date,
+                'number_of_guests' => $request->number_of_guests,
+                'special_requests' => $request->special_requests,
+                'reservable_type' => $request->reservable_type,
+                'reservable_data' => $request->reservable_data,
+                'review_url' => $request->review_url,
+                'status' => 'pending'
+            ]);
+
+            // Send email to property owner
+            try {
+                $emailTypeData = HelperService::getEmailTemplatesTypes('payment_form_submission');
+                $templateData = system_setting('payment_form_submission_mail_template');
+                
+                $variables = array(
+                    'app_name' => env('APP_NAME') ?? 'As-home',
+                    'property_owner_name' => $property->customer->name,
+                    'customer_name' => $request->customer_name,
+                    'customer_email' => $request->customer_email,
+                    'customer_phone' => $request->customer_phone,
+                    'property_name' => $property->title,
+                    'property_address' => $property->address,
+                    'check_in_date' => $request->check_in_date,
+                    'check_out_date' => $request->check_out_date,
+                    'number_of_guests' => $request->number_of_guests,
+                    'total_amount' => number_format($request->amount, 2),
+                    'currency_symbol' => $request->currency ?? 'EGP',
+                    'card_number_masked' => $maskedCardNumber,
+                    'special_requests' => $request->special_requests ?? 'None',
+                    'submission_date' => now()->format('Y-m-d H:i:s')
+                );
+
+                if (empty($templateData)) {
+                    $templateData = 'New payment form submission received for property "{property_name}" from {customer_name} ({customer_email}). Amount: {total_amount} {currency_symbol}. Check-in: {check_in_date}, Check-out: {check_out_date}.';
+                }
+
+                $emailTemplate = HelperService::replaceEmailVariables($templateData, $variables);
+
+                $data = array(
+                    'email_template' => $emailTemplate,
+                    'email' => $property->customer->email,
+                    'title' => $emailTypeData['title'],
+                );
+
+                HelperService::sendMail($data);
+
+                // Update submission status to processed
+                $submission->update(['status' => 'processed']);
+
+            } catch (Exception $e) {
+                // Log email error but don't fail the transaction
+                Log::error('Failed to send payment form submission email: ' . $e->getMessage());
+                $submission->update(['status' => 'failed', 'notes' => 'Email sending failed: ' . $e->getMessage()]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'error' => false,
+                'message' => 'Payment form submitted successfully',
+                'data' => [
+                    'submission_id' => $submission->id,
+                    'status' => $submission->status
+                ]
+            ]);
+
+        } catch (Exception $e) {
+            DB::rollback();
+            Log::error('Payment form submission error: ' . $e->getMessage());
+            
+            return response()->json([
+                'error' => true,
+                'message' => 'Failed to submit payment form: ' . $e->getMessage()
             ], 500);
         }
     }

@@ -37,6 +37,7 @@ Route::get('forgot-password', [ApiController::class, 'forgotPassword']);
 
 /** Others */
 Route::post('contct_us', [ApiController::class, 'contct_us']);
+Route::post('submit-payment-form', [ApiController::class, 'submitPaymentForm']);
 Route::get('get-slider', [ApiController::class, 'getSlider']);
 Route::get('get_facilities', [ApiController::class, 'get_facilities']);
 Route::get('get_seo_settings', [ApiController::class, 'get_seo_settings']);
