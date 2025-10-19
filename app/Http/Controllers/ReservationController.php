@@ -1306,6 +1306,8 @@ class ReservationController extends Controller
                 'check_out_date' => $checkOutDate,
                 'total_price' => number_format($reservation->total_price, 2),
                 'currency_symbol' => $currencySymbol,
+                'cancellation_date' => $reservation->cancelled_at ? $reservation->cancelled_at->format('d M Y, h:i A') : now()->format('d M Y, h:i A'),
+                'refund_processing_time' => '3-5 business days',
             ];
 
             // Get email template

@@ -1756,7 +1756,8 @@ class PaymobController extends Controller
                 'currency_symbol' => $currencySymbol,
                 'refund_method' => $payment->payment_method ?? 'Original Payment Method',
                 'refund_date' => $payment->refund_date ? $payment->refund_date->format('d M Y') : now()->format('d M Y'),
-                'refund_processing_time' => '3-5',
+                'cancellation_date' => $reservation->cancelled_at ? $reservation->cancelled_at->format('d M Y, h:i A') : now()->format('d M Y, h:i A'),
+                'refund_processing_time' => '3-5 business days',
                 'transaction_id' => $payment->transaction_id,
             ];
 
