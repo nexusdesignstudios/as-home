@@ -747,6 +747,7 @@ class ReservationsAdminController extends Controller
                 'rejection_reason' => $rejectionReason,
                 'cancellation_date' => now()->format('d M Y, h:i A'),
                 'refund_processing_time' => '3-5 business days',
+                'current_date_today' => now()->format('d M Y, h:i A'),
             ];
 
             // Get email template
@@ -859,6 +860,7 @@ The {app_name} Team</p>';
                 'currency_symbol' => $currencySymbol,
                 'cancellation_date' => $reservation->cancelled_at ? $reservation->cancelled_at->format('d M Y, h:i A') : now()->format('d M Y, h:i A'),
                 'refund_processing_time' => '3-5 business days',
+                'current_date_today' => now()->format('d M Y, h:i A'),
             ];
 
             // Get email template

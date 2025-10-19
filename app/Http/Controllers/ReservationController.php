@@ -1308,6 +1308,7 @@ class ReservationController extends Controller
                 'currency_symbol' => $currencySymbol,
                 'cancellation_date' => $reservation->cancelled_at ? $reservation->cancelled_at->format('d M Y, h:i A') : now()->format('d M Y, h:i A'),
                 'refund_processing_time' => '3-5 business days',
+                'current_date_today' => now()->format('d M Y, h:i A'),
             ];
 
             // Get email template
@@ -1607,6 +1608,7 @@ The {app_name} Team';
             'currency_symbol' => $currencySymbol,
             'number_of_guests' => $reservation->number_of_guests,
             'special_requests' => $reservation->special_requests ?? 'None',
+            'current_date_today' => now()->format('d M Y, h:i A'),
         ];
 
         // Get email template

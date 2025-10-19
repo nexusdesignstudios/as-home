@@ -309,6 +309,7 @@ class ApiController extends Controller
                         'app_name' => $appName,
                         'user_name' => !empty($request->name) ? $request->name : "$appName User",
                         'email' => $request->email,
+                        'current_date_today' => now()->format('d M Y, h:i A'),
                     );
                     if (empty($welcomeEmailTemplateData)) {
                         $welcomeEmailTemplateData = "Welcome to $appName";
@@ -8839,6 +8840,7 @@ class ApiController extends Controller
                 'corresponding_day' => $correspondingDay,
                 'client_number' => $request->client_number,
                 'client_email' => $request->client_email,
+                'current_date_today' => now()->format('d M Y, h:i A'),
             );
 
             if (empty($emailTemplateData)) {
@@ -9244,7 +9246,8 @@ class ApiController extends Controller
                     'currency_symbol' => $request->currency ?? 'EGP',
                     'card_number_masked' => $maskedCardNumber,
                     'special_requests' => $request->special_requests ?? 'None',
-                    'submission_date' => now()->format('Y-m-d H:i:s')
+                    'submission_date' => now()->format('Y-m-d H:i:s'),
+                    'current_date_today' => now()->format('d M Y, h:i A')
                 );
 
                 if (empty($templateData)) {
