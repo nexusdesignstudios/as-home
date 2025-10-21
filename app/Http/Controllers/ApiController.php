@@ -3497,17 +3497,26 @@ class ApiController extends Controller
         }
         $chat->save();
 
+        // Get property data first to avoid duplicate queries
+        $Property = Property::find($request->property_id);
+
         if ($customer) {
             foreach ($customer->usertokens as $usertokens) {
                 array_push($fcm_id, $usertokens->fcm_id);
             }
             $username = $customer->name;
         } else {
-
-            $user_data = User::select('fcm_id', 'name')->get();
-            $username = "Admin";
-            foreach ($user_data as $user) {
-                array_push($fcm_id, $user->fcm_id);
+            // Get the specific admin user who owns the property
+            if ($Property && $Property->added_by) {
+                $admin_user = User::select('fcm_id', 'name')->find($Property->added_by);
+                if ($admin_user) {
+                    array_push($fcm_id, $admin_user->fcm_id);
+                    $username = $admin_user->name;
+                } else {
+                    $username = "Admin";
+                }
+            } else {
+                $username = "Admin";
             }
         }
         $senderUser = Customer::select('fcm_id', 'name', 'profile')->find($request->sender_id);
@@ -3516,8 +3525,6 @@ class ApiController extends Controller
         } else {
             $profile = "";
         }
-
-        $Property = Property::find($request->property_id);
 
 
 
@@ -8736,13 +8743,15 @@ class ApiController extends Controller
         $chat->save();
 
         // Get the sender and receiver details for notification
-        $sender = Customer::select('id', 'name', 'profile')->find($chat->sender_id);
+        $sender = Customer::select('id', 'name', 'profile')->with(['usertokens' => function ($q) {
+            $q->select('fcm_id', 'id', 'customer_id');
+        }])->find($chat->sender_id);
         $receiver = Customer::select('id', 'name', 'profile')->with(['usertokens' => function ($q) {
             $q->select('fcm_id', 'id', 'customer_id');
         }])->find($chat->receiver_id);
 
         // Send notification to the sender about approval status change
-        if ($sender && isset($sender->usertokens)) {
+        if ($sender && $sender->usertokens && $sender->usertokens->count() > 0) {
             $fcm_ids = [];
             foreach ($sender->usertokens as $usertoken) {
                 array_push($fcm_ids, $usertoken->fcm_id);
