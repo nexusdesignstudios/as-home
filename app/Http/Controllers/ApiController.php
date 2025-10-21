@@ -3468,11 +3468,20 @@ class ApiController extends Controller
         }
 
         $fcm_id = array();
+        
+        // Generate conversation ID for this chat
+        $conversationId = Chats::getOrCreateConversationId(
+            $request->sender_id,
+            $request->receiver_id,
+            $request->property_id
+        );
+        
         $chat = new Chats();
         $chat->fill([
             'sender_id' => $request->sender_id,
             'receiver_id' => $request->receiver_id,
             'property_id' => $request->property_id,
+            'conversation_id' => $conversationId,
             'message' => $request->message,
             'approval_status' => isset($request->approval_status) ? $request->approval_status : 'pending'
         ]);
@@ -3546,8 +3555,8 @@ class ApiController extends Controller
         }
 
 
-        // Get UnRead Messages Count
-        $unreadMessagesCount = Chats::where(['property_id' => $request->property_id, 'receiver_id' => $request->sender_id, 'is_read' => false])->count();
+        // Get UnRead Messages Count for this specific conversation
+        $unreadMessagesCount = Chats::where(['conversation_id' => $conversationId, 'receiver_id' => $request->sender_id, 'is_read' => false])->count();
 
 
         $fcmMsg = array(
@@ -3593,19 +3602,22 @@ class ApiController extends Controller
             $currentUser = Auth::user();
             $userId = $request->user_id;
 
-            // update is_read to true for the current user
-            Chats::where(['property_id' => $request->property_id, 'receiver_id' => $currentUser->id, 'is_read' => false])
+            // Generate conversation ID for this specific conversation
+            $conversationId = Chats::getOrCreateConversationId(
+                $currentUser->id,
+                $userId,
+                $request->property_id
+            );
+
+            // update is_read to true for the current user in this specific conversation
+            Chats::where(['conversation_id' => $conversationId, 'receiver_id' => $currentUser->id, 'is_read' => false])
                 ->update(['is_read' => true]);
 
             $perPage = $request->per_page ? $request->per_page : 15; // Number of results to display per page
             $page = $request->page ?? 1; // Get the current page from the query string, or default to 1
-            $chat = Chats::where('property_id', $request->property_id)
-                ->where(function ($query) use ($currentUser, $userId) {
-                    $query->where(function ($query) use ($currentUser, $userId) {
-                        $query->where(['sender_id' => $currentUser->id, 'receiver_id' => $userId])
-                            ->orWhere(['sender_id' => $userId, 'receiver_id' => $currentUser->id]);
-                    });
-                })
+            
+            // Get messages only for this specific conversation
+            $chat = Chats::where('conversation_id', $conversationId)
                 ->orderBy('created_at', 'DESC')
                 ->paginate($perPage, ['*'], 'page', $page);
 
@@ -3666,6 +3678,7 @@ class ApiController extends Controller
                 'sender_id',
                 'receiver_id',
                 'property_id',
+                'conversation_id',
                 'created_at',
                 'approval_status',
                 DB::raw('LEAST(sender_id, receiver_id) as user1_id'),
@@ -3677,7 +3690,7 @@ class ApiController extends Controller
                     ->orWhere('receiver_id', $current_user);
             })
             ->orderBy('id', 'desc')
-            ->groupBy('user1_id', 'user2_id', 'property_id')
+            ->groupBy('conversation_id')
             ->paginate($perPage, ['*'], 'page', $page);
 
         if (!$chat->isEmpty()) {

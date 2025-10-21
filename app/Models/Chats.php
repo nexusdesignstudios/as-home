@@ -12,7 +12,7 @@ class Chats extends Model
     use HasFactory, HasAppTimezone;
     protected $dates = ['created_at', 'updated_at'];
     protected $table = 'chats';
-    protected $fillable = ['sender_id', 'receiver_id', 'property_id', 'message', 'is_read', 'approval_status', 'file', 'audio', 'created_at', 'updated_at'];
+    protected $fillable = ['sender_id', 'receiver_id', 'property_id', 'conversation_id', 'message', 'is_read', 'approval_status', 'file', 'audio', 'created_at', 'updated_at'];
 
 
     protected static function boot()
@@ -135,5 +135,25 @@ class Chats extends Model
     {
         // e() functions is used to print message in plain text
         return e(htmlspecialchars_decode($value));
+    }
+
+    /**
+     * Generate a unique conversation ID for a chat
+     */
+    public static function generateConversationId(int $senderId, int $receiverId, int $propertyId): string
+    {
+        // Create a consistent conversation ID by sorting the user IDs
+        $userIds = [$senderId, $receiverId];
+        sort($userIds);
+        
+        return "conv_{$userIds[0]}_{$userIds[1]}_prop_{$propertyId}";
+    }
+
+    /**
+     * Get or create a conversation ID for the given parameters
+     */
+    public static function getOrCreateConversationId(int $senderId, int $receiverId, int $propertyId): string
+    {
+        return self::generateConversationId($senderId, $receiverId, $propertyId);
     }
 }
