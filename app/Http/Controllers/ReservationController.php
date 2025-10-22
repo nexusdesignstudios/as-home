@@ -1211,15 +1211,20 @@ class ReservationController extends Controller
         }
 
         // Add relationships and pagination with proper handling of polymorphic relationships
-        $reservations = $query->with([
-            'customer:id,name,email,mobile',
-            'property:id,title,category_id,price,title_image,property_classification',
-            'property.category:id,category,image',
-            // Use morphWith to correctly load relationships based on the model type
-            'reservable'
-        ])
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+        try {
+            $reservations = $query->with([
+                'customer:id,name,email,mobile',
+                'property:id,title,category_id,price,title_image,property_classification',
+                'property.category:id,category,image',
+                // Use morphWith to correctly load relationships based on the model type
+                'reservable'
+            ])
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching reservations: ' . $e->getMessage());
+            return ApiResponseService::errorResponse('Error fetching reservations: ' . $e->getMessage());
+        }
 
         // Transform the data to provide more context about each reservation
         $formattedReservations = $reservations->through(function ($reservation) {
