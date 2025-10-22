@@ -1177,15 +1177,16 @@ class ReservationController extends Controller
      */
     public function getPropertyOwnerReservations(Request $request, $customer_id)
     {
-        $validator = Validator::make($request->all(), [
-            'property_id' => 'nullable|integer|exists:propertys,id',
-            'status' => 'nullable|string',
-            'per_page' => 'nullable|integer|min:1|max:100',
-        ]);
+        try {
+            $validator = Validator::make($request->all(), [
+                'property_id' => 'nullable|integer|exists:propertys,id',
+                'status' => 'nullable|string',
+                'per_page' => 'nullable|integer|min:1|max:100',
+            ]);
 
-        if ($validator->fails()) {
-            ApiResponseService::errorResponse('Validation failed', $validator->errors());
-        }
+            if ($validator->fails()) {
+                return ApiResponseService::errorResponse('Validation failed', $validator->errors());
+            }
 
         $customerId = $customer_id;
         $propertyId = $request->property_id;
@@ -1268,9 +1269,18 @@ class ReservationController extends Controller
             return $data;
         });
 
-        return ApiResponseService::successResponse('Property owner reservations retrieved successfully', [
-            'reservations' => $formattedReservations
-        ]);
+            return ApiResponseService::successResponse('Property owner reservations retrieved successfully', [
+                'reservations' => $formattedReservations
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error in getPropertyOwnerReservations', [
+                'customer_id' => $customer_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return ApiResponseService::errorResponse('An error occurred while fetching reservations: ' . $e->getMessage());
+        }
     }
     /**
      * Send reservation cancellation email to customer
