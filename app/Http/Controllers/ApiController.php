@@ -9217,7 +9217,7 @@ class ApiController extends Controller
             // Get property with owner information
             $property = Property::with('customer')->findOrFail($request->property_id);
 
-            if (!$property->customer) {
+            if (!$property->added_by || !$property->customer) {
                 return response()->json([
                     'error' => true,
                     'message' => 'Property owner not found'
@@ -9250,9 +9250,32 @@ class ApiController extends Controller
                 'status' => 'pending'
             ]);
 
+            // Find or create customer based on email
+            $customer = \App\Models\Customer::where('email', $request->customer_email)->first();
+            if (!$customer) {
+                // Create new customer if doesn't exist
+                $customer = \App\Models\Customer::create([
+                    'name' => $request->customer_name,
+                    'email' => $request->customer_email,
+                    'mobile' => $request->customer_phone,
+                    'status' => 'active'
+                ]);
+            }
+
+            // Debug logging
+            \Log::info('Payment form submission debug', [
+                'property_id' => $request->property_id,
+                'property_added_by' => $property->added_by,
+                'property_owner_name' => $property->customer->name ?? 'No owner',
+                'customer_id' => $customer->id,
+                'customer_name' => $customer->name,
+                'reservable_type' => $request->reservable_type,
+                'reservable_data' => $request->reservable_data
+            ]);
+
             // Create reservation record for the revenue tab
             $reservationData = [
-                'customer_id' => $property->user_id, // Property owner ID
+                'customer_id' => $customer->id, // Customer making the booking
                 'reservable_id' => $request->reservable_type === 'hotel_room' 
                     ? ($request->reservable_data[0]['id'] ?? $request->property_id) 
                     : $request->property_id,
