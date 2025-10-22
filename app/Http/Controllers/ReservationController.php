@@ -1268,9 +1268,7 @@ class ReservationController extends Controller
             return $data;
         });
 
-        return ApiResponseService::successResponse('Property owner reservations retrieved successfully', [
-            'reservations' => $formattedReservations
-        ]);
+        return ApiResponseService::successResponse('Property owner reservations retrieved successfully', $formattedReservations);
     }
     /**
      * Send reservation cancellation email to customer
