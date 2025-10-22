@@ -1177,20 +1177,25 @@ class ReservationController extends Controller
      */
     public function getPropertyOwnerReservations(Request $request, $customer_id)
     {
-        $validator = Validator::make($request->all(), [
-            'property_id' => 'nullable|integer|exists:propertys,id',
-            'status' => 'nullable|string',
-            'per_page' => 'nullable|integer|min:1|max:100',
-        ]);
+        try {
+            $validator = Validator::make($request->all(), [
+                'property_id' => 'nullable|integer|exists:propertys,id',
+                'status' => 'nullable|string',
+            ]);
 
-        if ($validator->fails()) {
-            ApiResponseService::errorResponse('Validation failed', $validator->errors());
-        }
+            if ($validator->fails()) {
+                return ApiResponseService::errorResponse('Validation failed', $validator->errors());
+            }
 
         $customerId = $customer_id;
         $propertyId = $request->property_id;
         $status = $request->status ? explode(',', $request->status) : null;
-        $perPage = $request->per_page ?? 10;
+
+        \Log::info('getPropertyOwnerReservations called', [
+            'customer_id' => $customerId,
+            'property_id' => $propertyId,
+            'status' => $status
+        ]);
 
         // Start building the query for reservations
         $query = Reservation::query();
@@ -1205,12 +1210,20 @@ class ReservationController extends Controller
             });
         }
 
+        \Log::info('Query built', [
+            'customer_id' => $customerId,
+            'property_id' => $propertyId,
+            'status' => $status
+        ]);
+
         // Add status filter if provided
         if ($status) {
             $query->whereIn('status', $status);
         }
 
         // Add relationships and get all data (no pagination)
+        \Log::info('About to execute query');
+        
         $reservations = $query->with([
             'customer:id,name,email,mobile',
             'property:id,title,category_id,price,title_image,property_classification',
@@ -1221,8 +1234,12 @@ class ReservationController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        \Log::info('Query executed successfully', [
+            'reservations_count' => $reservations->count()
+        ]);
+
         // Transform the data to provide more context about each reservation
-        $formattedReservations = $reservations->through(function ($reservation) {
+        $formattedReservations = $reservations->map(function ($reservation) {
             $data = $reservation->toArray();
 
             // Add reservation type for easier frontend handling
@@ -1268,9 +1285,20 @@ class ReservationController extends Controller
             return $data;
         });
 
+        \Log::info('Data transformation completed', [
+            'formatted_count' => $formattedReservations->count()
+        ]);
+
         return ApiResponseService::successResponse('Property owner reservations retrieved successfully', [
             'reservations' => $formattedReservations
         ]);
+        } catch (\Exception $e) {
+            \Log::error('Error in getPropertyOwnerReservations: ' . $e->getMessage(), [
+                'customer_id' => $customer_id,
+                'error' => $e->getTraceAsString()
+            ]);
+            return ApiResponseService::errorResponse('Error retrieving reservations: ' . $e->getMessage());
+        }
     }
     /**
      * Send reservation cancellation email to customer
