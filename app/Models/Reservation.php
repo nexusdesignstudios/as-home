@@ -12,6 +12,9 @@ class Reservation extends Model
 
     protected $fillable = [
         'customer_id',
+        'customer_name',
+        'customer_phone',
+        'customer_email',
         'reservable_id',
         'reservable_type',
         'property_id',
@@ -24,10 +27,6 @@ class Reservation extends Model
         'payment_status',
         'payment_method',
         'transaction_id',
-        // New columns - only include if they exist in database
-        'customer_name',
-        'customer_phone',
-        'customer_email',
         'review_url',
         'approval_status',
         'requires_approval',
@@ -40,7 +39,6 @@ class Reservation extends Model
         'check_in_date' => 'date',
         'check_out_date' => 'date',
         'total_price' => 'float',
-        // New columns - only cast if they exist in database
         'property_details' => 'array',
         'reservable_data' => 'array',
         'requires_approval' => 'boolean',
