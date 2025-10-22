@@ -1226,6 +1226,18 @@ class ReservationController extends Controller
         $formattedReservations = $reservations->through(function ($reservation) {
             $data = $reservation->toArray();
 
+            // Add missing customer fields for frontend compatibility
+            if ($reservation->customer) {
+                $data['customer_name'] = $data['customer_name'] ?? $reservation->customer->name;
+                $data['customer_phone'] = $data['customer_phone'] ?? $reservation->customer->mobile;
+                $data['customer_email'] = $data['customer_email'] ?? $reservation->customer->email;
+                $data['user_name'] = $data['user_name'] ?? $reservation->customer->name;
+                $data['user_email'] = $data['user_email'] ?? $reservation->customer->email;
+            }
+            
+            // Add booking_date as alias for created_at
+            $data['booking_date'] = $data['booking_date'] ?? $reservation->created_at;
+
             // Add reservation type for easier frontend handling
             $data['reservation_type'] = $reservation->reservable_type === 'App\\Models\\Property' ? 'property' : 'hotel_room';
 
