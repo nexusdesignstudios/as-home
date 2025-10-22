@@ -1224,15 +1224,24 @@ class ReservationController extends Controller
             'per_page' => $perPage
         ]);
 
-        $reservations = $query->with([
-            'customer:id,name,email,mobile',
-            'property:id,title,category_id,price,title_image,property_classification',
-            'property.category:id,category,image',
-            // Use morphWith to correctly load relationships based on the model type
-            'reservable'
-        ])
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+        // Simplified query to debug the issue
+        try {
+            $reservations = $query->with([
+                'customer:id,name,email,mobile',
+                'property:id,title,category_id,price,title_image,property_classification',
+                'property.category:id,category,image'
+                // Temporarily remove 'reservable' to test if that's the issue
+            ])
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
+        } catch (Exception $e) {
+            \Log::error('Error in reservations query', [
+                'error' => $e->getMessage(),
+                'customer_id' => $customerId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
 
         \Log::info('Reservations query executed successfully', [
             'total_reservations' => $reservations->total(),
