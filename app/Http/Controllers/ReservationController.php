@@ -1178,6 +1178,11 @@ class ReservationController extends Controller
     public function getPropertyOwnerReservations(Request $request, $customer_id)
     {
         try {
+            \Log::info('getPropertyOwnerReservations called', [
+                'customer_id' => $customer_id,
+                'request_params' => $request->all()
+            ]);
+
             $validator = Validator::make($request->all(), [
                 'property_id' => 'nullable|integer|exists:propertys,id',
                 'status' => 'nullable|string',
@@ -1212,6 +1217,13 @@ class ReservationController extends Controller
         }
 
         // Add relationships and pagination with proper handling of polymorphic relationships
+        \Log::info('Executing reservations query', [
+            'customer_id' => $customerId,
+            'property_id' => $propertyId,
+            'status' => $status,
+            'per_page' => $perPage
+        ]);
+
         $reservations = $query->with([
             'customer:id,name,email,mobile',
             'property:id,title,category_id,price,title_image,property_classification',
@@ -1222,17 +1234,24 @@ class ReservationController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
 
+        \Log::info('Reservations query executed successfully', [
+            'total_reservations' => $reservations->total(),
+            'current_page' => $reservations->currentPage(),
+            'per_page' => $reservations->perPage()
+        ]);
+
         // Transform the data to provide more context about each reservation
         $formattedReservations = $reservations->through(function ($reservation) {
             $data = $reservation->toArray();
 
             // Add missing customer fields for frontend compatibility
+            // These fields might exist in the database or need to be populated from relationships
             if ($reservation->customer) {
-                $data['customer_name'] = $data['customer_name'] ?? $reservation->customer->name;
-                $data['customer_phone'] = $data['customer_phone'] ?? $reservation->customer->mobile;
-                $data['customer_email'] = $data['customer_email'] ?? $reservation->customer->email;
-                $data['user_name'] = $data['user_name'] ?? $reservation->customer->name;
-                $data['user_email'] = $data['user_email'] ?? $reservation->customer->email;
+                $data['customer_name'] = $data['customer_name'] ?? $reservation->customer->name ?? null;
+                $data['customer_phone'] = $data['customer_phone'] ?? $reservation->customer->mobile ?? null;
+                $data['customer_email'] = $data['customer_email'] ?? $reservation->customer->email ?? null;
+                $data['user_name'] = $data['user_name'] ?? $reservation->customer->name ?? null;
+                $data['user_email'] = $data['user_email'] ?? $reservation->customer->email ?? null;
             }
             
             // Add booking_date as alias for created_at
@@ -1263,7 +1282,7 @@ class ReservationController extends Controller
             // Add specific information based on reservation type
             if ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
                 // For hotel room reservations, add room-specific information
-                if (isset($reservation->reservable)) {
+                if (isset($reservation->reservable) && $reservation->reservable) {
                     $hotelRoom = $reservation->reservable;
 
                     // Load the room type if available
@@ -1271,9 +1290,17 @@ class ReservationController extends Controller
 
                     $data['room_info'] = [
                         'id' => $hotelRoom->id,
-                        'room_number' => $hotelRoom->room_number,
+                        'room_number' => $hotelRoom->room_number ?? 'N/A',
                         'room_type' => $roomTypeName,
-                        'price_per_night' => $hotelRoom->price_per_night
+                        'price_per_night' => $hotelRoom->price_per_night ?? 0
+                    ];
+                } else {
+                    // Handle case where reservable relationship is null
+                    $data['room_info'] = [
+                        'id' => null,
+                        'room_number' => 'N/A',
+                        'room_type' => 'Unknown',
+                        'price_per_night' => 0
                     ];
                 }
             }
