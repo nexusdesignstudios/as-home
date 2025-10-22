@@ -9307,6 +9307,7 @@ class ApiController extends Controller
                     'customer_phone' => $request->customer_phone,
                     'property_name' => $property->title,
                     'property_address' => $property->address,
+                    'room_type' => $request->room_type ?? 'Standard',
                     'check_in_date' => $request->check_in_date,
                     'check_out_date' => $request->check_out_date,
                     'number_of_guests' => $request->number_of_guests,
@@ -9323,7 +9324,7 @@ class ApiController extends Controller
                 );
 
                 if (empty($templateData)) {
-                    $templateData = 'New reservation request received for property "{property_name}" from {customer_name} ({customer_email}). Amount: {total_amount} {currency_symbol}. Check-in: {check_in_date}, Check-out: {check_out_date}. Reservation ID: {reservation_id}. Please review and approve this booking in your dashboard.';
+                    $templateData = 'New reservation request received for property "{property_name}" from {customer_name} ({customer_email}). Room Type: {room_type}. Amount: {total_amount} {currency_symbol}. Check-in: {check_in_date}, Check-out: {check_out_date}. Reservation ID: {reservation_id}. Please review and approve this booking in your dashboard.';
                 }
 
                 $emailTemplate = HelperService::replaceEmailVariables($templateData, $variables);

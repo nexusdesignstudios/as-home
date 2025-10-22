@@ -29,6 +29,7 @@ Customer Details:
 Property Details:
 - Property: {property_name}
 - Address: {property_address}
+- Room Type: {room_type}
 
 Booking Details:
 - Check-in Date: {check_in_date}

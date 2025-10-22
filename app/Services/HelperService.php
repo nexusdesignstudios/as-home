@@ -1215,6 +1215,10 @@ class HelperService
                                 'is_condition' => false,
                             ],
                             [
+                                'name' => 'room_type',
+                                'is_condition' => false,
+                            ],
+                            [
                                 'name' => 'check_in_date',
                                 'is_condition' => false,
                             ],
