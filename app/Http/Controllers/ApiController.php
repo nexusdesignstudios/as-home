@@ -3706,6 +3706,7 @@ class ApiController extends Controller
                 $tempRow['property_id'] = $row->property_id;
                 $tempRow['title'] = $row->property->title;
                 $tempRow['title_image'] = $row->property->title_image;
+                $tempRow['property_reference_id'] = $row->property->slug_id;
                 $tempRow['date'] = $row->created_at;
                 $tempRow['property_id'] = $row->property_id;
                 $tempRow['unread_count'] = $row->unread_count;
@@ -9248,6 +9249,51 @@ class ApiController extends Controller
                 'status' => 'pending'
             ]);
 
+            // Create reservation record for the revenue tab
+            $reservationData = [
+                'customer_id' => $property->user_id, // Property owner ID
+                'customer_name' => $request->customer_name,
+                'customer_phone' => $request->customer_phone,
+                'customer_email' => $request->customer_email,
+                'reservable_id' => $request->property_id,
+                'reservable_type' => $request->reservable_type,
+                'check_in_date' => $request->check_in_date,
+                'check_out_date' => $request->check_out_date,
+                'number_of_guests' => $request->number_of_guests,
+                'total_price' => $request->amount,
+                'payment_method' => 'Card',
+                'payment_status' => 'pending',
+                'status' => 'pending',
+                'special_requests' => $request->special_requests,
+                'transaction_id' => 'PF-' . $submission->id, // Payment Form prefix
+                'created_at' => now(),
+                'updated_at' => now()
+            ];
+
+            // Add approval workflow fields if provided
+            if ($request->has('approval_status')) {
+                $reservationData['approval_status'] = $request->approval_status;
+            }
+            if ($request->has('requires_approval')) {
+                $reservationData['requires_approval'] = $request->requires_approval;
+            }
+            if ($request->has('booking_type')) {
+                $reservationData['booking_type'] = $request->booking_type;
+            }
+
+            // Add property details if provided
+            if ($request->has('property_details')) {
+                $reservationData['property_details'] = json_encode($request->property_details);
+            }
+
+            // Handle hotel room data
+            if ($request->reservable_type === 'hotel_room' && $request->reservable_data) {
+                $reservationData['reservable_data'] = json_encode($request->reservable_data);
+            }
+
+            // Create the reservation
+            $reservation = \App\Models\Reservation::create($reservationData);
+
             // Send email to property owner
             try {
                 $emailTypeData = HelperService::getEmailTemplatesTypes('payment_form_submission');
@@ -9269,11 +9315,15 @@ class ApiController extends Controller
                     'card_number_masked' => $maskedCardNumber,
                     'special_requests' => $request->special_requests ?? 'None',
                     'submission_date' => now()->format('Y-m-d H:i:s'),
-                    'current_date_today' => now()->format('d M Y, h:i A')
+                    'current_date_today' => now()->format('d M Y, h:i A'),
+                    'reservation_id' => $reservation->id,
+                    'transaction_id' => $reservation->transaction_id,
+                    'approval_status' => $reservation->approval_status ?? 'pending',
+                    'booking_type' => $reservation->booking_type ?? 'reservation_request'
                 );
 
                 if (empty($templateData)) {
-                    $templateData = 'New payment form submission received for property "{property_name}" from {customer_name} ({customer_email}). Amount: {total_amount} {currency_symbol}. Check-in: {check_in_date}, Check-out: {check_out_date}.';
+                    $templateData = 'New reservation request received for property "{property_name}" from {customer_name} ({customer_email}). Amount: {total_amount} {currency_symbol}. Check-in: {check_in_date}, Check-out: {check_out_date}. Reservation ID: {reservation_id}. Please review and approve this booking in your dashboard.';
                 }
 
                 $emailTemplate = HelperService::replaceEmailVariables($templateData, $variables);
@@ -9302,7 +9352,9 @@ class ApiController extends Controller
                 'message' => 'Payment form submitted successfully',
                 'data' => [
                     'submission_id' => $submission->id,
-                    'status' => $submission->status
+                    'reservation_id' => $reservation->id,
+                    'status' => $submission->status,
+                    'approval_status' => $reservation->approval_status ?? 'pending'
                 ]
             ]);
 

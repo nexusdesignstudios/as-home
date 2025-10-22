@@ -491,7 +491,7 @@ class ReservationsAdminController extends Controller
                 $reservation->save();
 
                 // Send cancellation email to the customer
-                $this->sendReservationCancellationEmail($reservation);
+                $this->sendReservationCancellationEmail($reservation, 'cancellation');
 
                 return $this->apiResponseService->successResponse('Reservation cancelled successfully. Cancellation email sent to customer.', [
                     'reservation' => $reservation->fresh()
@@ -811,9 +811,10 @@ The {app_name} Team</p>';
      * Send reservation cancellation email to customer
      *
      * @param \App\Models\Reservation $reservation
+     * @param string $type 'cancellation' or 'decline'
      * @return void
      */
-    private function sendReservationCancellationEmail($reservation)
+    private function sendReservationCancellationEmail($reservation, $type = 'cancellation')
     {
         try {
             // Get customer information
@@ -863,12 +864,45 @@ The {app_name} Team</p>';
                 'current_date_today' => now()->format('d M Y, h:i A'),
             ];
 
-            // Get email template
-            $emailTemplateData = system_setting('reservation_cancellation_mail_template');
+            // Determine email template and title based on type
+            $emailTemplateData = '';
+            $emailTitle = '';
+            $defaultTemplate = '';
 
-            if (empty($emailTemplateData)) {
-                \Illuminate\Support\Facades\Log::warning('Reservation cancellation email template not found, using default template');
-                $emailTemplateData = 'Dear {customer_name},
+            if ($type === 'decline') {
+                $emailTitle = 'Your Booking Request Has Been Declined';
+                $emailTemplateData = system_setting('reservation_decline_mail_template');
+                
+                if (empty($emailTemplateData)) {
+                    \Illuminate\Support\Facades\Log::warning('Reservation decline email template not found, using default template');
+                    $defaultTemplate = 'Dear {customer_name},
+
+We regret to inform you that your booking request has been declined by the property owner.
+
+Reservation Details:
+- Reservation ID: {reservation_id}
+- Property: {property_name}
+- Check-in Date: {check_in_date}
+- Check-out Date: {check_out_date}
+- Total Amount: {currency_symbol}{total_price}
+
+The property owner was unable to accommodate your request at this time. We apologize for any inconvenience this may cause.
+
+If you have any questions or would like to explore alternative properties, please don\'t hesitate to contact our customer support team.
+
+Thank you for your understanding.
+
+Best regards,
+The {app_name} Team';
+                }
+            } else {
+                // Default to cancellation
+                $emailTitle = 'Your Reservation Has Been Cancelled';
+                $emailTemplateData = system_setting('reservation_cancellation_mail_template');
+                
+                if (empty($emailTemplateData)) {
+                    \Illuminate\Support\Facades\Log::warning('Reservation cancellation email template not found, using default template');
+                    $defaultTemplate = 'Dear {customer_name},
 
 We are writing to confirm that your reservation has been cancelled.
 
@@ -887,6 +921,12 @@ Thank you for your understanding.
 
 Best regards,
 The {app_name} Team';
+                }
+            }
+
+            // Use default template if no custom template is set
+            if (empty($emailTemplateData)) {
+                $emailTemplateData = $defaultTemplate;
             }
 
             // Replace variables in template
@@ -895,21 +935,24 @@ The {app_name} Team';
             // Send email
             $data = [
                 'email' => $customer->email,
-                'title' => 'Your Booking Request Has Been Declined',
+                'title' => $emailTitle,
                 'email_template' => $emailContent
             ];
 
             \App\Services\HelperService::sendMail($data);
 
-            \Illuminate\Support\Facades\Log::info('Reservation cancellation email sent to customer', [
+            \Illuminate\Support\Facades\Log::info('Reservation email sent to customer', [
                 'customer_id' => $customer->id,
                 'customer_email' => $customer->email,
-                'reservation_id' => $reservation->id
+                'reservation_id' => $reservation->id,
+                'type' => $type,
+                'email_title' => $emailTitle
             ]);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Failed to send reservation cancellation email: ' . $e->getMessage(), [
+            \Illuminate\Support\Facades\Log::error('Failed to send reservation email: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
-                'reservation_id' => $reservation->id
+                'reservation_id' => $reservation->id,
+                'type' => $type
             ]);
         }
     }

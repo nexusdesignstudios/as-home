@@ -12,6 +12,9 @@ class Reservation extends Model
 
     protected $fillable = [
         'customer_id',
+        'customer_name',
+        'customer_phone',
+        'customer_email',
         'reservable_id',
         'reservable_type',
         'property_id',
@@ -25,12 +28,20 @@ class Reservation extends Model
         'payment_method',
         'transaction_id',
         'review_url',
+        'approval_status',
+        'requires_approval',
+        'booking_type',
+        'property_details',
+        'reservable_data',
     ];
 
     protected $casts = [
         'check_in_date' => 'date',
         'check_out_date' => 'date',
         'total_price' => 'float',
+        'property_details' => 'array',
+        'reservable_data' => 'array',
+        'requires_approval' => 'boolean',
     ];
 
     /**
