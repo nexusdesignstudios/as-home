@@ -454,8 +454,8 @@ class ReservationService
                     'reservation_id' => $reservation->id
                 ]);
 
-                // Send reservation confirmation email
-                $this->sendReservationConfirmationEmail($reservation);
+                // Send payment completion email to property owner
+                $this->sendPaymentCompletionEmailToOwner($reservation);
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Failed to update available dates via admin confirmation', [
                     'error' => $e->getMessage(),
@@ -810,5 +810,108 @@ class ReservationService
         }
 
         return false;
+    }
+
+    /**
+     * Send payment completion email to property owner.
+     *
+     * @param \App\Models\Reservation $reservation
+     * @return void
+     */
+    public function sendPaymentCompletionEmailToOwner($reservation)
+    {
+        try {
+            // Get property owner information
+            $property = null;
+            $propertyOwner = null;
+            
+            if ($reservation->reservable_type === 'App\Models\Property') {
+                $property = $reservation->reservable;
+                $propertyOwner = $property->customer;
+            } elseif ($reservation->reservable_type === 'App\Models\HotelRoom') {
+                $hotelRoom = $reservation->reservable;
+                $property = $hotelRoom->property;
+                $propertyOwner = $property->customer;
+            }
+
+            if (!$propertyOwner || !$propertyOwner->email) {
+                \Illuminate\Support\Facades\Log::warning('Cannot send payment completion email to property owner: owner or email not found', [
+                    'reservation_id' => $reservation->id,
+                    'property_id' => $property->id ?? 'unknown',
+                    'owner_id' => $propertyOwner->id ?? 'unknown'
+                ]);
+                return;
+            }
+
+            // Get customer information
+            $customer = $reservation->customer;
+            if (!$customer) {
+                \Illuminate\Support\Facades\Log::warning('Cannot send payment completion email: customer not found', [
+                    'reservation_id' => $reservation->id
+                ]);
+                return;
+            }
+
+            // Get email template data
+            $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("payment_completion_owner");
+            $emailTemplateData = system_setting('payment_completion_owner_mail_template');
+            $appName = env("APP_NAME") ?? "As-home";
+
+            // Get currency symbol
+            $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+            // Prepare email variables
+            $variables = array(
+                'app_name' => $appName,
+                'property_owner_name' => $propertyOwner->name,
+                'customer_name' => $customer->name,
+                'customer_email' => $customer->email,
+                'customer_phone' => $customer->mobile ?? $reservation->customer_phone,
+                'property_name' => $property->title,
+                'property_address' => $property->address,
+                'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
+                'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
+                'number_of_guests' => $reservation->number_of_guests,
+                'total_price' => number_format($reservation->total_price, 2),
+                'currency_symbol' => $currencySymbol,
+                'payment_status' => ucfirst($reservation->payment_status),
+                'transaction_id' => $reservation->transaction_id,
+                'reservation_id' => $reservation->id,
+                'special_requests' => $reservation->special_requests ?? 'None',
+                'payment_completion_date' => now()->format('d M Y, h:i A'),
+                'booking_type' => $reservation->booking_type ?? 'reservation'
+            );
+
+            // Default template if none is set
+            if (empty($emailTemplateData)) {
+                $emailTemplateData = 'Payment completed for your property "{property_name}"! Customer {customer_name} ({customer_email}) has successfully paid {total_price} {currency_symbol} for their reservation. Check-in: {check_in_date}, Check-out: {check_out_date}. Reservation ID: {reservation_id}. Please prepare for their arrival.';
+            }
+
+            $emailContent = \App\Services\HelperService::replaceEmailVariables($emailTemplateData, $variables);
+
+            // Send email to property owner
+            $data = array(
+                'email_template' => $emailContent,
+                'email' => $propertyOwner->email,
+                'title' => $emailTypeData['title'] ?? 'Payment Completed - New Booking'
+            );
+
+            \App\Services\HelperService::sendMail($data);
+
+            \Illuminate\Support\Facades\Log::info('Payment completion email sent to property owner', [
+                'reservation_id' => $reservation->id,
+                'property_id' => $property->id,
+                'owner_id' => $propertyOwner->id,
+                'owner_email' => $propertyOwner->email,
+                'customer_id' => $customer->id
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send payment completion email to property owner: ' . $e->getMessage(), [
+                'reservation_id' => $reservation->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
     }
 }
