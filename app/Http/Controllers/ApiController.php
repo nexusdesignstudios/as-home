@@ -9216,7 +9216,7 @@ class ApiController extends Controller
             // Get property with owner information
             $property = Property::with('customer')->findOrFail($request->property_id);
 
-            if (!$property->added_by || !$property->customer) {
+            if (!$property->customer) {
                 return response()->json([
                     'error' => true,
                     'message' => 'Property owner not found'
@@ -9249,37 +9249,14 @@ class ApiController extends Controller
                 'status' => 'pending'
             ]);
 
-            // Find or create customer based on email
-            $customer = \App\Models\Customer::where('email', $request->customer_email)->first();
-            if (!$customer) {
-                // Create new customer if doesn't exist
-                $customer = \App\Models\Customer::create([
-                    'name' => $request->customer_name,
-                    'email' => $request->customer_email,
-                    'mobile' => $request->customer_phone,
-                    'status' => 'active'
-                ]);
-            }
-
-            // Debug logging
-            \Log::info('Payment form submission debug', [
-                'property_id' => $request->property_id,
-                'property_added_by' => $property->added_by,
-                'property_owner_name' => $property->customer->name ?? 'No owner',
-                'customer_id' => $customer->id,
-                'customer_name' => $customer->name,
-                'reservable_type' => $request->reservable_type,
-                'reservable_data' => $request->reservable_data
-            ]);
-
             // Create reservation record for the revenue tab
             $reservationData = [
-                'customer_id' => $customer->id, // Customer making the booking
-                'reservable_id' => $request->reservable_type === 'hotel_room' 
-                    ? ($request->reservable_data[0]['id'] ?? $request->property_id) 
-                    : $request->property_id,
+                'customer_id' => $property->user_id, // Property owner ID
+                'customer_name' => $request->customer_name,
+                'customer_phone' => $request->customer_phone,
+                'customer_email' => $request->customer_email,
+                'reservable_id' => $request->property_id,
                 'reservable_type' => $request->reservable_type,
-                'property_id' => $request->property_id,
                 'check_in_date' => $request->check_in_date,
                 'check_out_date' => $request->check_out_date,
                 'number_of_guests' => $request->number_of_guests,
@@ -9289,16 +9266,11 @@ class ApiController extends Controller
                 'status' => 'pending',
                 'special_requests' => $request->special_requests,
                 'transaction_id' => 'PF-' . $submission->id, // Payment Form prefix
+                'created_at' => now(),
+                'updated_at' => now()
             ];
 
-            // Add new fields that will be available after migration
-            $reservationData['customer_name'] = $request->customer_name;
-            $reservationData['customer_phone'] = $request->customer_phone;
-            $reservationData['customer_email'] = $request->customer_email;
-            
-            if ($request->has('review_url')) {
-                $reservationData['review_url'] = $request->review_url;
-            }
+            // Add approval workflow fields if provided
             if ($request->has('approval_status')) {
                 $reservationData['approval_status'] = $request->approval_status;
             }
@@ -9308,9 +9280,13 @@ class ApiController extends Controller
             if ($request->has('booking_type')) {
                 $reservationData['booking_type'] = $request->booking_type;
             }
+
+            // Add property details if provided
             if ($request->has('property_details')) {
                 $reservationData['property_details'] = json_encode($request->property_details);
             }
+
+            // Handle hotel room data
             if ($request->reservable_type === 'hotel_room' && $request->reservable_data) {
                 $reservationData['reservable_data'] = json_encode($request->reservable_data);
             }
