@@ -8,6 +8,7 @@ use DateTime;
 use Exception;
 use Throwable;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Schema;
 use App\Models\Faq;
 
 use App\Models\User;
@@ -9252,11 +9253,11 @@ class ApiController extends Controller
             // Create reservation record for the revenue tab
             $reservationData = [
                 'customer_id' => $property->user_id, // Property owner ID
-                'customer_name' => $request->customer_name,
-                'customer_phone' => $request->customer_phone,
-                'customer_email' => $request->customer_email,
-                'reservable_id' => $request->property_id,
+                'reservable_id' => $request->reservable_type === 'hotel_room' 
+                    ? ($request->reservable_data[0]['id'] ?? $request->property_id) 
+                    : $request->property_id,
                 'reservable_type' => $request->reservable_type,
+                'property_id' => $request->property_id,
                 'check_in_date' => $request->check_in_date,
                 'check_out_date' => $request->check_out_date,
                 'number_of_guests' => $request->number_of_guests,
@@ -9266,28 +9267,37 @@ class ApiController extends Controller
                 'status' => 'pending',
                 'special_requests' => $request->special_requests,
                 'transaction_id' => 'PF-' . $submission->id, // Payment Form prefix
-                'created_at' => now(),
-                'updated_at' => now()
             ];
 
-            // Add approval workflow fields if provided
-            if ($request->has('approval_status')) {
+            // Check if new columns exist in the database
+            $columns = \Schema::getColumnListing('reservations');
+            
+            // Add new fields only if they exist in the database
+            if (in_array('customer_name', $columns)) {
+                $reservationData['customer_name'] = $request->customer_name;
+            }
+            if (in_array('customer_phone', $columns)) {
+                $reservationData['customer_phone'] = $request->customer_phone;
+            }
+            if (in_array('customer_email', $columns)) {
+                $reservationData['customer_email'] = $request->customer_email;
+            }
+            if (in_array('review_url', $columns) && $request->has('review_url')) {
+                $reservationData['review_url'] = $request->review_url;
+            }
+            if (in_array('approval_status', $columns) && $request->has('approval_status')) {
                 $reservationData['approval_status'] = $request->approval_status;
             }
-            if ($request->has('requires_approval')) {
+            if (in_array('requires_approval', $columns) && $request->has('requires_approval')) {
                 $reservationData['requires_approval'] = $request->requires_approval;
             }
-            if ($request->has('booking_type')) {
+            if (in_array('booking_type', $columns) && $request->has('booking_type')) {
                 $reservationData['booking_type'] = $request->booking_type;
             }
-
-            // Add property details if provided
-            if ($request->has('property_details')) {
+            if (in_array('property_details', $columns) && $request->has('property_details')) {
                 $reservationData['property_details'] = json_encode($request->property_details);
             }
-
-            // Handle hotel room data
-            if ($request->reservable_type === 'hotel_room' && $request->reservable_data) {
+            if (in_array('reservable_data', $columns) && $request->reservable_type === 'hotel_room' && $request->reservable_data) {
                 $reservationData['reservable_data'] = json_encode($request->reservable_data);
             }
 
