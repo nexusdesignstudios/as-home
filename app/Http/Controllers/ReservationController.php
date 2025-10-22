@@ -1210,7 +1210,7 @@ class ReservationController extends Controller
             $query->whereIn('status', $status);
         }
 
-        // Add relationships and pagination with proper handling of polymorphic relationships
+        // Add relationships and get all data (no pagination)
         $reservations = $query->with([
             'customer:id,name,email,mobile',
             'property:id,title,category_id,price,title_image,property_classification',
@@ -1219,7 +1219,7 @@ class ReservationController extends Controller
             'reservable'
         ])
             ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+            ->get();
 
         // Transform the data to provide more context about each reservation
         $formattedReservations = $reservations->through(function ($reservation) {
@@ -1268,7 +1268,9 @@ class ReservationController extends Controller
             return $data;
         });
 
-        return ApiResponseService::successResponse('Property owner reservations retrieved successfully', $formattedReservations);
+        return ApiResponseService::successResponse('Property owner reservations retrieved successfully', [
+            'reservations' => $formattedReservations
+        ]);
     }
     /**
      * Send reservation cancellation email to customer
