@@ -474,9 +474,9 @@ class ReservationController extends Controller
                     // Check room status - allow booking of active rooms (status = true) and pending rooms
                     // Only block inactive rooms (status = false)
                     // Note: This allows booking of rooms that are pending approval
-                    if ($room->status === false) {
-                        ApiResponseService::errorResponse("Room {$roomId} is currently inactive and cannot be booked");
-                    }
+                    // if ($room->status === false) {
+                    //     ApiResponseService::errorResponse("Room {$roomId} is currently inactive and cannot be booked");
+                    // }
 
                     // Check availability
                     $isAvailable = $this->reservationService->areDatesAvailable(
@@ -559,7 +559,7 @@ class ReservationController extends Controller
                 'request_data' => $request->all(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return ApiResponseService::errorResponse('An error occurred while fetching reservations: ' . $e->getMessage());
         }
     }
@@ -976,9 +976,9 @@ class ReservationController extends Controller
                     // Check room status - allow booking of active rooms (status = true) and pending rooms
                     // Only block inactive rooms (status = false)
                     // Note: This allows booking of rooms that are pending approval
-                    if ($room->status === false) {
-                        ApiResponseService::errorResponse("Room {$roomId} is currently inactive and cannot be booked");
-                    }
+                    // if ($room->status === false) {
+                    //     ApiResponseService::errorResponse("Room {$roomId} is currently inactive and cannot be booked");
+                    // }
 
                     // Check availability
                     $isAvailable = $this->reservationService->areDatesAvailable(
@@ -1292,7 +1292,7 @@ class ReservationController extends Controller
                 $data['user_name'] = $data['user_name'] ?? $reservation->customer->name ?? null;
                 $data['user_email'] = $data['user_email'] ?? $reservation->customer->email ?? null;
             }
-            
+
             // Add booking_date as alias for created_at
             $data['booking_date'] = $data['booking_date'] ?? $reservation->created_at;
 
@@ -1356,7 +1356,7 @@ class ReservationController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return ApiResponseService::errorResponse('An error occurred while fetching reservations: ' . $e->getMessage());
         }
     }
@@ -1411,7 +1411,7 @@ class ReservationController extends Controller
             if ($type === 'decline') {
                 $emailTitle = 'Your Booking Request Has Been Declined';
                 $emailTemplateData = system_setting('reservation_decline_mail_template');
-                
+
                 if (empty($emailTemplateData)) {
                     Log::warning('Reservation decline email template not found, using default template');
                     $defaultTemplate = 'Dear {customer_name},
