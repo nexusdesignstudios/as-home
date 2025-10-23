@@ -9186,7 +9186,7 @@ class ApiController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'property_id' => 'required|exists:propertys,id',
-            'customer_id' => 'required|exists:users,id',
+            'customer_id' => 'required|exists:customers,id',
             'customer_name' => 'required|string|max:255',
             'customer_phone' => 'required|string|max:20',
             'customer_email' => 'required|email|max:255',
