@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Exception;
 
 class ReservationController extends Controller
 {
@@ -525,20 +526,35 @@ class ReservationController extends Controller
      */
     public function getCustomerReservations(Request $request)
     {
-        $customerId = Auth::guard('sanctum')->user()->id;
-        $status = $request->status && trim($request->status) !== '' ? explode(',', $request->status) : null;
+        try {
+            $user = Auth::guard('sanctum')->user();
+            if (!$user) {
+                return ApiResponseService::errorResponse('User not authenticated', null, 401);
+            }
 
-        $query = Reservation::where('customer_id', $customerId);
+            $customerId = $user->id;
+            $status = $request->status && trim($request->status) !== '' ? explode(',', $request->status) : null;
 
-        if ($status && !empty(array_filter($status))) {
-            $query->whereIn('status', array_filter($status));
+            $query = Reservation::where('customer_id', $customerId);
+
+            if ($status && !empty(array_filter($status))) {
+                $query->whereIn('status', array_filter($status));
+            }
+
+            $reservations = $query->orderBy('created_at', 'desc')->get();
+
+            ApiResponseService::successResponse('Reservations retrieved successfully', [
+                'reservations' => $reservations
+            ]);
+        } catch (Exception $e) {
+            Log::error('Error in getCustomerReservations: ' . $e->getMessage(), [
+                'user_id' => Auth::guard('sanctum')->user()->id ?? 'not_authenticated',
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return ApiResponseService::errorResponse('An error occurred while fetching reservations: ' . $e->getMessage());
         }
-
-        $reservations = $query->with('reservable')->orderBy('created_at', 'desc')->get();
-
-        ApiResponseService::successResponse('Reservations retrieved successfully', [
-            'reservations' => $reservations
-        ]);
     }
 
     /**

@@ -1758,11 +1758,25 @@ class HelperService
     // Convert a UTC datetime to app timezone
     public static function toAppTimezone($dateTime)
     {
-        $timezone = self::getSettingData('timezone');
-        if ($dateTime instanceof Carbon) {
-            $dateTime = Carbon::createFromFormat('Y-m-d H:i:s', $dateTime, 'UTC')->setTimezone($timezone);
+        try {
+            $timezone = self::getSettingData('timezone');
+            if (!$timezone) {
+                // Default to UTC if no timezone setting found
+                $timezone = 'UTC';
+            }
+            
+            if ($dateTime instanceof Carbon) {
+                $dateTime = Carbon::createFromFormat('Y-m-d H:i:s', $dateTime, 'UTC')->setTimezone($timezone);
+            }
+            return $dateTime;
+        } catch (Exception $e) {
+            // Log the error and return the original datetime
+            Log::error('Error converting datetime to app timezone: ' . $e->getMessage(), [
+                'dateTime' => $dateTime,
+                'timezone' => $timezone ?? 'null'
+            ]);
+            return $dateTime;
         }
-        return $dateTime;
     }
 
     // public static function getIntervalOfDate($endDate){
