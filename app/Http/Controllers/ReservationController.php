@@ -471,6 +471,13 @@ class ReservationController extends Controller
                         ApiResponseService::errorResponse("Room {$roomId} does not belong to the specified property");
                     }
 
+                    // Check room status - allow booking of active rooms (status = true) and pending rooms
+                    // Only block inactive rooms (status = false)
+                    // Note: This allows booking of rooms that are pending approval
+                    if ($room->status === false) {
+                        ApiResponseService::errorResponse("Room {$roomId} is currently inactive and cannot be booked");
+                    }
+
                     // Check availability
                     $isAvailable = $this->reservationService->areDatesAvailable(
                         $modelType,
@@ -964,6 +971,13 @@ class ReservationController extends Controller
                     // Check if the room belongs to the specified property
                     if ($room->property_id != $request->property_id) {
                         ApiResponseService::errorResponse("Room {$roomId} does not belong to the specified property");
+                    }
+
+                    // Check room status - allow booking of active rooms (status = true) and pending rooms
+                    // Only block inactive rooms (status = false)
+                    // Note: This allows booking of rooms that are pending approval
+                    if ($room->status === false) {
+                        ApiResponseService::errorResponse("Room {$roomId} is currently inactive and cannot be booked");
                     }
 
                     // Check availability
