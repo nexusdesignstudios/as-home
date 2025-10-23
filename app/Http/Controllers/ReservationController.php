@@ -439,8 +439,8 @@ class ReservationController extends Controller
                     'payment_status' => 'unpaid',
                 ];
 
-                // Create the reservation
-                $reservation = $this->reservationService->createReservation($reservationData);
+                // Create the reservation without sending emails (checkout without payment)
+                $reservation = $this->reservationService->createReservation($reservationData, true);
 
                 ApiResponseService::successResponse('Reservation created successfully', [
                     'reservation' => $reservation
@@ -504,7 +504,7 @@ class ReservationController extends Controller
                         'payment_status' => 'unpaid',
                     ];
 
-                    $reservations[] = $this->reservationService->createReservation($reservationData);
+                    $reservations[] = $this->reservationService->createReservation($reservationData, true);
                 }
 
                 ApiResponseService::successResponse('Multiple room reservations created successfully', [

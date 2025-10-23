@@ -15,11 +15,12 @@ class ReservationService
      * Create a new reservation and update available dates only if confirmed.
      *
      * @param array $data
+     * @param bool $skipEmails Whether to skip sending emails (default: false)
      * @return \App\Models\Reservation
      */
-    public function createReservation(array $data)
+    public function createReservation(array $data, bool $skipEmails = false)
     {
-        return DB::transaction(function () use ($data) {
+        return DB::transaction(function () use ($data, $skipEmails) {
             // Create the reservation
             $reservation = Reservation::create([
                 'customer_id' => $data['customer_id'],
@@ -47,6 +48,15 @@ class ReservationService
                     $data['check_out_date'],
                     $reservation->id
                 );
+            }
+
+            // Skip sending emails if requested (for checkout without payment)
+            if ($skipEmails) {
+                \Illuminate\Support\Facades\Log::info('Reservation created without sending emails', [
+                    'reservation_id' => $reservation->id,
+                    'customer_id' => $reservation->customer_id,
+                    'skip_emails' => true
+                ]);
             }
 
             return $reservation;
