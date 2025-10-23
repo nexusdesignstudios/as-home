@@ -9258,6 +9258,7 @@ class ApiController extends Controller
                 'customer_email' => $request->customer_email,
                 'reservable_id' => $request->property_id,
                 'reservable_type' => $request->reservable_type,
+                'property_id' => $request->property_id, // Add property_id for proper filtering
                 'check_in_date' => $request->check_in_date,
                 'check_out_date' => $request->check_out_date,
                 'number_of_guests' => $request->number_of_guests,
@@ -9265,20 +9266,23 @@ class ApiController extends Controller
                 'payment_method' => 'Card',
                 'payment_status' => 'pending',
                 'status' => 'pending',
+                'approval_status' => 'pending',
+                'requires_approval' => true,
+                'booking_type' => 'reservation_request',
                 'special_requests' => $request->special_requests,
                 'transaction_id' => 'PF-' . $submission->id, // Payment Form prefix
                 'created_at' => now(),
                 'updated_at' => now()
             ];
 
-            // Add approval workflow fields if provided
-            if ($request->has('approval_status')) {
+            // Override approval workflow fields if explicitly provided in request
+            if ($request->has('approval_status') && $request->approval_status !== null) {
                 $reservationData['approval_status'] = $request->approval_status;
             }
-            if ($request->has('requires_approval')) {
+            if ($request->has('requires_approval') && $request->requires_approval !== null) {
                 $reservationData['requires_approval'] = $request->requires_approval;
             }
-            if ($request->has('booking_type')) {
+            if ($request->has('booking_type') && $request->booking_type !== null) {
                 $reservationData['booking_type'] = $request->booking_type;
             }
 

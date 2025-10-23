@@ -526,12 +526,12 @@ class ReservationController extends Controller
     public function getCustomerReservations(Request $request)
     {
         $customerId = Auth::guard('sanctum')->user()->id;
-        $status = $request->status ? explode(',', $request->status) : null;
+        $status = $request->status && trim($request->status) !== '' ? explode(',', $request->status) : null;
 
         $query = Reservation::where('customer_id', $customerId);
 
-        if ($status) {
-            $query->whereIn('status', $status);
+        if ($status && !empty(array_filter($status))) {
+            $query->whereIn('status', array_filter($status));
         }
 
         $reservations = $query->with('reservable')->orderBy('created_at', 'desc')->get();
@@ -607,14 +607,14 @@ class ReservationController extends Controller
      */
     public function getAllReservations(Request $request)
     {
-        $status = $request->status ? explode(',', $request->status) : null;
+        $status = $request->status && trim($request->status) !== '' ? explode(',', $request->status) : null;
         $propertyId = $request->property_id;
         $roomId = $request->room_id;
 
         $query = Reservation::with(['customer', 'reservable']);
 
-        if ($status) {
-            $query->whereIn('status', $status);
+        if ($status && !empty(array_filter($status))) {
+            $query->whereIn('status', array_filter($status));
         }
 
         if ($propertyId) {
@@ -1195,7 +1195,7 @@ class ReservationController extends Controller
 
         $customerId = $customer_id;
         $propertyId = $request->property_id;
-        $status = $request->status ? explode(',', $request->status) : null;
+        $status = $request->status && trim($request->status) !== '' ? explode(',', $request->status) : null;
         $perPage = $request->per_page ?? 10;
 
         // Start building the query for reservations
@@ -1212,8 +1212,8 @@ class ReservationController extends Controller
         }
 
         // Add status filter if provided
-        if ($status) {
-            $query->whereIn('status', $status);
+        if ($status && !empty(array_filter($status))) {
+            $query->whereIn('status', array_filter($status));
         }
 
         // Add relationships and pagination with proper handling of polymorphic relationships
