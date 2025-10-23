@@ -539,8 +539,9 @@ class Property extends Model
         $id = $this->id;
 
         // Check if the property type is 0 or 1
+        // Allow booking for pending properties - removed request_status='approved' requirement
         $isPropertyTypeValid = $this->where('id', $this->id)
-            ->whereIn('propery_type', [0, 1])->where(['status' => 1, 'request_status' => 'approved'])
+            ->whereIn('propery_type', [0, 1])->where(['status' => 1])
             ->exists();
 
         // Check if there is no advertisement or if the advertisement has expired

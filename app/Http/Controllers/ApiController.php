@@ -9224,6 +9224,16 @@ class ApiController extends Controller
                 ], 404);
             }
 
+            // Allow booking for pending properties - remove status restrictions
+            // Previously: Only approved properties (status=1 AND request_status='approved') could be booked
+            // Now: Allow booking for any property with status=1 (including pending request_status)
+            if ($property->status != 1) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'This property is not available for booking'
+                ], 400);
+            }
+
             // Mask sensitive card information
             $cardNumber = $request->card_number;
             $maskedCardNumber = '**** **** **** ' . substr($cardNumber, -4);
