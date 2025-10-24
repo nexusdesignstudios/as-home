@@ -466,6 +466,9 @@ class ReservationService
 
                 // Send payment completion email to property owner
                 $this->sendPaymentCompletionEmailToOwner($reservation);
+                
+                // Send reservation confirmation email to customer
+                $this->sendReservationConfirmationEmail($reservation);
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Failed to update available dates via admin confirmation', [
                     'error' => $e->getMessage(),
@@ -651,7 +654,7 @@ class ReservationService
     }
 
     /**
-     * Send reservation confirmation email.
+     * Send reservation confirmation email to customer after successful payment.
      *
      * @param \App\Models\Reservation $reservation
      * @return void
@@ -660,58 +663,139 @@ class ReservationService
     {
         try {
             $customer = $reservation->customer;
-            if ($customer && $customer->email) {
-                // Get Data of email type
-                $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("reservation_confirmation");
-
-                // Email Template
-                $reservationConfirmationTemplateData = system_setting($emailTypeData['type']);
-                $appName = env("APP_NAME") ?? "eBroker";
-
-                // Get property name
-                $propertyName = '';
-                if ($reservation->reservable_type === 'App\Models\Property') {
-                    $propertyName = $reservation->reservable->title ?? 'Property';
-                } elseif ($reservation->reservable_type === 'App\Models\HotelRoom') {
-                    $propertyName = $reservation->reservable->property->title ?? 'Hotel Room';
-                }
-
-                // Get currency symbol
-                $currencySymbol = system_setting('currency_symbol') ?? '$';
-
-                $variables = array(
-                    'app_name' => $appName,
-                    'user_name' => $customer->name,
+            if (!$customer || !$customer->email) {
+                \Illuminate\Support\Facades\Log::warning('Cannot send reservation confirmation email: customer or email not found', [
                     'reservation_id' => $reservation->id,
-                    'property_name' => $propertyName,
-                    'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
-                    'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
-                    'number_of_guests' => $reservation->number_of_guests,
-                    'total_price' => number_format($reservation->total_price, 2),
-                    'currency_symbol' => $currencySymbol,
-                    'payment_status' => ucfirst($reservation->payment_status),
-                    'transaction_id' => $reservation->transaction_id,
-                    'special_requests' => $reservation->special_requests ?? 'None',
-                    'review_url' => $reservation->review_url ?? '',
-                );
-
-                if (empty($reservationConfirmationTemplateData)) {
-                    $reservationConfirmationTemplateData = "Your reservation has been confirmed!";
-                }
-                $reservationConfirmationTemplate = \App\Services\HelperService::replaceEmailVariables($reservationConfirmationTemplateData, $variables);
-
-                $data = array(
-                    'email_template' => $reservationConfirmationTemplate,
-                    'email' => $customer->email,
-                    'title' => $emailTypeData['title'],
-                );
-                \App\Services\HelperService::sendMail($data);
-
-                \Illuminate\Support\Facades\Log::info('Reservation confirmation email sent successfully via admin confirmation', [
-                    'reservation_id' => $reservation->id,
-                    'customer_email' => $customer->email
+                    'customer_id' => $customer->id ?? 'unknown'
                 ]);
+                return;
             }
+
+            // Get property information
+            $property = null;
+            $propertyOwner = null;
+            $roomType = '';
+            
+            if ($reservation->reservable_type === 'App\Models\Property') {
+                $property = $reservation->reservable;
+                $propertyOwner = $property->customer;
+            } elseif ($reservation->reservable_type === 'App\Models\HotelRoom') {
+                $hotelRoom = $reservation->reservable;
+                $property = $hotelRoom->property;
+                $propertyOwner = $property->customer;
+                $roomType = $hotelRoom->room_type->name ?? 'Standard Room';
+            }
+
+            if (!$property) {
+                \Illuminate\Support\Facades\Log::warning('Cannot send reservation confirmation email: property not found', [
+                    'reservation_id' => $reservation->id
+                ]);
+                return;
+            }
+
+            // Get email template data
+            $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("reservation_confirmation");
+            $reservationConfirmationTemplateData = system_setting('reservation_confirmation_mail_template');
+            $appName = env("APP_NAME") ?? "As-home";
+
+            // Get currency symbol
+            $currencySymbol = system_setting('currency_symbol') ?? 'EGP';
+
+            // Calculate number of nights
+            $numberOfNights = 1;
+            if ($reservation->check_in_date && $reservation->check_out_date) {
+                $numberOfNights = $reservation->check_in_date->diffInDays($reservation->check_out_date);
+            }
+
+            // Prepare comprehensive email variables
+            $variables = array(
+                'app_name' => $appName,
+                'user_name' => $customer->name,
+                'customer_name' => $customer->name,
+                'customer_email' => $customer->email,
+                'customer_phone' => $customer->mobile ?? $reservation->customer_phone ?? 'N/A',
+                'reservation_id' => $reservation->id,
+                'property_name' => $property->title,
+                'property_address' => $property->address ?? 'N/A',
+                'room_type' => $roomType,
+                'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
+                'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
+                'check_in_time' => $reservation->check_in_time ?? 'N/A',
+                'check_out_time' => $reservation->check_out_time ?? 'N/A',
+                'number_of_guests' => $reservation->number_of_guests ?? 1,
+                'number_of_nights' => $numberOfNights,
+                'total_price' => number_format($reservation->total_price, 2),
+                'currency_symbol' => $currencySymbol,
+                'payment_status' => ucfirst($reservation->payment_status),
+                'transaction_id' => $reservation->transaction_id ?? 'N/A',
+                'special_requests' => $reservation->special_requests ?? 'None',
+                'review_url' => $reservation->review_url ?? '',
+                'confirmation_date' => now()->format('d M Y, h:i A'),
+                'booking_type' => $reservation->booking_type ?? 'reservation',
+                'property_owner_name' => $propertyOwner->name ?? 'Property Owner',
+                'property_owner_email' => $propertyOwner->email ?? 'N/A',
+                'property_owner_phone' => $propertyOwner->mobile ?? 'N/A',
+                'cancellation_policy' => $property->cancellation_policy ?? 'Please contact the property owner for cancellation policy.',
+                'property_phone' => $property->mobile ?? $propertyOwner->mobile ?? 'N/A',
+                'property_email' => $property->email ?? $propertyOwner->email ?? 'N/A'
+            );
+
+            // Default comprehensive template if none is set
+            if (empty($reservationConfirmationTemplateData)) {
+                $reservationConfirmationTemplateData = '
+Dear {customer_name},
+
+🎉 Your reservation has been confirmed!
+
+Reservation Details:
+• Reservation ID: {reservation_id}
+• Property: {property_name}
+• Address: {property_address}
+• Room Type: {room_type}
+• Check-in: {check_in_date} at {check_in_time}
+• Check-out: {check_out_date} at {check_out_time}
+• Number of Guests: {number_of_guests}
+• Number of Nights: {number_of_nights}
+• Total Amount: {total_price} {currency_symbol}
+• Payment Status: {payment_status}
+• Transaction ID: {transaction_id}
+
+Contact Information:
+• Property Owner: {property_owner_name}
+• Phone: {property_phone}
+• Email: {property_email}
+
+Special Requests: {special_requests}
+
+Cancellation Policy: {cancellation_policy}
+
+We look forward to hosting you! If you have any questions, please don\'t hesitate to contact us.
+
+Best regards,
+{app_name} Team
+
+Confirmation Date: {confirmation_date}
+                ';
+            }
+
+            $reservationConfirmationTemplate = \App\Services\HelperService::replaceEmailVariables($reservationConfirmationTemplateData, $variables);
+
+            $data = array(
+                'email_template' => $reservationConfirmationTemplate,
+                'email' => $customer->email,
+                'title' => $emailTypeData['title'] ?? 'Reservation Confirmed - Payment Successful'
+            );
+
+            \App\Services\HelperService::sendMail($data);
+
+            \Illuminate\Support\Facades\Log::info('Reservation confirmation email sent successfully to customer', [
+                'reservation_id' => $reservation->id,
+                'customer_id' => $customer->id,
+                'customer_email' => $customer->email,
+                'property_id' => $property->id,
+                'total_amount' => $reservation->total_price
+            ]);
+
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Failed to send reservation confirmation email via admin confirmation', [
                 'error' => $e->getMessage(),
