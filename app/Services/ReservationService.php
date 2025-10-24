@@ -1012,4 +1012,98 @@ Confirmation Date: {confirmation_date}
             ]);
         }
     }
+
+    /**
+     * Send flexible hotel booking approval email to customer.
+     *
+     * @param \App\Models\Reservation $reservation
+     * @return void
+     */
+    public function sendFlexibleHotelBookingApprovalEmail($reservation)
+    {
+        try {
+            $customer = $reservation->customer;
+            if ($customer && $customer->email) {
+                // Get Data of email type
+                $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("flexible_hotel_booking_approval");
+
+                // Email Template
+                $emailTemplateData = system_setting('flexible_hotel_booking_approval_mail_template');
+                $appName = env("APP_NAME") ?? "As Home";
+
+                // Get hotel and room information
+                $hotelName = '';
+                $roomType = '';
+                $roomNumber = '';
+                $hotelAddress = '';
+
+                if ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                    $hotelRoom = $reservation->reservable;
+                    if ($hotelRoom) {
+                        $hotelName = $hotelRoom->property->title ?? 'Hotel';
+                        $roomNumber = $hotelRoom->room_number ?? 'N/A';
+                        $hotelAddress = $hotelRoom->property->address ?? 'N/A';
+                        
+                        // Get room type name
+                        if ($hotelRoom->roomType) {
+                            $roomType = $hotelRoom->roomType->name ?? 'Standard Room';
+                        } else {
+                            $roomType = 'Standard Room';
+                        }
+                    }
+                } else {
+                    // For property reservations, use property details
+                    $hotelName = $reservation->property->title ?? 'Property';
+                    $roomType = 'Property';
+                    $roomNumber = 'N/A';
+                    $hotelAddress = $reservation->property->address ?? 'N/A';
+                }
+
+                // Get currency symbol
+                $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+                $variables = array(
+                    'app_name' => $appName,
+                    'user_name' => $customer->name,
+                    'reservation_id' => $reservation->id,
+                    'hotel_name' => $hotelName,
+                    'room_type' => $roomType,
+                    'room_number' => $roomNumber,
+                    'hotel_address' => $hotelAddress,
+                    'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
+                    'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
+                    'number_of_guests' => $reservation->number_of_guests,
+                    'total_price' => number_format($reservation->total_price, 2),
+                    'currency_symbol' => $currencySymbol,
+                    'payment_status' => ucfirst($reservation->payment_status),
+                    'special_requests' => $reservation->special_requests ?? 'None',
+                );
+
+                if (empty($emailTemplateData)) {
+                    $emailTemplateData = "Your hotel booking is pending approval!";
+                }
+                $emailTemplate = \App\Services\HelperService::replaceEmailVariables($emailTemplateData, $variables);
+
+                $data = array(
+                    'email_template' => $emailTemplate,
+                    'email' => $customer->email,
+                    'title' => $emailTypeData['title'],
+                );
+                \App\Services\HelperService::sendMail($data);
+
+                \Illuminate\Support\Facades\Log::info('Flexible hotel booking approval email sent successfully', [
+                    'reservation_id' => $reservation->id,
+                    'customer_email' => $customer->email,
+                    'hotel_name' => $hotelName,
+                    'room_type' => $roomType
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send flexible hotel booking approval email', [
+                'error' => $e->getMessage(),
+                'reservation_id' => $reservation->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
 }

@@ -377,6 +377,69 @@ class HelperService
                             ],
                         )
                     );
+                case 'flexible_hotel_booking_approval':
+                    return array(
+                        'title' => 'Flexible Hotel Booking Pending Approval',
+                        'type' => 'flexible_hotel_booking_approval_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'user_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'room_type',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'room_number',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_address',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_in_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_out_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'number_of_guests',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_price',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'payment_status',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'special_requests',
+                                'is_condition' => true,
+                            ],
+                        )
+                    );
                 case 'monthly_tax_invoice':
                     return array(
                         'title' => 'Monthly Tax Invoice',
@@ -1351,6 +1414,10 @@ class HelperService
             [
                 'title' => 'Reservation Approval with Payment Link',
                 'type' => 'reservation_approval_payment',
+            ],
+            [
+                'title' => 'Flexible Hotel Booking Pending Approval',
+                'type' => 'flexible_hotel_booking_approval',
             ],
             [
                 'title' => 'Send Money Payment Required',

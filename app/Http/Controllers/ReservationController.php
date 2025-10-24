@@ -441,6 +441,9 @@ class ReservationController extends Controller
 
                 // Create the reservation without sending emails (checkout without payment)
                 $reservation = $this->reservationService->createReservation($reservationData, true);
+                
+                // Send flexible hotel booking approval email for property reservations that require approval
+                $this->reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
 
                 ApiResponseService::successResponse('Reservation created successfully', [
                     'reservation' => $reservation
@@ -511,7 +514,11 @@ class ReservationController extends Controller
                         'payment_status' => 'unpaid',
                     ];
 
-                    $reservations[] = $this->reservationService->createReservation($reservationData, true);
+                    $reservation = $this->reservationService->createReservation($reservationData, true);
+                    $reservations[] = $reservation;
+                    
+                    // Send flexible hotel booking approval email for each reservation
+                    $this->reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
                 }
 
                 ApiResponseService::successResponse('Multiple room reservations created successfully', [
@@ -550,7 +557,7 @@ class ReservationController extends Controller
 
             $reservations = $query->orderBy('created_at', 'desc')->get();
 
-            ApiResponseService::successResponse('Reservations retrieved successfully', [
+            return ApiResponseService::successResponse('Reservations retrieved successfully', [
                 'reservations' => $reservations
             ]);
         } catch (Exception $e) {
@@ -1276,12 +1283,22 @@ class ReservationController extends Controller
         \Log::info('Reservations query executed successfully', [
             'total_reservations' => $reservations->total(),
             'current_page' => $reservations->currentPage(),
-            'per_page' => $reservations->perPage()
+            'per_page' => $reservations->perPage(),
+            'sample_reservation' => $reservations->first() ? [
+                'id' => $reservations->first()->id,
+                'property_id' => $reservations->first()->property_id,
+                'reservable_id' => $reservations->first()->reservable_id,
+                'reservable_type' => $reservations->first()->reservable_type
+            ] : null
         ]);
 
         // Transform the data to provide more context about each reservation
         $formattedReservations = $reservations->through(function ($reservation) {
             $data = $reservation->toArray();
+
+            // Ensure property_id is explicitly included in the response
+            $data['property_id'] = $reservation->property_id;
+            $data['reservable_id'] = $reservation->reservable_id;
 
             // Add missing customer fields for frontend compatibility
             // These fields might exist in the database or need to be populated from relationships
@@ -1346,6 +1363,16 @@ class ReservationController extends Controller
 
             return $data;
         });
+
+            \Log::info('Final response prepared', [
+                'total_reservations' => $formattedReservations->total(),
+                'sample_reservation_data' => $formattedReservations->first() ? [
+                    'id' => $formattedReservations->first()['id'],
+                    'property_id' => $formattedReservations->first()['property_id'],
+                    'reservable_id' => $formattedReservations->first()['reservable_id'],
+                    'reservable_type' => $formattedReservations->first()['reservable_type']
+                ] : null
+            ]);
 
             return ApiResponseService::successResponse('Property owner reservations retrieved successfully', [
                 'reservations' => $formattedReservations
