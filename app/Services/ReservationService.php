@@ -1064,12 +1064,15 @@ Confirmation Date: {confirmation_date}
 
                 $variables = array(
                     'app_name' => $appName,
-                    'user_name' => $customer->name,
+                    'customer_name' => $customer->name,
+                    'user_name' => $customer->name, // Keep both for compatibility
+                    'property_name' => $hotelName,
+                    'hotel_name' => $hotelName, // Keep both for compatibility
                     'reservation_id' => $reservation->id,
-                    'hotel_name' => $hotelName,
                     'room_type' => $roomType,
                     'room_number' => $roomNumber,
                     'hotel_address' => $hotelAddress,
+                    'property_address' => $hotelAddress, // Add property_address for template compatibility
                     'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
                     'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
                     'number_of_guests' => $reservation->number_of_guests,
@@ -1080,9 +1083,23 @@ Confirmation Date: {confirmation_date}
                 );
 
                 if (empty($emailTemplateData)) {
-                    $emailTemplateData = "Your hotel booking is pending approval!";
+                    $emailTemplateData = "Dear {customer_name},\n\nYour reservation request for {property_name} has been received and is now pending the property owner's approval.\n\nYou'll receive a confirmation email once your booking is approved.\n\nThank you for choosing {app_name}!\n\nBest regards,\n{app_name} Team";
                 }
+                
+                // Log the template and variables for debugging
+                \Illuminate\Support\Facades\Log::info('Email template before variable replacement', [
+                    'reservation_id' => $reservation->id,
+                    'template' => $emailTemplateData,
+                    'variables' => $variables
+                ]);
+                
                 $emailTemplate = \App\Services\HelperService::replaceEmailVariables($emailTemplateData, $variables);
+                
+                // Log the template after variable replacement
+                \Illuminate\Support\Facades\Log::info('Email template after variable replacement', [
+                    'reservation_id' => $reservation->id,
+                    'final_template' => $emailTemplate
+                ]);
 
                 $data = array(
                     'email_template' => $emailTemplate,
