@@ -1142,6 +1142,31 @@ class ReservationController extends Controller
                 'payment_intent' => $paymentIntent
             ]);
 
+            // Send flexible hotel booking approval email to customer if this is a flexible booking
+            // (instant_booking = false for hotel properties)
+            if (isset($reservation) && $reservation) {
+                $property = $reservation->property;
+                if ($property && $property->property_classification == 5 && !$property->instant_booking) {
+                    try {
+                        $this->reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
+                        
+                        Log::info('Flexible hotel booking approval email sent to customer during payment checkout', [
+                            'reservation_id' => $reservation->id,
+                            'customer_id' => $reservation->customer_id,
+                            'property_id' => $property->id,
+                            'instant_booking' => $property->instant_booking
+                        ]);
+                    } catch (\Exception $e) {
+                        // Log email error but don't fail the transaction
+                        Log::error('Failed to send flexible hotel booking approval email during payment checkout: ' . $e->getMessage(), [
+                            'reservation_id' => $reservation->id,
+                            'property_id' => $property->id,
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                    }
+                }
+            }
+
             // Prepare response based on reservation type
             if ($request->reservable_type === 'property') {
                 return ApiResponseService::successResponse('Reservation and payment intent created successfully', [

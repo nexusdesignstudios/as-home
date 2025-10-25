@@ -9361,6 +9361,35 @@ class ApiController extends Controller
                 $submission->update(['status' => 'failed', 'notes' => 'Email sending failed: ' . $e->getMessage()]);
             }
 
+            // Send flexible hotel booking approval email to customer if this is a flexible booking
+            // (instant_booking = false for hotel properties)
+            if ($property->property_classification == 5 && !$property->instant_booking) {
+                try {
+                    // Get the customer from the reservation
+                    $customer = \App\Models\Customer::find($request->customer_id);
+                    
+                    if ($customer && $customer->email) {
+                        // Use the existing ReservationService to send the flexible booking email
+                        $reservationService = new \App\Services\ReservationService();
+                        $reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
+                        
+                        Log::info('Flexible hotel booking approval email sent to customer', [
+                            'reservation_id' => $reservation->id,
+                            'customer_email' => $customer->email,
+                            'property_id' => $property->id,
+                            'instant_booking' => $property->instant_booking
+                        ]);
+                    }
+                } catch (Exception $e) {
+                    // Log email error but don't fail the transaction
+                    Log::error('Failed to send flexible hotel booking approval email to customer: ' . $e->getMessage(), [
+                        'reservation_id' => $reservation->id,
+                        'property_id' => $property->id,
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                }
+            }
+
             DB::commit();
 
             return response()->json([
