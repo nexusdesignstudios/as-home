@@ -1148,17 +1148,22 @@ class ReservationController extends Controller
                 $property = $reservation->property;
                 if ($property && $property->property_classification == 5 && !$property->instant_booking) {
                     try {
+                        // Send flexible booking approval email to customer
                         $this->reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
                         
-                        Log::info('Flexible hotel booking approval email sent to customer during payment checkout', [
+                        // Also send notification to property owner about the new booking
+                        $this->sendNewBookingNotificationToOwner($reservation);
+                        
+                        Log::info('Both emails sent during payment checkout: Flexible booking approval to customer and notification to property owner', [
                             'reservation_id' => $reservation->id,
                             'customer_id' => $reservation->customer_id,
                             'property_id' => $property->id,
-                            'instant_booking' => $property->instant_booking
+                            'instant_booking' => $property->instant_booking,
+                            'booking_type' => 'flexible'
                         ]);
                     } catch (\Exception $e) {
                         // Log email error but don't fail the transaction
-                        Log::error('Failed to send flexible hotel booking approval email during payment checkout: ' . $e->getMessage(), [
+                        Log::error('Failed to send flexible hotel booking emails during payment checkout: ' . $e->getMessage(), [
                             'reservation_id' => $reservation->id,
                             'property_id' => $property->id,
                             'trace' => $e->getTraceAsString()
@@ -1665,6 +1670,102 @@ The {app_name} Team';
             'final_amount' => $finalAmount,
             'completed_bookings' => $completedBookings
         ];
+    }
+
+    /**
+     * Send new booking notification to property owner.
+     *
+     * @param \App\Models\Reservation $reservation
+     * @return void
+     */
+    private function sendNewBookingNotificationToOwner($reservation)
+    {
+        try {
+            $property = $reservation->property;
+            $propertyOwner = $property->customer;
+            $customer = $reservation->customer;
+
+            if (!$propertyOwner || !$propertyOwner->email) {
+                Log::warning('Cannot send new booking notification: property owner or email not found', [
+                    'reservation_id' => $reservation->id,
+                    'property_id' => $property->id
+                ]);
+                return;
+            }
+
+            // Get email template data
+            $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes('new_booking_notification');
+            $templateData = system_setting('new_booking_notification_mail_template');
+            $appName = env('APP_NAME') ?? 'As-home';
+
+            // Get hotel and room information
+            $hotelName = $property->title ?? 'Hotel';
+            $roomType = 'Property';
+            $roomNumber = 'N/A';
+            $hotelAddress = $property->address ?? 'N/A';
+
+            if ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                $hotelRoom = $reservation->reservable;
+                if ($hotelRoom) {
+                    $roomNumber = $hotelRoom->room_number ?? 'N/A';
+                    if ($hotelRoom->roomType) {
+                        $roomType = $hotelRoom->roomType->name ?? 'Standard Room';
+                    }
+                }
+            }
+
+            // Get currency symbol
+            $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+            $variables = array(
+                'app_name' => $appName,
+                'property_owner_name' => $propertyOwner->name,
+                'customer_name' => $customer->name,
+                'customer_email' => $customer->email,
+                'customer_phone' => $customer->phone ?? 'N/A',
+                'hotel_name' => $hotelName,
+                'room_type' => $roomType,
+                'room_number' => $roomNumber,
+                'hotel_address' => $hotelAddress,
+                'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
+                'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
+                'number_of_guests' => $reservation->number_of_guests,
+                'total_price' => number_format($reservation->total_price, 2),
+                'currency_symbol' => $currencySymbol,
+                'payment_status' => ucfirst($reservation->payment_status),
+                'special_requests' => $reservation->special_requests ?? 'None',
+                'reservation_id' => $reservation->id,
+                'booking_date' => now()->format('d M Y, h:i A'),
+                'booking_type' => 'flexible_booking'
+            );
+
+            if (empty($templateData)) {
+                $templateData = 'New flexible booking request received for {hotel_name} from {customer_name} ({customer_email}). Room Type: {room_type}. Amount: {total_price} {currency_symbol}. Check-in: {check_in_date}, Check-out: {check_out_date}. Reservation ID: {reservation_id}. Please review and approve this booking in your dashboard.';
+            }
+
+            $emailTemplate = \App\Services\HelperService::replaceEmailVariables($templateData, $variables);
+
+            $data = array(
+                'email_template' => $emailTemplate,
+                'email' => $propertyOwner->email,
+                'title' => $emailTypeData['title'] ?? 'New Flexible Booking Request - Approval Required',
+            );
+
+            \App\Services\HelperService::sendMail($data);
+
+            Log::info('New booking notification sent to property owner', [
+                'reservation_id' => $reservation->id,
+                'property_owner_email' => $propertyOwner->email,
+                'property_id' => $property->id,
+                'booking_type' => 'flexible'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send new booking notification to property owner: ' . $e->getMessage(), [
+                'reservation_id' => $reservation->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
     }
 
     /**

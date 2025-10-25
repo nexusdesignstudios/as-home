@@ -9309,8 +9309,9 @@ class ApiController extends Controller
             // Create the reservation
             $reservation = \App\Models\Reservation::create($reservationData);
 
-            // Send email to property owner
+            // Send emails to both property owner and customer (if flexible booking)
             try {
+                // 1. Send Payment Form Submission Notification to Property Owner
                 $emailTypeData = HelperService::getEmailTemplatesTypes('payment_form_submission');
                 $templateData = system_setting('payment_form_submission_mail_template');
                 
@@ -9352,19 +9353,8 @@ class ApiController extends Controller
 
                 HelperService::sendMail($data);
 
-                // Update submission status to processed
-                $submission->update(['status' => 'processed']);
-
-            } catch (Exception $e) {
-                // Log email error but don't fail the transaction
-                Log::error('Failed to send payment form submission email: ' . $e->getMessage());
-                $submission->update(['status' => 'failed', 'notes' => 'Email sending failed: ' . $e->getMessage()]);
-            }
-
-            // Send flexible hotel booking approval email to customer if this is a flexible booking
-            // (instant_booking = false for hotel properties)
-            if ($property->property_classification == 5 && !$property->instant_booking) {
-                try {
+                // 2. Send Flexible Hotel Booking Pending Approval to Customer (only for flexible bookings)
+                if ($property->property_classification == 5 && !$property->instant_booking) {
                     // Get the customer from the reservation
                     $customer = \App\Models\Customer::find($request->customer_id);
                     
@@ -9373,21 +9363,32 @@ class ApiController extends Controller
                         $reservationService = new \App\Services\ReservationService();
                         $reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
                         
-                        Log::info('Flexible hotel booking approval email sent to customer', [
+                        Log::info('Both emails sent: Payment form submission to owner and flexible booking approval to customer', [
                             'reservation_id' => $reservation->id,
+                            'property_owner_email' => $property->customer->email,
                             'customer_email' => $customer->email,
                             'property_id' => $property->id,
-                            'instant_booking' => $property->instant_booking
+                            'instant_booking' => $property->instant_booking,
+                            'booking_type' => 'flexible'
                         ]);
                     }
-                } catch (Exception $e) {
-                    // Log email error but don't fail the transaction
-                    Log::error('Failed to send flexible hotel booking approval email to customer: ' . $e->getMessage(), [
+                } else {
+                    Log::info('Payment form submission email sent to property owner (instant booking)', [
                         'reservation_id' => $reservation->id,
+                        'property_owner_email' => $property->customer->email,
                         'property_id' => $property->id,
-                        'trace' => $e->getTraceAsString()
+                        'instant_booking' => $property->instant_booking,
+                        'booking_type' => 'instant'
                     ]);
                 }
+
+                // Update submission status to processed
+                $submission->update(['status' => 'processed']);
+
+            } catch (Exception $e) {
+                // Log email error but don't fail the transaction
+                Log::error('Failed to send payment form submission emails: ' . $e->getMessage());
+                $submission->update(['status' => 'failed', 'notes' => 'Email sending failed: ' . $e->getMessage()]);
             }
 
             DB::commit();
