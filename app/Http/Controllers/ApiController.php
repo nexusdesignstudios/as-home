@@ -9201,7 +9201,8 @@ class ApiController extends Controller
             'special_requests' => 'nullable|string',
             'reservable_type' => 'required|in:property,hotel_room',
             'reservable_data' => 'nullable|array',
-            'review_url' => 'nullable|url'
+            'review_url' => 'nullable|url',
+            'instant_booking' => 'nullable|boolean' // Add instant_booking field validation
         ]);
 
         if ($validator->fails()) {
@@ -9214,8 +9215,28 @@ class ApiController extends Controller
         try {
             DB::beginTransaction();
 
+            // Debug: Log the instant_booking data received from frontend
+            Log::info('Payment form submission - Frontend data received:', [
+                'property_id' => $request->property_id,
+                'instant_booking_from_frontend' => $request->instant_booking,
+                'instant_booking_type' => gettype($request->instant_booking),
+                'reservable_type' => $request->reservable_type,
+                'property_classification' => $request->property_classification ?? 'not_provided'
+            ]);
+
             // Get property with owner information
             $property = Property::with('customer')->findOrFail($request->property_id);
+
+            // Debug: Log property details from database
+            Log::info('Payment form submission - Property details from database:', [
+                'property_id' => $property->id,
+                'property_classification' => $property->property_classification,
+                'property_classification_raw' => $property->getRawOriginal('property_classification'),
+                'instant_booking' => $property->instant_booking,
+                'instant_booking_raw' => $property->getRawOriginal('instant_booking'),
+                'instant_booking_type' => gettype($property->instant_booking),
+                'property_title' => $property->title
+            ]);
 
             if (!$property->customer) {
                 return response()->json([
@@ -9354,6 +9375,17 @@ class ApiController extends Controller
                 HelperService::sendMail($data);
 
                 // 2. Send Flexible Hotel Booking Pending Approval to Customer (only for flexible bookings)
+                // Debug: Log the condition check details
+                Log::info('Payment form submission - Checking instant_booking condition:', [
+                    'property_classification' => $property->property_classification,
+                    'property_classification_raw' => $property->getRawOriginal('property_classification'),
+                    'instant_booking' => $property->instant_booking,
+                    'instant_booking_raw' => $property->getRawOriginal('instant_booking'),
+                    'is_hotel_booking' => ($property->property_classification == 5),
+                    'is_flexible_booking' => (!$property->instant_booking),
+                    'condition_result' => ($property->property_classification == 5 && !$property->instant_booking)
+                ]);
+
                 if ($property->property_classification == 5 && !$property->instant_booking) {
                     // Get the customer from the reservation
                     $customer = \App\Models\Customer::find($request->customer_id);
@@ -9400,7 +9432,10 @@ class ApiController extends Controller
                     'submission_id' => $submission->id,
                     'reservation_id' => $reservation->id,
                     'status' => $submission->status,
-                    'approval_status' => $reservation->approval_status ?? 'pending'
+                    'approval_status' => $reservation->approval_status ?? 'pending',
+                    'flexible_booking_processed' => ($property->property_classification == 5 && !$property->instant_booking),
+                    'instant_booking' => $property->instant_booking,
+                    'property_classification' => $property->property_classification
                 ]
             ]);
 
