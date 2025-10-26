@@ -1,0 +1,265 @@
+<?php
+
+namespace App\Console\Commands;
+
+use Illuminate\Console\Command;
+use App\Services\HelperService;
+use App\Models\Customer;
+
+class TestHotelEmailTemplates extends Command
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'test:hotel-emails 
+                            {email : The email address to send test emails to}
+                            {--template=both : Template to test (flexible, non-refundable, or both)}
+                            {--month=2025-01 : Month to use for testing}';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Test hotel email templates by sending test emails';
+
+    /**
+     * Execute the console command.
+     */
+    public function handle()
+    {
+        $email = $this->argument('email');
+        $template = $this->option('template');
+        $month = $this->option('month');
+
+        // Validate email
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->error('Invalid email address provided.');
+            return 1;
+        }
+
+        $this->info("Testing hotel email templates...");
+        $this->info("Email: {$email}");
+        $this->info("Month: {$month}");
+        $this->info("Template: {$template}");
+        $this->newLine();
+
+        $successCount = 0;
+        $errorCount = 0;
+
+        // Test flexible template
+        if ($template === 'both' || $template === 'flexible') {
+            $this->info("Testing Flexible Hotel Template...");
+            if ($this->sendTestEmail($email, 'monthly_tax_invoice_hotels_flexible', $month)) {
+                $this->info("✅ Flexible hotel email sent successfully!");
+                $successCount++;
+            } else {
+                $this->error("❌ Failed to send flexible hotel email");
+                $errorCount++;
+            }
+            $this->newLine();
+        }
+
+        // Test non-refundable template
+        if ($template === 'both' || $template === 'non-refundable') {
+            $this->info("Testing Non-Refundable Hotel Template...");
+            if ($this->sendTestEmail($email, 'monthly_tax_invoice_hotels_non_refundable', $month)) {
+                $this->info("✅ Non-refundable hotel email sent successfully!");
+                $successCount++;
+            } else {
+                $this->error("❌ Failed to send non-refundable hotel email");
+                $errorCount++;
+            }
+            $this->newLine();
+        }
+
+        // Summary
+        $this->info("Test Summary:");
+        $this->info("✅ Successful: {$successCount}");
+        $this->info("❌ Failed: {$errorCount}");
+        
+        if ($errorCount > 0) {
+            $this->error("Some tests failed. Check your email configuration and template settings.");
+            return 1;
+        }
+
+        $this->info("All tests completed successfully!");
+        return 0;
+    }
+
+    /**
+     * Send a test email for the specified template
+     *
+     * @param string $email
+     * @param string $templateType
+     * @param string $month
+     * @return bool
+     */
+    private function sendTestEmail($email, $templateType, $month)
+    {
+        try {
+            // Sample data for testing
+            $variables = [
+                'app_name' => env('APP_NAME', 'As-home'),
+                'owner_name' => 'Test Property Owner',
+                'month_year' => date('F Y', strtotime($month . '-01')),
+                'total_reservations' => '8',
+                'total_revenue' => '4,250.00',
+                'currency_symbol' => system_setting('currency_symbol') ?? '$',
+                'commission_rate' => '15',
+                'commission_amount' => '637.50',
+                'net_amount' => '3,612.50',
+                'reservation_details' => $this->generateTestReservationDetails(),
+                'property_summary' => $this->generateTestPropertySummary(),
+            ];
+
+            // Add bank details for flexible template
+            if ($templateType === 'monthly_tax_invoice_hotels_flexible') {
+                $variables['bank_account_details'] = $this->generateTestBankDetails();
+            }
+
+            // Get template data
+            $emailTypeData = HelperService::getEmailTemplatesTypes($templateType);
+            
+            if (!$emailTypeData) {
+                $this->error("Template type '{$templateType}' not found in HelperService");
+                return false;
+            }
+
+            $templateData = system_setting($emailTypeData['type']);
+            
+            if (empty($templateData)) {
+                $this->warn("No template content found for '{$templateType}'. Using default template.");
+                $templateData = $this->getDefaultTemplate($templateType);
+            }
+
+            $emailTemplate = HelperService::replaceEmailVariables($templateData, $variables);
+
+            $data = [
+                'email_template' => $emailTemplate,
+                'email' => $email,
+                'title' => $emailTypeData['title'] . ' - TEST EMAIL',
+            ];
+
+            HelperService::sendMail($data);
+            
+            return true;
+        } catch (\Exception $e) {
+            $this->error("Error sending test email: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Generate test reservation details HTML
+     *
+     * @return string
+     */
+    private function generateTestReservationDetails()
+    {
+        return '<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+                <tr style="background-color: #f8f9fa;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reservation ID</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Property</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Check-in</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Check-out</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Guests</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">#12345</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Test Hotel - Room 101</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">15 Jan 2025</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">18 Jan 2025</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">2</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">$750.00</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">#12346</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Test Hotel - Room 205</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">20 Jan 2025</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">22 Jan 2025</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">1</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">$400.00</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">#12347</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Test Hotel - Room 301</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">25 Jan 2025</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">28 Jan 2025</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">3</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">$1,200.00</td>
+                </tr>
+            </tbody>
+        </table>';
+    }
+
+    /**
+     * Generate test property summary HTML
+     *
+     * @return string
+     */
+    private function generateTestPropertySummary()
+    {
+        return '<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+                <tr style="background-color: #f8f9fa;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Property</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reservations</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Revenue</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Test Hotel</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">8</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">$4,250.00</td>
+                </tr>
+            </tbody>
+        </table>';
+    }
+
+    /**
+     * Generate test bank details HTML
+     *
+     * @return string
+     */
+    private function generateTestBankDetails()
+    {
+        return '<div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">
+            <h3 style="color: #495057; margin-bottom: 15px;">Bank Account Details for Commission Payment</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 8px; font-weight: bold; width: 30%;">Bank Name:</td><td style="padding: 8px;">As-home Bank</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold;">Account Holder:</td><td style="padding: 8px;">As-home Group</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold;">Account Number:</td><td style="padding: 8px;">1234567890</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold;">Routing Number:</td><td style="padding: 8px;">987654321</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold;">SWIFT Code:</td><td style="padding: 8px;">ASHOMEXX</td></tr>
+            </table>
+            <p style="margin-top: 15px; color: #6c757d; font-size: 14px;">
+                <strong>Note:</strong> Please transfer the commission amount ({commission_amount} {currency_symbol}) to the above account within 7 days of receiving this invoice.
+            </p>
+        </div>';
+    }
+
+    /**
+     * Get default template content if none is set
+     *
+     * @param string $templateType
+     * @return string
+     */
+    private function getDefaultTemplate($templateType)
+    {
+        $monthYear = date('F Y', strtotime('2025-01-01'));
+        
+        if ($templateType === 'monthly_tax_invoice_hotels_flexible') {
+            return "Monthly Tax Invoice - {$monthYear}\n\nDear {owner_name},\n\nPlease find below your monthly tax invoice for {$monthYear} for your hotel properties with flexible booking policies.\n\nInvoice Summary:\nTotal Reservations: {total_reservations}\nTotal Revenue: {currency_symbol} {total_revenue}\nCommission Rate: {commission_rate}%\nCommission Amount: {currency_symbol} {commission_amount}\nNet Amount: {currency_symbol} {net_amount}\n\nReservation Details:\n{reservation_details}\n\nProperty Summary:\n{property_summary}\n\nBank Account Details:\n{bank_account_details}\n\nThank you for your partnership with {app_name}!";
+        } else {
+            return "Monthly Tax Invoice - {$monthYear}\n\nDear {owner_name},\n\nPlease find below your monthly tax invoice for {$monthYear} for your hotel properties with non-refundable booking policies.\n\nInvoice Summary:\nTotal Reservations: {total_reservations}\nTotal Revenue: {currency_symbol} {total_revenue}\nCommission Rate: {commission_rate}%\nCommission Amount: {currency_symbol} {commission_amount}\nNet Amount: {currency_symbol} {net_amount}\n\nReservation Details:\n{reservation_details}\n\nProperty Summary:\n{property_summary}\n\nThank you for your partnership with {app_name}!";
+        }
+    }
+}
