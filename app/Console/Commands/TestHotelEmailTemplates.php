@@ -327,7 +327,7 @@ class TestHotelEmailTemplates extends Command
 
             // Get reservations for the owner's properties in the specified month
             // First, get the owner's hotel properties
-            $ownerProperties = \App\Models\Property::where('customer_id', $owner->id)
+            $ownerProperties = \App\Models\Property::where('added_by', $owner->id)
                 ->where('property_classification', 5) // Hotel properties only
                 ->pluck('id')
                 ->toArray();
