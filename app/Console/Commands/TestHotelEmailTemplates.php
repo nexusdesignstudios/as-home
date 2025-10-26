@@ -16,7 +16,8 @@ class TestHotelEmailTemplates extends Command
     protected $signature = 'test:hotel-emails 
                             {email : The email address to send test emails to}
                             {--template=both : Template to test (flexible, non-refundable, or both)}
-                            {--month=2025-01 : Month to use for testing}';
+                            {--month=2025-01 : Month to use for testing}
+                            {--owner-email= : Owner email to get actual data from (optional)}';
 
     /**
      * The console command description.
@@ -33,6 +34,7 @@ class TestHotelEmailTemplates extends Command
         $email = $this->argument('email');
         $template = $this->option('template');
         $month = $this->option('month');
+        $ownerEmail = $this->option('owner-email');
 
         // Validate email
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -44,6 +46,11 @@ class TestHotelEmailTemplates extends Command
         $this->info("Email: {$email}");
         $this->info("Month: {$month}");
         $this->info("Template: {$template}");
+        if ($ownerEmail) {
+            $this->info("Using actual data from owner: {$ownerEmail}");
+        } else {
+            $this->info("Using sample data");
+        }
         $this->newLine();
 
         $successCount = 0;
@@ -52,7 +59,7 @@ class TestHotelEmailTemplates extends Command
         // Test flexible template
         if ($template === 'both' || $template === 'flexible') {
             $this->info("Testing Flexible Hotel Template...");
-            if ($this->sendTestEmail($email, 'monthly_tax_invoice_hotels_flexible', $month)) {
+            if ($this->sendTestEmail($email, 'monthly_tax_invoice_hotels_flexible', $month, $ownerEmail)) {
                 $this->info("✅ Flexible hotel email sent successfully!");
                 $successCount++;
             } else {
@@ -65,7 +72,7 @@ class TestHotelEmailTemplates extends Command
         // Test non-refundable template
         if ($template === 'both' || $template === 'non-refundable') {
             $this->info("Testing Non-Refundable Hotel Template...");
-            if ($this->sendTestEmail($email, 'monthly_tax_invoice_hotels_non_refundable', $month)) {
+            if ($this->sendTestEmail($email, 'monthly_tax_invoice_hotels_non_refundable', $month, $ownerEmail)) {
                 $this->info("✅ Non-refundable hotel email sent successfully!");
                 $successCount++;
             } else {
@@ -95,25 +102,57 @@ class TestHotelEmailTemplates extends Command
      * @param string $email
      * @param string $templateType
      * @param string $month
+     * @param string|null $ownerEmail
      * @return bool
      */
-    private function sendTestEmail($email, $templateType, $month)
+    private function sendTestEmail($email, $templateType, $month, $ownerEmail = null)
     {
         try {
-            // Sample data for testing
-            $variables = [
-                'app_name' => env('APP_NAME', 'As-home'),
-                'owner_name' => 'Test Property Owner',
-                'month_year' => date('F Y', strtotime($month . '-01')),
-                'total_reservations' => '8',
-                'total_revenue' => '4,250.00',
-                'currency_symbol' => system_setting('currency_symbol') ?? '$',
-                'commission_rate' => '15',
-                'commission_amount' => '637.50',
-                'net_amount' => '3,612.50',
-                'reservation_details' => $this->generateTestReservationDetails(),
-                'property_summary' => $this->generateTestPropertySummary(),
-            ];
+            // Get actual data if owner email is provided, otherwise use sample data
+            if ($ownerEmail) {
+                $actualData = $this->getActualOwnerData($ownerEmail, $month, $templateType);
+                if (!$actualData) {
+                    $this->error("No data found for owner: {$ownerEmail}");
+                    return false;
+                }
+                $variables = $actualData;
+            } else {
+                // Sample data for testing
+                $totalRevenue = 4250.00;
+                $serviceChargeRate = 10;
+                $salesTaxRate = 14;
+                $cityTaxRate = 5;
+                $serviceChargeAmount = $totalRevenue * ($serviceChargeRate / 100);
+                $salesTaxAmount = $totalRevenue * ($salesTaxRate / 100);
+                $cityTaxAmount = $totalRevenue * ($cityTaxRate / 100);
+                $totalTaxesAmount = $serviceChargeAmount + $salesTaxAmount + $cityTaxAmount;
+                $revenueAfterTaxes = $totalRevenue - $totalTaxesAmount;
+                $commissionRate = 15;
+                $commissionAmount = $revenueAfterTaxes * ($commissionRate / 100);
+                $netAmount = $revenueAfterTaxes - $commissionAmount;
+
+                $variables = [
+                    'app_name' => env('APP_NAME', 'As-home'),
+                    'owner_name' => 'Test Property Owner',
+                    'month_year' => date('F Y', strtotime($month . '-01')),
+                    'total_reservations' => '8',
+                    'total_revenue' => number_format($totalRevenue, 2),
+                    'currency_symbol' => system_setting('currency_symbol') ?? 'EGP',
+                    'service_charge_rate' => $serviceChargeRate,
+                    'service_charge_amount' => number_format($serviceChargeAmount, 2),
+                    'sales_tax_rate' => $salesTaxRate,
+                    'sales_tax_amount' => number_format($salesTaxAmount, 2),
+                    'city_tax_rate' => $cityTaxRate,
+                    'city_tax_amount' => number_format($cityTaxAmount, 2),
+                    'total_taxes_amount' => number_format($totalTaxesAmount, 2),
+                    'revenue_after_taxes' => number_format($revenueAfterTaxes, 2),
+                    'commission_rate' => $commissionRate,
+                    'commission_amount' => number_format($commissionAmount, 2),
+                    'net_amount' => number_format($netAmount, 2),
+                    'reservation_details' => $this->generateTestReservationDetails(),
+                    'property_summary' => $this->generateTestPropertySummary(),
+                ];
+            }
 
             // Add bank details for flexible template
             if ($templateType === 'monthly_tax_invoice_hotels_flexible') {
@@ -177,7 +216,7 @@ class TestHotelEmailTemplates extends Command
                     <td style="border: 1px solid #ddd; padding: 8px;">15 Jan 2025</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">18 Jan 2025</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">2</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">$750.00</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">EGP 750.00</td>
                 </tr>
                 <tr>
                     <td style="border: 1px solid #ddd; padding: 8px;">#12346</td>
@@ -185,7 +224,7 @@ class TestHotelEmailTemplates extends Command
                     <td style="border: 1px solid #ddd; padding: 8px;">20 Jan 2025</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">22 Jan 2025</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">1</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">$400.00</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">EGP 400.00</td>
                 </tr>
                 <tr>
                     <td style="border: 1px solid #ddd; padding: 8px;">#12347</td>
@@ -193,7 +232,7 @@ class TestHotelEmailTemplates extends Command
                     <td style="border: 1px solid #ddd; padding: 8px;">25 Jan 2025</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">28 Jan 2025</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">3</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">$1,200.00</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">EGP 1,200.00</td>
                 </tr>
             </tbody>
         </table>';
@@ -218,7 +257,7 @@ class TestHotelEmailTemplates extends Command
                 <tr>
                     <td style="border: 1px solid #ddd; padding: 8px;">Test Hotel</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">8</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">$4,250.00</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">EGP 4,250.00</td>
                 </tr>
             </tbody>
         </table>';
@@ -257,9 +296,201 @@ class TestHotelEmailTemplates extends Command
         $monthYear = date('F Y', strtotime('2025-01-01'));
         
         if ($templateType === 'monthly_tax_invoice_hotels_flexible') {
-            return "Monthly Tax Invoice - {$monthYear}\n\nDear {owner_name},\n\nPlease find below your monthly tax invoice for {$monthYear} for your hotel properties with flexible booking policies.\n\nInvoice Summary:\nTotal Reservations: {total_reservations}\nTotal Revenue: {currency_symbol} {total_revenue}\nCommission Rate: {commission_rate}%\nCommission Amount: {currency_symbol} {commission_amount}\nNet Amount: {currency_symbol} {net_amount}\n\nReservation Details:\n{reservation_details}\n\nProperty Summary:\n{property_summary}\n\nBank Account Details:\n{bank_account_details}\n\nThank you for your partnership with {app_name}!";
+            return "Monthly Tax Invoice - {$monthYear}\n\nDear {owner_name},\n\nPlease find below your monthly tax invoice for {$monthYear} for your hotel properties with flexible booking policies.\n\nInvoice Summary:\nTotal Reservations: {total_reservations}\nTotal Revenue: {currency_symbol} {total_revenue}\n\nProperty Taxes:\nService Charge ({service_charge_rate}%): {currency_symbol} {service_charge_amount}\nSales Tax ({sales_tax_rate}%): {currency_symbol} {sales_tax_amount}\nCity Tax ({city_tax_rate}%): {currency_symbol} {city_tax_amount}\nTotal Taxes: {currency_symbol} {total_taxes_amount}\n\nRevenue After Taxes: {currency_symbol} {revenue_after_taxes}\n\nAs-home Commission:\nCommission Rate: {commission_rate}%\nCommission Amount: {currency_symbol} {commission_amount}\nNet Amount: {currency_symbol} {net_amount}\n\nReservation Details:\n{reservation_details}\n\nProperty Summary:\n{property_summary}\n\nBank Account Details:\n{bank_account_details}\n\nThank you for your partnership with {app_name}!";
         } else {
-            return "Monthly Tax Invoice - {$monthYear}\n\nDear {owner_name},\n\nPlease find below your monthly tax invoice for {$monthYear} for your hotel properties with non-refundable booking policies.\n\nInvoice Summary:\nTotal Reservations: {total_reservations}\nTotal Revenue: {currency_symbol} {total_revenue}\nCommission Rate: {commission_rate}%\nCommission Amount: {currency_symbol} {commission_amount}\nNet Amount: {currency_symbol} {net_amount}\n\nReservation Details:\n{reservation_details}\n\nProperty Summary:\n{property_summary}\n\nThank you for your partnership with {app_name}!";
+            return "Monthly Tax Invoice - {$monthYear}\n\nDear {owner_name},\n\nPlease find below your monthly tax invoice for {$monthYear} for your hotel properties with non-refundable booking policies.\n\nInvoice Summary:\nTotal Reservations: {total_reservations}\nTotal Revenue: {currency_symbol} {total_revenue}\n\nProperty Taxes:\nService Charge ({service_charge_rate}%): {currency_symbol} {service_charge_amount}\nSales Tax ({sales_tax_rate}%): {currency_symbol} {sales_tax_amount}\nCity Tax ({city_tax_rate}%): {currency_symbol} {city_tax_amount}\nTotal Taxes: {currency_symbol} {total_taxes_amount}\n\nRevenue After Taxes: {currency_symbol} {revenue_after_taxes}\n\nAs-home Commission:\nCommission Rate: {commission_rate}%\nCommission Amount: {currency_symbol} {commission_amount}\nNet Amount: {currency_symbol} {net_amount}\n\nReservation Details:\n{reservation_details}\n\nProperty Summary:\n{property_summary}\n\nThank you for your partnership with {app_name}!";
         }
+    }
+
+    /**
+     * Get actual data from owner's properties and reservations
+     *
+     * @param string $ownerEmail
+     * @param string $month
+     * @param string $templateType
+     * @return array|null
+     */
+    private function getActualOwnerData($ownerEmail, $month, $templateType)
+    {
+        try {
+            // Find the owner by email
+            $owner = \App\Models\Customer::where('email', $ownerEmail)->first();
+            if (!$owner) {
+                $this->error("Owner not found with email: {$ownerEmail}");
+                return null;
+            }
+
+            // Parse month
+            $monthYear = \Carbon\Carbon::parse($month . '-01');
+            $startDate = $monthYear->startOfMonth();
+            $endDate = $monthYear->endOfMonth();
+
+            // Get reservations for the owner's properties in the specified month
+            $reservations = \App\Models\Reservation::whereHas('reservable.property', function ($query) use ($owner) {
+                $query->where('customer_id', $owner->id)
+                      ->where('property_classification', 5); // Hotel properties only
+            })
+            ->whereBetween('check_in', [$startDate, $endDate])
+            ->where('status', 'confirmed')
+            ->with(['reservable.property'])
+            ->get();
+
+            if ($reservations->isEmpty()) {
+                $this->warn("No reservations found for owner {$ownerEmail} in {$month}");
+                return null;
+            }
+
+            // Filter reservations based on template type (flexible vs non-refundable)
+            if ($templateType === 'monthly_tax_invoice_hotels_flexible') {
+                $reservations = $reservations->filter(function ($reservation) {
+                    $property = $reservation->reservable->property ?? $reservation->reservable;
+                    return $property->rent_package === 'flexible';
+                });
+            } else {
+                $reservations = $reservations->filter(function ($reservation) {
+                    $property = $reservation->reservable->property ?? $reservation->reservable;
+                    return $property->rent_package !== 'flexible';
+                });
+            }
+
+            if ($reservations->isEmpty()) {
+                $this->warn("No reservations found for {$templateType} properties for owner {$ownerEmail} in {$month}");
+                return null;
+            }
+
+            // Calculate totals
+            $totalRevenue = $reservations->sum('total_price');
+            
+            // Calculate property taxes
+            $serviceChargeRate = system_setting('hotel_service_charge_rate') ?? 10;
+            $salesTaxRate = system_setting('hotel_sales_tax_rate') ?? 14;
+            $cityTaxRate = system_setting('hotel_city_tax_rate') ?? 5;
+            
+            $serviceChargeAmount = $totalRevenue * ($serviceChargeRate / 100);
+            $salesTaxAmount = $totalRevenue * ($salesTaxRate / 100);
+            $cityTaxAmount = $totalRevenue * ($cityTaxRate / 100);
+            $totalTaxesAmount = $serviceChargeAmount + $salesTaxAmount + $cityTaxAmount;
+            
+            // Calculate revenue after taxes
+            $revenueAfterTaxes = $totalRevenue - $totalTaxesAmount;
+            
+            // Calculate commission
+            $firstReservation = $reservations->first();
+            $property = $firstReservation->reservable->property ?? $firstReservation->reservable;
+            $commissionRate = \App\Models\PropertyTax::getCommissionRate(5, $property->rent_package);
+            $commissionAmount = $revenueAfterTaxes * ($commissionRate / 100);
+            $netAmount = $revenueAfterTaxes - $commissionAmount;
+
+            // Generate reservation details HTML
+            $reservationDetails = $this->generateActualReservationDetails($reservations);
+            
+            // Generate property summary HTML
+            $propertySummary = $this->generateActualPropertySummary($reservations);
+
+            return [
+                'app_name' => env('APP_NAME', 'As-home'),
+                'owner_name' => $owner->name,
+                'month_year' => $monthYear->format('F Y'),
+                'total_reservations' => $reservations->count(),
+                'total_revenue' => number_format($totalRevenue, 2),
+                'currency_symbol' => system_setting('currency_symbol') ?? 'EGP',
+                'service_charge_rate' => $serviceChargeRate,
+                'service_charge_amount' => number_format($serviceChargeAmount, 2),
+                'sales_tax_rate' => $salesTaxRate,
+                'sales_tax_amount' => number_format($salesTaxAmount, 2),
+                'city_tax_rate' => $cityTaxRate,
+                'city_tax_amount' => number_format($cityTaxAmount, 2),
+                'total_taxes_amount' => number_format($totalTaxesAmount, 2),
+                'revenue_after_taxes' => number_format($revenueAfterTaxes, 2),
+                'commission_rate' => $commissionRate,
+                'commission_amount' => number_format($commissionAmount, 2),
+                'net_amount' => number_format($netAmount, 2),
+                'reservation_details' => $reservationDetails,
+                'property_summary' => $propertySummary,
+            ];
+
+        } catch (\Exception $e) {
+            $this->error("Error fetching actual data: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Generate actual reservation details HTML
+     *
+     * @param \Illuminate\Support\Collection $reservations
+     * @return string
+     */
+    private function generateActualReservationDetails($reservations)
+    {
+        $html = '<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+                <tr style="background-color: #f8f9fa;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reservation ID</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Property</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Check-in</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Check-out</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Guests</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>';
+
+        foreach ($reservations as $reservation) {
+            $property = $reservation->reservable->property ?? $reservation->reservable;
+            $propertyName = $property->name ?? 'Unknown Property';
+            
+            $html .= '<tr>
+                <td style="border: 1px solid #ddd; padding: 8px;">#' . $reservation->id . '</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">' . $propertyName . '</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->check_in->format('d M Y') . '</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->check_out->format('d M Y') . '</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->guests . '</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">' . (system_setting('currency_symbol') ?? 'EGP') . ' ' . number_format($reservation->total_price, 2) . '</td>
+            </tr>';
+        }
+
+        $html .= '</tbody></table>';
+        return $html;
+    }
+
+    /**
+     * Generate actual property summary HTML
+     *
+     * @param \Illuminate\Support\Collection $reservations
+     * @return string
+     */
+    private function generateActualPropertySummary($reservations)
+    {
+        // Group reservations by property
+        $propertyGroups = $reservations->groupBy(function ($reservation) {
+            $property = $reservation->reservable->property ?? $reservation->reservable;
+            return $property->id;
+        });
+
+        $html = '<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+                <tr style="background-color: #f8f9fa;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Property</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reservations</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Revenue</th>
+                </tr>
+            </thead>
+            <tbody>';
+
+        foreach ($propertyGroups as $propertyId => $propertyReservations) {
+            $property = $propertyReservations->first()->reservable->property ?? $propertyReservations->first()->reservable;
+            $propertyName = $property->name ?? 'Unknown Property';
+            $totalRevenue = $propertyReservations->sum('total_price');
+            
+            $html .= '<tr>
+                <td style="border: 1px solid #ddd; padding: 8px;">' . $propertyName . '</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">' . $propertyReservations->count() . '</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">' . (system_setting('currency_symbol') ?? 'EGP') . ' ' . number_format($totalRevenue, 2) . '</td>
+            </tr>';
+        }
+
+        $html .= '</tbody></table>';
+        return $html;
     }
 }

@@ -157,6 +157,20 @@ class MonthlyTaxInvoiceService
         try {
             // Calculate totals
             $totalRevenue = $reservations->sum('total_price');
+            
+            // Calculate property taxes (Service charge, Sales tax, City tax)
+            $serviceChargeRate = system_setting('hotel_service_charge_rate') ?? 10; // Default 10%
+            $salesTaxRate = system_setting('hotel_sales_tax_rate') ?? 14; // Default 14%
+            $cityTaxRate = system_setting('hotel_city_tax_rate') ?? 5; // Default 5%
+            
+            $serviceChargeAmount = $totalRevenue * ($serviceChargeRate / 100);
+            $salesTaxAmount = $totalRevenue * ($salesTaxRate / 100);
+            $cityTaxAmount = $totalRevenue * ($cityTaxRate / 100);
+            $totalTaxesAmount = $serviceChargeAmount + $salesTaxAmount + $cityTaxAmount;
+            
+            // Calculate revenue after taxes
+            $revenueAfterTaxes = $totalRevenue - $totalTaxesAmount;
+            
             // Calculate commission based on property classification and rent package
             // For simplicity, we'll use the first property's classification and rent package
             // In a real-world scenario, you might want to calculate commission per property
@@ -177,8 +191,9 @@ class MonthlyTaxInvoiceService
                 $commissionRate = 15; // Default fallback
             }
 
-            $commissionAmount = $totalRevenue * ($commissionRate / 100);
-            $netAmount = $totalRevenue - $commissionAmount;
+            // Calculate As-home commission on revenue after taxes
+            $commissionAmount = $revenueAfterTaxes * ($commissionRate / 100);
+            $netAmount = $revenueAfterTaxes - $commissionAmount;
 
             // Get currency symbol
             $currencySymbol = system_setting('currency_symbol') ?? '$';
@@ -227,6 +242,14 @@ class MonthlyTaxInvoiceService
                 'total_reservations' => $reservations->count(),
                 'total_revenue' => number_format($totalRevenue, 2),
                 'currency_symbol' => $currencySymbol,
+                'service_charge_rate' => $serviceChargeRate,
+                'service_charge_amount' => number_format($serviceChargeAmount, 2),
+                'sales_tax_rate' => $salesTaxRate,
+                'sales_tax_amount' => number_format($salesTaxAmount, 2),
+                'city_tax_rate' => $cityTaxRate,
+                'city_tax_amount' => number_format($cityTaxAmount, 2),
+                'total_taxes_amount' => number_format($totalTaxesAmount, 2),
+                'revenue_after_taxes' => number_format($revenueAfterTaxes, 2),
                 'commission_rate' => $commissionRate,
                 'commission_amount' => number_format($commissionAmount, 2),
                 'net_amount' => number_format($netAmount, 2),

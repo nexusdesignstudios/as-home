@@ -521,6 +521,38 @@ class HelperService
                                 'is_condition' => false,
                             ],
                             [
+                                'name' => 'service_charge_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'service_charge_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'sales_tax_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'sales_tax_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'city_tax_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'city_tax_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_taxes_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'revenue_after_taxes',
+                                'is_condition' => false,
+                            ],
+                            [
                                 'name' => 'commission_rate',
                                 'is_condition' => false,
                             ],
@@ -569,6 +601,38 @@ class HelperService
                             ],
                             [
                                 'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'service_charge_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'service_charge_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'sales_tax_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'sales_tax_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'city_tax_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'city_tax_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_taxes_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'revenue_after_taxes',
                                 'is_condition' => false,
                             ],
                             [
