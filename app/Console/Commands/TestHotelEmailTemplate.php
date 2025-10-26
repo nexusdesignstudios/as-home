@@ -402,12 +402,12 @@ class TestHotelEmailTemplate extends Command
     private function extractVariablesFromService($owner, $reservations, $monthYearDisplay, $templateType)
     {
         // Use the same calculation logic as MonthlyTaxInvoiceService
-        $totalRevenue = $reservations->sum('total_price');
+        $totalRevenue = (float) $reservations->sum('total_price');
 
         // Calculate property taxes (same as MonthlyTaxInvoiceService)
-        $serviceChargeRate = system_setting('hotel_service_charge_rate') ?? 10;
-        $salesTaxRate = system_setting('hotel_sales_tax_rate') ?? 14;
-        $cityTaxRate = system_setting('hotel_city_tax_rate') ?? 5;
+        $serviceChargeRate = (float) (system_setting('hotel_service_charge_rate') ?? 10);
+        $salesTaxRate = (float) (system_setting('hotel_sales_tax_rate') ?? 14);
+        $cityTaxRate = (float) (system_setting('hotel_city_tax_rate') ?? 5);
 
         $serviceChargeAmount = $totalRevenue * ($serviceChargeRate / 100);
         $salesTaxAmount = $totalRevenue * ($salesTaxRate / 100);
