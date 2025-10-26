@@ -19,7 +19,7 @@ class Kernel extends ConsoleKernel
         SeedPropertyDataCommand::class,
         GenerateMonthlyTaxInvoices::class,
         \App\Console\Commands\SendCheckoutReminders::class,
-        \App\Console\Commands\TestHotelEmailTemplates::class,
+        \App\Console\Commands\TestHotelEmailTemplate::class,
     ];
 
     /**
