@@ -491,6 +491,112 @@ class HelperService
                             ],
                         )
                     );
+                case 'monthly_tax_invoice_hotels_non_refundable':
+                    return array(
+                        'title' => 'Monthly Tax Invoice (Hotels non-refundable)',
+                        'type' => 'monthly_tax_invoice_hotels_non_refundable_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'owner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'month_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_reservations',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_revenue',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'commission_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'commission_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'net_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_details',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_summary',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'monthly_tax_invoice_hotels_flexible':
+                    return array(
+                        'title' => 'Monthly Tax Invoice (Hotels Flexible)',
+                        'type' => 'monthly_tax_invoice_hotels_flexible_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'owner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'month_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_reservations',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_revenue',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'commission_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'commission_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'net_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_details',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_summary',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'bank_account_details',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
                 case 'vacation_homes_basic_tax_invoice':
                     return array(
                         'title' => 'Vacation Homes Basic Package Tax Invoice',
@@ -1362,6 +1468,14 @@ class HelperService
             [
                 'title' => 'Monthly Tax Invoice',
                 'type' => 'monthly_tax_invoice',
+            ],
+            [
+                'title' => 'Monthly Tax Invoice (Hotels non-refundable)',
+                'type' => 'monthly_tax_invoice_hotels_non_refundable',
+            ],
+            [
+                'title' => 'Monthly Tax Invoice (Hotels Flexible)',
+                'type' => 'monthly_tax_invoice_hotels_flexible',
             ],
             [
                 'title' => 'Vacation Homes Basic Package Tax Invoice',

@@ -203,7 +203,12 @@ class MonthlyTaxInvoiceService
                         $emailTemplateType = "vacation_homes_basic_tax_invoice";
                     }
                 } elseif ($propertyClassification == 5) { // Hotel booking
-                    $emailTemplateType = "hotel_booking_tax_invoice";
+                    // Check if it's a flexible or non-refundable hotel
+                    if ($rentPackage == 'flexible') {
+                        $emailTemplateType = "monthly_tax_invoice_hotels_flexible";
+                    } else {
+                        $emailTemplateType = "monthly_tax_invoice_hotels_non_refundable";
+                    }
                 }
             }
 
@@ -228,6 +233,11 @@ class MonthlyTaxInvoiceService
                 'reservation_details' => $reservationDetails,
                 'property_summary' => $propertySummary,
             ];
+
+            // Add bank account details for flexible hotels
+            if ($emailTemplateType === "monthly_tax_invoice_hotels_flexible") {
+                $variables['bank_account_details'] = $this->generateBankAccountDetailsHtml();
+            }
 
             if (empty($templateData)) {
                 $templateData = "Your monthly tax invoice for {$monthYearDisplay}";
@@ -344,5 +354,36 @@ class MonthlyTaxInvoiceService
         }
 
         return 'Unknown Property';
+    }
+
+    /**
+     * Generate HTML for bank account details for flexible hotels
+     *
+     * @return string
+     */
+    private function generateBankAccountDetailsHtml()
+    {
+        // Get bank account details from system settings or use default
+        $bankName = system_setting('bank_name') ?? 'As-home Bank';
+        $accountNumber = system_setting('bank_account_number') ?? '1234567890';
+        $routingNumber = system_setting('bank_routing_number') ?? '987654321';
+        $swiftCode = system_setting('bank_swift_code') ?? 'ASHOMEXX';
+        $accountHolder = system_setting('bank_account_holder') ?? 'As-home Group';
+
+        $html = '<div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">';
+        $html .= '<h3 style="color: #495057; margin-bottom: 15px;">Bank Account Details for Commission Payment</h3>';
+        $html .= '<table style="width: 100%; border-collapse: collapse;">';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold; width: 30%;">Bank Name:</td><td style="padding: 8px;">' . $bankName . '</td></tr>';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold;">Account Holder:</td><td style="padding: 8px;">' . $accountHolder . '</td></tr>';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold;">Account Number:</td><td style="padding: 8px;">' . $accountNumber . '</td></tr>';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold;">Routing Number:</td><td style="padding: 8px;">' . $routingNumber . '</td></tr>';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold;">SWIFT Code:</td><td style="padding: 8px;">' . $swiftCode . '</td></tr>';
+        $html .= '</table>';
+        $html .= '<p style="margin-top: 15px; color: #6c757d; font-size: 14px;">';
+        $html .= '<strong>Note:</strong> Please transfer the commission amount ({commission_amount} {currency_symbol}) to the above account within 7 days of receiving this invoice.';
+        $html .= '</p>';
+        $html .= '</div>';
+
+        return $html;
     }
 }
