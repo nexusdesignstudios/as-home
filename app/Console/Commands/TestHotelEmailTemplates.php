@@ -388,78 +388,83 @@ $reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
                 return null;
             }
 
-            // Use the same calculation logic as MonthlyTaxInvoiceService
-            $totalRevenue = $reservations->sum('total_price');
-            
-            // Calculate property taxes (same as MonthlyTaxInvoiceService)
-            $serviceChargeRate = system_setting('hotel_service_charge_rate') ?? 10;
-            $salesTaxRate = system_setting('hotel_sales_tax_rate') ?? 14;
-            $cityTaxRate = system_setting('hotel_city_tax_rate') ?? 5;
-            
-            $serviceChargeAmount = $totalRevenue * ($serviceChargeRate / 100);
-            $salesTaxAmount = $totalRevenue * ($salesTaxRate / 100);
-            $cityTaxAmount = $totalRevenue * ($cityTaxRate / 100);
-            $totalTaxesAmount = $serviceChargeAmount + $salesTaxAmount + $cityTaxAmount;
-            
-            // Calculate revenue after taxes
-            $revenueAfterTaxes = $totalRevenue - $totalTaxesAmount;
-            
-            // Calculate commission using the same logic as MonthlyTaxInvoiceService
-            $firstReservation = $reservations->first();
-            $property = $this->getPropertyFromReservation($firstReservation);
-
-            if ($property) {
-                $propertyClassification = $property->getRawOriginal('property_classification');
-                $rentPackage = $property->rent_package;
-                $commissionRate = \App\Models\PropertyTax::getCommissionRate($propertyClassification, $rentPackage);
-            } else {
-                $commissionRate = 15; // Default fallback
-            }
-
-            // Calculate As-home commission on revenue after taxes
-            $commissionAmount = $revenueAfterTaxes * ($commissionRate / 100);
-            $netAmount = $revenueAfterTaxes - $commissionAmount;
-
-            // Get currency symbol
-            $currencySymbol = system_setting('currency_symbol') ?? 'EGP';
-
-            // Generate reservation details HTML using the same logic as MonthlyTaxInvoiceService
-            $reservationDetails = $this->generateReservationDetailsHtml($reservations);
-            
-            // Generate property summary HTML using the same logic as MonthlyTaxInvoiceService
-            $propertySummary = $this->generatePropertySummaryHtml($reservations);
-
-            $appName = env("APP_NAME") ?? "eBroker";
-
-            // Format month year for display
+            // Use the service's logic to extract variables
             $monthYearDisplay = \Carbon\Carbon::parse($monthYear)->format('F Y');
-
-            return [
-                'app_name' => $appName,
-                'owner_name' => $owner->name,
-                'month_year' => $monthYearDisplay,
-                'total_reservations' => $reservations->count(),
-                'total_revenue' => number_format($totalRevenue, 2),
-                'currency_symbol' => $currencySymbol,
-                'service_charge_rate' => $serviceChargeRate,
-                'service_charge_amount' => number_format($serviceChargeAmount, 2),
-                'sales_tax_rate' => $salesTaxRate,
-                'sales_tax_amount' => number_format($salesTaxAmount, 2),
-                'city_tax_rate' => $cityTaxRate,
-                'city_tax_amount' => number_format($cityTaxAmount, 2),
-                'total_taxes_amount' => number_format($totalTaxesAmount, 2),
-                'revenue_after_taxes' => number_format($revenueAfterTaxes, 2),
-                'commission_rate' => $commissionRate,
-                'commission_amount' => number_format($commissionAmount, 2),
-                'net_amount' => number_format($netAmount, 2),
-                'reservation_details' => $reservationDetails,
-                'property_summary' => $propertySummary,
-            ];
+            return $this->extractVariablesFromService($owner, $reservations, $monthYearDisplay, $templateType);
 
         } catch (\Exception $e) {
             $this->error("Error fetching actual data: " . $e->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Extract variables using the same logic as MonthlyTaxInvoiceService
+     */
+    private function extractVariablesFromService($owner, $reservations, $monthYearDisplay, $templateType)
+    {
+        // Use the same calculation logic as MonthlyTaxInvoiceService
+        $totalRevenue = $reservations->sum('total_price');
+        
+        // Calculate property taxes (same as MonthlyTaxInvoiceService)
+        $serviceChargeRate = system_setting('hotel_service_charge_rate') ?? 10;
+        $salesTaxRate = system_setting('hotel_sales_tax_rate') ?? 14;
+        $cityTaxRate = system_setting('hotel_city_tax_rate') ?? 5;
+        
+        $serviceChargeAmount = $totalRevenue * ($serviceChargeRate / 100);
+        $salesTaxAmount = $totalRevenue * ($salesTaxRate / 100);
+        $cityTaxAmount = $totalRevenue * ($cityTaxRate / 100);
+        $totalTaxesAmount = $serviceChargeAmount + $salesTaxAmount + $cityTaxAmount;
+        
+        // Calculate revenue after taxes
+        $revenueAfterTaxes = $totalRevenue - $totalTaxesAmount;
+        
+        // Calculate commission using the same logic as MonthlyTaxInvoiceService
+        $firstReservation = $reservations->first();
+        $property = $this->getPropertyFromReservation($firstReservation);
+
+        if ($property) {
+            $propertyClassification = $property->getRawOriginal('property_classification');
+            $rentPackage = $property->rent_package;
+            $commissionRate = \App\Models\PropertyTax::getCommissionRate($propertyClassification, $rentPackage);
+        } else {
+            $commissionRate = 15; // Default fallback
+        }
+
+        // Calculate As-home commission on revenue after taxes
+        $commissionAmount = $revenueAfterTaxes * ($commissionRate / 100);
+        $netAmount = $revenueAfterTaxes - $commissionAmount;
+
+        // Get currency symbol
+        $currencySymbol = system_setting('currency_symbol') ?? 'EGP';
+
+        // Generate HTML using the same methods as MonthlyTaxInvoiceService
+        $reservationDetails = $this->generateReservationDetailsHtml($reservations);
+        $propertySummary = $this->generatePropertySummaryHtml($reservations);
+
+        $appName = env("APP_NAME") ?? "eBroker";
+
+        return [
+            'app_name' => $appName,
+            'owner_name' => $owner->name,
+            'month_year' => $monthYearDisplay,
+            'total_reservations' => $reservations->count(),
+            'total_revenue' => number_format($totalRevenue, 2),
+            'currency_symbol' => $currencySymbol,
+            'service_charge_rate' => $serviceChargeRate,
+            'service_charge_amount' => number_format($serviceChargeAmount, 2),
+            'sales_tax_rate' => $salesTaxRate,
+            'sales_tax_amount' => number_format($salesTaxAmount, 2),
+            'city_tax_rate' => $cityTaxRate,
+            'city_tax_amount' => number_format($cityTaxAmount, 2),
+            'total_taxes_amount' => number_format($totalTaxesAmount, 2),
+            'revenue_after_taxes' => number_format($revenueAfterTaxes, 2),
+            'commission_rate' => $commissionRate,
+            'commission_amount' => number_format($commissionAmount, 2),
+            'net_amount' => number_format($netAmount, 2),
+            'reservation_details' => $reservationDetails,
+            'property_summary' => $propertySummary,
+        ];
     }
 
     /**
