@@ -6,7 +6,7 @@ use Illuminate\Console\Command;
 use App\Services\HelperService;
 use App\Models\Customer;
 
-class TestHotelEmailTemplates extends Command
+class TestHotelEmailTemplate extends Command
 {
     /**
      * The name and signature of the console command.
