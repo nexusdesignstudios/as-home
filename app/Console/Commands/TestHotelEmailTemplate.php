@@ -339,41 +339,29 @@ class TestHotelEmailTemplate extends Command
             $startDate = \Carbon\Carbon::parse($monthYear)->startOfMonth();
             $endDate = \Carbon\Carbon::parse($monthYear)->endOfMonth();
 
-           // Get reservations using the same logic as MonthlyTaxInvoiceService
-$reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
-    // Handle both direct property reservations and hotel room reservations
-    $query->where(function ($subQuery) use ($owner) {
-        // Direct property reservations
-        $subQuery->where('reservable_type', 'App\\Models\\Property')
-                 ->whereHas('reservable', function ($propertyQuery) use ($owner) {
-                     $propertyQuery->where('added_by', $owner->id)
-                                   ->where('property_classification', 5);
-                 });
-    })->orWhere(function ($subQuery) use ($owner) {
-        // Hotel room reservations - Handle both formats
-        $subQuery->where(function ($hotelQuery) use ($owner) {
-            $hotelQuery->where('reservable_type', 'App\\Models\\HotelRoom')
-                       ->whereHas('reservable', function ($roomQuery) use ($owner) {
-                           $roomQuery->whereHas('property', function ($propertyQuery) use ($owner) {
-                               $propertyQuery->where('added_by', $owner->id)
-                                             ->where('property_classification', 5);
-                           });
-                       });
-        })->orWhere(function ($hotelQuery) use ($owner) {
-            $hotelQuery->where('reservable_type', 'App\\Models\\HotelRoom')
-                       ->whereHas('reservable', function ($roomQuery) use ($owner) {
-                           $roomQuery->whereHas('property', function ($propertyQuery) use ($owner) {
-                               $propertyQuery->where('added_by', $owner->id)
-                                             ->where('property_classification', 5);
-                           });
-                       });
-        });
-    });
-})
-->whereBetween('check_in_date', [$startDate, $endDate])  // Also fix the date field name
-->where('status', 'confirmed')
-->with(['reservable.property'])
-->get();
+            // Get reservations using the same logic as MonthlyTaxInvoiceService
+            $reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
+                // Get all properties owned by this owner
+                $propertyIds = \App\Models\Property::where('added_by', $owner->id)
+                    ->where('property_classification', 5)
+                    ->pluck('id');
+
+                // Get hotel room IDs for this owner's properties
+                $hotelRoomIds = \App\Models\HotelRoom::whereIn('property_id', $propertyIds)->pluck('id');
+
+                // Get reservations for properties and hotel rooms
+                $query->where(function ($q) use ($propertyIds) {
+                    $q->where('reservable_type', 'App\\Models\\Property')
+                        ->whereIn('reservable_id', $propertyIds);
+                })->orWhere(function ($q) use ($hotelRoomIds) {
+                    $q->where('reservable_type', 'App\\Models\\HotelRoom')
+                        ->whereIn('reservable_id', $hotelRoomIds);
+                });
+            })
+            ->whereBetween('check_in_date', [$startDate, $endDate])
+            ->where('status', 'confirmed')
+            ->with(['reservable', 'customer'])
+            ->get();
 
             if ($reservations->isEmpty()) {
                 $this->warn("No reservations found for owner {$ownerEmail} in {$month}");
