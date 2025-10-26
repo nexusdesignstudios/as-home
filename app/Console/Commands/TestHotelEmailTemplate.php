@@ -350,14 +350,24 @@ $reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
                                    ->where('property_classification', 5);
                  });
     })->orWhere(function ($subQuery) use ($owner) {
-        // Hotel room reservations - Use the correct class name
-        $subQuery->where('reservable_type', 'App\\Models\\HotelRoom')
-                 ->whereHas('reservable', function ($roomQuery) use ($owner) {
-                     $roomQuery->whereHas('property', function ($propertyQuery) use ($owner) {
-                         $propertyQuery->where('added_by', $owner->id)
-                                       ->where('property_classification', 5);
-                     });
-                 });
+        // Hotel room reservations - Handle both formats
+        $subQuery->where(function ($hotelQuery) use ($owner) {
+            $hotelQuery->where('reservable_type', 'App\\Models\\HotelRoom')
+                       ->whereHas('reservable', function ($roomQuery) use ($owner) {
+                           $roomQuery->whereHas('property', function ($propertyQuery) use ($owner) {
+                               $propertyQuery->where('added_by', $owner->id)
+                                             ->where('property_classification', 5);
+                           });
+                       });
+        })->orWhere(function ($hotelQuery) use ($owner) {
+            $hotelQuery->where('reservable_type', 'hotel_room')
+                       ->whereHas('reservable', function ($roomQuery) use ($owner) {
+                           $roomQuery->whereHas('property', function ($propertyQuery) use ($owner) {
+                               $propertyQuery->where('added_by', $owner->id)
+                                             ->where('property_classification', 5);
+                           });
+                       });
+        });
     });
 })
 ->whereBetween('check_in_date', [$startDate, $endDate])  // Also fix the date field name
