@@ -326,13 +326,35 @@ class TestHotelEmailTemplates extends Command
             $endDate = $monthYear->endOfMonth();
 
             // Get reservations for the owner's properties in the specified month
-            $reservations = \App\Models\Reservation::whereHas('reservable.property', function ($query) use ($owner) {
-                $query->where('customer_id', $owner->id)
-                      ->where('property_classification', 5); // Hotel properties only
+            // First, get the owner's hotel properties
+            $ownerProperties = \App\Models\Property::where('customer_id', $owner->id)
+                ->where('property_classification', 5) // Hotel properties only
+                ->pluck('id')
+                ->toArray();
+
+            if (empty($ownerProperties)) {
+                $this->warn("No hotel properties found for owner {$ownerEmail}");
+                return null;
+            }
+
+            // Get reservations for these properties
+            $reservations = \App\Models\Reservation::where(function ($query) use ($ownerProperties) {
+                // Handle both direct property reservations and hotel room reservations
+                $query->where(function ($subQuery) use ($ownerProperties) {
+                    // Direct property reservations
+                    $subQuery->where('reservable_type', 'App\\Models\\Property')
+                             ->whereIn('reservable_id', $ownerProperties);
+                })->orWhere(function ($subQuery) use ($ownerProperties) {
+                    // Hotel room reservations
+                    $subQuery->where('reservable_type', 'App\\Models\\HotelRoom')
+                             ->whereHas('reservable', function ($roomQuery) use ($ownerProperties) {
+                                 $roomQuery->whereIn('property_id', $ownerProperties);
+                             });
+                });
             })
             ->whereBetween('check_in', [$startDate, $endDate])
             ->where('status', 'confirmed')
-            ->with(['reservable.property'])
+            ->with(['reservable'])
             ->get();
 
             if ($reservations->isEmpty()) {
@@ -343,13 +365,13 @@ class TestHotelEmailTemplates extends Command
             // Filter reservations based on template type (flexible vs non-refundable)
             if ($templateType === 'monthly_tax_invoice_hotels_flexible') {
                 $reservations = $reservations->filter(function ($reservation) {
-                    $property = $reservation->reservable->property ?? $reservation->reservable;
-                    return $property->rent_package === 'flexible';
+                    $property = $this->getPropertyFromReservation($reservation);
+                    return $property && $property->rent_package === 'flexible';
                 });
             } else {
                 $reservations = $reservations->filter(function ($reservation) {
-                    $property = $reservation->reservable->property ?? $reservation->reservable;
-                    return $property->rent_package !== 'flexible';
+                    $property = $this->getPropertyFromReservation($reservation);
+                    return $property && $property->rent_package !== 'flexible';
                 });
             }
 
@@ -376,8 +398,8 @@ class TestHotelEmailTemplates extends Command
             
             // Calculate commission
             $firstReservation = $reservations->first();
-            $property = $firstReservation->reservable->property ?? $firstReservation->reservable;
-            $commissionRate = \App\Models\PropertyTax::getCommissionRate(5, $property->rent_package);
+            $property = $this->getPropertyFromReservation($firstReservation);
+            $commissionRate = $property ? \App\Models\PropertyTax::getCommissionRate(5, $property->rent_package) : 15;
             $commissionAmount = $revenueAfterTaxes * ($commissionRate / 100);
             $netAmount = $revenueAfterTaxes - $commissionAmount;
 
@@ -437,8 +459,8 @@ class TestHotelEmailTemplates extends Command
             <tbody>';
 
         foreach ($reservations as $reservation) {
-            $property = $reservation->reservable->property ?? $reservation->reservable;
-            $propertyName = $property->name ?? 'Unknown Property';
+            $property = $this->getPropertyFromReservation($reservation);
+            $propertyName = $property ? $property->name : 'Unknown Property';
             
             $html .= '<tr>
                 <td style="border: 1px solid #ddd; padding: 8px;">#' . $reservation->id . '</td>
@@ -464,8 +486,8 @@ class TestHotelEmailTemplates extends Command
     {
         // Group reservations by property
         $propertyGroups = $reservations->groupBy(function ($reservation) {
-            $property = $reservation->reservable->property ?? $reservation->reservable;
-            return $property->id;
+            $property = $this->getPropertyFromReservation($reservation);
+            return $property ? $property->id : 'unknown';
         });
 
         $html = '<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
@@ -479,8 +501,8 @@ class TestHotelEmailTemplates extends Command
             <tbody>';
 
         foreach ($propertyGroups as $propertyId => $propertyReservations) {
-            $property = $propertyReservations->first()->reservable->property ?? $propertyReservations->first()->reservable;
-            $propertyName = $property->name ?? 'Unknown Property';
+            $property = $this->getPropertyFromReservation($propertyReservations->first());
+            $propertyName = $property ? $property->name : 'Unknown Property';
             $totalRevenue = $propertyReservations->sum('total_price');
             
             $html .= '<tr>
@@ -492,5 +514,28 @@ class TestHotelEmailTemplates extends Command
 
         $html .= '</tbody></table>';
         return $html;
+    }
+
+    /**
+     * Get property from reservation (handles both direct property and hotel room reservations)
+     *
+     * @param \App\Models\Reservation $reservation
+     * @return \App\Models\Property|null
+     */
+    private function getPropertyFromReservation($reservation)
+    {
+        try {
+            if ($reservation->reservable_type === 'App\\Models\\Property') {
+                // Direct property reservation
+                return $reservation->reservable;
+            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                // Hotel room reservation - get the property from the room
+                return $reservation->reservable->property ?? null;
+            }
+            return null;
+        } catch (\Exception $e) {
+            $this->warn("Error getting property from reservation: " . $e->getMessage());
+            return null;
+        }
     }
 }
