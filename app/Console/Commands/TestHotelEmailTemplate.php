@@ -360,7 +360,7 @@ $reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
                            });
                        });
         })->orWhere(function ($hotelQuery) use ($owner) {
-            $hotelQuery->where('reservable_type', 'hotel_room')
+            $hotelQuery->where('reservable_type', 'App\\Models\\HotelRoom')
                        ->whereHas('reservable', function ($roomQuery) use ($owner) {
                            $roomQuery->whereHas('property', function ($propertyQuery) use ($owner) {
                                $propertyQuery->where('added_by', $owner->id)
@@ -505,9 +505,9 @@ $reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
             $html .= '<tr>
                 <td style="border: 1px solid #ddd; padding: 8px;">#' . $reservation->id . '</td>
                 <td style="border: 1px solid #ddd; padding: 8px;">' . $propertyName . '</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->check_in->format('d M Y') . '</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->check_out->format('d M Y') . '</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->guests . '</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->check_in_date->format('d M Y') . '</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->check_out_date->format('d M Y') . '</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->number_of_guests . '</td>
                 <td style="border: 1px solid #ddd; padding: 8px;">' . (system_setting('currency_symbol') ?? 'EGP') . ' ' . number_format($reservation->total_price, 2) . '</td>
             </tr>';
         }
