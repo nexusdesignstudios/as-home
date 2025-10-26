@@ -17,7 +17,8 @@ class TestHotelEmailTemplates extends Command
                             {email : The email address to send test emails to}
                             {--template=both : Template to test (flexible, non-refundable, or both)}
                             {--month=2025-01 : Month to use for testing}
-                            {--owner-email= : Owner email to get actual data from (optional)}';
+                            {--owner-email= : Owner email to get actual data from (optional)}
+                            {--owner-id= : Owner ID to get actual data from (optional)}';
 
     /**
      * The console command description.
@@ -35,6 +36,7 @@ class TestHotelEmailTemplates extends Command
         $template = $this->option('template');
         $month = $this->option('month');
         $ownerEmail = $this->option('owner-email');
+        $ownerId = $this->option('owner-id');
 
         // Validate email
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -46,7 +48,9 @@ class TestHotelEmailTemplates extends Command
         $this->info("Email: {$email}");
         $this->info("Month: {$month}");
         $this->info("Template: {$template}");
-        if ($ownerEmail) {
+        if ($ownerId) {
+            $this->info("Using actual data from owner ID: {$ownerId}");
+        } elseif ($ownerEmail) {
             $this->info("Using actual data from owner: {$ownerEmail}");
         } else {
             $this->info("Using sample data");
@@ -59,7 +63,7 @@ class TestHotelEmailTemplates extends Command
         // Test flexible template
         if ($template === 'both' || $template === 'flexible') {
             $this->info("Testing Flexible Hotel Template...");
-            if ($this->sendTestEmail($email, 'monthly_tax_invoice_hotels_flexible', $month, $ownerEmail)) {
+            if ($this->sendTestEmail($email, 'monthly_tax_invoice_hotels_flexible', $month, $ownerEmail, $ownerId)) {
                 $this->info("✅ Flexible hotel email sent successfully!");
                 $successCount++;
             } else {
@@ -72,7 +76,7 @@ class TestHotelEmailTemplates extends Command
         // Test non-refundable template
         if ($template === 'both' || $template === 'non-refundable') {
             $this->info("Testing Non-Refundable Hotel Template...");
-            if ($this->sendTestEmail($email, 'monthly_tax_invoice_hotels_non_refundable', $month, $ownerEmail)) {
+            if ($this->sendTestEmail($email, 'monthly_tax_invoice_hotels_non_refundable', $month, $ownerEmail, $ownerId)) {
                 $this->info("✅ Non-refundable hotel email sent successfully!");
                 $successCount++;
             } else {
@@ -103,16 +107,17 @@ class TestHotelEmailTemplates extends Command
      * @param string $templateType
      * @param string $month
      * @param string|null $ownerEmail
+     * @param int|null $ownerId
      * @return bool
      */
-    private function sendTestEmail($email, $templateType, $month, $ownerEmail = null)
+    private function sendTestEmail($email, $templateType, $month, $ownerEmail = null, $ownerId = null)
     {
         try {
-            // Get actual data if owner email is provided, otherwise use sample data
-            if ($ownerEmail) {
-                $actualData = $this->getActualOwnerData($ownerEmail, $month, $templateType);
+            // Get actual data if owner email or ID is provided, otherwise use sample data
+            if ($ownerId || $ownerEmail) {
+                $actualData = $this->getActualOwnerData($ownerEmail, $month, $templateType, $ownerId);
                 if (!$actualData) {
-                    $this->error("No data found for owner: {$ownerEmail}");
+                    $this->error("No data found for owner: " . ($ownerId ? "ID {$ownerId}" : $ownerEmail));
                     return false;
                 }
                 $variables = $actualData;
@@ -305,19 +310,28 @@ class TestHotelEmailTemplates extends Command
     /**
      * Get actual data from owner's properties and reservations
      *
-     * @param string $ownerEmail
+     * @param string|null $ownerEmail
      * @param string $month
      * @param string $templateType
+     * @param int|null $ownerId
      * @return array|null
      */
-    private function getActualOwnerData($ownerEmail, $month, $templateType)
+    private function getActualOwnerData($ownerEmail, $month, $templateType, $ownerId = null)
     {
         try {
-            // Find the owner by email
-            $owner = \App\Models\Customer::where('email', $ownerEmail)->first();
-            if (!$owner) {
-                $this->error("Owner not found with email: {$ownerEmail}");
-                return null;
+            // Find the owner by ID or email
+            if ($ownerId) {
+                $owner = \App\Models\Customer::find($ownerId);
+                if (!$owner) {
+                    $this->error("Owner not found with ID: {$ownerId}");
+                    return null;
+                }
+            } else {
+                $owner = \App\Models\Customer::where('email', $ownerEmail)->first();
+                if (!$owner) {
+                    $this->error("Owner not found with email: {$ownerEmail}");
+                    return null;
+                }
             }
 
             // Parse month
@@ -327,7 +341,7 @@ class TestHotelEmailTemplates extends Command
 
             // Get reservations for the owner's properties in the specified month
             // First, get the owner's hotel properties
-            $ownerProperties = \App\Models\Property::where('added_by', $owner->id)
+            $ownerProperties = \App\Models\Property::where('customer_id', $owner->id)
                 ->where('property_classification', 5) // Hotel properties only
                 ->pluck('id')
                 ->toArray();
