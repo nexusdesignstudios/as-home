@@ -350,8 +350,8 @@ $reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
                                    ->where('property_classification', 5);
                  });
     })->orWhere(function ($subQuery) use ($owner) {
-        // Hotel room reservations
-        $subQuery->where('reservable_type', 'hotel_room')
+        // Hotel room reservations - Use the correct class name
+        $subQuery->where('reservable_type', 'App\\Models\\HotelRoom')
                  ->whereHas('reservable', function ($roomQuery) use ($owner) {
                      $roomQuery->whereHas('property', function ($propertyQuery) use ($owner) {
                          $propertyQuery->where('added_by', $owner->id)
@@ -360,7 +360,7 @@ $reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
                  });
     });
 })
-->whereBetween('check_in', [$startDate, $endDate])
+->whereBetween('check_in_date', [$startDate, $endDate])  // Also fix the date field name
 ->where('status', 'confirmed')
 ->with(['reservable.property'])
 ->get();
@@ -589,7 +589,7 @@ $reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
             if ($reservation->reservable_type === 'App\\Models\\Property') {
                 // Direct property reservation
                 return $reservation->reservable;
-            } elseif ($reservation->reservable_type === 'hotel_room') {
+            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
                 // Hotel room reservation - get the property from the room
                 return $reservation->reservable->property ?? null;
             }
