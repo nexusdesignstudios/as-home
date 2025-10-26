@@ -13,7 +13,7 @@ class TestHotelEmailTemplate extends Command
      *
      * @var string
      */
-    protected $signature = 'test:hotel-emails 
+    protected $signature = 'test:hotel-emails
                             {email : The email address to send test emails to}
                             {--template=both : Template to test (flexible, non-refundable, or both)}
                             {--month=2025-01 : Month to use for testing}
@@ -90,7 +90,7 @@ class TestHotelEmailTemplate extends Command
         $this->info("Test Summary:");
         $this->info("✅ Successful: {$successCount}");
         $this->info("❌ Failed: {$errorCount}");
-        
+
         if ($errorCount > 0) {
             $this->error("Some tests failed. Check your email configuration and template settings.");
             return 1;
@@ -166,14 +166,14 @@ class TestHotelEmailTemplate extends Command
 
             // Get template data
             $emailTypeData = HelperService::getEmailTemplatesTypes($templateType);
-            
+
             if (!$emailTypeData) {
                 $this->error("Template type '{$templateType}' not found in HelperService");
                 return false;
             }
 
             $templateData = system_setting($emailTypeData['type']);
-            
+
             if (empty($templateData)) {
                 $this->warn("No template content found for '{$templateType}'. Using default template.");
                 $templateData = $this->getDefaultTemplate($templateType);
@@ -188,7 +188,7 @@ class TestHotelEmailTemplate extends Command
             ];
 
             HelperService::sendMail($data);
-            
+
             return true;
         } catch (\Exception $e) {
             $this->error("Error sending test email: " . $e->getMessage());
@@ -299,7 +299,7 @@ class TestHotelEmailTemplate extends Command
     private function getDefaultTemplate($templateType)
     {
         $monthYear = date('F Y', strtotime('2025-01-01'));
-        
+
         if ($templateType === 'monthly_tax_invoice_hotels_flexible') {
             return "Monthly Tax Invoice - {$monthYear}\n\nDear {owner_name},\n\nPlease find below your monthly tax invoice for {$monthYear} for your hotel properties with flexible booking policies.\n\nInvoice Summary:\nTotal Reservations: {total_reservations}\nTotal Revenue: {currency_symbol} {total_revenue}\n\nProperty Taxes:\nService Charge ({service_charge_rate}%): {currency_symbol} {service_charge_amount}\nSales Tax ({sales_tax_rate}%): {currency_symbol} {sales_tax_amount}\nCity Tax ({city_tax_rate}%): {currency_symbol} {city_tax_amount}\nTotal Taxes: {currency_symbol} {total_taxes_amount}\n\nRevenue After Taxes: {currency_symbol} {revenue_after_taxes}\n\nAs-home Commission:\nCommission Rate: {commission_rate}%\nCommission Amount: {currency_symbol} {commission_amount}\nNet Amount: {currency_symbol} {net_amount}\n\nReservation Details:\n{reservation_details}\n\nProperty Summary:\n{property_summary}\n\nBank Account Details:\n{bank_account_details}\n\nThank you for your partnership with {app_name}!";
         } else {
@@ -415,20 +415,20 @@ $reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
     {
         // Use the same calculation logic as MonthlyTaxInvoiceService
         $totalRevenue = $reservations->sum('total_price');
-        
+
         // Calculate property taxes (same as MonthlyTaxInvoiceService)
         $serviceChargeRate = system_setting('hotel_service_charge_rate') ?? 10;
         $salesTaxRate = system_setting('hotel_sales_tax_rate') ?? 14;
         $cityTaxRate = system_setting('hotel_city_tax_rate') ?? 5;
-        
+
         $serviceChargeAmount = $totalRevenue * ($serviceChargeRate / 100);
         $salesTaxAmount = $totalRevenue * ($salesTaxRate / 100);
         $cityTaxAmount = $totalRevenue * ($cityTaxRate / 100);
         $totalTaxesAmount = $serviceChargeAmount + $salesTaxAmount + $cityTaxAmount;
-        
+
         // Calculate revenue after taxes
         $revenueAfterTaxes = $totalRevenue - $totalTaxesAmount;
-        
+
         // Calculate commission using the same logic as MonthlyTaxInvoiceService
         $firstReservation = $reservations->first();
         $property = $this->getPropertyFromReservation($firstReservation);
@@ -501,7 +501,7 @@ $reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
         foreach ($reservations as $reservation) {
             $property = $this->getPropertyFromReservation($reservation);
             $propertyName = $property ? $property->title : 'Unknown Property';
-            
+
             $html .= '<tr>
                 <td style="border: 1px solid #ddd; padding: 8px;">#' . $reservation->id . '</td>
                 <td style="border: 1px solid #ddd; padding: 8px;">' . $propertyName . '</td>
@@ -544,7 +544,7 @@ $reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
             $property = $this->getPropertyFromReservation($propertyReservations->first());
             $propertyName = $property ? $property->title : 'Unknown Property';
             $totalRevenue = $propertyReservations->sum('total_price');
-            
+
             $html .= '<tr>
                 <td style="border: 1px solid #ddd; padding: 8px;">' . $propertyName . '</td>
                 <td style="border: 1px solid #ddd; padding: 8px;">' . $propertyReservations->count() . '</td>
