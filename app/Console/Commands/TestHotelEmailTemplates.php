@@ -339,17 +339,31 @@ class TestHotelEmailTemplates extends Command
             $startDate = \Carbon\Carbon::parse($monthYear)->startOfMonth();
             $endDate = \Carbon\Carbon::parse($monthYear)->endOfMonth();
 
-            // Get reservations using the same logic as MonthlyTaxInvoiceService
-            $reservations = \App\Models\Reservation::whereHas('reservable', function ($query) use ($owner) {
-                $query->whereHas('property', function ($propertyQuery) use ($owner) {
-                    $propertyQuery->where('added_by', $owner->id)
-                                  ->where('property_classification', 5); // Hotel properties only
-                });
-            })
-            ->whereBetween('check_in', [$startDate, $endDate])
-            ->where('status', 'confirmed')
-            ->with(['reservable.property'])
-            ->get();
+           // Get reservations using the same logic as MonthlyTaxInvoiceService
+$reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
+    // Handle both direct property reservations and hotel room reservations
+    $query->where(function ($subQuery) use ($owner) {
+        // Direct property reservations
+        $subQuery->where('reservable_type', 'App\\Models\\Property')
+                 ->whereHas('reservable', function ($propertyQuery) use ($owner) {
+                     $propertyQuery->where('added_by', $owner->id)
+                                   ->where('property_classification', 5);
+                 });
+    })->orWhere(function ($subQuery) use ($owner) {
+        // Hotel room reservations
+        $subQuery->where('reservable_type', 'hotel_room')
+                 ->whereHas('reservable', function ($roomQuery) use ($owner) {
+                     $roomQuery->whereHas('property', function ($propertyQuery) use ($owner) {
+                         $propertyQuery->where('added_by', $owner->id)
+                                       ->where('property_classification', 5);
+                     });
+                 });
+    });
+})
+->whereBetween('check_in', [$startDate, $endDate])
+->where('status', 'confirmed')
+->with(['reservable.property'])
+->get();
 
             if ($reservations->isEmpty()) {
                 $this->warn("No reservations found for owner {$ownerEmail} in {$month}");
