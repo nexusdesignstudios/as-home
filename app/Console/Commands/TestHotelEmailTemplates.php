@@ -159,9 +159,9 @@ class TestHotelEmailTemplates extends Command
                 ];
             }
 
-            // Add bank details for flexible template
+            // Add bank details for flexible template using the same logic as MonthlyTaxInvoiceService
             if ($templateType === 'monthly_tax_invoice_hotels_flexible') {
-                $variables['bank_account_details'] = $this->generateTestBankDetails();
+                $variables['bank_account_details'] = $this->generateBankAccountDetailsHtml();
             }
 
             // Get template data
@@ -308,7 +308,7 @@ class TestHotelEmailTemplates extends Command
     }
 
     /**
-     * Get actual data from owner's properties and reservations
+     * Get actual data from owner's properties and reservations using MonthlyTaxInvoiceService logic
      *
      * @param string|null $ownerEmail
      * @param string $month
@@ -334,41 +334,21 @@ class TestHotelEmailTemplates extends Command
                 }
             }
 
-            // Parse month
-            $monthYear = \Carbon\Carbon::parse($month . '-01');
-            $startDate = $monthYear->startOfMonth();
-            $endDate = $monthYear->endOfMonth();
+            // Use the same logic as MonthlyTaxInvoiceService
+            $monthYear = $month . '-01';
+            $startDate = \Carbon\Carbon::parse($monthYear)->startOfMonth();
+            $endDate = \Carbon\Carbon::parse($monthYear)->endOfMonth();
 
-            // Get reservations for the owner's properties in the specified month
-            // First, get the owner's hotel properties
-            $ownerProperties = \App\Models\Property::where('added_by', $owner->id)
-                ->where('property_classification', 5) // Hotel properties only
-                ->pluck('id')
-                ->toArray();
-
-            if (empty($ownerProperties)) {
-                $this->warn("No hotel properties found for owner {$ownerEmail}");
-                return null;
-            }
-
-            // Get reservations for these properties
-            $reservations = \App\Models\Reservation::where(function ($query) use ($ownerProperties) {
-                // Handle both direct property reservations and hotel room reservations
-                $query->where(function ($subQuery) use ($ownerProperties) {
-                    // Direct property reservations
-                    $subQuery->where('reservable_type', 'App\\Models\\Property')
-                             ->whereIn('reservable_id', $ownerProperties);
-                })->orWhere(function ($subQuery) use ($ownerProperties) {
-                    // Hotel room reservations
-                    $subQuery->where('reservable_type', 'hotel_room')
-                             ->whereHas('reservable', function ($roomQuery) use ($ownerProperties) {
-                                 $roomQuery->whereIn('property_id', $ownerProperties);
-                             });
+            // Get reservations using the same logic as MonthlyTaxInvoiceService
+            $reservations = \App\Models\Reservation::whereHas('reservable', function ($query) use ($owner) {
+                $query->whereHas('property', function ($propertyQuery) use ($owner) {
+                    $propertyQuery->where('added_by', $owner->id)
+                                  ->where('property_classification', 5); // Hotel properties only
                 });
             })
             ->whereBetween('check_in', [$startDate, $endDate])
             ->where('status', 'confirmed')
-            ->with(['reservable'])
+            ->with(['reservable.property'])
             ->get();
 
             if ($reservations->isEmpty()) {
@@ -394,10 +374,10 @@ class TestHotelEmailTemplates extends Command
                 return null;
             }
 
-            // Calculate totals
+            // Use the same calculation logic as MonthlyTaxInvoiceService
             $totalRevenue = $reservations->sum('total_price');
             
-            // Calculate property taxes
+            // Calculate property taxes (same as MonthlyTaxInvoiceService)
             $serviceChargeRate = system_setting('hotel_service_charge_rate') ?? 10;
             $salesTaxRate = system_setting('hotel_sales_tax_rate') ?? 14;
             $cityTaxRate = system_setting('hotel_city_tax_rate') ?? 5;
@@ -410,26 +390,43 @@ class TestHotelEmailTemplates extends Command
             // Calculate revenue after taxes
             $revenueAfterTaxes = $totalRevenue - $totalTaxesAmount;
             
-            // Calculate commission
+            // Calculate commission using the same logic as MonthlyTaxInvoiceService
             $firstReservation = $reservations->first();
             $property = $this->getPropertyFromReservation($firstReservation);
-            $commissionRate = $property ? \App\Models\PropertyTax::getCommissionRate(5, $property->rent_package) : 15;
+
+            if ($property) {
+                $propertyClassification = $property->getRawOriginal('property_classification');
+                $rentPackage = $property->rent_package;
+                $commissionRate = \App\Models\PropertyTax::getCommissionRate($propertyClassification, $rentPackage);
+            } else {
+                $commissionRate = 15; // Default fallback
+            }
+
+            // Calculate As-home commission on revenue after taxes
             $commissionAmount = $revenueAfterTaxes * ($commissionRate / 100);
             $netAmount = $revenueAfterTaxes - $commissionAmount;
 
-            // Generate reservation details HTML
-            $reservationDetails = $this->generateActualReservationDetails($reservations);
+            // Get currency symbol
+            $currencySymbol = system_setting('currency_symbol') ?? 'EGP';
+
+            // Generate reservation details HTML using the same logic as MonthlyTaxInvoiceService
+            $reservationDetails = $this->generateReservationDetailsHtml($reservations);
             
-            // Generate property summary HTML
-            $propertySummary = $this->generateActualPropertySummary($reservations);
+            // Generate property summary HTML using the same logic as MonthlyTaxInvoiceService
+            $propertySummary = $this->generatePropertySummaryHtml($reservations);
+
+            $appName = env("APP_NAME") ?? "eBroker";
+
+            // Format month year for display
+            $monthYearDisplay = \Carbon\Carbon::parse($monthYear)->format('F Y');
 
             return [
-                'app_name' => env('APP_NAME', 'As-home'),
+                'app_name' => $appName,
                 'owner_name' => $owner->name,
-                'month_year' => $monthYear->format('F Y'),
+                'month_year' => $monthYearDisplay,
                 'total_reservations' => $reservations->count(),
                 'total_revenue' => number_format($totalRevenue, 2),
-                'currency_symbol' => system_setting('currency_symbol') ?? 'EGP',
+                'currency_symbol' => $currencySymbol,
                 'service_charge_rate' => $serviceChargeRate,
                 'service_charge_amount' => number_format($serviceChargeAmount, 2),
                 'sales_tax_rate' => $salesTaxRate,
@@ -452,12 +449,12 @@ class TestHotelEmailTemplates extends Command
     }
 
     /**
-     * Generate actual reservation details HTML
+     * Generate reservation details HTML using the same logic as MonthlyTaxInvoiceService
      *
      * @param \Illuminate\Support\Collection $reservations
      * @return string
      */
-    private function generateActualReservationDetails($reservations)
+    private function generateReservationDetailsHtml($reservations)
     {
         $html = '<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
             <thead>
@@ -474,7 +471,7 @@ class TestHotelEmailTemplates extends Command
 
         foreach ($reservations as $reservation) {
             $property = $this->getPropertyFromReservation($reservation);
-            $propertyName = $property ? $property->name : 'Unknown Property';
+            $propertyName = $property ? $property->title : 'Unknown Property';
             
             $html .= '<tr>
                 <td style="border: 1px solid #ddd; padding: 8px;">#' . $reservation->id . '</td>
@@ -491,12 +488,12 @@ class TestHotelEmailTemplates extends Command
     }
 
     /**
-     * Generate actual property summary HTML
+     * Generate property summary HTML using the same logic as MonthlyTaxInvoiceService
      *
      * @param \Illuminate\Support\Collection $reservations
      * @return string
      */
-    private function generateActualPropertySummary($reservations)
+    private function generatePropertySummaryHtml($reservations)
     {
         // Group reservations by property
         $propertyGroups = $reservations->groupBy(function ($reservation) {
@@ -516,7 +513,7 @@ class TestHotelEmailTemplates extends Command
 
         foreach ($propertyGroups as $propertyId => $propertyReservations) {
             $property = $this->getPropertyFromReservation($propertyReservations->first());
-            $propertyName = $property ? $property->name : 'Unknown Property';
+            $propertyName = $property ? $property->title : 'Unknown Property';
             $totalRevenue = $propertyReservations->sum('total_price');
             
             $html .= '<tr>
@@ -527,6 +524,37 @@ class TestHotelEmailTemplates extends Command
         }
 
         $html .= '</tbody></table>';
+        return $html;
+    }
+
+    /**
+     * Generate bank account details HTML using the same logic as MonthlyTaxInvoiceService
+     *
+     * @return string
+     */
+    private function generateBankAccountDetailsHtml()
+    {
+        // Get bank account details from system settings or use default
+        $bankName = system_setting('bank_name') ?? 'As-home Bank';
+        $accountNumber = system_setting('bank_account_number') ?? '1234567890';
+        $routingNumber = system_setting('bank_routing_number') ?? '987654321';
+        $swiftCode = system_setting('bank_swift_code') ?? 'ASHOMEXX';
+        $accountHolder = system_setting('bank_account_holder') ?? 'As-home Group';
+
+        $html = '<div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">';
+        $html .= '<h3 style="color: #495057; margin-bottom: 15px;">Bank Account Details for Commission Payment</h3>';
+        $html .= '<table style="width: 100%; border-collapse: collapse;">';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold; width: 30%;">Bank Name:</td><td style="padding: 8px;">' . $bankName . '</td></tr>';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold;">Account Holder:</td><td style="padding: 8px;">' . $accountHolder . '</td></tr>';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold;">Account Number:</td><td style="padding: 8px;">' . $accountNumber . '</td></tr>';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold;">Routing Number:</td><td style="padding: 8px;">' . $routingNumber . '</td></tr>';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold;">SWIFT Code:</td><td style="padding: 8px;">' . $swiftCode . '</td></tr>';
+        $html .= '</table>';
+        $html .= '<p style="margin-top: 15px; color: #6c757d; font-size: 14px;">';
+        $html .= '<strong>Note:</strong> Please transfer the commission amount ({commission_amount} {currency_symbol}) to the above account within 7 days of receiving this invoice.';
+        $html .= '</p>';
+        $html .= '</div>';
+
         return $html;
     }
 
