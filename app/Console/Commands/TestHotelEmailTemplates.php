@@ -360,7 +360,7 @@ class TestHotelEmailTemplates extends Command
                              ->whereIn('reservable_id', $ownerProperties);
                 })->orWhere(function ($subQuery) use ($ownerProperties) {
                     // Hotel room reservations
-                    $subQuery->where('reservable_type', 'App\\Models\\HotelRoom')
+                    $subQuery->where('reservable_type', 'hotel_room')
                              ->whereHas('reservable', function ($roomQuery) use ($ownerProperties) {
                                  $roomQuery->whereIn('property_id', $ownerProperties);
                              });
@@ -542,7 +542,7 @@ class TestHotelEmailTemplates extends Command
             if ($reservation->reservable_type === 'App\\Models\\Property') {
                 // Direct property reservation
                 return $reservation->reservable;
-            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+            } elseif ($reservation->reservable_type === 'hotel_room') {
                 // Hotel room reservation - get the property from the room
                 return $reservation->reservable->property ?? null;
             }
