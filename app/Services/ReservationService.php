@@ -822,9 +822,9 @@ Confirmation Date: {confirmation_date}
         $today = Carbon::today();
 
         // Check for 31st day restriction
-        if ($checkIn->format('d') == '31' || $checkOut->format('d') == '31') {
-            return false;
-        }
+        //if ($checkIn->format('d') == '31' || $checkOut->format('d') == '31') {
+        //    return false;
+        //}
 
         // Check for past dates
         if ($checkIn->lt($today) || $checkOut->lt($today)) {
