@@ -13,7 +13,7 @@ class TestHotelEmailTemplate extends Command
      *
      * @var string
      */
-    protected $signature = 'test:hotel-emails 
+    protected $signature = 'test:hotel-emails
                             {email : The email address to send test emails to}
                             {--template=both : Template to test (flexible, non-refundable, or both)}
                             {--month=2025-01 : Month to use for testing}
@@ -90,7 +90,7 @@ class TestHotelEmailTemplate extends Command
         $this->info("Test Summary:");
         $this->info("✅ Successful: {$successCount}");
         $this->info("❌ Failed: {$errorCount}");
-        
+
         if ($errorCount > 0) {
             $this->error("Some tests failed. Check your email configuration and template settings.");
             return 1;
@@ -166,14 +166,14 @@ class TestHotelEmailTemplate extends Command
 
             // Get template data
             $emailTypeData = HelperService::getEmailTemplatesTypes($templateType);
-            
+
             if (!$emailTypeData) {
                 $this->error("Template type '{$templateType}' not found in HelperService");
                 return false;
             }
 
             $templateData = system_setting($emailTypeData['type']);
-            
+
             if (empty($templateData)) {
                 $this->warn("No template content found for '{$templateType}'. Using default template.");
                 $templateData = $this->getDefaultTemplate($templateType);
@@ -188,7 +188,7 @@ class TestHotelEmailTemplate extends Command
             ];
 
             HelperService::sendMail($data);
-            
+
             return true;
         } catch (\Exception $e) {
             $this->error("Error sending test email: " . $e->getMessage());
@@ -299,7 +299,7 @@ class TestHotelEmailTemplate extends Command
     private function getDefaultTemplate($templateType)
     {
         $monthYear = date('F Y', strtotime('2025-01-01'));
-        
+
         if ($templateType === 'monthly_tax_invoice_hotels_flexible') {
             return "Monthly Tax Invoice - {$monthYear}\n\nDear {owner_name},\n\nPlease find below your monthly tax invoice for {$monthYear} for your hotel properties with flexible booking policies.\n\nInvoice Summary:\nTotal Reservations: {total_reservations}\nTotal Revenue: {currency_symbol} {total_revenue}\n\nProperty Taxes:\nService Charge ({service_charge_rate}%): {currency_symbol} {service_charge_amount}\nSales Tax ({sales_tax_rate}%): {currency_symbol} {sales_tax_amount}\nCity Tax ({city_tax_rate}%): {currency_symbol} {city_tax_amount}\nTotal Taxes: {currency_symbol} {total_taxes_amount}\n\nRevenue After Taxes: {currency_symbol} {revenue_after_taxes}\n\nAs-home Commission:\nCommission Rate: {commission_rate}%\nCommission Amount: {currency_symbol} {commission_amount}\nNet Amount: {currency_symbol} {net_amount}\n\nReservation Details:\n{reservation_details}\n\nProperty Summary:\n{property_summary}\n\nBank Account Details:\n{bank_account_details}\n\nThank you for your partnership with {app_name}!";
         } else {
@@ -339,41 +339,29 @@ class TestHotelEmailTemplate extends Command
             $startDate = \Carbon\Carbon::parse($monthYear)->startOfMonth();
             $endDate = \Carbon\Carbon::parse($monthYear)->endOfMonth();
 
-           // Get reservations using the same logic as MonthlyTaxInvoiceService
-$reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
-    // Handle both direct property reservations and hotel room reservations
-    $query->where(function ($subQuery) use ($owner) {
-        // Direct property reservations
-        $subQuery->where('reservable_type', 'App\\Models\\Property')
-                 ->whereHas('reservable', function ($propertyQuery) use ($owner) {
-                     $propertyQuery->where('added_by', $owner->id)
-                                   ->where('property_classification', 5);
-                 });
-    })->orWhere(function ($subQuery) use ($owner) {
-        // Hotel room reservations - Handle both formats
-        $subQuery->where(function ($hotelQuery) use ($owner) {
-            $hotelQuery->where('reservable_type', 'App\\Models\\HotelRoom')
-                       ->whereHas('reservable', function ($roomQuery) use ($owner) {
-                           $roomQuery->whereHas('property', function ($propertyQuery) use ($owner) {
-                               $propertyQuery->where('added_by', $owner->id)
-                                             ->where('property_classification', 5);
-                           });
-                       });
-        })->orWhere(function ($hotelQuery) use ($owner) {
-            $hotelQuery->where('reservable_type', 'hotel_room')
-                       ->whereHas('reservable', function ($roomQuery) use ($owner) {
-                           $roomQuery->whereHas('property', function ($propertyQuery) use ($owner) {
-                               $propertyQuery->where('added_by', $owner->id)
-                                             ->where('property_classification', 5);
-                           });
-                       });
-        });
-    });
-})
-->whereBetween('check_in_date', [$startDate, $endDate])  // Also fix the date field name
-->where('status', 'confirmed')
-->with(['reservable.property'])
-->get();
+            // Get reservations using the same logic as MonthlyTaxInvoiceService
+            $reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
+                // Get all properties owned by this owner
+                $propertyIds = \App\Models\Property::where('added_by', $owner->id)
+                    ->where('property_classification', 5)
+                    ->pluck('id');
+
+                // Get hotel room IDs for this owner's properties
+                $hotelRoomIds = \App\Models\HotelRoom::whereIn('property_id', $propertyIds)->pluck('id');
+
+                // Get reservations for properties and hotel rooms
+                $query->where(function ($q) use ($propertyIds) {
+                    $q->where('reservable_type', 'App\\Models\\Property')
+                        ->whereIn('reservable_id', $propertyIds);
+                })->orWhere(function ($q) use ($hotelRoomIds) {
+                    $q->where('reservable_type', 'App\\Models\\HotelRoom')
+                        ->whereIn('reservable_id', $hotelRoomIds);
+                });
+            })
+            ->whereBetween('check_in_date', [$startDate, $endDate])
+            ->where('status', 'confirmed')
+            ->with(['reservable', 'customer'])
+            ->get();
 
             if ($reservations->isEmpty()) {
                 $this->warn("No reservations found for owner {$ownerEmail} in {$month}");
@@ -414,21 +402,21 @@ $reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
     private function extractVariablesFromService($owner, $reservations, $monthYearDisplay, $templateType)
     {
         // Use the same calculation logic as MonthlyTaxInvoiceService
-        $totalRevenue = $reservations->sum('total_price');
-        
+        $totalRevenue = (float) $reservations->sum('total_price');
+
         // Calculate property taxes (same as MonthlyTaxInvoiceService)
-        $serviceChargeRate = system_setting('hotel_service_charge_rate') ?? 10;
-        $salesTaxRate = system_setting('hotel_sales_tax_rate') ?? 14;
-        $cityTaxRate = system_setting('hotel_city_tax_rate') ?? 5;
-        
+        $serviceChargeRate = (float) (system_setting('hotel_service_charge_rate') ?? 10);
+        $salesTaxRate = (float) (system_setting('hotel_sales_tax_rate') ?? 14);
+        $cityTaxRate = (float) (system_setting('hotel_city_tax_rate') ?? 5);
+
         $serviceChargeAmount = $totalRevenue * ($serviceChargeRate / 100);
         $salesTaxAmount = $totalRevenue * ($salesTaxRate / 100);
         $cityTaxAmount = $totalRevenue * ($cityTaxRate / 100);
         $totalTaxesAmount = $serviceChargeAmount + $salesTaxAmount + $cityTaxAmount;
-        
+
         // Calculate revenue after taxes
         $revenueAfterTaxes = $totalRevenue - $totalTaxesAmount;
-        
+
         // Calculate commission using the same logic as MonthlyTaxInvoiceService
         $firstReservation = $reservations->first();
         $property = $this->getPropertyFromReservation($firstReservation);
@@ -501,13 +489,13 @@ $reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
         foreach ($reservations as $reservation) {
             $property = $this->getPropertyFromReservation($reservation);
             $propertyName = $property ? $property->title : 'Unknown Property';
-            
+
             $html .= '<tr>
                 <td style="border: 1px solid #ddd; padding: 8px;">#' . $reservation->id . '</td>
                 <td style="border: 1px solid #ddd; padding: 8px;">' . $propertyName . '</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->check_in->format('d M Y') . '</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->check_out->format('d M Y') . '</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->guests . '</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->check_in_date->format('d M Y') . '</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->check_out_date->format('d M Y') . '</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->number_of_guests . '</td>
                 <td style="border: 1px solid #ddd; padding: 8px;">' . (system_setting('currency_symbol') ?? 'EGP') . ' ' . number_format($reservation->total_price, 2) . '</td>
             </tr>';
         }
@@ -544,7 +532,7 @@ $reservations = \App\Models\Reservation::where(function ($query) use ($owner) {
             $property = $this->getPropertyFromReservation($propertyReservations->first());
             $propertyName = $property ? $property->title : 'Unknown Property';
             $totalRevenue = $propertyReservations->sum('total_price');
-            
+
             $html .= '<tr>
                 <td style="border: 1px solid #ddd; padding: 8px;">' . $propertyName . '</td>
                 <td style="border: 1px solid #ddd; padding: 8px;">' . $propertyReservations->count() . '</td>
