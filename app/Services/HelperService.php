@@ -1654,6 +1654,18 @@ class HelperService
             Mail::send('mail-templates.mail-template', $data, function ($message) use ($data, $adminMail) {
                 $message->to($data['email'])->subject($data['title']);
                 $message->from($adminMail, 'As Home Team');
+                
+                // Add attachments if provided
+                if (isset($data['attachments']) && is_array($data['attachments'])) {
+                    foreach ($data['attachments'] as $attachment) {
+                        if (isset($attachment['content']) && isset($attachment['filename'])) {
+                            $mimeType = $attachment['mime_type'] ?? 'application/octet-stream';
+                            $message->attachData($attachment['content'], $attachment['filename'], [
+                                'mime' => $mimeType
+                            ]);
+                        }
+                    }
+                }
             });
         } catch (Exception $e) {
             if ($requiredEmailException == true) {

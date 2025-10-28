@@ -43,6 +43,7 @@ use App\Http\Controllers\TransactionsController;
 use App\Http\Controllers\HotelApartmentTypeController;
 use App\Http\Controllers\ReservationsAdminController;
 use App\Http\Controllers\PropertyQuestionFormController;
+use App\Http\Controllers\TaxInvoiceController;
 
 
 /*
@@ -539,3 +540,6 @@ Route::get('/send-money/failed', function(\Illuminate\Http\Request $request) {
         'source' => $request->input('source', 'paymob')
     ]);
 })->name('send-money.failed');
+
+// Test route for tax invoice PDF generation
+Route::get('/test-tax-invoice-pdf', [TaxInvoiceController::class, 'testPdf'])->name('test.tax.invoice.pdf');

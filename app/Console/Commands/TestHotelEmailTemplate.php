@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Services\HelperService;
+use App\Services\PDF\TaxInvoiceService;
 use App\Models\Customer;
 
 class TestHotelEmailTemplate extends Command
@@ -18,7 +19,8 @@ class TestHotelEmailTemplate extends Command
                             {--template=both : Template to test (flexible, non-refundable, or both)}
                             {--month=2025-01 : Month to use for testing}
                             {--owner-email= : Owner email to get actual data from (optional)}
-                            {--owner-id= : Owner ID to get actual data from (optional)}';
+                            {--owner-id= : Owner ID to get actual data from (optional)}
+                            {--with-pdf : Include PDF attachment in the email}';
 
     /**
      * The console command description.
@@ -37,6 +39,7 @@ class TestHotelEmailTemplate extends Command
         $month = $this->option('month');
         $ownerEmail = $this->option('owner-email');
         $ownerId = $this->option('owner-id');
+        $withPdf = $this->option('with-pdf');
 
         // Validate email
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -48,6 +51,7 @@ class TestHotelEmailTemplate extends Command
         $this->info("Email: {$email}");
         $this->info("Month: {$month}");
         $this->info("Template: {$template}");
+        $this->info("PDF Attachment: " . ($withPdf ? 'Yes' : 'No'));
         if ($ownerId) {
             $this->info("Using actual data from owner ID: {$ownerId}");
         } elseif ($ownerEmail) {
@@ -63,7 +67,7 @@ class TestHotelEmailTemplate extends Command
         // Test flexible template
         if ($template === 'both' || $template === 'flexible') {
             $this->info("Testing Flexible Hotel Template...");
-            if ($this->sendTestEmail($email, 'monthly_tax_invoice_hotels_flexible', $month, $ownerEmail, $ownerId)) {
+            if ($this->sendTestEmail($email, 'monthly_tax_invoice_hotels_flexible', $month, $ownerEmail, $ownerId, $withPdf)) {
                 $this->info("✅ Flexible hotel email sent successfully!");
                 $successCount++;
             } else {
@@ -76,7 +80,7 @@ class TestHotelEmailTemplate extends Command
         // Test non-refundable template
         if ($template === 'both' || $template === 'non-refundable') {
             $this->info("Testing Non-Refundable Hotel Template...");
-            if ($this->sendTestEmail($email, 'monthly_tax_invoice_hotels_non_refundable', $month, $ownerEmail, $ownerId)) {
+            if ($this->sendTestEmail($email, 'monthly_tax_invoice_hotels_non_refundable', $month, $ownerEmail, $ownerId, $withPdf)) {
                 $this->info("✅ Non-refundable hotel email sent successfully!");
                 $successCount++;
             } else {
@@ -108,9 +112,10 @@ class TestHotelEmailTemplate extends Command
      * @param string $month
      * @param string|null $ownerEmail
      * @param int|null $ownerId
+     * @param bool $withPdf
      * @return bool
      */
-    private function sendTestEmail($email, $templateType, $month, $ownerEmail = null, $ownerId = null)
+    private function sendTestEmail($email, $templateType, $month, $ownerEmail = null, $ownerId = null, $withPdf = false)
     {
         try {
             // Get actual data if owner email or ID is provided, otherwise use sample data
@@ -136,6 +141,13 @@ class TestHotelEmailTemplate extends Command
                 $commissionAmount = $revenueAfterTaxes * ($commissionRate / 100);
                 $netAmount = $revenueAfterTaxes - $commissionAmount;
 
+                // Create a test owner object
+                $testOwner = new Customer();
+                $testOwner->id = 999;
+                $testOwner->name = 'Test Property Owner';
+                $testOwner->email = 'testowner@example.com';
+                $testOwner->mobile = '+1234567890';
+
                 $variables = [
                     'app_name' => env('APP_NAME', 'As-home'),
                     'owner_name' => 'Test Property Owner',
@@ -156,6 +168,7 @@ class TestHotelEmailTemplate extends Command
                     'net_amount' => number_format($netAmount, 2),
                     'reservation_details' => $this->generateTestReservationDetails(),
                     'property_summary' => $this->generateTestPropertySummary(),
+                    'owner' => $testOwner, // Add owner object for PDF generation
                 ];
             }
 
@@ -186,6 +199,14 @@ class TestHotelEmailTemplate extends Command
                 'email' => $email,
                 'title' => $emailTypeData['title'] . ' - TEST EMAIL',
             ];
+
+            // Add PDF attachment if requested
+            if ($withPdf) {
+                $pdfData = $this->generatePdfAttachment($variables, $templateType, $month);
+                if ($pdfData) {
+                    $data['attachments'] = [$pdfData];
+                }
+            }
 
             HelperService::sendMail($data);
 
@@ -388,7 +409,9 @@ class TestHotelEmailTemplate extends Command
 
             // Use the service's logic to extract variables
             $monthYearDisplay = \Carbon\Carbon::parse($monthYear)->format('F Y');
-            return $this->extractVariablesFromService($owner, $reservations, $monthYearDisplay, $templateType);
+            $variables = $this->extractVariablesFromService($owner, $reservations, $monthYearDisplay, $templateType);
+            $variables['owner'] = $owner; // Add owner object for PDF generation
+            return $variables;
 
         } catch (\Exception $e) {
             $this->error("Error fetching actual data: " . $e->getMessage());
@@ -594,6 +617,47 @@ class TestHotelEmailTemplate extends Command
             return null;
         } catch (\Exception $e) {
             $this->warn("Error getting property from reservation: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Generate PDF attachment for the tax invoice
+     *
+     * @param array $variables
+     * @param string $templateType
+     * @param string $month
+     * @return array|null
+     */
+    private function generatePdfAttachment($variables, $templateType, $month)
+    {
+        try {
+            $taxInvoiceService = new TaxInvoiceService();
+            $owner = $variables['owner'] ?? null;
+            
+            if (!$owner) {
+                $this->warn("No owner data available for PDF generation");
+                return null;
+            }
+
+            // Generate PDF
+            $pdf = $taxInvoiceService->generatePDF($owner, $variables, $month, $templateType);
+            $pdfContent = $pdf->output();
+            
+            // Generate filename
+            $monthYearDisplay = \Carbon\Carbon::parse($month . '-01')->format('Y-m');
+            $filename = 'tax_invoice_' . $owner->id . '_' . $monthYearDisplay . '.pdf';
+            
+            $this->info("📄 PDF generated: {$filename}");
+            
+            return [
+                'content' => $pdfContent,
+                'filename' => $filename,
+                'mime_type' => 'application/pdf'
+            ];
+            
+        } catch (\Exception $e) {
+            $this->error("Error generating PDF attachment: " . $e->getMessage());
             return null;
         }
     }

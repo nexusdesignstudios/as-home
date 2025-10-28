@@ -6,6 +6,7 @@ use App\Models\Property;
 use App\Models\Reservation;
 use App\Models\Customer;
 use App\Models\Setting;
+use App\Services\PDF\TaxInvoiceService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -274,6 +275,12 @@ class MonthlyTaxInvoiceService
                 'title' => $emailTypeData['title'],
             ];
 
+            // Generate and attach PDF
+            $pdfAttachment = $this->generatePdfAttachment($owner, $variables, $monthYear, $emailTemplateType);
+            if ($pdfAttachment) {
+                $data['attachments'] = [$pdfAttachment];
+            }
+
             HelperService::sendMail($data);
             return true;
         } catch (\Exception $e) {
@@ -408,5 +415,49 @@ class MonthlyTaxInvoiceService
         $html .= '</div>';
 
         return $html;
+    }
+
+    /**
+     * Generate PDF attachment for the tax invoice
+     *
+     * @param Customer $owner
+     * @param array $variables
+     * @param string $monthYear
+     * @param string $templateType
+     * @return array|null
+     */
+    private function generatePdfAttachment($owner, $variables, $monthYear, $templateType)
+    {
+        try {
+            $taxInvoiceService = new TaxInvoiceService();
+            
+            // Generate PDF
+            $pdf = $taxInvoiceService->generatePDF($owner, $variables, $monthYear, $templateType);
+            $pdfContent = $pdf->output();
+            
+            // Generate filename
+            $monthYearDisplay = Carbon::parse($monthYear . '-01')->format('Y-m');
+            $filename = 'tax_invoice_' . $owner->id . '_' . $monthYearDisplay . '.pdf';
+            
+            Log::info('PDF generated for tax invoice', [
+                'owner_id' => $owner->id,
+                'filename' => $filename,
+                'month_year' => $monthYear
+            ]);
+            
+            return [
+                'content' => $pdfContent,
+                'filename' => $filename,
+                'mime_type' => 'application/pdf'
+            ];
+            
+        } catch (\Exception $e) {
+            Log::error('Error generating PDF attachment for tax invoice', [
+                'owner_id' => $owner->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return null;
+        }
     }
 }
