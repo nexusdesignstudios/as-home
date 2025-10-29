@@ -8984,7 +8984,7 @@ class ApiController extends Controller
 
         try {
             // Get authenticated user
-            $customer = Auth::user();
+            $customer = Auth::guard('sanctum')->user();
             if (!$customer) {
                 return response()->json([
                     'error' => true,
@@ -9096,7 +9096,7 @@ class ApiController extends Controller
     {
         try {
             // Get authenticated user
-            $customer = Auth::user();
+            $customer = Auth::guard('sanctum')->user();
             if (!$customer) {
                 return response()->json([
                     'error' => true,
