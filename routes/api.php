@@ -72,10 +72,11 @@ Route::post('mortgage_calc', [ApiController::class, 'mortgage_calc']);
 
 Route::get('get_app_settings', [ApiController::class, 'get_app_settings']);
 /*********************************************************************** */
-Route::post('save-property-question-answers', [ApiController::class, 'savePropertyQuestionAnswers']);
 
 /** Authenticated APIS */
 Route::group(['middleware' => ['auth:sanctum']], function () {
+    Route::post('save-property-question-answers', [ApiController::class, 'savePropertyQuestionAnswers']);
+    Route::get('check-user-review-status', [ApiController::class, 'checkUserReviewStatus']);
     /*********************************************************************** */
     /** Property */
     Route::post('post_property', [ApiController::class, 'post_property']);

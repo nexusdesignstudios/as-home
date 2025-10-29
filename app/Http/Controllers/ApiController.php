@@ -8971,7 +8971,8 @@ class ApiController extends Controller
             'property_id' => 'required|exists:propertys,id',
             'answers' => 'required|array',
             'answers.*.field_id' => 'required|exists:property_question_fields,id',
-            'answers.*.value' => 'required'
+            'answers.*.value' => 'required',
+            'reservation_id' => 'nullable|exists:reservations,id'
         ]);
 
         if ($validator->fails()) {
@@ -8982,7 +8983,19 @@ class ApiController extends Controller
         }
 
         try {
+            // Get authenticated user
+            $customer = Auth::user();
+            if (!$customer) {
+                return response()->json([
+                    'error' => true,
+                    'message' => trans('User not authenticated')
+                ]);
+            }
+
             $propertyId = $request->property_id;
+            $reservationId = $request->reservation_id ?? null;
+            $customerId = $customer->id;
+
             $property = Property::find($propertyId);
 
             if (!$property) {
@@ -8992,11 +9005,31 @@ class ApiController extends Controller
                 ]);
             }
 
+            // Check if user has already submitted a review for this property/reservation
+            $existingReview = PropertyQuestionAnswer::where('customer_id', $customerId)
+                ->where('property_id', $propertyId)
+                ->when($reservationId, function ($query) use ($reservationId) {
+                    return $query->where('reservation_id', $reservationId);
+                })
+                ->first();
+
+            if ($existingReview) {
+                return response()->json([
+                    'error' => true,
+                    'message' => trans('You have already submitted a review for this property')
+                ]);
+            }
+
             // Begin transaction
             DB::beginTransaction();
 
-            // Delete existing answers for this property
-            PropertyQuestionAnswer::where('property_id', $propertyId)->delete();
+            // Delete existing answers for this specific user, property, and reservation combination
+            PropertyQuestionAnswer::where('customer_id', $customerId)
+                ->where('property_id', $propertyId)
+                ->when($reservationId, function ($query) use ($reservationId) {
+                    return $query->where('reservation_id', $reservationId);
+                })
+                ->delete();
 
             // Process each answer
             foreach ($request->answers as $answer) {
@@ -9027,9 +9060,11 @@ class ApiController extends Controller
                     $value = json_encode($value);
                 }
 
-                // Create new answer
+                // Create new answer with user and reservation tracking
                 PropertyQuestionAnswer::create([
                     'property_id' => $propertyId,
+                    'customer_id' => $customerId,
+                    'reservation_id' => $reservationId,
                     'property_question_field_id' => $answer['field_id'],
                     'value' => $value
                 ]);
@@ -9046,6 +9081,65 @@ class ApiController extends Controller
             return response()->json([
                 'error' => true,
                 'message' => trans('Something went wrong'),
+                'data' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Check if user has already submitted a review for a property/reservation
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function checkUserReviewStatus(Request $request)
+    {
+        try {
+            // Get authenticated user
+            $customer = Auth::user();
+            if (!$customer) {
+                return response()->json([
+                    'error' => true,
+                    'message' => trans('User not authenticated'),
+                    'has_submitted' => false
+                ]);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'property_id' => 'required|exists:propertys,id',
+                'reservation_id' => 'nullable|exists:reservations,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => true,
+                    'message' => $validator->errors()->first(),
+                    'has_submitted' => false
+                ]);
+            }
+
+            $propertyId = $request->property_id;
+            $reservationId = $request->reservation_id ?? null;
+            $customerId = $customer->id;
+
+            // Check if user has already submitted a review
+            $existingReview = PropertyQuestionAnswer::where('customer_id', $customerId)
+                ->where('property_id', $propertyId)
+                ->when($reservationId, function ($query) use ($reservationId) {
+                    return $query->where('reservation_id', $reservationId);
+                })
+                ->first();
+
+            return response()->json([
+                'error' => false,
+                'has_submitted' => $existingReview !== null,
+                'message' => $existingReview ? 'Review already submitted' : 'Review not submitted yet'
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'error' => true,
+                'message' => trans('Something went wrong'),
+                'has_submitted' => false,
                 'data' => $e->getMessage()
             ]);
         }

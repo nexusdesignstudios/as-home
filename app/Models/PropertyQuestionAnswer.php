@@ -15,6 +15,8 @@ class PropertyQuestionAnswer extends Model
 
     protected $fillable = [
         'property_id',
+        'customer_id',
+        'reservation_id',
         'property_question_field_id',
         'value',
         'created_at',
