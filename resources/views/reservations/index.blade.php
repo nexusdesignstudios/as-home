@@ -46,7 +46,7 @@
                             <i class="bi bi-currency-dollar"></i>
                         </div>
                         <div class="ms-3">
-                            <h4 class="mb-0" id="total-revenue">$0.00</h4>
+                            <h4 class="mb-0" id="total-revenue">0.00 EGP</h4>
                             <p class="mb-0 text-muted">Total Revenue</p>
                         </div>
                     </div>
@@ -91,26 +91,55 @@
             <h4 class="card-title">Filter Reservations</h4>
         </div>
         <div class="card-body">
-            <div class="column">
-                <div class="col-md-4">
-                    <div class="col-md-4">
+            <div class="row">
+                <div class="col-md-3">
                     <div class="form-group">
                         <label for="date-from">From Date</label>
                         <input type="date" id="date-from" class="form-control">
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="form-group">
                         <label for="date-to">To Date</label>
                         <input type="date" id="date-to" class="form-control">
                     </div>
                 </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label for="status-filter">Status</label>
+                        <select id="status-filter" class="form-control">
+                            <option value="all">All Statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="cancelled">Cancelled</option>
+                            <option value="completed">Completed</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="col-md-4 d-flex align-items-center">
-                    <button id="apply-filter" class="btn btn-primary me-2">Apply Filter</button>
-                    <button id="reset-filter" class="btn btn-secondary">Reset</button>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label for="payment-status-filter">Payment Status</label>
+                        <select id="payment-status-filter" class="form-control">
+                            <option value="all">All Payments</option>
+                            <option value="paid">Paid</option>
+                            <option value="unpaid">Unpaid</option>
+                            <option value="partial">Partial</option>
+                            <option value="cash">Cash</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <button type="button" class="btn btn-primary form-control" id="apply-filter">Apply Filters</button>
+                    </div>
                 </div>
             </div>
+        </div>
+        <div class="card-footer">
+            <button id="reset-filter" class="btn btn-secondary">Reset Filters</button>
         </div>
     </div>
 
@@ -288,6 +317,8 @@ let currentTab = 'all';
 let tables = {};
 let dateFrom = '';
 let dateTo = '';
+let status = 'all';
+let paymentStatus = 'all';
 
 $(document).ready(function() {
     // Load statistics
@@ -295,6 +326,11 @@ $(document).ready(function() {
 
     // Initialize tables
     initializeTables();
+    
+    // Force refresh all tables on page load
+    setTimeout(function() {
+        refreshAllTables();
+    }, 1000);
 
     // Handle tab changes
     $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
@@ -313,12 +349,14 @@ $(document).ready(function() {
         }
     });
 
-    // Handle date filter
+    // Handle apply filter button
     $('#apply-filter').on('click', function() {
         dateFrom = $('#date-from').val();
         dateTo = $('#date-to').val();
+        status = $('#status-filter').val() || 'all';
+        paymentStatus = $('#payment-status-filter').val() || 'all';
 
-        // Refresh all tables with the new date filter
+        // Refresh all tables with the new filters
         refreshAllTables();
     });
 
@@ -326,8 +364,12 @@ $(document).ready(function() {
     $('#reset-filter').on('click', function() {
         $('#date-from').val('');
         $('#date-to').val('');
+        $('#status-filter').val('all');
+        $('#payment-status-filter').val('all');
         dateFrom = '';
         dateTo = '';
+        status = 'all';
+        paymentStatus = 'all';
 
         // Refresh all tables
         refreshAllTables();
@@ -343,7 +385,20 @@ function initializeTables() {
             params.type = 'all';
             if (dateFrom) params.date_from = dateFrom;
             if (dateTo) params.date_to = dateTo;
+            if (status && status !== 'all') params.status = status;
+            if (paymentStatus && paymentStatus !== 'all') params.payment_status = paymentStatus;
+            params._token = '{{ csrf_token() }}';
             return params;
+        },
+        responseHandler: function(res) {
+            // Ensure the response format matches Bootstrap Table expectations
+            if (res && res.rows && Array.isArray(res.rows)) {
+                return {
+                    total: res.total || res.rows.length,
+                    rows: res.rows
+                };
+            }
+            return res;
         },
         columns: [
             { field: 'id', title: 'ID', sortable: true },
@@ -361,6 +416,9 @@ function initializeTables() {
             { field: 'payment_status', title: 'Payment', sortable: true, formatter: function(value) {
                 return value;
             }},
+            { field: 'payment_method', title: 'Method', sortable: true, formatter: function(value) {
+                return value || '-';
+            }},
             { field: 'created_at', title: 'Created', sortable: true },
             { field: 'actions', title: 'Actions', formatter: function(value) {
                 return value;
@@ -371,8 +429,15 @@ function initializeTables() {
         showRefresh: true,
         showToggle: true,
         showColumns: true,
-        pageSize: 10,
-        pageList: [10, 25, 50, 100]
+        pageSize: 25,
+        pageList: [10, 25, 50, 100, 200],
+        sidePagination: 'server',
+        onLoadError: function(status, jqXHR) {
+            console.error('Vacation Homes Table Load Error:', status, jqXHR);
+        },
+        onLoadSuccess: function(data) {
+            console.log('Vacation Homes Table Load Success:', data);
+        }
     });
 
     // Initialize Vacation Homes table
@@ -383,7 +448,20 @@ function initializeTables() {
             params.type = 'vacation_homes';
             if (dateFrom) params.date_from = dateFrom;
             if (dateTo) params.date_to = dateTo;
+            if (status && status !== 'all') params.status = status;
+            if (paymentStatus && paymentStatus !== 'all') params.payment_status = paymentStatus;
+            params._token = '{{ csrf_token() }}';
             return params;
+        },
+        responseHandler: function(res) {
+            // Ensure the response format matches Bootstrap Table expectations
+            if (res && res.rows && Array.isArray(res.rows)) {
+                return {
+                    total: res.total || res.rows.length,
+                    rows: res.rows
+                };
+            }
+            return res;
         },
         columns: [
             { field: 'id', title: 'ID', sortable: true },
@@ -400,6 +478,9 @@ function initializeTables() {
             { field: 'payment_status', title: 'Payment', sortable: true, formatter: function(value) {
                 return value;
             }},
+            { field: 'payment_method', title: 'Method', sortable: true, formatter: function(value) {
+                return value || '-';
+            }},
             { field: 'created_at', title: 'Created', sortable: true },
             { field: 'actions', title: 'Actions', formatter: function(value) {
                 return value;
@@ -410,8 +491,15 @@ function initializeTables() {
         showRefresh: true,
         showToggle: true,
         showColumns: true,
-        pageSize: 10,
-        pageList: [10, 25, 50, 100]
+        pageSize: 25,
+        pageList: [10, 25, 50, 100, 200],
+        sidePagination: 'server',
+        onLoadError: function(status, jqXHR) {
+            console.error('Vacation Homes Table Load Error:', status, jqXHR);
+        },
+        onLoadSuccess: function(data) {
+            console.log('Vacation Homes Table Load Success:', data);
+        }
     });
 
     // Initialize Hotels table
@@ -422,7 +510,20 @@ function initializeTables() {
             params.type = 'hotels';
             if (dateFrom) params.date_from = dateFrom;
             if (dateTo) params.date_to = dateTo;
+            if (status && status !== 'all') params.status = status;
+            if (paymentStatus && paymentStatus !== 'all') params.payment_status = paymentStatus;
+            params._token = '{{ csrf_token() }}';
             return params;
+        },
+        responseHandler: function(res) {
+            // Ensure the response format matches Bootstrap Table expectations
+            if (res && res.rows && Array.isArray(res.rows)) {
+                return {
+                    total: res.total || res.rows.length,
+                    rows: res.rows
+                };
+            }
+            return res;
         },
         columns: [
             { field: 'id', title: 'ID', sortable: true },
@@ -440,6 +541,9 @@ function initializeTables() {
             { field: 'payment_status', title: 'Payment', sortable: true, formatter: function(value) {
                 return value;
             }},
+            { field: 'payment_method', title: 'Method', sortable: true, formatter: function(value) {
+                return value || '-';
+            }},
             { field: 'created_at', title: 'Created', sortable: true },
             { field: 'actions', title: 'Actions', formatter: function(value) {
                 return value;
@@ -450,8 +554,15 @@ function initializeTables() {
         showRefresh: true,
         showToggle: true,
         showColumns: true,
-        pageSize: 10,
-        pageList: [10, 25, 50, 100]
+        pageSize: 25,
+        pageList: [10, 25, 50, 100, 200],
+        sidePagination: 'server',
+        onLoadError: function(status, jqXHR) {
+            console.error('All Reservations Table Load Error:', status, jqXHR);
+        },
+        onLoadSuccess: function(data) {
+            console.log('All Reservations Table Load Success:', data);
+        }
     });
 }
 

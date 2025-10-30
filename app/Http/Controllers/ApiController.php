@@ -9145,6 +9145,144 @@ class ApiController extends Controller
         }
     }
 
+    /**
+     * Save feedback answers via token (public, no authentication required)
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function saveFeedbackAnswers(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'token' => 'required|string',
+            'property_id' => 'required|exists:propertys,id',
+            'answers' => 'required|array',
+            'answers.*.field_id' => 'required|exists:property_question_fields,id',
+            'answers.*.value' => 'required',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'error' => true,
+                'message' => $validator->errors()->first()
+            ]);
+        }
+
+        try {
+            // Verify token and get reservation
+            $reservation = \App\Models\Reservation::where('feedback_token', $request->token)
+                ->whereNotNull('feedback_token')
+                ->first();
+
+            if (!$reservation) {
+                return response()->json([
+                    'error' => true,
+                    'message' => trans('Invalid or expired feedback token')
+                ]);
+            }
+
+            $propertyId = $request->property_id;
+            $reservationId = $reservation->id;
+            $customerId = $reservation->customer_id;
+
+            // Verify property matches reservation
+            $property = Property::find($propertyId);
+            if (!$property) {
+                return response()->json([
+                    'error' => true,
+                    'message' => trans('Property not found')
+                ]);
+            }
+
+            // Verify property matches reservation
+            if ($reservation->reservable_type === 'App\\Models\\Property') {
+                if ($reservation->reservable_id != $propertyId) {
+                    return response()->json([
+                        'error' => true,
+                        'message' => trans('Property does not match reservation')
+                    ]);
+                }
+            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                $hotelRoom = $reservation->reservable;
+                if (!$hotelRoom || $hotelRoom->property_id != $propertyId) {
+                    return response()->json([
+                        'error' => true,
+                        'message' => trans('Property does not match reservation')
+                    ]);
+                }
+            }
+
+            // Check if customer has already submitted feedback for this reservation
+            $existingReview = PropertyQuestionAnswer::where('customer_id', $customerId)
+                ->where('property_id', $propertyId)
+                ->where('reservation_id', $reservationId)
+                ->first();
+
+            if ($existingReview) {
+                return response()->json([
+                    'error' => true,
+                    'message' => trans('You have already submitted feedback for this reservation')
+                ]);
+            }
+
+            // Begin transaction
+            DB::beginTransaction();
+
+            // Process each answer
+            foreach ($request->answers as $answer) {
+                $field = PropertyQuestionField::find($answer['field_id']);
+
+                // Skip if field doesn't exist
+                if (!$field) {
+                    continue;
+                }
+
+                // Handle file uploads
+                $value = $answer['value'];
+                if ($field->field_type == 'file' && $request->hasFile($answer['field_id'])) {
+                    $file = $request->file($answer['field_id']);
+                    $destinationPath = public_path('images') . config('global.PROPERTY_QUESTION_PATH');
+
+                    if (!File::isDirectory($destinationPath)) {
+                        File::makeDirectory($destinationPath, 0777, true, true);
+                    }
+
+                    $fileName = time() . '_' . $file->getClientOriginalName();
+                    $file->move($destinationPath, $fileName);
+                    $value = $fileName;
+                }
+
+                // For checkbox type, convert array to JSON
+                if ($field->field_type == 'checkbox' && is_array($value)) {
+                    $value = json_encode($value);
+                }
+
+                // Create new answer with user and reservation tracking
+                PropertyQuestionAnswer::create([
+                    'property_id' => $propertyId,
+                    'customer_id' => $customerId,
+                    'reservation_id' => $reservationId,
+                    'property_question_field_id' => $answer['field_id'],
+                    'value' => $value
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'error' => false,
+                'message' => trans('Thank you for your feedback! Your response has been saved successfully.')
+            ]);
+        } catch (Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'error' => true,
+                'message' => trans('Something went wrong'),
+                'data' => $e->getMessage()
+            ]);
+        }
+    }
+
     public function getHotelAddonFields(Request $request)
     {
         $data = HotelAddonField::where('status', 'active')

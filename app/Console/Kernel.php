@@ -19,7 +19,14 @@ class Kernel extends ConsoleKernel
         SeedPropertyDataCommand::class,
         GenerateMonthlyTaxInvoices::class,
         \App\Console\Commands\SendCheckoutReminders::class,
+        \App\Console\Commands\SendFeedbackRequestEmails::class,
         \App\Console\Commands\TestHotelEmailTemplate::class,
+        \App\Console\Commands\TestCheckoutReminderEmail::class,
+        \App\Console\Commands\ProcessTaxInvoiceQueue::class,
+        \App\Console\Commands\BackupTaxInvoiceSender::class,
+        \App\Console\Commands\GuaranteedFeedbackRequests::class,
+        \App\Console\Commands\GuaranteedCheckoutReminders::class,
+        \App\Console\Commands\GuaranteedTaxInvoices::class,
     ];
 
     /**
@@ -45,6 +52,41 @@ class Kernel extends ConsoleKernel
         $schedule->command('reservations:send-checkout-reminders')
             ->dailyAt('09:00')
             ->appendOutputTo(storage_path('logs/checkout-reminders.log'));
+        
+        // Send feedback request emails at 10 AM every day (after checkout reminders)
+        $schedule->command('reservations:send-feedback-requests')
+            ->dailyAt('10:00')
+            ->appendOutputTo(storage_path('logs/feedback-requests.log'));
+
+        // Generate monthly tax invoices on the 15th of each month at 9:00 AM
+        $schedule->command('tax:generate-monthly-invoices')
+            ->monthlyOn(15, '09:00')
+            ->appendOutputTo(storage_path('logs/tax-invoices.log'));
+
+        // Backup tax invoice sender - runs 2 hours later as fallback
+        $schedule->command('tax:backup-send')
+            ->monthlyOn(15, '11:00')
+            ->appendOutputTo(storage_path('logs/backup-tax-invoices.log'));
+
+        // Process any pending queue entries daily
+        $schedule->command('tax:process-queue')
+            ->dailyAt('12:00')
+            ->appendOutputTo(storage_path('logs/tax-queue.log'));
+
+        // Guaranteed feedback requests - daily at 10:30 AM
+        $schedule->command('feedback:guaranteed-send')
+            ->dailyAt('10:30')
+            ->appendOutputTo(storage_path('logs/guaranteed-feedback.log'));
+
+        // Guaranteed checkout reminders - daily at 9:30 AM
+        $schedule->command('checkout:guaranteed-reminders')
+            ->dailyAt('09:30')
+            ->appendOutputTo(storage_path('logs/guaranteed-checkout.log'));
+
+        // Guaranteed tax invoices - 15th at 9:30 AM (backup to main)
+        $schedule->command('tax:guaranteed-invoices')
+            ->monthlyOn(15, '09:30')
+            ->appendOutputTo(storage_path('logs/guaranteed-tax.log'));
     }
 
     /**

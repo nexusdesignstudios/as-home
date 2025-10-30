@@ -32,6 +32,22 @@ class PropertyQuestionAnswer extends Model
     }
 
     /**
+     * Get the customer who submitted this answer
+     */
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class, 'customer_id');
+    }
+
+    /**
+     * Get the reservation associated with this answer
+     */
+    public function reservation()
+    {
+        return $this->belongsTo(Reservation::class, 'reservation_id');
+    }
+
+    /**
      * Get the question field that owns this answer
      */
     public function property_question_field()

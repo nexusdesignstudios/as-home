@@ -478,6 +478,18 @@ class HelperService
                                 'is_condition' => false,
                             ],
                             [
+                                'name' => 'hotel_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'revenue_after_taxes',
+                                'is_condition' => false,
+                            ],
+                            [
                                 'name' => 'net_amount',
                                 'is_condition' => false,
                             ],
@@ -558,6 +570,18 @@ class HelperService
                             ],
                             [
                                 'name' => 'commission_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'revenue_after_taxes',
                                 'is_condition' => false,
                             ],
                             [
@@ -644,6 +668,18 @@ class HelperService
                                 'is_condition' => false,
                             ],
                             [
+                                'name' => 'hotel_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'revenue_after_taxes',
+                                'is_condition' => false,
+                            ],
+                            [
                                 'name' => 'net_amount',
                                 'is_condition' => false,
                             ],
@@ -699,6 +735,18 @@ class HelperService
                                 'is_condition' => false,
                             ],
                             [
+                                'name' => 'hotel_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'revenue_after_taxes',
+                                'is_condition' => false,
+                            ],
+                            [
                                 'name' => 'net_amount',
                                 'is_condition' => false,
                             ],
@@ -750,6 +798,18 @@ class HelperService
                                 'is_condition' => false,
                             ],
                             [
+                                'name' => 'hotel_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'revenue_after_taxes',
+                                'is_condition' => false,
+                            ],
+                            [
                                 'name' => 'net_amount',
                                 'is_condition' => false,
                             ],
@@ -798,6 +858,18 @@ class HelperService
                             ],
                             [
                                 'name' => 'commission_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'revenue_after_taxes',
                                 'is_condition' => false,
                             ],
                             [
@@ -1414,6 +1486,132 @@ class HelperService
                             ],
                         )
                     );
+                case 'hotel_booking_tax_invoice_flexible':
+                    return array(
+                        'title' => 'Hotel Booking Tax Invoice - Flexible (Manual/Cash)',
+                        'type' => 'hotel_booking_tax_invoice_flexible_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'owner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'month_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_reservations',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_revenue',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'commission_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'commission_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'revenue_after_taxes',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'net_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_details',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_summary',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'hotel_booking_tax_invoice_non_refundable':
+                    return array(
+                        'title' => 'Hotel Booking Tax Invoice - Non-Refundable (Online)',
+                        'type' => 'hotel_booking_tax_invoice_non_refundable_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'owner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'month_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_reservations',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_revenue',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'commission_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'commission_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_rate',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'revenue_after_taxes',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'net_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_details',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_summary',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
                 case 'payment_form_submission':
                     return array(
                         'title' => 'New Payment Form Submission',
@@ -1481,6 +1679,124 @@ class HelperService
                             ],
                             [
                                 'name' => 'submission_date',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'feedback_request':
+                    return array(
+                        'title' => 'Feedback Request Email',
+                        'type' => 'feedback_request_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'customer_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'user_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_out_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'feedback_link',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'form_type',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'payment_completion_owner':
+                    return array(
+                        'title' => 'Payment Completed - New Booking',
+                        'type' => 'payment_completion_owner_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_owner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'customer_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'customer_email',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'customer_phone',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_address',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_in_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_out_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'number_of_guests',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_price',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'payment_status',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'transaction_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'special_requests',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'payment_completion_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'booking_type',
                                 'is_condition' => false,
                             ],
                         )
@@ -1554,6 +1870,14 @@ class HelperService
                 'type' => 'hotel_booking_tax_invoice',
             ],
             [
+                'title' => 'Hotel Booking Tax Invoice - Flexible (Manual/Cash)',
+                'type' => 'hotel_booking_tax_invoice_flexible',
+            ],
+            [
+                'title' => 'Hotel Booking Tax Invoice - Non-Refundable (Online)',
+                'type' => 'hotel_booking_tax_invoice_non_refundable',
+            ],
+            [
                 'title' => 'Selling or Renting All Cases Contract',
                 'type' => 'selling_or_renting_contract',
             ],
@@ -1624,6 +1948,14 @@ class HelperService
             [
                 'title' => 'Payment Form Submission Notification',
                 'type' => 'payment_form_submission',
+            ],
+            [
+                'title' => 'Feedback Request Email',
+                'type' => 'feedback_request',
+            ],
+            [
+                'title' => 'Payment Completed - New Booking',
+                'type' => 'payment_completion_owner',
             ],
         );
     }

@@ -15,6 +15,8 @@ return new class extends Migration
             Schema::create('property_question_answers', function (Blueprint $table) {
                 $table->id();
                 $table->unsignedBigInteger('property_id');
+                $table->unsignedBigInteger('customer_id')->nullable();
+                $table->unsignedBigInteger('reservation_id')->nullable();
                 $table->unsignedBigInteger('property_question_field_id');
                 $table->text('value');
                 $table->timestamps();
@@ -26,10 +28,23 @@ return new class extends Migration
                     ->on('propertys')
                     ->onDelete('cascade');
 
+                $table->foreign('customer_id')
+                    ->references('id')
+                    ->on('customers')
+                    ->onDelete('cascade');
+
+                $table->foreign('reservation_id')
+                    ->references('id')
+                    ->on('reservations')
+                    ->onDelete('cascade');
+
                 $table->foreign('property_question_field_id', 'pq_answers_field_id_foreign')
                     ->references('id')
                     ->on('property_question_fields')
                     ->onDelete('cascade');
+
+                // Add index for faster lookups
+                $table->index(['customer_id', 'property_id', 'reservation_id'], 'idx_user_property_reservation_review');
             });
         }
     }

@@ -39,8 +39,14 @@ class TaxInvoiceService
         // Format month year for display
         $monthYearDisplay = Carbon::parse($monthYear . '-01')->format('F Y');
 
+        // Use Booking.com-style template for hotel_booking_tax_invoice templates
+        $viewTemplate = 'invoices.tax_invoice';
+        if (in_array($templateType, ['hotel_booking_tax_invoice', 'hotel_booking_tax_invoice_flexible', 'hotel_booking_tax_invoice_non_refundable'])) {
+            $viewTemplate = 'invoices.booking_style_tax_invoice';
+        }
+
         // Generate PDF
-        $pdf = PDF::loadView('invoices.tax_invoice', [
+        $pdf = PDF::loadView($viewTemplate, [
             'owner' => $owner,
             'invoiceData' => $invoiceData,
             'monthYear' => $monthYear,
@@ -82,8 +88,14 @@ class TaxInvoiceService
         // Format month year for display
         $monthYearDisplay = Carbon::parse($monthYear . '-01')->format('F Y');
 
+        // Use Booking.com-style template for hotel_booking_tax_invoice templates
+        $viewTemplate = 'invoices.tax_invoice';
+        if (in_array($templateType, ['hotel_booking_tax_invoice', 'hotel_booking_tax_invoice_flexible', 'hotel_booking_tax_invoice_non_refundable'])) {
+            $viewTemplate = 'invoices.booking_style_tax_invoice';
+        }
+
         // Generate HTML directly by rendering the view
-        $html = view('invoices.tax_invoice', [
+        $html = view($viewTemplate, [
             'owner' => $owner,
             'invoiceData' => $invoiceData,
             'monthYear' => $monthYear,
