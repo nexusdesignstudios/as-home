@@ -1019,20 +1019,46 @@ if (!function_exists('getAccessToken')) {
 if (!function_exists('updateEnv')) {
     function updateEnv($envUpdates)
     {
-        $envFile = file_get_contents(base_path('.env'));
+        $envPath = base_path('.env');
+        
+        // Check if .env file exists
+        if (!file_exists($envPath)) {
+            file_put_contents($envPath, '');
+        }
+        
+        $envFile = file_get_contents($envPath);
+        if ($envFile === false) {
+            $envFile = '';
+        }
 
         foreach ($envUpdates as $key => $value) {
+            // Escape special characters in the key for regex
+            $escapedKey = preg_quote($key, '/');
+            
+            // Escape quotes and backslashes in the value
+            $escapedValue = str_replace(['\\', '"', '$'], ['\\\\', '\\"', '\\$'], $value);
+            
+            // Pattern to match the key at the start of a line (with optional spaces before)
+            // Using m flag for multiline and ^ anchor for line start
+            $pattern = "/^[ \t]*{$escapedKey}[ \t]*=.*/m";
+            
             // Check if the key exists in the .env file
-            if (strpos($envFile, "{$key}=") === false) {
-                // If the key doesn't exist, add it
-                $envFile .= "\n{$key}=\"{$value}\"";
-            } else {
+            if (preg_match($pattern, $envFile)) {
                 // If the key exists, replace its value
-                $envFile = preg_replace("/{$key}=.*/", "{$key}=\"{$value}\"", $envFile);
+                $replacement = "{$key}=\"{$escapedValue}\"";
+                $envFile = preg_replace($pattern, $replacement, $envFile);
+            } else {
+                // If the key doesn't exist, add it at the end
+                // Remove trailing newlines before adding
+                $envFile = rtrim($envFile);
+                if (!empty($envFile) && substr($envFile, -1) !== "\n") {
+                    $envFile .= "\n";
+                }
+                $envFile .= "{$key}=\"{$escapedValue}\"\n";
             }
         }
 
         // Save the updated .env file
-        file_put_contents(base_path('.env'), $envFile);
+        file_put_contents($envPath, $envFile);
     }
 }

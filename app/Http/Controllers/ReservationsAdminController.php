@@ -54,14 +54,62 @@ class ReservationsAdminController extends Controller
         $type = $request->type ?? 'all'; // 'vacation_homes', 'hotels', 'all'
         $dateFrom = $request->date_from ?? null;
         $dateTo = $request->date_to ?? null;
+        $refundPolicy = $request->refund_policy ?? 'all'; // 'flexible', 'non-refundable', 'all'
+        $status = $request->status ?? 'all'; // 'pending', 'approved', 'confirmed', 'cancelled', 'completed', 'all'
+        $paymentStatus = $request->payment_status ?? 'all'; // 'paid', 'unpaid', 'partial', 'cash', 'all'
 
-        $query = Reservation::with(['customer', 'reservable']);
+        // Eager load all necessary relationships to avoid N+1 queries
+        // Note: For Property reservations, reservable IS the property
+        // For HotelRoom reservations, we need reservable.property and reservable.roomType
+        // Only load nested relationships for HotelRoom, not for Property
+        $query = Reservation::with([
+            'customer:id,name,email,mobile',
+            'reservable'
+        ]);
+        
+        // Conditionally load nested relationships only for HotelRoom reservations
+        // Don't try to load reservable.property for Property types (it doesn't exist)
+        // For vacation homes, reservable IS the property, so no nested relationships needed
+        if ($type === 'hotels') {
+            // Only load these for HotelRoom reservations
+            $query->with([
+                'reservable.property:id,title,property_classification',
+                'reservable.roomType:id,name',
+                'payment:id,reservation_id,status' // Load payment to check if it's online payment
+            ]);
+        }
+        // For type 'all', we'll handle loading relationships per-reservation in the loop
+        // to avoid trying to load reservable.property on Property models
 
         // Filter by type
         if ($type === 'vacation_homes') {
-            $query->where('reservable_type', 'App\\Models\\Property');
+            // Vacation homes are Property reservations where the property has classification = 4
+            // Use whereIn with subquery for Property reservations with classification 4
+            $vacationHomePropertyIds = \App\Models\Property::where('property_classification', 4)->pluck('id')->toArray();
+            if (!empty($vacationHomePropertyIds)) {
+                $query->where('reservable_type', 'App\\Models\\Property')
+                    ->whereIn('reservable_id', $vacationHomePropertyIds);
+            } else {
+                // If no vacation home properties exist, return empty result
+                $query->where('reservable_type', 'App\\Models\\Property')
+                    ->whereRaw('1 = 0'); // Force no results
+            }
+            // Note: Refund policy filter is not applicable for vacation homes
         } elseif ($type === 'hotels') {
+            // Hotels are HotelRoom reservations (property classification 5)
             $query->where('reservable_type', 'App\\Models\\HotelRoom');
+            
+            // Filter by refund policy for hotel reservations (only if explicitly set)
+            // If not set or 'all', show both flexible and non-refundable reservations
+            if ($refundPolicy && $refundPolicy !== 'all') {
+                $query->whereHas('reservable', function ($q) use ($refundPolicy) {
+                    $q->where('refund_policy', $refundPolicy);
+                });
+            }
+            // If refundPolicy is 'all' or not provided, show all hotel reservations (both flexible and non-refundable)
+        } else {
+            // Type is 'all' - show both vacation homes (Property with classification 4) and hotels (HotelRoom), all refund policies
+            // No filter applied - shows all reservation types
         }
 
         // Filter by date range
@@ -73,25 +121,92 @@ class ReservationsAdminController extends Controller
             $query->where('check_out_date', '<=', $dateTo);
         }
 
+        // Filter by status
+        if ($status !== 'all' && !empty($status)) {
+            $query->where('status', $status);
+        }
+
+        // Filter by payment status
+        if ($paymentStatus !== 'all' && !empty($paymentStatus)) {
+            $query->where('payment_status', $paymentStatus);
+        }
+
         if (!empty($search)) {
-            $query->where(function ($q) use ($search) {
+            $query->where(function ($q) use ($search, $type) {
+                // Search in customer
                 $q->whereHas('customer', function ($customerQuery) use ($search) {
                     $customerQuery->where('name', 'LIKE', "%$search%")
                         ->orWhere('email', 'LIKE', "%$search%");
-                })
-                    ->orWhereHas('reservable', function ($reservableQuery) use ($search) {
-                        $reservableQuery->where('title', 'LIKE', "%$search%")
-                            ->orWhere('address', 'LIKE', "%$search%");
-                    })
-                    ->orWhere('transaction_id', 'LIKE', "%$search%");
+                });
+                
+                // Search in transaction ID
+                $q->orWhere('transaction_id', 'LIKE', "%$search%");
+                
+                // For Property reservations (vacation homes), search in Property table
+                if ($type === 'vacation_homes' || $type === 'all') {
+                    $q->orWhere(function ($subQ) use ($search) {
+                        $subQ->where('reservable_type', 'App\\Models\\Property')
+                            ->whereHas('reservable', function ($reservableQuery) use ($search) {
+                                $reservableQuery->where('title', 'LIKE', "%$search%")
+                                    ->orWhere('address', 'LIKE', "%$search%");
+                            });
+                    });
+                }
+                
+                // For HotelRoom reservations, search in related Property
+                if ($type === 'hotels' || $type === 'all') {
+                    $q->orWhere(function ($subQ) use ($search) {
+                        $subQ->where('reservable_type', 'App\\Models\\HotelRoom')
+                            ->whereHas('reservable.property', function ($propertyQuery) use ($search) {
+                                $propertyQuery->where('title', 'LIKE', "%$search%")
+                                    ->orWhere('address', 'LIKE', "%$search%");
+                            });
+                    });
+                    
+                    // Also search in room type
+                    $q->orWhere(function ($subQ) use ($search) {
+                        $subQ->where('reservable_type', 'App\\Models\\HotelRoom')
+                            ->whereHas('reservable.roomType', function ($roomTypeQuery) use ($search) {
+                                $roomTypeQuery->where('name', 'LIKE', "%$search%");
+                            });
+                    });
+                }
             });
         }
 
-        $total = $query->count();
-        $reservations = $query->orderBy($sort, $order)
-            ->skip($offset)
-            ->take($limit)
-            ->get();
+        try {
+            $total = $query->count();
+            $reservations = $query->orderBy($sort, $order)
+                ->skip($offset)
+                ->take($limit)
+                ->get();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Reservations Query Error', [
+                'type' => $type,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'total' => 0,
+                'rows' => [],
+                'error' => 'An error occurred while fetching reservations: ' . $e->getMessage()
+            ], 500);
+        }
+
+        // Debug logging for troubleshooting
+        if (config('app.debug')) {
+            \Illuminate\Support\Facades\Log::info('Reservations Query Debug', [
+                'type' => $type,
+                'total' => $total,
+                'count' => $reservations->count(),
+                'status' => $status,
+                'payment_status' => $paymentStatus,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'search' => $search
+            ]);
+        }
 
         $bulkData = [];
         $bulkData['total'] = $total;
@@ -101,18 +216,80 @@ class ReservationsAdminController extends Controller
             $customer = $reservation->customer;
             $reservable = $reservation->reservable;
 
+            // Skip if customer is missing (shouldn't happen but safety check)
+            if (!$customer) {
+                continue;
+            }
+
             // Get property name and type
             $propertyName = '';
             $propertyType = '';
 
             if ($reservation->reservable_type === 'App\\Models\\Property') {
+                if (!$reservable) {
+                    continue; // Skip if reservable is missing
+                }
                 $propertyName = $reservable->title ?? 'N/A';
-                $propertyType = 'Vacation Home';
+                // Check property classification to determine type
+                try {
+                    $propertyClassification = $reservable->getRawOriginal('property_classification');
+                } catch (\Exception $e) {
+                    // Fallback if getRawOriginal fails
+                    $propertyClassification = $reservable->property_classification ?? null;
+                    // If it's still null or a string, try to parse it
+                    if (is_string($propertyClassification)) {
+                        $propertyClassification = match($propertyClassification) {
+                            'vacation_homes' => 4,
+                            'hotel_booking' => 5,
+                            'sell_rent' => 1,
+                            'commercial' => 2,
+                            'new_project' => 3,
+                            default => null
+                        };
+                    }
+                }
+                
+                if ($propertyClassification == 4) {
+                    $propertyType = 'Vacation Home';
+                } elseif ($propertyClassification == 5) {
+                    $propertyType = 'Hotel Property';
+                } else {
+                    // Other classifications (1=Sell/Rent, 2=Commercial, 3=New Project)
+                    $propertyType = 'Property';
+                }
             } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                if (!$reservable) {
+                    // Skip reservations where reservable is null (orphaned reservations)
+                    continue;
+                }
+                
+                // Load property relationship if not already loaded
+                if (!$reservable->relationLoaded('property')) {
+                    $reservable->load('property:id,title');
+                }
+                
                 $propertyName = $reservable->property->title ?? 'N/A';
                 $propertyType = 'Hotel Room';
+                
+                // Load roomType if not already loaded
+                if (!$reservable->relationLoaded('roomType') && $reservable->room_type_id) {
+                    $reservable->load('roomType:id,name');
+                }
+                
                 if ($reservable->roomType) {
                     $propertyName .= ' - ' . $reservable->roomType->name;
+                }
+                
+                // Determine refund policy based on payment method
+                // Cash/Manual payment = Flexible
+                // Online/Paymob payment = Non-Refundable
+                $paymentMethod = $reservation->payment_method ?? 'cash';
+                $isOnlinePayment = ($paymentMethod === 'paymob' || $paymentMethod === 'online' || $reservation->payment);
+                
+                if ($isOnlinePayment) {
+                    $propertyType .= ' (Non-Refundable)';
+                } else {
+                    $propertyType .= ' (Flexible)';
                 }
             }
 
@@ -120,19 +297,30 @@ class ReservationsAdminController extends Controller
             $statusBadge = $this->getStatusBadge($reservation->status);
             $paymentBadge = $this->getPaymentStatusBadge($reservation->payment_status);
 
+            // Handle date formatting safely
+            $checkInDate = $reservation->check_in_date ? $reservation->check_in_date->format('Y-m-d') : 'N/A';
+            $checkOutDate = $reservation->check_out_date ? $reservation->check_out_date->format('Y-m-d') : 'N/A';
+            $createdAt = $reservation->created_at ? $reservation->created_at->format('Y-m-d H:i:s') : 'N/A';
+            
+            // Determine payment method badge
+            $paymentMethod = $reservation->payment_method ?? 'cash';
+            $isOnlinePayment = ($paymentMethod === 'paymob' || $paymentMethod === 'online' || $reservation->payment);
+            $paymentMethodBadge = $this->getPaymentMethodBadge($paymentMethod, $isOnlinePayment);
+
             $rows[] = [
                 'id' => $reservation->id,
                 'customer_name' => $customer->name ?? 'N/A',
                 'customer_email' => $customer->email ?? 'N/A',
                 'property_name' => $propertyName,
                 'property_type' => $propertyType,
-                'check_in_date' => $reservation->check_in_date->format('Y-m-d'),
-                'check_out_date' => $reservation->check_out_date->format('Y-m-d'),
-                'number_of_guests' => $reservation->number_of_guests,
-                'total_price' => '$' . number_format($reservation->total_price, 2),
+                'check_in_date' => $checkInDate,
+                'check_out_date' => $checkOutDate,
+                'number_of_guests' => $reservation->number_of_guests ?? 0,
+                'total_price' => number_format($reservation->total_price ?? 0, 2) . ' EGP',
                 'status' => $statusBadge,
                 'payment_status' => $paymentBadge,
-                'created_at' => $reservation->created_at->format('Y-m-d H:i:s'),
+                'payment_method' => $paymentMethodBadge,
+                'created_at' => $createdAt,
                 'actions' => $this->getActionButtons($reservation)
             ];
         }
@@ -151,12 +339,14 @@ class ReservationsAdminController extends Controller
     {
         $badges = [
             'pending' => '<span class="badge bg-warning">Pending</span>',
+            'approved' => '<span class="badge bg-info">Approved</span>',
             'confirmed' => '<span class="badge bg-success">Confirmed</span>',
             'cancelled' => '<span class="badge bg-danger">Cancelled</span>',
-            'completed' => '<span class="badge bg-info">Completed</span>'
+            'completed' => '<span class="badge bg-secondary">Completed</span>',
+            'rejected' => '<span class="badge bg-danger">Rejected</span>'
         ];
 
-        return $badges[$status] ?? '<span class="badge bg-secondary">Unknown</span>';
+        return $badges[$status] ?? '<span class="badge bg-secondary">' . ucfirst($status) . '</span>';
     }
 
     /**
@@ -170,10 +360,27 @@ class ReservationsAdminController extends Controller
         $badges = [
             'paid' => '<span class="badge bg-success">Paid</span>',
             'unpaid' => '<span class="badge bg-danger">Unpaid</span>',
-            'partial' => '<span class="badge bg-warning">Partial</span>'
+            'partial' => '<span class="badge bg-warning">Partial</span>',
+            'cash' => '<span class="badge bg-info">Cash</span>'
         ];
 
-        return $badges[$paymentStatus] ?? '<span class="badge bg-secondary">Unknown</span>';
+        return $badges[$paymentStatus] ?? '<span class="badge bg-secondary">' . ucfirst($paymentStatus) . '</span>';
+    }
+
+    /**
+     * Get payment method badge HTML to differentiate online vs manual payments.
+     *
+     * @param string $paymentMethod
+     * @param bool $isOnlinePayment
+     * @return string
+     */
+    private function getPaymentMethodBadge($paymentMethod, $isOnlinePayment)
+    {
+        if ($isOnlinePayment) {
+            return '<span class="badge bg-primary" title="Online Payment (Paymob/Gateway)"><i class="bi bi-credit-card"></i> Online</span>';
+        } else {
+            return '<span class="badge bg-secondary" title="Manual/Cash Payment"><i class="bi bi-cash"></i> Manual</span>';
+        }
     }
 
     /**
@@ -299,7 +506,7 @@ class ReservationsAdminController extends Controller
      */
     public function getReservationDetails($id)
     {
-        $reservation = Reservation::with(['customer', 'reservable'])->findOrFail($id);
+        $reservation = Reservation::with(['customer', 'reservable', 'payment:id,reservation_id,status'])->findOrFail($id);
 
         $reservable = $reservation->reservable;
         $propertyName = '';
@@ -314,6 +521,18 @@ class ReservationsAdminController extends Controller
             if ($reservable->roomType) {
                 $propertyName .= ' - ' . $reservable->roomType->name;
             }
+            
+            // Determine refund policy based on payment method
+            // Cash/Manual payment = Flexible
+            // Online/Paymob payment = Non-Refundable
+            $paymentMethod = $reservation->payment_method ?? 'cash';
+            $isOnlinePayment = ($paymentMethod === 'paymob' || $paymentMethod === 'online' || $reservation->payment);
+            
+            if ($isOnlinePayment) {
+                $propertyType .= ' (Non-Refundable)';
+            } else {
+                $propertyType .= ' (Flexible)';
+            }
         }
 
         return response()->json([
@@ -327,7 +546,7 @@ class ReservationsAdminController extends Controller
                 'check_in_date' => $reservation->check_in_date->format('Y-m-d'),
                 'check_out_date' => $reservation->check_out_date->format('Y-m-d'),
                 'number_of_guests' => $reservation->number_of_guests,
-                'total_price' => '$' . number_format($reservation->total_price, 2),
+                'total_price' => number_format($reservation->total_price, 2) . ' EGP',
                 'status' => $reservation->status,
                 'payment_status' => $reservation->payment_status,
                 'special_requests' => $reservation->special_requests,
@@ -379,8 +598,8 @@ class ReservationsAdminController extends Controller
             'confirmed_reservations' => $confirmedReservations,
             'cancelled_reservations' => $cancelledReservations,
             'completed_reservations' => $completedReservations,
-            'total_revenue' => '$' . number_format($totalRevenue, 2),
-            'unpaid_amount' => '$' . number_format($unpaidAmount, 2),
+            'total_revenue' => number_format($totalRevenue, 2) . ' EGP',
+            'unpaid_amount' => number_format($unpaidAmount, 2) . ' EGP',
             'vacation_home_reservations' => $vacationHomeReservations,
             'hotel_reservations' => $hotelReservations
         ]);

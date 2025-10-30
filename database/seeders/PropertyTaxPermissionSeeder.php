@@ -14,8 +14,8 @@ class PropertyTaxPermissionSeeder extends Seeder
      */
     public function run()
     {
-        // Get the maximum permission ID
-        $maxId = DB::table('permissions')->max('id');
+        // Get the maximum permission ID (handle null if table is empty)
+        $maxId = DB::table('permissions')->max('id') ?? 0;
 
         // Insert property_taxes permissions
         $permissions = [

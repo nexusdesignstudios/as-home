@@ -117,6 +117,16 @@
                     </li>
                 @endif
 
+                {{-- Statement of Account --}}
+                @if (has_permissions('read', 'property'))
+                    <li class="sidebar-item">
+                        <a href="{{ route('statement-of-account.index') }}" class='sidebar-link'>
+                            <i class="bi bi-file-earmark-text"></i>
+                            <span class="menu-item">{{ __('Statement of Account') }}</span>
+                        </a>
+                    </li>
+                @endif
+
                 {{-- Hotel Addon Fields --}}
                 @if (has_permissions('read', 'hotel_addon_field'))
                     <li class="sidebar-item">

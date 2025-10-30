@@ -36,6 +36,8 @@ class Reservation extends Model
         'booking_type',
         'property_details',
         'reservable_data',
+        'feedback_token',
+        'feedback_email_sent_at',
     ];
 
     protected $casts = [
@@ -45,6 +47,7 @@ class Reservation extends Model
         'property_details' => 'array',
         'reservable_data' => 'array',
         'requires_approval' => 'boolean',
+        'feedback_email_sent_at' => 'datetime',
     ];
 
     /**

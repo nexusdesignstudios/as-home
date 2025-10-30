@@ -107,6 +107,17 @@ Route::middleware(['language'])->group(function () {
         Route::post('web-settings', [SettingController::class, 'web_settings']);
         Route::get('notification-settings', [SettingController::class, 'notificationSettingIndex'])->name('notification-setting-index');
         Route::post('notification-settings', [SettingController::class, 'notificationSettingStore'])->name('notification-setting-store');
+        
+        // Tax Invoice Management
+        Route::get('admin/tax-invoice', [\App\Http\Controllers\Admin\TaxInvoiceController::class, 'index'])->name('admin.tax-invoice.index');
+        Route::get('admin/tax-invoice-guaranteed', function() {
+            return view('admin.tax-invoice-guaranteed');
+        })->name('admin.tax-invoice-guaranteed');
+        Route::get('admin/guaranteed-emails', function() {
+            return view('admin.guaranteed-emails-system');
+        })->name('admin.guaranteed-emails');
+        Route::post('admin/tax-invoice/generate', [\App\Http\Controllers\Admin\TaxInvoiceController::class, 'generate'])->name('admin.tax-invoice.generate');
+        Route::get('admin/tax-invoice/status', [\App\Http\Controllers\Admin\TaxInvoiceController::class, 'status'])->name('admin.tax-invoice.status');
 
         /** Email Settings */
         // Configuration
@@ -302,6 +313,19 @@ Route::middleware(['language'])->group(function () {
         Route::get('reservations-statistics', [ReservationsAdminController::class, 'getStatistics'])->name('reservations.statistics');
         /// END :: RESERVATIONS ROUTE
 
+        /// START :: STATEMENT OF ACCOUNT ROUTE
+        Route::get('statement-of-account', [\App\Http\Controllers\StatementOfAccountController::class, 'index'])->name('statement-of-account.index');
+        Route::get('statement-of-account/revenue-collector', [\App\Http\Controllers\StatementOfAccountController::class, 'getRevenueCollectorData'])->name('statement-of-account.revenue-collector');
+        Route::get('statement-of-account/hotel-properties', [\App\Http\Controllers\StatementOfAccountController::class, 'getHotelProperties'])->name('statement-of-account.hotel-properties');
+        Route::get('statement-of-account/data', [\App\Http\Controllers\StatementOfAccountController::class, 'getStatementData'])->name('statement-of-account.data');
+        Route::get('statement-of-account/owner-statement', [\App\Http\Controllers\StatementOfAccountController::class, 'getOwnerStatement'])->name('statement-of-account.owner-statement');
+        Route::post('statement-of-account/{reservationId}/update-field', [\App\Http\Controllers\StatementOfAccountController::class, 'updateField'])->name('statement-of-account.update-field');
+        Route::post('statement-of-account/property/{propertyId}/update-credit', [\App\Http\Controllers\StatementOfAccountController::class, 'updatePropertyCredit'])->name('statement-of-account.update-property-credit');
+        Route::post('statement-of-account/property/{propertyId}/manual-entry', [\App\Http\Controllers\StatementOfAccountController::class, 'saveManualEntry'])->name('statement-of-account.save-manual-entry');
+        Route::delete('statement-of-account/manual-entry/{entryId}', [\App\Http\Controllers\StatementOfAccountController::class, 'deleteManualEntry'])->name('statement-of-account.delete-manual-entry');
+        Route::get('statement-of-account/export', [\App\Http\Controllers\StatementOfAccountController::class, 'export'])->name('statement-of-account.export');
+        /// END :: STATEMENT OF ACCOUNT ROUTE
+
         /// START :: PROPERTY TERMS & CONDITIONS
         Route::resource('property-terms', PropertyTermsController::class);
         Route::get('get-terms-by-classification/{classificationId}', [PropertyTermsController::class, 'getTermsByClassification'])->name('property-terms.get-by-classification');
@@ -435,6 +459,12 @@ Route::middleware(['language'])->group(function () {
     Route::get('reset-password', [CustomersController::class, 'resetPasswordIndex']);
     Route::post('change-password', [CustomersController::class, 'resetPassword'])->name('customer.reset-password');
 });
+
+// Public feedback form route (no authentication required)
+Route::get('feedback/{token}', [PropertyQuestionFormController::class, 'showFeedbackForm'])
+    ->name('feedback.form')
+    ->middleware('web');
+
 Route::get('deep-link', function () {
     return view('settings.deep-link');
 });

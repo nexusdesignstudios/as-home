@@ -6,21 +6,21 @@ use Illuminate\Console\Command;
 use App\Services\MonthlyTaxInvoiceService;
 use Carbon\Carbon;
 
-class GenerateMonthlyTaxInvoices extends Command
+class TestTaxInvoiceGeneration extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'tax:generate-monthly-invoices {--month= : Specific month in Y-m format (e.g., 2025-01)} {--dry-run : Test run without sending emails}';
+    protected $signature = 'test:tax-invoice {--month= : Specific month in Y-m format (e.g., 2025-01)} {--email= : Test email address}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Generate and send monthly tax invoices to property owners with PDF attachments';
+    protected $description = 'Test tax invoice generation and send to specific email';
 
     /**
      * Execute the console command.
@@ -29,19 +29,16 @@ class GenerateMonthlyTaxInvoices extends Command
      */
     public function handle()
     {
-        $monthYear = $this->option('month');
-        $dryRun = $this->option('dry-run');
+        $monthYear = $this->option('month') ?? Carbon::now()->subMonth()->format('Y-m');
+        $testEmail = $this->option('email');
 
-        // If no month specified, use previous month
-        if (!$monthYear) {
-            $monthYear = Carbon::now()->subMonth()->format('Y-m');
+        if (!$testEmail) {
+            $this->error('Please provide a test email address using --email option');
+            return Command::FAILURE;
         }
 
-        $this->info("Generating monthly tax invoices for: {$monthYear}");
-        
-        if ($dryRun) {
-            $this->warn("DRY RUN MODE - No emails will be sent");
-        }
+        $this->info("Testing tax invoice generation for: {$monthYear}");
+        $this->info("Test email: {$testEmail}");
 
         try {
             $taxInvoiceService = new MonthlyTaxInvoiceService();

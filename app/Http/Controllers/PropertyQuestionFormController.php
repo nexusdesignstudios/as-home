@@ -264,7 +264,8 @@ class PropertyQuestionFormController extends Controller
 
         // Get the property details
         $property = \App\Models\Property::with(['propertyQuestionAnswers' => function($query) {
-            $query->with('property_question_field');
+            $query->with(['property_question_field', 'customer:id,name,email', 'reservation:id']);
+            $query->orderBy('created_at', 'desc'); // Order by newest first
         }])->findOrFail($propertyId);
 
         // Get all question fields for this property's classification
@@ -273,6 +274,243 @@ class PropertyQuestionFormController extends Controller
             ->with('field_values')
             ->get();
 
-        return view('property-question-form.answers', compact('property', 'allFields'));
+        // Calculate reviews analytics
+        $reviewsAnalytics = $this->calculateReviewsAnalytics($property);
+
+        return view('property-question-form.answers', compact('property', 'allFields', 'reviewsAnalytics'));
+    }
+
+    /**
+     * Show public feedback form for customers (no authentication required)
+     *
+     * @param Request $request
+     * @param string $token
+     * @return \Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse
+     */
+    public function showFeedbackForm(Request $request, $token)
+    {
+        try {
+            // Find reservation by token
+            $reservation = \App\Models\Reservation::where('feedback_token', $token)
+                ->whereNotNull('feedback_token')
+                ->with(['customer', 'reservable'])
+                ->first();
+
+            if (!$reservation) {
+                return redirect()->route('home')->with('error', 'Invalid or expired feedback link.');
+            }
+
+            // Determine property and classification
+            $property = null;
+            $propertyClassification = null;
+            $formType = null;
+
+            if ($reservation->reservable_type === 'App\\Models\\Property') {
+                $property = $reservation->reservable;
+                if ($property) {
+                    $propertyClassification = $property->getRawOriginal('property_classification');
+                    if ($propertyClassification == 4) {
+                        $formType = 'vacation_homes';
+                    }
+                }
+            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                $hotelRoom = $reservation->reservable;
+                if ($hotelRoom && $hotelRoom->property) {
+                    $property = $hotelRoom->property;
+                    $propertyClassification = $property->getRawOriginal('property_classification');
+                    if ($propertyClassification == 5) {
+                        $formType = 'hotel_booking';
+                    }
+                }
+            }
+
+            if (!$property || !$formType) {
+                return redirect()->route('home')->with('error', 'Invalid property type for feedback.');
+            }
+
+            // Get all active question fields for this property classification
+            $allFields = PropertyQuestionField::where('property_classification', $propertyClassification)
+                ->where('status', 'active')
+                ->with('field_values')
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            // Check if customer already submitted feedback for this reservation
+            $existingAnswers = \App\Models\PropertyQuestionAnswer::where('reservation_id', $reservation->id)
+                ->where('customer_id', $reservation->customer_id)
+                ->where('property_id', $property->id)
+                ->first();
+
+            return view('property-question-form.public-feedback', [
+                'reservation' => $reservation,
+                'property' => $property,
+                'allFields' => $allFields,
+                'formType' => $formType,
+                'token' => $token,
+                'hasExistingFeedback' => $existingAnswers !== null
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error showing feedback form', [
+                'token' => $token,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->route('home')->with('error', 'An error occurred. Please try again later.');
+        }
+    }
+
+    /**
+     * Calculate reviews analytics for a property
+     *
+     * @param \App\Models\Property $property
+     * @return array
+     */
+    private function calculateReviewsAnalytics($property)
+    {
+        $analytics = [
+            'total_reviews' => 0,
+            'average_rating' => 0,
+            'rating_distribution' => [],
+            'numeric_answers' => [],
+            'recent_reviews' => [],
+            'by_question' => []
+        ];
+
+        // Get all answers for this property
+        $answers = $property->propertyQuestionAnswers()
+            ->with(['property_question_field', 'customer'])
+            ->orderBy('created_at', 'DESC')
+            ->get();
+
+        // Group answers by customer (one review per customer)
+        $reviewsByCustomer = $answers->groupBy('customer_id');
+        $analytics['total_reviews'] = $reviewsByCustomer->count();
+
+        // Find dropdown fields that have values from 1 to 5 (rating fields)
+        $dropdownFields = PropertyQuestionField::where('property_classification', $property->getRawOriginal('property_classification'))
+            ->where('field_type', 'dropdown')
+            ->where('status', 'active')
+            ->with('field_values')
+            ->get();
+
+        // Filter dropdown fields that have values 1-5
+        $ratingFields = $dropdownFields->filter(function($field) {
+            $values = $field->field_values->pluck('value')->toArray();
+            // Check if field has values 1, 2, 3, 4, 5 (can be string or numeric)
+            $hasRatingValues = false;
+            foreach ($values as $value) {
+                $numValue = (int)$value;
+                if ($numValue >= 1 && $numValue <= 5) {
+                    $hasRatingValues = true;
+                    break;
+                }
+            }
+            return $hasRatingValues;
+        });
+
+        // Calculate average ratings for dropdown rating fields
+        foreach ($ratingFields as $field) {
+            $fieldAnswers = $answers->where('property_question_field_id', $field->id)
+                ->where('value', '!=', '')
+                ->filter(function($answer) {
+                    // Check if answer value is numeric and between 1-5
+                    $value = trim($answer->value);
+                    if (is_numeric($value)) {
+                        $numValue = (int)$value;
+                        return $numValue >= 1 && $numValue <= 5;
+                    }
+                    return false;
+                })
+                ->map(function($answer) {
+                    return (float)$answer->value;
+                });
+
+            if ($fieldAnswers->count() > 0) {
+                $average = $fieldAnswers->average();
+                $analytics['by_question'][$field->id] = [
+                    'question_name' => $field->name,
+                    'average_rating' => round($average, 2),
+                    'total_ratings' => $fieldAnswers->count(),
+                    'min_rating' => $fieldAnswers->min(),
+                    'max_rating' => $fieldAnswers->max(),
+                    'rating_distribution' => $this->calculateRatingDistribution($fieldAnswers->toArray())
+                ];
+            }
+        }
+
+        // Calculate overall average from dropdown rating fields
+        $allRatings = $answers->whereIn('property_question_field_id', $ratingFields->pluck('id'))
+            ->where('value', '!=', '')
+            ->filter(function($answer) {
+                // Check if answer value is numeric and between 1-5
+                $value = trim($answer->value);
+                if (is_numeric($value)) {
+                    $numValue = (int)$value;
+                    return $numValue >= 1 && $numValue <= 5;
+                }
+                return false;
+            })
+            ->map(function($answer) {
+                return (float)$answer->value;
+            });
+
+        if ($allRatings->count() > 0) {
+            $analytics['average_rating'] = round($allRatings->average(), 2);
+            $analytics['rating_distribution'] = $this->calculateRatingDistribution($allRatings->toArray());
+        }
+
+        // Get recent reviews (grouped by customer)
+        $analytics['recent_reviews'] = $reviewsByCustomer->take(10)->map(function($customerAnswers, $customerId) {
+            $firstAnswer = $customerAnswers->first();
+            return [
+                'customer_name' => $firstAnswer->customer->name ?? 'Anonymous',
+                'customer_email' => $firstAnswer->customer->email ?? '',
+                'review_date' => $firstAnswer->created_at->format('Y-m-d H:i:s'),
+                'answers' => $customerAnswers->map(function($answer) {
+                    return [
+                        'question' => $answer->property_question_field->name ?? 'N/A',
+                        'value' => $answer->value,
+                        'field_type' => $answer->property_question_field->field_type ?? 'text'
+                    ];
+                })->toArray()
+            ];
+        })->values()->toArray();
+
+        return $analytics;
+    }
+
+    /**
+     * Calculate rating distribution (for 1-5 star ratings)
+     *
+     * @param array $ratings
+     * @return array
+     */
+    private function calculateRatingDistribution($ratings)
+    {
+        $distribution = [
+            1 => 0,
+            2 => 0,
+            3 => 0,
+            4 => 0,
+            5 => 0
+        ];
+
+        foreach ($ratings as $rating) {
+            $star = (int)round($rating);
+            if ($star >= 1 && $star <= 5) {
+                $distribution[$star]++;
+            }
+        }
+
+        $total = array_sum($distribution);
+        foreach ($distribution as $star => $count) {
+            $distribution[$star] = [
+                'count' => $count,
+                'percentage' => $total > 0 ? round(($count / $total) * 100, 1) : 0
+            ];
+        }
+
+        return $distribution;
     }
 }

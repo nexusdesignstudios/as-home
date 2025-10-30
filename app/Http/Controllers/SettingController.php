@@ -836,7 +836,7 @@ class SettingController extends Controller
         if (!has_permissions('read', 'email_templates')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
-        $types = array('verify_mail', 'reset_password', 'welcome_mail', 'property_status', 'project_status', 'property_ads_status', 'user_status', 'agent_verification_status', 'reservation_confirmation', 'reservation_approval', 'monthly_tax_invoice', 'monthly_tax_invoice_hotels_non_refundable', 'monthly_tax_invoice_hotels_flexible', 'vacation_homes_basic_tax_invoice', 'vacation_homes_premium_tax_invoice', 'hotel_booking_tax_invoice', 'selling_or_renting_contract', 'basic_package_self_managed', 'basic_package_renting_self_managed', 'premium_package_renting', 'vacation_homes_self_managed_basic_package', 'vacation_homes_ashome_managed_premium_package', 'hotel_booking', 'property_client_meeting', 'inquiry_form', 'reservation_approval_payment', 'flexible_hotel_booking_approval', 'send_money_payment', 'refund_approval', 'refund_rejection', 'reservation_rejection', 'reservation_cancellation', 'checkout_reminder', 'payment_form_submission');
+        $types = array('verify_mail', 'reset_password', 'welcome_mail', 'property_status', 'project_status', 'property_ads_status', 'user_status', 'agent_verification_status', 'reservation_confirmation', 'reservation_approval', 'monthly_tax_invoice', 'monthly_tax_invoice_hotels_non_refundable', 'monthly_tax_invoice_hotels_flexible', 'vacation_homes_basic_tax_invoice', 'vacation_homes_premium_tax_invoice', 'hotel_booking_tax_invoice', 'hotel_booking_tax_invoice_flexible', 'hotel_booking_tax_invoice_non_refundable', 'selling_or_renting_contract', 'basic_package_self_managed', 'basic_package_renting_self_managed', 'premium_package_renting', 'vacation_homes_self_managed_basic_package', 'vacation_homes_ashome_managed_premium_package', 'hotel_booking', 'property_client_meeting', 'inquiry_form', 'reservation_approval_payment', 'flexible_hotel_booking_approval', 'send_money_payment', 'refund_approval', 'refund_rejection', 'reservation_rejection', 'reservation_cancellation', 'checkout_reminder', 'payment_form_submission', 'feedback_request', 'payment_completion_owner');
         if (!in_array($type, $types)) {
             ResponseService::errorRedirectResponse("Type is invalid");
         }
@@ -849,6 +849,144 @@ class SettingController extends Controller
         }
 
         $templateMailData = system_setting($data['type']);
+        
+        // Provide default template if empty
+        if (empty($templateMailData)) {
+            if ($type === 'feedback_request') {
+                $templateMailData = '<p>Dear <strong>{customer_name}</strong>,</p>
+<p>Thank you for choosing <strong>{app_name}</strong> for your recent stay!</p>
+<p>We hope you had a wonderful experience at <strong>{property_name}</strong>. Your feedback is extremely valuable to us and helps us improve our services.</p>
+<p>Please take a moment to share your experience by clicking on the link below to complete our feedback form:</p>
+<p><a href="{feedback_link}">{feedback_link}</a></p>
+<p>Your feedback helps us:</p>
+<ul>
+<li>Improve our property amenities and services</li>
+<li>Enhance the guest experience for future visitors</li>
+<li>Maintain the highest quality standards</li>
+</ul>
+<p>We appreciate your time and look forward to hearing from you!</p>
+<p>Best regards,<br>
+The <strong>{app_name}</strong> Team</p>
+<p><em>Note: This feedback link is valid and unique to your reservation.</em></p>';
+            } elseif ($type === 'reservation_confirmation') {
+                // Default reservation confirmation template
+                $templateMailData = '<p>Hello <strong>{user_name}</strong>,</p>
+<p>Thank you for your reservation with <strong>{app_name}</strong>! Your booking has been confirmed.</p>
+<p><strong>Reservation Details:</strong></p>
+<ul>
+<li><strong>Reservation ID:</strong> {reservation_id}</li>
+<li><strong>Property:</strong> {property_name}</li>
+<li><strong>Check-in Date:</strong> {check_in_date}</li>
+<li><strong>Check-out Date:</strong> {check_out_date}</li>
+<li><strong>Number of Guests:</strong> {number_of_guests}</li>
+<li><strong>Total Amount:</strong> {currency_symbol} {total_price}</li>
+<li><strong>Payment Status:</strong> {payment_status}</li>
+<li><strong>Transaction ID:</strong> {transaction_id}</li>
+</ul>
+<p><strong>Special Requests:</strong> {special_requests}</p>
+<p>If you have any questions or need to modify your reservation, please do not hesitate to contact our support team.</p>
+<p>We look forward to welcoming you!</p>
+<p>Best regards,</p>
+<p>The <strong>{app_name}</strong> Team</p>';
+            } elseif ($type === 'checkout_reminder') {
+                // Default checkout reminder template
+                $templateMailData = '<p>Dear <strong>{customer_name}</strong>,</p>
+<p>This is a friendly reminder that your reservation is checking out today.</p>
+<p><strong>Reservation Details:</strong></p>
+<ul>
+<li><strong>Reservation ID:</strong> {reservation_id}</li>
+<li><strong>Property:</strong> {property_name}</li>
+<li><strong>Check-in Date:</strong> {check_in_date}</li>
+<li><strong>Check-out Date:</strong> {check_out_date}</li>
+<li><strong>Number of Guests:</strong> {number_of_guests}</li>
+<li><strong>Total Amount:</strong> {currency_symbol} {total_price}</li>
+<li><strong>Special Requests:</strong> {special_requests}</li>
+</ul>
+<p>Please ensure you have completed the checkout process and returned any keys or access cards as required.</p>
+<p>If you have any questions or need assistance, please don\'t hesitate to contact our support team.</p>
+<p>Thank you for choosing <strong>{app_name}</strong>. We hope you had a wonderful stay!</p>
+<p>Best regards,<br>
+The <strong>{app_name}</strong> Asset Management Team</p>';
+            } elseif ($type === 'hotel_booking_tax_invoice_flexible') {
+                // Default hotel booking tax invoice flexible template
+                $templateMailData = '<p>Dear <strong>{owner_name}</strong>,</p>
+<p>We are pleased to provide your monthly tax invoice for <strong>{month_year}</strong> for your Hotel Property - <strong>Flexible Rate Reservations (Manual/Cash Payments)</strong>.</p>
+<p><strong>Summary:</strong></p>
+<ul>
+<li><strong>Total Reservations:</strong> {total_reservations}</li>
+<li><strong>Total Revenue:</strong> {currency_symbol}{total_revenue}</li>
+<li><strong>Revenue After Taxes:</strong> {currency_symbol}{revenue_after_taxes}</li>
+<li><strong>Commission Rate:</strong> {commission_rate}% (As-home)</li>
+<li><strong>Commission Amount:</strong> {currency_symbol}{commission_amount}</li>
+<li><strong>Hotel Rate:</strong> {hotel_rate}% (Hotel)</li>
+<li><strong>Hotel Amount:</strong> {currency_symbol}{hotel_amount}</li>
+<li><strong>Net Amount to Hotel:</strong> {currency_symbol}{net_amount}</li>
+</ul>
+<p><strong>Reservation Details:</strong></p>
+{reservation_details}
+<p><strong>Property Summary:</strong></p>
+{property_summary}
+<p>A detailed PDF invoice is attached to this email.</p>
+<p>As a hotel partner, you benefit from our specialized hotel booking platform, global visibility, and integrated management tools.</p>
+<p>If you have any questions regarding this invoice or your hotel services, please don\'t hesitate to contact our hotel partner support team.</p>
+<p>Thank you for your continued partnership.</p>
+<p>Best regards,<br>
+The <strong>{app_name}</strong> Team</p>';
+            } elseif ($type === 'hotel_booking_tax_invoice_non_refundable') {
+                // Default hotel booking tax invoice non-refundable template
+                $templateMailData = '<p>Dear <strong>{owner_name}</strong>,</p>
+<p>We are pleased to provide your monthly tax invoice for <strong>{month_year}</strong> for your Hotel Property - <strong>Non-Refundable Reservations (Online Payments)</strong>.</p>
+<p><strong>Summary:</strong></p>
+<ul>
+<li><strong>Total Reservations:</strong> {total_reservations}</li>
+<li><strong>Total Revenue:</strong> {currency_symbol}{total_revenue}</li>
+<li><strong>Revenue After Taxes:</strong> {currency_symbol}{revenue_after_taxes}</li>
+<li><strong>Commission Rate:</strong> {commission_rate}% (As-home)</li>
+<li><strong>Commission Amount:</strong> {currency_symbol}{commission_amount}</li>
+<li><strong>Hotel Rate:</strong> {hotel_rate}% (Hotel)</li>
+<li><strong>Hotel Amount:</strong> {currency_symbol}{hotel_amount}</li>
+<li><strong>Net Amount to Hotel:</strong> {currency_symbol}{net_amount}</li>
+</ul>
+<p><strong>Reservation Details:</strong></p>
+{reservation_details}
+<p><strong>Property Summary:</strong></p>
+{property_summary}
+<p>A detailed PDF invoice is attached to this email.</p>
+<p>As a hotel partner, you benefit from our specialized hotel booking platform, global visibility, and integrated management tools.</p>
+<p>If you have any questions regarding this invoice or your hotel services, please don\'t hesitate to contact our hotel partner support team.</p>
+<p>Thank you for your continued partnership.</p>
+<p>Best regards,<br>
+The <strong>{app_name}</strong> Team</p>';
+            } elseif ($type === 'payment_completion_owner') {
+                // Default payment completion owner template
+                $templateMailData = '<p>Hello <strong>{property_owner_name}</strong>,</p>
+<p>Payment completed for your property <strong>"{property_name}"</strong>!</p>
+<p><strong>Customer Information:</strong></p>
+<ul>
+<li><strong>Customer Name:</strong> {customer_name}</li>
+<li><strong>Email:</strong> {customer_email}</li>
+<li><strong>Phone:</strong> {customer_phone}</li>
+</ul>
+<p><strong>Reservation Details:</strong></p>
+<ul>
+<li><strong>Reservation ID:</strong> {reservation_id}</li>
+<li><strong>Property:</strong> {property_name}</li>
+<li><strong>Property Address:</strong> {property_address}</li>
+<li><strong>Check-in Date:</strong> {check_in_date}</li>
+<li><strong>Check-out Date:</strong> {check_out_date}</li>
+<li><strong>Number of Guests:</strong> {number_of_guests}</li>
+<li><strong>Total Amount:</strong> {total_price} {currency_symbol}</li>
+<li><strong>Payment Status:</strong> {payment_status}</li>
+<li><strong>Transaction ID:</strong> {transaction_id}</li>
+<li><strong>Payment Completion Date:</strong> {payment_completion_date}</li>
+</ul>
+<p><strong>Special Requests:</strong> {special_requests}</p>
+<p>Please prepare for your guest&#39;s arrival!</p>
+<p>Best regards,</p>
+<p>The <strong>{app_name}</strong> Team</p>';
+            }
+        }
+        
         $templateMail = array('template' => $templateMailData);
         $data = array_merge($templateMail, $data);
         return view('mail-templates.templates-settings.update-template', compact('data'));

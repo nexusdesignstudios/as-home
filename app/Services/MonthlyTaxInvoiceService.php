@@ -74,20 +74,60 @@ class MonthlyTaxInvoiceService
                     continue;
                 }
 
-                // Generate and send invoice
-                $emailSent = $this->sendMonthlyTaxInvoice($owner, $reservations, $monthYear);
+                // Split reservations by payment method
+                // Manual/Cash = Flexible, Online/Paymob = Non-Refundable
+                $flexibleReservations = collect();
+                $nonRefundableReservations = collect();
 
-                if ($emailSent) {
-                    $results['total_emails_sent']++;
-                    Log::info('Monthly tax invoice sent successfully', [
-                        'owner_id' => $ownerId,
-                        'owner_email' => $owner->email,
-                        'reservations_count' => $reservations->count(),
-                        'month_year' => $monthYear
-                    ]);
-                } else {
-                    $results['total_errors']++;
-                    $results['errors'][] = "Failed to send email to owner: {$owner->email}";
+                foreach ($reservations as $reservation) {
+                    $paymentMethod = $reservation->payment_method ?? 'cash';
+                    $isOnlinePayment = ($paymentMethod === 'paymob' || $paymentMethod === 'online' || $reservation->payment);
+                    
+                    if ($isOnlinePayment) {
+                        $nonRefundableReservations->push($reservation);
+                    } else {
+                        $flexibleReservations->push($reservation);
+                    }
+                }
+
+                $emailsSent = 0;
+
+                // Generate and send Flexible invoice (Manual/Cash reservations)
+                if ($flexibleReservations->isNotEmpty()) {
+                    $emailSent = $this->sendMonthlyTaxInvoice($owner, $flexibleReservations, $monthYear, 'flexible');
+                    if ($emailSent) {
+                        $emailsSent++;
+                        Log::info('Flexible tax invoice sent successfully', [
+                            'owner_id' => $ownerId,
+                            'owner_email' => $owner->email,
+                            'reservations_count' => $flexibleReservations->count(),
+                            'month_year' => $monthYear
+                        ]);
+                    } else {
+                        $results['total_errors']++;
+                        $results['errors'][] = "Failed to send flexible invoice to owner: {$owner->email}";
+                    }
+                }
+
+                // Generate and send Non-Refundable invoice (Online/Paymob reservations)
+                if ($nonRefundableReservations->isNotEmpty()) {
+                    $emailSent = $this->sendMonthlyTaxInvoice($owner, $nonRefundableReservations, $monthYear, 'non-refundable');
+                    if ($emailSent) {
+                        $emailsSent++;
+                        Log::info('Non-Refundable tax invoice sent successfully', [
+                            'owner_id' => $ownerId,
+                            'owner_email' => $owner->email,
+                            'reservations_count' => $nonRefundableReservations->count(),
+                            'month_year' => $monthYear
+                        ]);
+                    } else {
+                        $results['total_errors']++;
+                        $results['errors'][] = "Failed to send non-refundable invoice to owner: {$owner->email}";
+                    }
+                }
+
+                if ($emailsSent > 0) {
+                    $results['total_emails_sent'] += $emailsSent;
                 }
             }
 
@@ -127,6 +167,7 @@ class MonthlyTaxInvoiceService
         $hotelRoomIds = \App\Models\HotelRoom::whereIn('property_id', $propertyIds)->pluck('id');
 
         // Get reservations for properties and hotel rooms
+        // Include both paid and cash payment statuses
         $reservations = Reservation::where(function ($query) use ($propertyIds, $hotelRoomIds) {
             $query->where(function ($q) use ($propertyIds) {
                 $q->where('reservable_type', 'App\Models\Property')
@@ -137,9 +178,9 @@ class MonthlyTaxInvoiceService
             });
         })
             ->where('status', 'confirmed')
-            ->where('payment_status', 'paid')
+            ->whereIn('payment_status', ['paid', 'cash'])
             ->whereBetween('check_in_date', [$startDate, $endDate])
-            ->with(['reservable', 'customer'])
+            ->with(['reservable', 'customer', 'payment:id,reservation_id,status'])
             ->get();
 
         return $reservations;
@@ -151,9 +192,10 @@ class MonthlyTaxInvoiceService
      * @param Customer $owner
      * @param \Illuminate\Database\Eloquent\Collection $reservations
      * @param string $monthYear
+     * @param string $type 'flexible' or 'non-refundable'
      * @return bool
      */
-    private function sendMonthlyTaxInvoice($owner, $reservations, $monthYear)
+    private function sendMonthlyTaxInvoice($owner, $reservations, $monthYear, $type = 'flexible')
     {
         try {
             // Calculate totals
@@ -172,29 +214,17 @@ class MonthlyTaxInvoiceService
             // Calculate revenue after taxes
             $revenueAfterTaxes = $totalRevenue - $totalTaxesAmount;
             
-            // Calculate commission based on property classification and rent package
-            // For simplicity, we'll use the first property's classification and rent package
-            // In a real-world scenario, you might want to calculate commission per property
-            $firstReservation = $reservations->first();
-            $property = null;
-
-            if ($firstReservation->reservable_type === 'App\\Models\\Property') {
-                $property = $firstReservation->reservable;
-            } elseif ($firstReservation->reservable_type === 'App\\Models\\HotelRoom') {
-                $property = $firstReservation->reservable->property;
-            }
-
-            if ($property) {
-                $propertyClassification = $property->getRawOriginal('property_classification');
-                $rentPackage = $property->rent_package;
-                $commissionRate = \App\Models\PropertyTax::getCommissionRate($propertyClassification, $rentPackage);
-            } else {
-                $commissionRate = 15; // Default fallback
-            }
-
-            // Calculate As-home commission on revenue after taxes
+            // For hotel bookings, commission is 15% of revenue AFTER taxes
+            // Hotel gets 85% of revenue AFTER taxes
+            $commissionRate = 15; // 15% commission for As-home
+            $hotelRate = 85; // 85% for hotel
+            
+            // Calculate commission on revenue AFTER taxes
             $commissionAmount = $revenueAfterTaxes * ($commissionRate / 100);
-            $netAmount = $revenueAfterTaxes - $commissionAmount;
+            $hotelAmount = $revenueAfterTaxes * ($hotelRate / 100);
+            
+            // Net amount for hotel (85% of revenue after taxes)
+            $netAmount = $hotelAmount;
 
             // Get currency symbol
             $currencySymbol = system_setting('currency_symbol') ?? '$';
@@ -205,25 +235,26 @@ class MonthlyTaxInvoiceService
             // Generate property summary HTML
             $propertySummary = $this->generatePropertySummaryHtml($reservations);
 
-            // Determine which email template to use based on property classification and rent package
-            $emailTemplateType = "monthly_tax_invoice"; // Default template
-
+            // Determine which email template to use based on type (flexible or non-refundable)
+            // For hotel bookings, use hotel_booking_tax_invoice templates
+            $emailTemplateType = "hotel_booking_tax_invoice"; // Default template for hotel bookings
+            
             if ($property) {
                 $propertyClassification = $property->getRawOriginal('property_classification');
-                $rentPackage = $property->rent_package;
-
+                
                 if ($propertyClassification == 4) { // Vacation homes
+                    $rentPackage = $property->rent_package;
                     if ($rentPackage == 'premium') {
                         $emailTemplateType = "vacation_homes_premium_tax_invoice";
                     } else {
                         $emailTemplateType = "vacation_homes_basic_tax_invoice";
                     }
                 } elseif ($propertyClassification == 5) { // Hotel booking
-                    // Check if it's a flexible or non-refundable hotel
-                    if ($rentPackage == 'flexible') {
-                        $emailTemplateType = "monthly_tax_invoice_hotels_flexible";
+                    // Use new hotel_booking_tax_invoice templates based on payment method
+                    if ($type === 'flexible') {
+                        $emailTemplateType = "hotel_booking_tax_invoice_flexible";
                     } else {
-                        $emailTemplateType = "monthly_tax_invoice_hotels_non_refundable";
+                        $emailTemplateType = "hotel_booking_tax_invoice_non_refundable";
                     }
                 }
             }
@@ -253,18 +284,34 @@ class MonthlyTaxInvoiceService
                 'revenue_after_taxes' => number_format($revenueAfterTaxes, 2),
                 'commission_rate' => $commissionRate,
                 'commission_amount' => number_format($commissionAmount, 2),
+                'hotel_rate' => $hotelRate,
+                'hotel_amount' => number_format($hotelAmount, 2),
                 'net_amount' => number_format($netAmount, 2),
+                'revenue_after_taxes' => number_format($revenueAfterTaxes, 2),
                 'reservation_details' => $reservationDetails,
                 'property_summary' => $propertySummary,
             ];
 
+            // Generate invoice number and accommodation number for Booking.com-style PDF
+            $invoiceNumber = $owner->id . '-' . str_replace('-', '', $monthYear) . '-' . ($type === 'flexible' ? 'F' : 'NR');
+            $accommodationNumber = $owner->id ?? 'N/A';
+            $vatNumber = system_setting('company_vat_number') ?? system_setting('vat_number') ?? null;
+
+            $variables['invoice_number'] = $invoiceNumber;
+            $variables['accommodation_number'] = $accommodationNumber;
+            $variables['vat_number'] = $vatNumber;
+            $variables['payment_method_type'] = $type === 'flexible' ? 'Flexible (Manual/Cash)' : 'Non-Refundable (Online)';
+            $variables['invoice_type_label'] = $type === 'flexible' ? 'Flexible Rate Reservations' : 'Non-Refundable Reservations';
+            $variables['hotel_percentage'] = $hotelRate; // 85% for hotel
+            $variables['commission_percentage'] = $commissionRate; // 15% for As-home
+
             // Add bank account details for flexible hotels
-            if ($emailTemplateType === "monthly_tax_invoice_hotels_flexible") {
+            if ($emailTemplateType === "hotel_booking_tax_invoice_flexible" || $emailTemplateType === "monthly_tax_invoice_hotels_flexible") {
                 $variables['bank_account_details'] = $this->generateBankAccountDetailsHtml();
             }
 
             if (empty($templateData)) {
-                $templateData = "Your monthly tax invoice for {$monthYearDisplay}";
+                $templateData = "Your monthly tax invoice for {$monthYearDisplay} - {$variables['invoice_type_label']}";
             }
 
             $emailTemplate = HelperService::replaceEmailVariables($templateData, $variables);
@@ -410,7 +457,7 @@ class MonthlyTaxInvoiceService
         $html .= '<tr><td style="padding: 8px; font-weight: bold;">SWIFT Code:</td><td style="padding: 8px;">' . $swiftCode . '</td></tr>';
         $html .= '</table>';
         $html .= '<p style="margin-top: 15px; color: #6c757d; font-size: 14px;">';
-        $html .= '<strong>Note:</strong> Please transfer the commission amount ({commission_amount} {currency_symbol}) to the above account within 7 days of receiving this invoice.';
+        $html .= '<strong>Note:</strong> Please transfer the hotel amount ({hotel_amount} {currency_symbol}) to the above account within 7 days of receiving this invoice.';
         $html .= '</p>';
         $html .= '</div>';
 
@@ -435,9 +482,15 @@ class MonthlyTaxInvoiceService
             $pdf = $taxInvoiceService->generatePDF($owner, $variables, $monthYear, $templateType);
             $pdfContent = $pdf->output();
             
-            // Generate filename
+            // Generate filename based on template type
             $monthYearDisplay = Carbon::parse($monthYear . '-01')->format('Y-m');
-            $filename = 'tax_invoice_' . $owner->id . '_' . $monthYearDisplay . '.pdf';
+            $typeSuffix = '';
+            if (strpos($templateType, 'flexible') !== false) {
+                $typeSuffix = '_Flexible';
+            } elseif (strpos($templateType, 'non_refundable') !== false || strpos($templateType, 'non-refundable') !== false) {
+                $typeSuffix = '_NonRefundable';
+            }
+            $filename = 'tax_invoice_' . $owner->id . '_' . $monthYearDisplay . $typeSuffix . '.pdf';
             
             Log::info('PDF generated for tax invoice', [
                 'owner_id' => $owner->id,
