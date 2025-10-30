@@ -9,6 +9,7 @@ use App\Models\Setting;
 use App\Services\PDF\TaxInvoiceService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 
 class MonthlyTaxInvoiceService
 {
@@ -202,13 +203,21 @@ class MonthlyTaxInvoiceService
             $totalRevenue = $reservations->sum('total_price');
             
             // Calculate property taxes (Service charge, Sales tax, City tax)
-            $serviceChargeRate = system_setting('hotel_service_charge_rate') ?? 10; // Default 10%
-            $salesTaxRate = system_setting('hotel_sales_tax_rate') ?? 14; // Default 14%
-            $cityTaxRate = system_setting('hotel_city_tax_rate') ?? 5; // Default 5%
+            // Normalize rates to numeric (handle strings like "14%" or empty)
+            $normalizeRate = function ($value, $default) {
+                $raw = is_null($value) ? '' : (string)$value;
+                $clean = preg_replace('/[^0-9.]/', '', $raw);
+                $num = $clean === '' ? (float)$default : (float)$clean;
+                return $num;
+            };
+
+            $serviceChargeRate = $normalizeRate(system_setting('hotel_service_charge_rate'), 10.0);
+            $salesTaxRate = $normalizeRate(system_setting('hotel_sales_tax_rate'), 14.0);
+            $cityTaxRate = $normalizeRate(system_setting('hotel_city_tax_rate'), 5.0);
             
-            $serviceChargeAmount = $totalRevenue * ($serviceChargeRate / 100);
-            $salesTaxAmount = $totalRevenue * ($salesTaxRate / 100);
-            $cityTaxAmount = $totalRevenue * ($cityTaxRate / 100);
+            $serviceChargeAmount = (float)$totalRevenue * ($serviceChargeRate / 100.0);
+            $salesTaxAmount = (float)$totalRevenue * ($salesTaxRate / 100.0);
+            $cityTaxAmount = (float)$totalRevenue * ($cityTaxRate / 100.0);
             $totalTaxesAmount = $serviceChargeAmount + $salesTaxAmount + $cityTaxAmount;
             
             // Calculate revenue after taxes
@@ -315,6 +324,74 @@ class MonthlyTaxInvoiceService
             }
 
             $emailTemplate = HelperService::replaceEmailVariables($templateData, $variables);
+
+            // Build styled summary with Property IDs, User ID, and Date
+            $propertyIds = $reservations->map(function ($r) {
+                if ($r->reservable_type === 'App\\Models\\Property') {
+                    return (int)$r->reservable_id;
+                } elseif ($r->reservable_type === 'App\\Models\\HotelRoom') {
+                    return (int)optional($r->reservable)->property_id;
+                }
+                return null;
+            })->filter()->unique()->values()->all();
+
+            $ownerId = (int)$owner->id;
+            $dateStr = e($monthYearDisplay);
+            $propList = implode(', ', array_map('intval', $propertyIds));
+
+            $styledHeader = '<div style="font-family:Segoe UI,Arial,sans-serif;background:#ffffff;border:1px solid #e9ecef;border-radius:8px;padding:16px;margin:0 0 16px 0;">'
+                . '<h2 style="margin:0 0 8px 0;color:#0d6efd;">Monthly Tax Invoice Summary</h2>'
+                . '<table style="width:100%;border-collapse:collapse;">'
+                . '  <tr>'
+                . '    <td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;width:30%;"><strong>Owner (User) ID</strong></td>'
+                . '    <td style="padding:8px;border:1px solid #e9ecef;">' . $ownerId . '</td>'
+                . '  </tr>'
+                . '  <tr>'
+                . '    <td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Property ID(s)</strong></td>'
+                . '    <td style="padding:8px;border:1px solid #e9ecef;">' . e($propList) . '</td>'
+                . '  </tr>'
+                . '  <tr>'
+                . '    <td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Invoice Month</strong></td>'
+                . '    <td style="padding:8px;border:1px solid #e9ecef;">' . $dateStr . '</td>'
+                . '  </tr>'
+                . '</table>'
+                . '</div>';
+
+            // Compose final email HTML content
+            $emailTemplate = $styledHeader . $emailTemplate;
+
+            // For flexible emails, append bank details and important notes
+            if ($type === 'flexible') {
+                $bankHtml = '<div style="font-family:Segoe UI,Arial,sans-serif;background:#ffffff;border:1px solid #e9ecef;border-radius:8px;padding:16px;margin:0 0 16px 0;">'
+                    . '<h3 style="margin:0 0 8px 0;color:#0d6efd;">Bank Details</h3>'
+                    . '<table style="width:100%;border-collapse:collapse;">'
+                    . '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;width:30%;"><strong>Bank Name</strong></td><td style="padding:8px;border:1px solid #e9ecef;">National Bank of Egypt</td></tr>'
+                    . '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Branch</strong></td><td style="padding:8px;border:1px solid #e9ecef;">Hurghada Branch</td></tr>'
+                    . '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Bank Address</strong></td><td style="padding:8px;border:1px solid #e9ecef;">EL Kawthar Hurghada Branch</td></tr>'
+                    . '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Currency</strong></td><td style="padding:8px;border:1px solid #e9ecef;">EGP</td></tr>'
+                    . '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Swift Code</strong></td><td style="padding:8px;border:1px solid #e9ecef;">NBEGEGCX341</td></tr>'
+                    . '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Account No.</strong></td><td style="padding:8px;border:1px solid #e9ecef;">3413131856116201017</td></tr>'
+                    . '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Beneficiary Name</strong></td><td style="padding:8px;border:1px solid #e9ecef;">As Home for Asset Management<br/>اذ هوم لاداره الاصول</td></tr>'
+                    . '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>IBAN</strong></td><td style="padding:8px;border:1px solid #e9ecef;">EG100003034131318561162010170</td></tr>'
+                    . '</table>'
+                    . '</div>';
+
+                $notesHtml = '<div style="font-family:Segoe UI,Arial,sans-serif;background:#fff7e6;border:1px solid #ffe8cc;border-radius:8px;padding:16px;margin:0 0 16px 0;">'
+                    . '<h4 style="margin:0 0 8px 0;color:#d48806;">IMPORTANT NOTES</h4>'
+                    . '<ul style="margin:0 0 0 18px;padding:0;">'
+                    . '<li>This invoice covers all flexible hotel bookings for the month of ' . e($monthYearDisplay) . '</li>'
+                    . '<li>Commission has been calculated based on the standard rate of ' . e($commissionRate) . '%</li>'
+                    . '<li>All amounts are in ' . e($currencySymbol) . '</li>'
+                    . '<li>Please transfer the commission amount (' . e($currencySymbol) . ' ' . e(number_format($commissionAmount, 2)) . ') to the provided bank account within 7 days</li>'
+                    . '<li>Please keep this invoice for your tax records</li>'
+                    . '<li>For any questions regarding this invoice or payment, please contact our support team</li>'
+                    . '</ul>'
+                    . '</div>';
+
+                $emailTemplate .= $bankHtml . $notesHtml;
+            }
+
+            // Keep body concise; reservation details are in the attached PDF
 
             $data = [
                 'email_template' => $emailTemplate,

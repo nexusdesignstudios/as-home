@@ -109,8 +109,13 @@ class TestFeedbackEmailFlow extends Command
                 return Command::FAILURE;
             }
 
-            $appUrl = config('app.url', 'http://127.0.0.1:8000');
-            $feedbackUrl = "{$appUrl}/feedback/{$reservation->feedback_token}";
+            // Build absolute feedback link using configured public URL if available
+            $baseUrl = function_exists('system_setting') ? (system_setting('web_url') ?: null) : null;
+            if (empty($baseUrl)) {
+                $baseUrl = 'https://ashome-eg.com';
+            }
+            $baseUrl = rtrim($baseUrl ?: (config('app.url') ?: ''), '/');
+            $feedbackUrl = $baseUrl . "/feedback/{$reservation->feedback_token}";
 
             $propertyName = $property->title;
             $formType = null;

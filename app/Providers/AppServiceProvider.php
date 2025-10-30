@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Opcodes\LogViewer\Facades\LogViewer;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -35,5 +36,9 @@ class AppServiceProvider extends ServiceProvider
             'property' => \App\Models\Property::class,
             'hotel_room' => \App\Models\HotelRoom::class,
         ]);
+
+        // Force generated URLs (including signed routes) to use public domain
+        $webURL = 'https://ashom-eg.com';
+     
     }
 }

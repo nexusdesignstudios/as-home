@@ -19,6 +19,7 @@ use App\Services\ApiResponseService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Symfony\Component\Intl\Currencies;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class HelperService
 {
@@ -1983,11 +1984,45 @@ class HelperService
     {
         try {
             $adminMail = env('MAIL_FROM_ADDRESS');
-            Mail::send('mail-templates.mail-template', $data, function ($message) use ($data, $adminMail) {
-                $message->to($data['email'])->subject($data['title']);
+
+            // 1) Render the full HTML email content using selected template (fallback to default)
+            //    We will convert this to PDF and attach
+            $viewName = isset($data['view']) && is_string($data['view']) ? $data['view'] : 'mail-templates.mail-template';
+            $emailHtml = view($viewName, $data)->render();
+
+            // 2) Generate PDF from the HTML content (A4 portrait)
+            $pdf = Pdf::loadHTML($emailHtml)->setPaper('A4', 'portrait');
+            $pdfContent = $pdf->output();
+
+            // Build filename (safe)
+            $safeTitle = preg_replace('/[^A-Za-z0-9_-]+/', '_', (string)($data['title'] ?? 'document'));
+            $filename = $safeTitle . '_' . date('Ymd_His') . '.pdf';
+
+            // Optional: save a temporary copy
+            $tempDir = storage_path('app/tmp');
+            if (!is_dir($tempDir)) {
+                @mkdir($tempDir, 0755, true);
+            }
+            $tempPath = $tempDir . DIRECTORY_SEPARATOR . $filename;
+            @file_put_contents($tempPath, $pdfContent);
+
+            // 3) Send the email with HTML body (from template) and the PDF attached
+            Mail::send([], [], function ($message) use ($data, $adminMail, $pdfContent, $filename, $emailHtml) {
+                $to = $data['email'];
+                $subject = $data['title'] ?? 'Notification';
+                $message->to($to)->subject($subject);
                 $message->from($adminMail, 'As Home Team');
-                
-                // Add attachments if provided
+                // Preferred HTML content
+                $message->html($emailHtml);
+                // Alt plain text
+                $message->text('Please find attached your details as a PDF.');
+
+                // Attach generated PDF
+                $message->attachData($pdfContent, $filename, [
+                    'mime' => 'application/pdf',
+                ]);
+
+                // Preserve any additional attachments passed by callers
                 if (isset($data['attachments']) && is_array($data['attachments'])) {
                     foreach ($data['attachments'] as $attachment) {
                         if (isset($attachment['content']) && isset($attachment['filename'])) {
@@ -1999,6 +2034,10 @@ class HelperService
                     }
                 }
             });
+
+            // 4) Optionally delete temp file (kept briefly for troubleshooting)
+            @unlink($tempPath);
+
         } catch (Exception $e) {
             if ($requiredEmailException == true) {
                 DB::rollback();
@@ -2013,7 +2052,7 @@ class HelperService
             ])) {
                 Log::error("Cannot send mail, there is issue with mail configuration.");
             } else {
-                $logMessage = "Send Mail for property feature status changed";
+                $logMessage = "Send Mail failure";
                 Log::error($logMessage . ' ' . $e->getMessage() . '---> ' . $e->getFile() . ' At Line : ' . $e->getLine());
             }
         }

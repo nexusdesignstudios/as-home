@@ -44,6 +44,7 @@ use App\Http\Controllers\HotelApartmentTypeController;
 use App\Http\Controllers\ReservationsAdminController;
 use App\Http\Controllers\PropertyQuestionFormController;
 use App\Http\Controllers\TaxInvoiceController;
+use App\Http\Controllers\InvoiceDownloadController;
 
 
 /*
@@ -573,3 +574,7 @@ Route::get('/send-money/failed', function(\Illuminate\Http\Request $request) {
 
 // Test route for tax invoice PDF generation
 Route::get('/test-tax-invoice-pdf', [TaxInvoiceController::class, 'testPdf'])->name('test.tax.invoice.pdf');
+
+Route::get('/invoices/download/{owner}/{month}/{type}', [InvoiceDownloadController::class, 'download'])
+    ->name('invoices.download')
+    ->middleware('signed');

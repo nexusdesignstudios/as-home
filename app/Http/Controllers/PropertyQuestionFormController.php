@@ -301,11 +301,28 @@ class PropertyQuestionFormController extends Controller
             }
 
             // Determine property and classification
+            // First try to get property_id from query parameter (if provided in URL)
+            $propertyIdFromQuery = $request->query('property_id');
             $property = null;
             $propertyClassification = null;
             $formType = null;
-
-            if ($reservation->reservable_type === 'App\\Models\\Property') {
+            
+            // If property_id provided in URL, use it directly (for frontend convenience)
+            if ($propertyIdFromQuery) {
+                $property = Property::find($propertyIdFromQuery);
+                if ($property) {
+                    $propertyClassification = $property->getRawOriginal('property_classification');
+                    if ($propertyClassification == 4) {
+                        $formType = 'vacation_homes';
+                    } elseif ($propertyClassification == 5) {
+                        $formType = 'hotel_booking';
+                    }
+                }
+            }
+            
+            // Fallback to original method if property_id not provided or not found
+            if (!$property || !$formType) {
+                if ($reservation->reservable_type === 'App\\Models\\Property') {
                 $property = $reservation->reservable;
                 if ($property) {
                     $propertyClassification = $property->getRawOriginal('property_classification');

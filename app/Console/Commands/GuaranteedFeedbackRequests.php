@@ -179,10 +179,12 @@ class GuaranteedFeedbackRequests extends Command
         // Build absolute feedback link using configured public URL if available
         $baseUrl = function_exists('system_setting') ? (system_setting('web_url') ?: null) : null;
         if (empty($baseUrl)) {
-            $baseUrl = 'https://ashom-eg.com';
+            $baseUrl = 'https://ashome-eg.com';
         }
         $baseUrl = rtrim($baseUrl ?: (config('app.url') ?: ''), '/');
-        $feedbackUrl = $baseUrl . "/feedback/{$token}";
+        // Include property_id in the URL for easier frontend access
+        $propertyId = $property->id ?? null;
+        $feedbackUrl = $baseUrl . "/feedback/{$token}" . ($propertyId ? "?property_id={$propertyId}" : '');
 
         $variables = [
             'app_name' => config('app.name'),

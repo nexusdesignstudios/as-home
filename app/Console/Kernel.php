@@ -3,6 +3,8 @@
 namespace App\Console;
 
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
+use Carbon\Carbon;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use App\Console\Commands\SeedPropertyDataCommand;
@@ -89,6 +91,43 @@ class Kernel extends ConsoleKernel
         $schedule->command('tax:guaranteed-invoices')
             ->monthlyOn(15, '09:30')
             ->appendOutputTo(storage_path('logs/guaranteed-tax.log'));
+        // Automated monthly flexible invoice emails on the 1st at 10:00 AM
+        $schedule->command('invoices:send-flexible')->monthlyOn(1, '10:00');
+
+        // One-off in 10 minutes: Tax invoices (guaranteed)
+        $schedule->call(function () {
+            $month = Carbon::now()->subMonth()->format('Y-m');
+            Artisan::call('tax:guaranteed-invoices', ['month' => $month, '--force' => true]);
+        })->everyMinute()->when(function () {
+            $target = Cache::get('one_off_tax_target');
+            if (!$target) {
+                Cache::put('one_off_tax_target', now()->addMinutes(10)->toDateTimeString(), 20);
+                return false;
+            }
+            if (Cache::get('one_off_tax_done')) {
+                return false;
+            }
+            return now()->greaterThanOrEqualTo(Carbon::parse($target));
+        })->onSuccess(function () {
+            Cache::put('one_off_tax_done', true, 1440);
+        });
+
+        // One-off in 10 minutes: Feedback Request Emails (guaranteed)
+        $schedule->call(function () {
+            Artisan::call('feedback:guaranteed-send');
+        })->everyMinute()->when(function () {
+            $target = Cache::get('one_off_feedback_target');
+            if (!$target) {
+                Cache::put('one_off_feedback_target', now()->addMinutes(10)->toDateTimeString(), 20);
+                return false;
+            }
+            if (Cache::get('one_off_feedback_done')) {
+                return false;
+            }
+            return now()->greaterThanOrEqualTo(Carbon::parse($target));
+        })->onSuccess(function () {
+            Cache::put('one_off_feedback_done', true, 1440);
+        });
     }
 
     /**
