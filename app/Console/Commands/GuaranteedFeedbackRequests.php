@@ -176,8 +176,13 @@ class GuaranteedFeedbackRequests extends Command
             throw new \Exception("Could not determine property or form type");
         }
 
-        $appUrl = config('app.url');
-        $feedbackUrl = "{$appUrl}/feedback/{$token}";
+        // Build absolute feedback link using configured public URL if available
+        $baseUrl = function_exists('system_setting') ? (system_setting('web_url') ?: null) : null;
+        if (empty($baseUrl)) {
+            $baseUrl = 'https://ashom-eg.com';
+        }
+        $baseUrl = rtrim($baseUrl ?: (config('app.url') ?: ''), '/');
+        $feedbackUrl = $baseUrl . "/feedback/{$token}";
 
         $variables = [
             'app_name' => config('app.name'),
