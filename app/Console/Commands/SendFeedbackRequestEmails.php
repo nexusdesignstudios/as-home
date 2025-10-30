@@ -91,10 +91,11 @@ class SendFeedbackRequestEmails extends Command
                         continue;
                     }
 
-                    // Generate feedback form URL using public web URL if configured
-                    $baseUrl = system_setting('web_url') ?: config('app.url');
-                    $baseUrl = rtrim($baseUrl ?? '', '/');
-                    $feedbackUrl = $baseUrl . '/feedback/' . $token . '?reservation_id=' . $reservation->id;
+                    // Generate feedback form URL
+                    $feedbackUrl = route('feedback.form', [
+                        'token' => $token,
+                        'reservation_id' => $reservation->id
+                    ]);
 
                     // Prepare email variables
                     $appName = env("APP_NAME") ?? "As-home";

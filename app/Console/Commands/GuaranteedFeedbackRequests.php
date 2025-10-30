@@ -176,9 +176,8 @@ class GuaranteedFeedbackRequests extends Command
             throw new \Exception("Could not determine property or form type");
         }
 
-        $baseUrl = system_setting('web_url') ?: config('app.url');
-        $baseUrl = rtrim($baseUrl ?? '', '/');
-        $feedbackUrl = $baseUrl . "/feedback/{$token}";
+        $appUrl = config('app.url');
+        $feedbackUrl = "{$appUrl}/feedback/{$token}";
 
         $variables = [
             'app_name' => config('app.name'),
