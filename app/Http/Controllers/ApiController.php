@@ -9105,9 +9105,26 @@ class ApiController extends Controller
                 ]);
             }
 
-            $validator = Validator::make($request->all(), [
-                'property_id' => 'required|exists:propertys,id',
-                'reservation_id' => 'nullable|exists:reservations,id'
+            // Get parameters from query string for GET request
+            $propertyId = $request->query('property_id') ?? $request->input('property_id');
+            $reservationId = $request->query('reservation_id') ?? $request->input('reservation_id');
+            
+            // Convert property_id to integer
+            $propertyId = $propertyId ? (int) $propertyId : null;
+            
+            // Convert empty string to null and cast to integer if provided
+            if ($reservationId === '' || $reservationId === null) {
+                $reservationId = null;
+            } else {
+                $reservationId = (int) $reservationId;
+            }
+
+            $validator = Validator::make([
+                'property_id' => $propertyId,
+                'reservation_id' => $reservationId
+            ], [
+                'property_id' => 'required|integer|exists:propertys,id',
+                'reservation_id' => 'nullable|integer|exists:reservations,id'
             ]);
 
             if ($validator->fails()) {
@@ -9118,29 +9135,37 @@ class ApiController extends Controller
                 ]);
             }
 
-            $propertyId = $request->property_id;
-            $reservationId = $request->reservation_id ?? null;
             $customerId = $customer->id;
 
             // Check if user has already submitted a review
-            $existingReview = PropertyQuestionAnswer::where('customer_id', $customerId)
-                ->where('property_id', $propertyId)
-                ->when($reservationId, function ($query) use ($reservationId) {
-                    return $query->where('reservation_id', $reservationId);
-                })
-                ->first();
+            // Use exists() for better performance - just check if any review exists
+            $query = PropertyQuestionAnswer::where('customer_id', $customerId)
+                ->where('property_id', $propertyId);
+            
+            // If reservation_id is provided, filter by it; otherwise don't filter by reservation_id
+            if ($reservationId !== null) {
+                $query->where('reservation_id', $reservationId);
+            }
+            
+            $hasSubmitted = $query->exists();
 
             return response()->json([
                 'error' => false,
-                'has_submitted' => $existingReview !== null,
-                'message' => $existingReview ? 'Review already submitted' : 'Review not submitted yet'
+                'has_submitted' => $hasSubmitted,
+                'message' => $hasSubmitted ? 'Review already submitted' : 'Review not submitted yet'
             ]);
         } catch (Exception $e) {
+            // Log the error for debugging
+            Log::error('checkUserReviewStatus error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+            
             return response()->json([
                 'error' => true,
                 'message' => trans('Something went wrong'),
                 'has_submitted' => false,
-                'data' => $e->getMessage()
+                'data' => config('app.debug') ? $e->getMessage() : null
             ]);
         }
     }

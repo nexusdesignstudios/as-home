@@ -309,10 +309,7 @@ class ReservationController extends Controller
         $checkOutDate = Carbon::parse($request->check_out_date);
         $today = Carbon::today();
 
-        // Check for 31st day restriction
-        if ($checkInDate->format('d') == '31' || $checkOutDate->format('d') == '31') {
-            $validator->errors()->add('date_restriction', 'Reservations are not allowed on the 31st day of any month');
-        }
+        
 
         // Check for past dates
         if ($checkInDate->lt($today) || $checkOutDate->lt($today)) {
@@ -377,10 +374,7 @@ class ReservationController extends Controller
         $checkOutDate = Carbon::parse($request->check_out_date);
         $today = Carbon::today();
 
-        // Check for 31st day restriction
-        if ($checkInDate->format('d') == '31' || $checkOutDate->format('d') == '31') {
-            $validator->errors()->add('date_restriction', 'Reservations are not allowed on the 31st day of any month');
-        }
+        
 
         // Check for past dates
         if ($checkInDate->lt($today) || $checkOutDate->lt($today)) {
@@ -849,10 +843,7 @@ class ReservationController extends Controller
         $checkOutDate = Carbon::parse($request->check_out_date);
         $today = Carbon::today();
 
-        // Check for 31st day restriction
-        if ($checkInDate->format('d') == '31' || $checkOutDate->format('d') == '31') {
-            $validator->errors()->add('date_restriction', 'Reservations are not allowed on the 31st day of any month');
-        }
+        
 
         // Check for past dates
         if ($checkInDate->lt($today) || $checkOutDate->lt($today)) {
