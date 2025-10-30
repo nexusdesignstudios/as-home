@@ -9181,8 +9181,9 @@ class ApiController extends Controller
         $validator = Validator::make($request->all(), [
             'token' => 'required|string',
             'property_id' => 'required|exists:propertys,id',
-            'answers' => 'required', // Can be array or JSON string
-            // Validation for array items will be done after JSON decode
+            'answers' => 'required|array',
+            'answers.*.field_id' => 'required|exists:property_question_fields,id',
+            'answers.*.value' => 'required',
         ]);
 
         if ($validator->fails()) {
@@ -9193,12 +9194,30 @@ class ApiController extends Controller
         }
 
         try {
+            // Clean and trim the token to handle any whitespace or encoding issues
+            $token = trim($request->token);
+            
+            // Log token for debugging (remove in production if contains sensitive info)
+            \Log::info('Feedback token validation attempt', [
+                'token_length' => strlen($token),
+                'token_preview' => substr($token, 0, 20) . '...',
+                'has_property_id' => !empty($request->property_id)
+            ]);
+            
             // Verify token and get reservation
-            $reservation = \App\Models\Reservation::where('feedback_token', $request->token)
+            // Use exact match after trimming
+            $reservation = \App\Models\Reservation::where('feedback_token', $token)
                 ->whereNotNull('feedback_token')
                 ->first();
 
             if (!$reservation) {
+                // Log failed token lookup for debugging
+                \Log::warning('Feedback token not found', [
+                    'token_length' => strlen($token),
+                    'token_preview' => substr($token, 0, 20) . '...',
+                    'token_exists_check' => \App\Models\Reservation::whereNotNull('feedback_token')->count()
+                ]);
+                
                 return response()->json([
                     'error' => true,
                     'message' => trans('Invalid or expired feedback token')
@@ -9208,42 +9227,6 @@ class ApiController extends Controller
             $propertyId = $request->property_id;
             $reservationId = $reservation->id;
             $customerId = $reservation->customer_id;
-
-            // Handle answers if sent as JSON string (from FormData)
-            $answers = $request->answers;
-            if (is_string($answers)) {
-                $answers = json_decode($answers, true);
-                if (json_last_error() !== JSON_ERROR_NONE || !is_array($answers)) {
-                    return response()->json([
-                        'error' => true,
-                        'message' => trans('Invalid answers format')
-                    ]);
-                }
-            }
-            
-            // Validate answers array structure
-            if (!is_array($answers) || empty($answers)) {
-                return response()->json([
-                    'error' => true,
-                    'message' => trans('Answers must be a non-empty array')
-                ]);
-            }
-            
-            foreach ($answers as $answer) {
-                if (!isset($answer['field_id']) || !isset($answer['value'])) {
-                    return response()->json([
-                        'error' => true,
-                        'message' => trans('Each answer must have field_id and value')
-                    ]);
-                }
-                // Validate field_id exists
-                if (!\App\Models\PropertyQuestionField::where('id', $answer['field_id'])->exists()) {
-                    return response()->json([
-                        'error' => true,
-                        'message' => trans('Invalid field_id in answers')
-                    ]);
-                }
-            }
 
             // Verify property matches reservation
             $property = Property::find($propertyId);
@@ -9289,7 +9272,7 @@ class ApiController extends Controller
             DB::beginTransaction();
 
             // Process each answer
-            foreach ($answers as $answer) {
+            foreach ($request->answers as $answer) {
                 $field = PropertyQuestionField::find($answer['field_id']);
 
                 // Skip if field doesn't exist
