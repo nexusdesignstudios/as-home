@@ -227,6 +227,13 @@ Note: This feedback link is valid and unique to your reservation.';
 
         $emailContent = HelperService::replaceEmailVariables($emailTemplateData, $variables);
 
+        // Save token to database BEFORE sending email (only if not test email)
+        if (!$testEmail) {
+            $reservation->feedback_token = $token;
+            $reservation->feedback_email_sent_at = Carbon::now();
+            $reservation->save();
+        }
+
         $data = [
             'email' => $email,
             'title' => $emailTypeData['title'] ?? 'Share Your Feedback - ' . config('app.name'),
@@ -234,13 +241,6 @@ Note: This feedback link is valid and unique to your reservation.';
         ];
 
         HelperService::sendMail($data);
-
-        // Update reservation (only if not test email)
-        if (!$testEmail) {
-            $reservation->feedback_token = $token;
-            $reservation->feedback_email_sent_at = Carbon::now();
-            $reservation->save();
-        }
 
         return true;
     }

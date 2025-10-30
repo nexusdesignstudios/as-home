@@ -158,6 +158,11 @@ Note: This feedback link is valid and unique to your reservation.';
                     // Replace variables in template
                     $emailContent = HelperService::replaceEmailVariables($emailTemplateData, $variables);
 
+                    // Save token to database BEFORE sending email
+                    $reservation->feedback_token = $token;
+                    $reservation->feedback_email_sent_at = now();
+                    $reservation->save();
+
                     // Send email
                     $data = [
                         'email' => $customer->email,
@@ -166,11 +171,6 @@ Note: This feedback link is valid and unique to your reservation.';
                     ];
 
                     HelperService::sendMail($data);
-
-                    // Update reservation with token and sent timestamp
-                    $reservation->feedback_token = $token;
-                    $reservation->feedback_email_sent_at = now();
-                    $reservation->save();
 
                     $sentCount++;
                     $this->info("Feedback email sent to {$customer->email} for reservation {$reservation->id}");
