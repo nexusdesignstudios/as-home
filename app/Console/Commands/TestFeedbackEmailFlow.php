@@ -115,7 +115,9 @@ class TestFeedbackEmailFlow extends Command
                 $baseUrl = 'https://ashome-eg.com';
             }
             $baseUrl = rtrim($baseUrl ?: (config('app.url') ?: ''), '/');
-            $feedbackUrl = $baseUrl . "/feedback/{$reservation->feedback_token}";
+            // Include property_id in the URL for easier frontend access
+            $propertyId = $property->id ?? null;
+            $feedbackUrl = $baseUrl . "/feedback/{$reservation->feedback_token}" . ($propertyId ? "?property_id={$propertyId}" : '');
 
             $propertyName = $property->title;
             $formType = null;

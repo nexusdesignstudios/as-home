@@ -91,21 +91,29 @@ class SendFeedbackRequestEmails extends Command
                         continue;
                     }
 
-                    // Generate feedback form URL
-                    $feedbackUrl = route('feedback.form', [
-                        'token' => $token,
-                        'reservation_id' => $reservation->id
-                    ]);
-
-                    // Prepare email variables
-                    $appName = env("APP_NAME") ?? "As-home";
+                    // Get property for URL and email content
+                    $property = null;
                     $propertyName = '';
                     
                     if ($reservation->reservable_type === 'App\\Models\\Property') {
-                        $propertyName = $reservation->reservable->title ?? 'N/A';
+                        $property = $reservation->reservable;
+                        $propertyName = $property->title ?? 'N/A';
                     } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
-                        $propertyName = $reservation->reservable->property->title ?? 'N/A';
+                        $property = $reservation->reservable->property ?? null;
+                        $propertyName = $property->title ?? 'N/A';
                     }
+
+                    // Generate feedback form URL with property_id included
+                    $baseUrl = function_exists('system_setting') ? (system_setting('web_url') ?: null) : null;
+                    if (empty($baseUrl)) {
+                        $baseUrl = 'https://ashome-eg.com';
+                    }
+                    $baseUrl = rtrim($baseUrl ?: (config('app.url') ?: ''), '/');
+                    $propertyId = $property->id ?? null;
+                    $feedbackUrl = $baseUrl . "/feedback/{$token}" . ($propertyId ? "?property_id={$propertyId}" : '');
+
+                    // Prepare email variables
+                    $appName = env("APP_NAME") ?? "As-home";
 
                     $variables = [
                         'app_name' => $appName,

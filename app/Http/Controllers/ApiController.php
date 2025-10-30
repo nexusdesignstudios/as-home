@@ -9181,9 +9181,8 @@ class ApiController extends Controller
         $validator = Validator::make($request->all(), [
             'token' => 'required|string',
             'property_id' => 'required|exists:propertys,id',
-            'answers' => 'required|array',
-            'answers.*.field_id' => 'required|exists:property_question_fields,id',
-            'answers.*.value' => 'required',
+            'answers' => 'required', // Can be array or JSON string
+            // Validation for array items will be done after JSON decode
         ]);
 
         if ($validator->fails()) {
@@ -9209,6 +9208,42 @@ class ApiController extends Controller
             $propertyId = $request->property_id;
             $reservationId = $reservation->id;
             $customerId = $reservation->customer_id;
+
+            // Handle answers if sent as JSON string (from FormData)
+            $answers = $request->answers;
+            if (is_string($answers)) {
+                $answers = json_decode($answers, true);
+                if (json_last_error() !== JSON_ERROR_NONE || !is_array($answers)) {
+                    return response()->json([
+                        'error' => true,
+                        'message' => trans('Invalid answers format')
+                    ]);
+                }
+            }
+            
+            // Validate answers array structure
+            if (!is_array($answers) || empty($answers)) {
+                return response()->json([
+                    'error' => true,
+                    'message' => trans('Answers must be a non-empty array')
+                ]);
+            }
+            
+            foreach ($answers as $answer) {
+                if (!isset($answer['field_id']) || !isset($answer['value'])) {
+                    return response()->json([
+                        'error' => true,
+                        'message' => trans('Each answer must have field_id and value')
+                    ]);
+                }
+                // Validate field_id exists
+                if (!\App\Models\PropertyQuestionField::where('id', $answer['field_id'])->exists()) {
+                    return response()->json([
+                        'error' => true,
+                        'message' => trans('Invalid field_id in answers')
+                    ]);
+                }
+            }
 
             // Verify property matches reservation
             $property = Property::find($propertyId);
@@ -9254,7 +9289,7 @@ class ApiController extends Controller
             DB::beginTransaction();
 
             // Process each answer
-            foreach ($request->answers as $answer) {
+            foreach ($answers as $answer) {
                 $field = PropertyQuestionField::find($answer['field_id']);
 
                 // Skip if field doesn't exist
