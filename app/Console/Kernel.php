@@ -7,6 +7,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use App\Console\Commands\SeedPropertyDataCommand;
 use App\Console\Commands\GenerateMonthlyTaxInvoices;
+use App\Console\Commands\CheckTodayCheckouts;
 
 class Kernel extends ConsoleKernel
 {
@@ -27,6 +28,8 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\GuaranteedFeedbackRequests::class,
         \App\Console\Commands\GuaranteedCheckoutReminders::class,
         \App\Console\Commands\GuaranteedTaxInvoices::class,
+        CheckTodayCheckouts::class,
+        \App\Console\Commands\UpdateHotelFeedbackQuestions::class,
     ];
 
     /**

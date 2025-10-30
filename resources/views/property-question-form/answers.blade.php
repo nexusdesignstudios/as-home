@@ -86,7 +86,7 @@
                                             @if($reviewsAnalytics['average_rating'] > 0)
                                                 {{ $reviewsAnalytics['average_rating'] }}/5
                                             @else
-                                                {{ __('N/A') }}
+                                                (0)
                                             @endif
                                         </h2>
                                     </div>

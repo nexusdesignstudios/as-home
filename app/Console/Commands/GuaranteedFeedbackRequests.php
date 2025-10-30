@@ -146,13 +146,13 @@ class GuaranteedFeedbackRequests extends Command
         $formType = null;
         $propertyName = 'N/A';
 
-        if ($reservation->reservable_type === 'App\\Models\\Property') {
+        if (in_array($reservation->reservable_type, ['App\\Models\\Property', 'property'])) {
             $property = $reservation->reservable;
             if ($property) {
                 $propertyName = $property->title;
                 $formType = 'vacation_homes';
             }
-        } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+        } elseif (in_array($reservation->reservable_type, ['App\\Models\\HotelRoom', 'hotel_room'])) {
             $hotelRoom = $reservation->reservable;
             if ($hotelRoom && $hotelRoom->property) {
                 $property = $hotelRoom->property;
@@ -161,12 +161,24 @@ class GuaranteedFeedbackRequests extends Command
             }
         }
 
+        // Fallback: if morph relation is missing, try direct property relation on reservation
+        if (!$property) {
+            $fallbackProperty = $reservation->property ?? null;
+            if ($fallbackProperty) {
+                $property = $fallbackProperty;
+                $propertyName = $fallbackProperty->title ?? ($fallbackProperty->name ?? 'N/A');
+                // Heuristic: if reservable_type contains 'Hotel', assume hotel booking, otherwise vacation home
+                $formType = Str::contains($reservation->reservable_type ?? '', 'Hotel') ? 'hotel_booking' : 'vacation_homes';
+            }
+        }
+
         if (!$property || !$formType) {
             throw new \Exception("Could not determine property or form type");
         }
 
-        $appUrl = config('app.url');
-        $feedbackUrl = "{$appUrl}/feedback/{$token}";
+        $baseUrl = system_setting('web_url') ?: config('app.url');
+        $baseUrl = rtrim($baseUrl ?? '', '/');
+        $feedbackUrl = $baseUrl . "/feedback/{$token}";
 
         $variables = [
             'app_name' => config('app.name'),
