@@ -12,6 +12,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // First check if the table exists before trying to alter it
+        if (!Schema::hasTable('statement_of_account_edits')) {
+            // Table doesn't exist yet, skip this migration
+            // The create migration will handle it
+            return;
+        }
+        
         // Add property_id column only if it doesn't exist
         if (!Schema::hasColumn('statement_of_account_edits', 'property_id')) {
             Schema::table('statement_of_account_edits', function (Blueprint $table) {
@@ -47,12 +54,17 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('statement_of_account_edits', function (Blueprint $table) {
-            $table->dropForeign(['property_id']);
-            $table->dropUnique(['property_id']);
-            $table->dropColumn('property_id');
-            // Restore unique constraint on reservation_id
-            $table->unique('reservation_id');
-        });
+        if (!Schema::hasTable('statement_of_account_edits')) {
+            return;
+        }
+        
+        if (Schema::hasColumn('statement_of_account_edits', 'property_id')) {
+            Schema::table('statement_of_account_edits', function (Blueprint $table) {
+                if (DB::getDriverName() !== 'sqlite') {
+                    $table->dropForeign(['property_id']);
+                }
+                $table->dropColumn('property_id');
+            });
+        }
     }
 };
