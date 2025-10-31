@@ -17,9 +17,10 @@ class MonthlyTaxInvoiceService
      * Generate and send monthly tax invoices to property owners
      *
      * @param string|null $monthYear Format: '2025-01' or null for current month
+     * @param string|null $testEmail Optional email to filter and send only to this email
      * @return array
      */
-    public function generateMonthlyTaxInvoices($monthYear = null)
+    public function generateMonthlyTaxInvoices($monthYear = null, $testEmail = null)
     {
         try {
             // If no month specified, use current month
@@ -33,7 +34,8 @@ class MonthlyTaxInvoiceService
             Log::info('Generating monthly tax invoices for period', [
                 'month_year' => $monthYear,
                 'start_date' => $startDate->format('Y-m-d'),
-                'end_date' => $endDate->format('Y-m-d')
+                'end_date' => $endDate->format('Y-m-d'),
+                'test_email' => $testEmail
             ]);
 
             $results = [
@@ -43,8 +45,8 @@ class MonthlyTaxInvoiceService
                 'errors' => []
             ];
 
-            // Get all properties with hotel or vacation home classification
-            $properties = Property::whereIn('property_classification', [4, 5]) // 4 = Vacation Homes, 5 = Hotel Booking
+            // Get ONLY hotel properties (classification 5) - exclude vacation homes
+            $properties = Property::where('property_classification', 5) // 5 = Hotel Booking only
                 ->where('status', 1)
                 ->where('request_status', 'approved')
                 ->with('customer')
@@ -58,6 +60,11 @@ class MonthlyTaxInvoiceService
                 if (!$owner || !$owner->email) {
                     $results['errors'][] = "Owner not found or no email for owner ID: {$ownerId}";
                     $results['total_errors']++;
+                    continue;
+                }
+
+                // Filter by test email if provided
+                if ($testEmail && strtolower($owner->email) !== strtolower($testEmail)) {
                     continue;
                 }
 
@@ -76,17 +83,27 @@ class MonthlyTaxInvoiceService
                 }
 
                 // Split reservations by payment method
-                // Manual/Cash = Flexible, Online/Paymob = Non-Refundable
-                $flexibleReservations = collect();
-                $nonRefundableReservations = collect();
+                // Flexible (Refundable): Cash/Manual payments → Hotel Booking Tax Invoice - Flexible (Manual/Cash)
+                // Non-Refundable: Online/Paymob payments → Monthly Tax Invoice - non-refundable
+                $flexibleReservations = collect();  // Refundable (Cash/Manual)
+                $nonRefundableReservations = collect();  // Non-Refundable (Online/Paymob)
 
                 foreach ($reservations as $reservation) {
-                    $paymentMethod = $reservation->payment_method ?? 'cash';
-                    $isOnlinePayment = ($paymentMethod === 'paymob' || $paymentMethod === 'online' || $reservation->payment);
+                    $paymentMethod = strtolower($reservation->payment_method ?? 'cash');
+                    
+                    // Check if it's an online payment (non-refundable)
+                    // Criteria: payment_method is 'paymob' or 'online', OR has a PaymobPayment record
+                    $isOnlinePayment = (
+                        $paymentMethod === 'paymob' || 
+                        $paymentMethod === 'online' || 
+                        $reservation->payment !== null  // Has PaymobPayment record
+                    );
                     
                     if ($isOnlinePayment) {
+                        // Online/Paymob payment → Non-Refundable invoice
                         $nonRefundableReservations->push($reservation);
                     } else {
+                        // Cash/Manual payment → Flexible (Refundable) invoice
                         $flexibleReservations->push($reservation);
                     }
                 }
@@ -159,30 +176,49 @@ class MonthlyTaxInvoiceService
      */
     private function getOwnerReservations($ownerId, $startDate, $endDate)
     {
-        // Get all properties owned by this owner
-        $propertyIds = Property::where('added_by', $ownerId)
-            ->whereIn('property_classification', [4, 5])
+        // Get ONLY hotel properties (classification 5) owned by this owner
+        $hotelPropertyIds = Property::where('added_by', $ownerId)
+            ->where('property_classification', 5) // Only hotels
             ->pluck('id');
 
-        // Get hotel room IDs for this owner's properties
-        $hotelRoomIds = \App\Models\HotelRoom::whereIn('property_id', $propertyIds)->pluck('id');
+        // Get hotel room IDs for this owner's hotel properties
+        $hotelRoomIds = \App\Models\HotelRoom::whereIn('property_id', $hotelPropertyIds)->pluck('id');
 
-        // Get reservations for properties and hotel rooms
-        // Include both paid and cash payment statuses
-        $reservations = Reservation::where(function ($query) use ($propertyIds, $hotelRoomIds) {
-            $query->where(function ($q) use ($propertyIds) {
+        // Get reservations ONLY for hotel properties and hotel rooms
+        // Include both paid and cash payment statuses (confirmed reservations)
+        $reservations = Reservation::where(function ($query) use ($hotelPropertyIds, $hotelRoomIds) {
+            $query->where(function ($q) use ($hotelPropertyIds) {
+                // Property reservations - only for hotel properties (classification 5)
                 $q->where('reservable_type', 'App\Models\Property')
-                    ->whereIn('reservable_id', $propertyIds);
+                    ->whereIn('reservable_id', $hotelPropertyIds);
             })->orWhere(function ($q) use ($hotelRoomIds) {
+                // HotelRoom reservations (always hotels)
                 $q->where('reservable_type', 'App\Models\HotelRoom')
                     ->whereIn('reservable_id', $hotelRoomIds);
             });
         })
             ->where('status', 'confirmed')
-            ->whereIn('payment_status', ['paid', 'cash'])
+            ->whereIn('payment_status', ['paid', 'cash']) // Cash or approved and paid
             ->whereBetween('check_in_date', [$startDate, $endDate])
             ->with(['reservable', 'customer', 'payment:id,reservation_id,status'])
             ->get();
+
+        // Additional filter: Ensure Property reservations are actually for hotels
+        // Filter out any vacation home reservations that might have slipped through
+        $reservations = $reservations->filter(function ($reservation) {
+            if ($reservation->reservable_type === 'App\Models\Property') {
+                $property = $reservation->reservable;
+                if ($property) {
+                    $classification = $property->getRawOriginal('property_classification');
+                    return $classification == 5; // Only hotels
+                }
+                return false;
+            } elseif ($reservation->reservable_type === 'App\Models\HotelRoom') {
+                // HotelRoom reservations are always hotels
+                return true;
+            }
+            return false;
+        });
 
         return $reservations;
     }
@@ -244,28 +280,50 @@ class MonthlyTaxInvoiceService
             // Generate property summary HTML
             $propertySummary = $this->generatePropertySummaryHtml($reservations);
 
-            // Determine which email template to use based on type (flexible or non-refundable)
-            // For hotel bookings, use hotel_booking_tax_invoice templates
+            // Get property from first reservation to determine classification
+            $property = null;
+            $firstReservation = $reservations->first();
+            if ($firstReservation) {
+                if ($firstReservation->reservable_type === 'App\\Models\\Property') {
+                    $property = $firstReservation->reservable;
+                } elseif ($firstReservation->reservable_type === 'App\\Models\\HotelRoom' && $firstReservation->reservable) {
+                    $property = $firstReservation->reservable->property;
+                } elseif ($firstReservation->property_id) {
+                    $property = Property::find($firstReservation->property_id);
+                }
+            }
+
+            // Determine which email template to use - ONLY for hotel bookings
+            // This service is for hotel tax invoices only (flexible and non-refundable)
             $emailTemplateType = "hotel_booking_tax_invoice"; // Default template for hotel bookings
             
             if ($property) {
                 $propertyClassification = $property->getRawOriginal('property_classification');
                 
-                if ($propertyClassification == 4) { // Vacation homes
-                    $rentPackage = $property->rent_package;
-                    if ($rentPackage == 'premium') {
-                        $emailTemplateType = "vacation_homes_premium_tax_invoice";
-                    } else {
-                        $emailTemplateType = "vacation_homes_basic_tax_invoice";
-                    }
-                } elseif ($propertyClassification == 5) { // Hotel booking
-                    // Use new hotel_booking_tax_invoice templates based on payment method
+                // Only send hotel invoices - skip vacation homes
+                if ($propertyClassification == 5) { // Hotel booking
+                    // Use hotel_booking_tax_invoice templates based on payment method
                     if ($type === 'flexible') {
                         $emailTemplateType = "hotel_booking_tax_invoice_flexible";
                     } else {
                         $emailTemplateType = "hotel_booking_tax_invoice_non_refundable";
                     }
+                } else {
+                    // Not a hotel - should not happen, but log and skip
+                    Log::warning('Non-hotel property detected in hotel invoice service', [
+                        'property_id' => $property->id,
+                        'classification' => $propertyClassification,
+                        'owner_id' => $owner->id
+                    ]);
+                    return false; // Skip sending invoice for non-hotel properties
                 }
+            } else {
+                // No property found - should not happen for hotel reservations
+                Log::warning('No property found for reservation in hotel invoice service', [
+                    'owner_id' => $owner->id,
+                    'reservations_count' => $reservations->count()
+                ]);
+                return false;
             }
 
             // Get email template

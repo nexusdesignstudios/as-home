@@ -29,6 +29,16 @@
                                 <i class="bi bi-info-circle"></i> {{ __('You have already submitted feedback for this reservation. Thank you!') }}
                             </div>
                         @else
+                            {{-- Debug Info (remove in production) --}}
+                            @if(config('app.debug'))
+                            <div class="alert alert-secondary small">
+                                <strong>Debug Info:</strong><br>
+                                Form Type: {{ $formType ?? 'N/A' }}<br>
+                                Property Classification: {{ $property->getRawOriginal('property_classification') ?? 'N/A' }}<br>
+                                Questions Count: {{ $allFields->count() }}
+                            </div>
+                            @endif
+                            
                             <p class="mb-4">{{ __('Thank you for choosing') }} {{ env("APP_NAME") ?? "As-home" }}! {{ __('We hope you had a wonderful stay. Your feedback helps us improve our services.') }}</p>
 
                             <form id="feedback-form" method="POST" enctype="multipart/form-data">

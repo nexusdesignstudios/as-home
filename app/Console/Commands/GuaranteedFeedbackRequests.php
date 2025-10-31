@@ -54,7 +54,17 @@ class GuaranteedFeedbackRequests extends Command
             $reservations = $this->getCheckoutReservations($today, $testEmail);
             
             if ($reservations->isEmpty()) {
-                if ($force) {
+                if ($force && $testEmail) {
+                    // When force flag is used with test email, find all eligible reservations for this customer
+                    $this->warn('No reservations checking out today. Looking for all eligible reservations for this customer...');
+                    $reservations = $this->getAllEligibleReservations($testEmail);
+                    if ($reservations->isEmpty()) {
+                        $this->info('No eligible reservations found for this customer.');
+                        return Command::SUCCESS;
+                    } else {
+                        $this->info("Found {$reservations->count()} eligible reservation(s) for this customer.");
+                    }
+                } elseif ($force) {
                     $this->warn('No reservations checking out today. Continuing with force flag...');
                 } else {
                     $this->info('No reservations checking out today. Emails will be sent on their checkout dates.');
@@ -66,7 +76,7 @@ class GuaranteedFeedbackRequests extends Command
 
             foreach ($reservations as $reservation) {
                 try {
-                    $result = $this->sendFeedbackRequest($reservation, $testEmail);
+                    $result = $this->sendFeedbackRequest($reservation, $testEmail, $force);
                     if ($result) {
                         $sentCount++;
                         $this->info("✓ Feedback request sent for reservation {$reservation->id}");
@@ -126,9 +136,28 @@ class GuaranteedFeedbackRequests extends Command
     }
 
     /**
+     * Get all eligible reservations for a customer (for force mode with test email)
+     * This finds all confirmed/approved/completed reservations without feedback sent
+     */
+    private function getAllEligibleReservations($testEmail)
+    {
+        $query = Reservation::whereIn('status', ['confirmed', 'approved', 'completed'])
+            ->whereNull('feedback_email_sent_at')
+            ->whereNull('feedback_token')
+            ->whereHas('customer', function($q) use ($testEmail) {
+                $q->where('email', $testEmail);
+            })
+            ->whereHas('customer')
+            ->with(['customer', 'reservable'])
+            ->orderBy('check_out_date', 'desc');
+
+        return $query->get();
+    }
+
+    /**
      * Send feedback request email
      */
-    private function sendFeedbackRequest($reservation, $testEmail = null)
+    private function sendFeedbackRequest($reservation, $testEmail = null, $force = false)
     {
         $customer = $reservation->customer;
         if (!$customer || !$customer->email) {
@@ -150,7 +179,12 @@ class GuaranteedFeedbackRequests extends Command
             $property = $reservation->reservable;
             if ($property) {
                 $propertyName = $property->title;
-                $formType = 'vacation_homes';
+                $propertyClassification = $property->getRawOriginal('property_classification');
+                if ($propertyClassification == 4) {
+                    $formType = 'vacation_homes';
+                } elseif ($propertyClassification == 5) {
+                    $formType = 'hotel_booking';
+                }
             }
         } elseif (in_array($reservation->reservable_type, ['App\\Models\\HotelRoom', 'hotel_room'])) {
             $hotelRoom = $reservation->reservable;
@@ -162,13 +196,23 @@ class GuaranteedFeedbackRequests extends Command
         }
 
         // Fallback: if morph relation is missing, try direct property relation on reservation
-        if (!$property) {
+        if (!$property || !$formType) {
             $fallbackProperty = $reservation->property ?? null;
             if ($fallbackProperty) {
                 $property = $fallbackProperty;
                 $propertyName = $fallbackProperty->title ?? ($fallbackProperty->name ?? 'N/A');
-                // Heuristic: if reservable_type contains 'Hotel', assume hotel booking, otherwise vacation home
-                $formType = Str::contains($reservation->reservable_type ?? '', 'Hotel') ? 'hotel_booking' : 'vacation_homes';
+                // Check property classification to determine form type
+                $propertyClassification = $fallbackProperty->getRawOriginal('property_classification');
+                if ($propertyClassification == 4) {
+                    $formType = 'vacation_homes';
+                } elseif ($propertyClassification == 5) {
+                    $formType = 'hotel_booking';
+                } elseif (Str::contains($reservation->reservable_type ?? '', 'Hotel')) {
+                    // Fallback heuristic if classification not set
+                    $formType = 'hotel_booking';
+                } else {
+                    $formType = 'vacation_homes';
+                }
             }
         }
 
@@ -227,8 +271,9 @@ Note: This feedback link is valid and unique to your reservation.';
 
         $emailContent = HelperService::replaceEmailVariables($emailTemplateData, $variables);
 
-        // Save token to database BEFORE sending email (only if not test email)
-        if (!$testEmail) {
+        // Save token to database BEFORE sending email
+        // Save if not test email, OR if force mode is active (to actually save the feedback token)
+        if (!$testEmail || $force) {
             $reservation->feedback_token = $token;
             $reservation->feedback_email_sent_at = Carbon::now();
             $reservation->save();

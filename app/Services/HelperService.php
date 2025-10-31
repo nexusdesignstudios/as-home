@@ -1552,7 +1552,7 @@ class HelperService
                     );
                 case 'hotel_booking_tax_invoice_non_refundable':
                     return array(
-                        'title' => 'Hotel Booking Tax Invoice - Non-Refundable (Online)',
+                        'title' => 'Monthly Tax Invoice - non-refundable',
                         'type' => 'hotel_booking_tax_invoice_non_refundable_mail_template',
                         'required_fields' => array(
                             [
@@ -1875,7 +1875,7 @@ class HelperService
                 'type' => 'hotel_booking_tax_invoice_flexible',
             ],
             [
-                'title' => 'Hotel Booking Tax Invoice - Non-Refundable (Online)',
+                'title' => 'Monthly Tax Invoice - non-refundable',
                 'type' => 'hotel_booking_tax_invoice_non_refundable',
             ],
             [

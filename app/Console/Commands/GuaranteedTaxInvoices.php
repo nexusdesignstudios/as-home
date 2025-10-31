@@ -58,7 +58,7 @@ class GuaranteedTaxInvoices extends Command
             // Method 1: Use the main service
             try {
                 $this->info("Method 1: Using main tax invoice service...");
-                $results = $service->generateMonthlyTaxInvoices($monthYear);
+                $results = $service->generateMonthlyTaxInvoices($monthYear, $testEmail);
                 
                 $totalSent += $results['total_emails_sent'];
                 $totalErrors += $results['total_errors'];

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Exception;
+use App\Models\Property;
 use App\Models\PropertyQuestionField;
 use App\Models\PropertyQuestionFieldValue;
 use Illuminate\Http\Request;
@@ -323,34 +324,62 @@ class PropertyQuestionFormController extends Controller
             // Fallback to original method if property_id not provided or not found
             if (!$property || !$formType) {
                 if ($reservation->reservable_type === 'App\\Models\\Property') {
-                $property = $reservation->reservable;
-                if ($property) {
-                    $propertyClassification = $property->getRawOriginal('property_classification');
-                    if ($propertyClassification == 4) {
-                        $formType = 'vacation_homes';
+                    $property = $reservation->reservable;
+                    if ($property) {
+                        $propertyClassification = $property->getRawOriginal('property_classification');
+                        if ($propertyClassification == 4) {
+                            $formType = 'vacation_homes';
+                        } elseif ($propertyClassification == 5) {
+                            $formType = 'hotel_booking';
+                        }
                     }
-                }
-            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
-                $hotelRoom = $reservation->reservable;
-                if ($hotelRoom && $hotelRoom->property) {
-                    $property = $hotelRoom->property;
-                    $propertyClassification = $property->getRawOriginal('property_classification');
-                    if ($propertyClassification == 5) {
-                        $formType = 'hotel_booking';
+                } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                    $hotelRoom = $reservation->reservable;
+                    if ($hotelRoom && $hotelRoom->property) {
+                        $property = $hotelRoom->property;
+                        $propertyClassification = $property->getRawOriginal('property_classification');
+                        if ($propertyClassification == 5) {
+                            $formType = 'hotel_booking';
+                        }
                     }
                 }
             }
 
-            if (!$property || !$formType) {
+            if (!$property || !$formType || !$propertyClassification) {
+                \Illuminate\Support\Facades\Log::error('Feedback form error - missing data', [
+                    'property_id' => $property->id ?? null,
+                    'property_classification' => $propertyClassification ?? null,
+                    'form_type' => $formType ?? null,
+                    'reservation_id' => $reservation->id,
+                    'reservable_type' => $reservation->reservable_type,
+                    'property_id_from_query' => $propertyIdFromQuery
+                ]);
                 return redirect()->route('home')->with('error', 'Invalid property type for feedback.');
             }
 
+            // Log for debugging
+            \Illuminate\Support\Facades\Log::info('Feedback form loaded', [
+                'reservation_id' => $reservation->id,
+                'property_id' => $property->id,
+                'property_classification' => $propertyClassification,
+                'form_type' => $formType,
+                'property_id_from_query' => $propertyIdFromQuery
+            ]);
+
             // Get all active question fields for this property classification
+            // IMPORTANT: Use the propertyClassification variable that was determined above
             $allFields = PropertyQuestionField::where('property_classification', $propertyClassification)
                 ->where('status', 'active')
                 ->with('field_values')
                 ->orderBy('created_at', 'asc')
                 ->get();
+            
+            \Illuminate\Support\Facades\Log::info('Feedback form questions loaded', [
+                'reservation_id' => $reservation->id,
+                'property_classification' => $propertyClassification,
+                'questions_count' => $allFields->count(),
+                'first_question' => $allFields->first() ? $allFields->first()->name : null
+            ]);
 
             // Check if customer already submitted feedback for this reservation
             $existingAnswers = \App\Models\PropertyQuestionAnswer::where('reservation_id', $reservation->id)
