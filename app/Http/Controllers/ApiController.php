@@ -328,6 +328,14 @@ class ApiController extends Controller
             }
         } else {
             $credentials = Customer::where('auth_id', $auth_id)->where('logintype', $type)->first();
+            
+            // Check if user exists
+            if (!$credentials) {
+                $response['error'] = true;
+                $response['message'] = 'User not found or invalid credentials';
+                return response()->json($response);
+            }
+            
             if ($credentials->isActive == 0) {
                 $response['error'] = true;
                 $response['message'] = 'Account Deactivated by Administrative please connect to them';
