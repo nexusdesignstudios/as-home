@@ -9192,6 +9192,21 @@ class ApiController extends Controller
      */
     public function saveFeedbackAnswers(Request $request)
     {
+        // Handle JSON-encoded answers from FormData
+        // When FormData is used with JSON.stringify, Laravel receives it as a string
+        $answers = $request->answers;
+        if (is_string($answers)) {
+            $decodedAnswers = json_decode($answers, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decodedAnswers)) {
+                $request->merge(['answers' => $decodedAnswers]);
+            } else {
+                return response()->json([
+                    'error' => true,
+                    'message' => trans('Invalid answers format')
+                ]);
+            }
+        }
+        
         $validator = Validator::make($request->all(), [
             'token' => 'required|string',
             'property_id' => 'required|exists:propertys,id',

@@ -313,6 +313,7 @@ class PropertyQuestionFormController extends Controller
                 $property = Property::find($propertyIdFromQuery);
                 if ($property) {
                     $propertyClassification = $property->getRawOriginal('property_classification');
+                    // Set formType based on classification
                     if ($propertyClassification == 4) {
                         $formType = 'vacation_homes';
                     } elseif ($propertyClassification == 5) {
@@ -321,11 +322,15 @@ class PropertyQuestionFormController extends Controller
                 }
             }
             
-            // Fallback to original method if property_id not provided or not found
-            if (!$property || !$formType) {
+            // Fallback to original method if property_id not provided or not found, or if formType not set
+            if (!$property || !$formType || !$propertyClassification) {
                 if ($reservation->reservable_type === 'App\\Models\\Property') {
-                    $property = $reservation->reservable;
-                    if ($property) {
+                    $reservationProperty = $reservation->reservable;
+                    if ($reservationProperty) {
+                        // Use property from reservation if query param property doesn't have valid classification
+                        if (!$property || !in_array($property->getRawOriginal('property_classification'), [4, 5])) {
+                            $property = $reservationProperty;
+                        }
                         $propertyClassification = $property->getRawOriginal('property_classification');
                         if ($propertyClassification == 4) {
                             $formType = 'vacation_homes';
@@ -336,12 +341,26 @@ class PropertyQuestionFormController extends Controller
                 } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
                     $hotelRoom = $reservation->reservable;
                     if ($hotelRoom && $hotelRoom->property) {
-                        $property = $hotelRoom->property;
+                        // Use property from hotel room if query param property doesn't have valid classification
+                        if (!$property || !in_array($property->getRawOriginal('property_classification'), [4, 5])) {
+                            $property = $hotelRoom->property;
+                        }
                         $propertyClassification = $property->getRawOriginal('property_classification');
                         if ($propertyClassification == 5) {
                             $formType = 'hotel_booking';
                         }
                     }
+                }
+            }
+            
+            // Ensure propertyClassification is set from the final property
+            if ($property && !$propertyClassification) {
+                $propertyClassification = $property->getRawOriginal('property_classification');
+                // Set formType if classification is valid
+                if ($propertyClassification == 4) {
+                    $formType = 'vacation_homes';
+                } elseif ($propertyClassification == 5) {
+                    $formType = 'hotel_booking';
                 }
             }
 
