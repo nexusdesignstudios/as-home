@@ -35,6 +35,7 @@ class AppServiceProvider extends ServiceProvider
         Relation::enforceMorphMap([
             'property' => \App\Models\Property::class,
             'hotel_room' => \App\Models\HotelRoom::class,
+            'customer' => \App\Models\Customer::class,
         ]);
 
         // Force generated URLs (including signed routes) to use public domain

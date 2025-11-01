@@ -286,13 +286,19 @@ class ApiController extends Controller
             $response['error'] = false;
             $response['message'] = 'User Register Successfully';
 
+            // Get the customer by ID first, then try to find by auth_id for consistency
             $credentials = Customer::find($saveCustomer->id);
-            $credentials = Customer::where('auth_id', $auth_id)->where('logintype', $type)->first();
+            
+            // Fallback: If not found by ID, try by auth_id
+            if (!$credentials) {
+                $credentials = Customer::where('auth_id', $auth_id)->where('logintype', $type)->first();
+            }
 
             $response['token'] = $token->plainTextToken;
             $response['data'] = $credentials;
 
-            if (!empty($credentials->email)) {
+            // Check if credentials exists before accessing properties
+            if ($credentials && !empty($credentials->email)) {
                 Log::info('under Mail');
                 $data = array(
                     'appName' => env("APP_NAME"),
