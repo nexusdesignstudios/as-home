@@ -1654,6 +1654,7 @@ class ApiController extends Controller
             'reservation_user_name' => 'nullable|string',
             'reservation_phone_number' => 'nullable|string',
             'reservation_email' => 'nullable|email',
+            'hotel_vat' => 'required_if:property_classification,5|numeric|min:0|max:100',
         ], [], [
             'documents.*' => 'document :position',
             'addons_packages.*.name' => 'package name :position',
@@ -1733,6 +1734,10 @@ class ApiController extends Controller
 
                     if (isset($request->non_refundable)) {
                         $property->non_refundable = $request->non_refundable;
+                    }
+
+                    if (isset($request->hotel_vat) && $request->hotel_vat !== '') {
+                        $property->hotel_vat = $request->hotel_vat;
                     }
 
                     if (isset($request->address)) {
@@ -1864,6 +1869,9 @@ class ApiController extends Controller
                         }
                         if (isset($request->agent_addons)) {
                             $property->agent_addons = $request->agent_addons;
+                        }
+                        if (isset($request->hotel_vat) && $request->hotel_vat !== '') {
+                            $property->hotel_vat = $request->hotel_vat;
                         }
                     }
 
