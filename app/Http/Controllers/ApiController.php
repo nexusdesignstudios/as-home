@@ -1061,6 +1061,7 @@ class ApiController extends Controller
             'reservation_user_name' => 'nullable|string',
             'reservation_phone_number' => 'nullable|string',
             'reservation_email' => 'nullable|email',
+            'hotel_vat' => 'nullable|numeric|min:0|max:100',
         ], [], [
             'documents.*' => 'document :position',
             'addons_packages.*.name' => 'package name :position',
@@ -1124,6 +1125,7 @@ class ApiController extends Controller
             $saveProperty->reservation_email = (isset($request->reservation_email)) ? $request->reservation_email : null;
             $saveProperty->instant_booking = (isset($request->instant_booking)) ? $request->instant_booking : null;
             $saveProperty->non_refundable = (isset($request->non_refundable)) ? $request->non_refundable : null;
+            $saveProperty->hotel_vat = (isset($request->hotel_vat) && $request->hotel_vat !== '') ? $request->hotel_vat : null;
 
             // Set vacation home specific fields if property classification is vacation_homes (4)
             if (isset($request->property_classification) && $request->property_classification == 4) {
