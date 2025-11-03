@@ -1670,6 +1670,7 @@ class ApiController extends Controller
         }
         try {
             DB::beginTransaction();
+            $response = array(); // Initialize response array
             $current_user = Auth::user()->id;
             $id = $request->id;
             $action_type = $request->action_type;
@@ -2640,9 +2641,27 @@ class ApiController extends Controller
             DB::commit();
         } catch (Exception $e) {
             DB::rollback();
+            
+            // Log the actual error for debugging
+            \Log::error('Error in update_post_property', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'request_id' => $request->id ?? null,
+                'action_type' => $request->action_type ?? null,
+                'property_classification' => $request->property_classification ?? null,
+            ]);
+            
             $response = array(
                 'error' => true,
-                'message' => 'Something Went Wrong'
+                'message' => 'Something Went Wrong',
+                // Only include debug info in development
+                'debug' => config('app.debug') ? [
+                    'message' => $e->getMessage(),
+                    'file' => basename($e->getFile()),
+                    'line' => $e->getLine()
+                ] : null
             );
             return response()->json($response, 500);
         }
