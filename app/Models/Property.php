@@ -65,7 +65,9 @@ class Property extends Model
         'reservation_phone_number',
         'reservation_email',
         'instant_booking',
-        'non_refundable'
+        'non_refundable',
+        'hotel_vat',
+        'hotel_available_rooms'
     ];
     protected $hidden = [
         'updated_at',
