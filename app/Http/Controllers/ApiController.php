@@ -1061,7 +1061,7 @@ class ApiController extends Controller
             'reservation_user_name' => 'nullable|string',
             'reservation_phone_number' => 'nullable|string',
             'reservation_email' => 'nullable|email',
-            'hotel_vat' => 'nullable|numeric|min:0|max:100',
+            'hotel_vat' => 'required_if:property_classification,5|numeric|min:0|max:100',
         ], [], [
             'documents.*' => 'document :position',
             'addons_packages.*.name' => 'package name :position',
