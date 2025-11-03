@@ -2247,7 +2247,10 @@ class ApiController extends Controller
                                         $hotelRoom->available_dates = $availableDates;
                                         $hotelRoom->weekend_commission = isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : $hotelRoom->weekend_commission;
                                         $hotelRoom->description = $room['description'] ?? $hotelRoom->description;
-                                        $hotelRoom->status = isset($room['status']) ? (bool)$room['status'] : $hotelRoom->status;
+                                        // Handle status: convert string "0"/"1" or integer 0/1 to boolean
+                                        if (isset($room['status'])) {
+                                            $hotelRoom->status = ($room['status'] === 1 || $room['status'] === '1' || $room['status'] === true);
+                                        }
                                         $hotelRoom->max_guests = isset($room['max_guests']) ? (int)$room['max_guests'] : $hotelRoom->max_guests;
                                         if (isset($room['available_rooms'])) {
                                             $hotelRoom->available_rooms = (int)$room['available_rooms'];
@@ -2292,7 +2295,8 @@ class ApiController extends Controller
                                             'available_dates' => $availableDates,
                                             'weekend_commission' => isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : 0,
                                             'description' => $room['description'] ?? "",
-                                            'status' => isset($room['status']) ? (bool)$room['status'] : true,
+                                            // Handle status: convert string "0"/"1" or integer 0/1 to boolean
+                                            'status' => isset($room['status']) ? ($room['status'] === 1 || $room['status'] === '1' || $room['status'] === true) : true,
                                             'max_guests' => isset($room['max_guests']) ? (int)$room['max_guests'] : 1,
                                             'available_rooms' => isset($room['available_rooms']) ? (int)$room['available_rooms'] : 1
                                         ]);
