@@ -1061,7 +1061,8 @@ class ApiController extends Controller
             'reservation_user_name' => 'nullable|string',
             'reservation_phone_number' => 'nullable|string',
             'reservation_email' => 'nullable|email',
-            'hotel_vat' => 'required_if:property_classification,5|numeric|min:0|max:100',
+            'hotel_vat' => 'nullable|string|required_if:property_classification,5',
+            'hotelAvailableRooms' => 'nullable|integer|min:0',
         ], [], [
             'documents.*' => 'document :position',
             'addons_packages.*.name' => 'package name :position',
@@ -1125,7 +1126,6 @@ class ApiController extends Controller
             $saveProperty->reservation_email = (isset($request->reservation_email)) ? $request->reservation_email : null;
             $saveProperty->instant_booking = (isset($request->instant_booking)) ? $request->instant_booking : null;
             $saveProperty->non_refundable = (isset($request->non_refundable)) ? $request->non_refundable : null;
-            $saveProperty->hotel_vat = (isset($request->hotel_vat) && $request->hotel_vat !== '') ? $request->hotel_vat : null;
 
             // Set vacation home specific fields if property classification is vacation_homes (4)
             if (isset($request->property_classification) && $request->property_classification == 4) {
@@ -1140,6 +1140,12 @@ class ApiController extends Controller
                 $saveProperty->check_in = $request->check_in;
                 $saveProperty->check_out = $request->check_out;
                 $saveProperty->agent_addons = $request->agent_addons;
+                if (isset($request->hotel_vat)) {
+                    $saveProperty->hotel_vat = $request->hotel_vat;
+                }
+                if (isset($request->hotelAvailableRooms)) {
+                    $saveProperty->hotel_available_rooms = $request->hotelAvailableRooms;
+                }
             }
 
             $autoApproveStatus = $this->getAutoApproveStatus($loggedInUserId);
@@ -1654,7 +1660,8 @@ class ApiController extends Controller
             'reservation_user_name' => 'nullable|string',
             'reservation_phone_number' => 'nullable|string',
             'reservation_email' => 'nullable|email',
-            'hotel_vat' => 'required_if:property_classification,5|numeric|min:0|max:100',
+            'hotel_vat' => 'nullable|string|required_if:property_classification,5',
+            'hotelAvailableRooms' => 'nullable|integer|min:0',
         ], [], [
             'documents.*' => 'document :position',
             'addons_packages.*.name' => 'package name :position',
@@ -1670,7 +1677,6 @@ class ApiController extends Controller
         }
         try {
             DB::beginTransaction();
-            $response = array(); // Initialize response array
             $current_user = Auth::user()->id;
             $id = $request->id;
             $action_type = $request->action_type;
@@ -1735,10 +1741,6 @@ class ApiController extends Controller
 
                     if (isset($request->non_refundable)) {
                         $property->non_refundable = $request->non_refundable;
-                    }
-
-                    if (isset($request->hotel_vat) && $request->hotel_vat !== '') {
-                        $property->hotel_vat = $request->hotel_vat;
                     }
 
                     if (isset($request->address)) {
@@ -1871,8 +1873,11 @@ class ApiController extends Controller
                         if (isset($request->agent_addons)) {
                             $property->agent_addons = $request->agent_addons;
                         }
-                        if (isset($request->hotel_vat) && $request->hotel_vat !== '') {
+                        if (isset($request->hotel_vat)) {
                             $property->hotel_vat = $request->hotel_vat;
+                        }
+                        if (isset($request->hotelAvailableRooms)) {
+                            $property->hotel_available_rooms = $request->hotelAvailableRooms;
                         }
                     }
 
@@ -2247,10 +2252,7 @@ class ApiController extends Controller
                                         $hotelRoom->available_dates = $availableDates;
                                         $hotelRoom->weekend_commission = isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : $hotelRoom->weekend_commission;
                                         $hotelRoom->description = $room['description'] ?? $hotelRoom->description;
-                                        // Handle status: convert string "0"/"1" or integer 0/1 to boolean
-                                        if (isset($room['status'])) {
-                                            $hotelRoom->status = ($room['status'] === 1 || $room['status'] === '1' || $room['status'] === true);
-                                        }
+                                        $hotelRoom->status = isset($room['status']) ? (bool)$room['status'] : $hotelRoom->status;
                                         $hotelRoom->max_guests = isset($room['max_guests']) ? (int)$room['max_guests'] : $hotelRoom->max_guests;
                                         if (isset($room['available_rooms'])) {
                                             $hotelRoom->available_rooms = (int)$room['available_rooms'];
@@ -2295,8 +2297,7 @@ class ApiController extends Controller
                                             'available_dates' => $availableDates,
                                             'weekend_commission' => isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : 0,
                                             'description' => $room['description'] ?? "",
-                                            // Handle status: convert string "0"/"1" or integer 0/1 to boolean
-                                            'status' => isset($room['status']) ? ($room['status'] === 1 || $room['status'] === '1' || $room['status'] === true) : true,
+                                            'status' => isset($room['status']) ? (bool)$room['status'] : true,
                                             'max_guests' => isset($room['max_guests']) ? (int)$room['max_guests'] : 1,
                                             'available_rooms' => isset($room['available_rooms']) ? (int)$room['available_rooms'] : 1
                                         ]);
@@ -2645,27 +2646,9 @@ class ApiController extends Controller
             DB::commit();
         } catch (Exception $e) {
             DB::rollback();
-            
-            // Log the actual error for debugging
-            \Log::error('Error in update_post_property', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-                'request_id' => $request->id ?? null,
-                'action_type' => $request->action_type ?? null,
-                'property_classification' => $request->property_classification ?? null,
-            ]);
-            
             $response = array(
                 'error' => true,
-                'message' => 'Something Went Wrong',
-                // Only include debug info in development
-                'debug' => config('app.debug') ? [
-                    'message' => $e->getMessage(),
-                    'file' => basename($e->getFile()),
-                    'line' => $e->getLine()
-                ] : null
+                'message' => 'Something Went Wrong'
             );
             return response()->json($response, 500);
         }
