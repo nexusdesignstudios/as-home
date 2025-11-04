@@ -542,6 +542,7 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
             $tempRow['check_out'] = $row->check_out;
             $tempRow['agent_addons'] = $row->agent_addons;
             $tempRow['available_rooms'] = $row->available_rooms;
+            $tempRow['hotel_vat'] = $row->hotel_vat;
         // }
 
         // Get Property Inquiry Data on the basis of current user and status is completed

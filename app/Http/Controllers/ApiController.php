@@ -1707,6 +1707,11 @@ class ApiController extends Controller
                         $property->slug_id = generateUniqueSlug($slugData, 1, null, $id);
                     }
 
+                    // Save title_ar (Arabic title)
+                    if (isset($request->title_ar) || $request->has('title_ar')) {
+                        $property->title_ar = $request->title_ar ?? null;
+                    }
+
                     if (isset($request->slug_id) && !empty($request->slug_id)) {
                         $property->slug_id = generateUniqueSlug($request->slug_id, 1, null, $id);
                     }
@@ -1715,8 +1720,18 @@ class ApiController extends Controller
                         $property->description = $request->description;
                     }
 
+                    // Save description_ar (Arabic description)
+                    if (isset($request->description_ar) || $request->has('description_ar')) {
+                        $property->description_ar = $request->description_ar ?? null;
+                    }
+
                     if (isset($request->area_description)) {
                         $property->area_description = $request->area_description;
+                    }
+
+                    // Save area_description_ar (Arabic area description)
+                    if (isset($request->area_description_ar) || $request->has('area_description_ar')) {
+                        $property->area_description_ar = $request->area_description_ar ?? null;
                     }
 
                     if (isset($request->company_employee_username)) {
@@ -1873,8 +1888,9 @@ class ApiController extends Controller
                         if (isset($request->agent_addons)) {
                             $property->agent_addons = $request->agent_addons;
                         }
-                        if (isset($request->hotel_vat)) {
-                            $property->hotel_vat = $request->hotel_vat;
+                        // Save hotel_vat - always save if provided, even if empty
+                        if (isset($request->hotel_vat) || $request->has('hotel_vat')) {
+                            $property->hotel_vat = $request->hotel_vat ?? null;
                         }
                         if (isset($request->hotelAvailableRooms)) {
                             $property->hotel_available_rooms = $request->hotelAvailableRooms;
@@ -2106,7 +2122,8 @@ class ApiController extends Controller
                         }
                     }
 
-                    $property->update();
+                    // Save the property with all updates including Arabic fields and hotel_vat
+                    $property->save();
                     $update_property = Property::with([
                         'customer',
                         'category:id,category,image',
