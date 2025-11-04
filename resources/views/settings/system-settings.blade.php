@@ -709,11 +709,17 @@
                             {{-- Company Logo --}}
                             <div class="col-md-6 col-lg-4 mt-3">
                                 <div class="col-12 form-group mandatory card title_card">
-                                    {{ Form::label('company_logo', __('Comapany Logo'), ['class' => 'form-label col-12 ']) }}
-                                    <input type="file" class="filepond" id="company_logo" name="company_logo" {{ isset($systemSettings['company_logo']) && $systemSettings['company_logo'] == '' ? 'required' : '' }} accept="image/png,image/jpg,image/jpeg">
+                                    {{ Form::label('company_logo', __('Company Logo'), ['class' => 'form-label col-12 ']) }}
+                                    <p class="text-muted small mb-2">This logo will appear on PDF tax invoices. Recommended: PNG with transparent background, max 250x80px.</p>
+                                    <input type="file" class="filepond" id="company_logo" name="company_logo" {{ isset($systemSettings['company_logo']) && $systemSettings['company_logo'] == '' ? 'required' : '' }} accept="image/png,image/jpg,image/jpeg,image/svg+xml">
                                     @if (isset($systemSettings['company_logo']) && $systemSettings['company_logo'] != '')
                                         <div class="title_img mt-2">
-                                            <img src="{{ url('assets/images/logo/'.$systemSettings['company_logo']) }}" alt="Image" class="img-fluid" width="100" height="100">
+                                            <img src="{{ url('assets/images/logo/'.$systemSettings['company_logo']) }}" alt="Company Logo" class="img-fluid" style="max-width: 250px; max-height: 80px; object-fit: contain;">
+                                            <p class="text-muted small mt-1">Current logo: {{ $systemSettings['company_logo'] }}</p>
+                                        </div>
+                                    @else
+                                        <div class="alert alert-info mt-2 small">
+                                            <i class="fas fa-info-circle"></i> No logo uploaded. Company name will be displayed instead.
                                         </div>
                                     @endif
                                 </div>

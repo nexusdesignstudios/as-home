@@ -199,7 +199,7 @@ class MonthlyTaxInvoiceService
         })
             ->where('status', 'confirmed')
             ->whereIn('payment_status', ['paid', 'cash']) // Cash or approved and paid
-            ->whereBetween('check_in_date', [$startDate, $endDate])
+            ->whereBetween('check_out_date', [$startDate, $endDate]) // Use check_out_date (departure date) as per invoice policy
             ->with(['reservable', 'customer', 'payment:id,reservation_id,status'])
             ->get();
 
@@ -210,12 +210,34 @@ class MonthlyTaxInvoiceService
                 $property = $reservation->reservable;
                 if ($property) {
                     $classification = $property->getRawOriginal('property_classification');
-                    return $classification == 5; // Only hotels
+                    // Double-check: Only include if classification is 5 (Hotel Booking)
+                    if ($classification != 5) {
+                        Log::warning('Non-hotel property reservation filtered out', [
+                            'reservation_id' => $reservation->id,
+                            'property_id' => $property->id,
+                            'classification' => $classification
+                        ]);
+                        return false;
+                    }
+                    return true; // Only hotels (classification 5)
                 }
                 return false;
             } elseif ($reservation->reservable_type === 'App\Models\HotelRoom') {
-                // HotelRoom reservations are always hotels
-                return true;
+                // HotelRoom reservations are always hotels, but verify the property
+                $hotelRoom = $reservation->reservable;
+                if ($hotelRoom && $hotelRoom->property) {
+                    $propertyClassification = $hotelRoom->property->getRawOriginal('property_classification');
+                    if ($propertyClassification != 5) {
+                        Log::warning('HotelRoom with non-hotel property filtered out', [
+                            'reservation_id' => $reservation->id,
+                            'hotel_room_id' => $hotelRoom->id,
+                            'property_id' => $hotelRoom->property_id,
+                            'classification' => $propertyClassification
+                        ]);
+                        return false;
+                    }
+                }
+                return true; // HotelRoom reservations are always hotels
             }
             return false;
         });
@@ -235,50 +257,103 @@ class MonthlyTaxInvoiceService
     private function sendMonthlyTaxInvoice($owner, $reservations, $monthYear, $type = 'flexible')
     {
         try {
+            // CRITICAL: Verify ALL reservations are for hotels (classification 5) only
+            // This is a final safety check to ensure no vacation home reservations slip through
+            $nonHotelReservations = collect();
+            foreach ($reservations as $reservation) {
+                $property = null;
+                if ($reservation->reservable_type === 'App\\Models\\Property') {
+                    $property = $reservation->reservable;
+                } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom' && $reservation->reservable) {
+                    $property = $reservation->reservable->property;
+                } elseif ($reservation->property_id) {
+                    $property = Property::find($reservation->property_id);
+                }
+                
+                if ($property) {
+                    $classification = $property->getRawOriginal('property_classification');
+                    if ($classification != 5) {
+                        $nonHotelReservations->push([
+                            'reservation_id' => $reservation->id,
+                            'property_id' => $property->id,
+                            'classification' => $classification
+                        ]);
+                    }
+                } else {
+                    // No property found - this should not happen for valid reservations
+                    Log::warning('Reservation without property in hotel invoice service', [
+                        'reservation_id' => $reservation->id,
+                        'owner_id' => $owner->id
+                    ]);
+                    $nonHotelReservations->push(['reservation_id' => $reservation->id, 'error' => 'No property found']);
+                }
+            }
+            
+            // If any non-hotel reservations found, log and filter them out
+            if ($nonHotelReservations->isNotEmpty()) {
+                Log::error('Non-hotel reservations detected in hotel invoice service - filtering out', [
+                    'owner_id' => $owner->id,
+                    'owner_email' => $owner->email,
+                    'month_year' => $monthYear,
+                    'non_hotel_count' => $nonHotelReservations->count(),
+                    'non_hotel_reservations' => $nonHotelReservations->toArray()
+                ]);
+                
+                // Filter out non-hotel reservations
+                $nonHotelReservationIds = $nonHotelReservations->pluck('reservation_id')->toArray();
+                $reservations = $reservations->filter(function ($reservation) use ($nonHotelReservationIds) {
+                    return !in_array($reservation->id, $nonHotelReservationIds);
+                });
+                
+                // If no hotel reservations remain, skip sending invoice
+                if ($reservations->isEmpty()) {
+                    Log::warning('No hotel reservations remaining after filtering - skipping invoice', [
+                        'owner_id' => $owner->id,
+                        'owner_email' => $owner->email,
+                        'month_year' => $monthYear
+                    ]);
+                    return false;
+                }
+            }
+            
             // Calculate totals
-            $totalRevenue = $reservations->sum('total_price');
+            $totalRevenue = $reservations->sum('total_price'); // Room Sales (gross revenue)
             
-            // Calculate property taxes (Service charge, Sales tax, City tax)
-            // Normalize rates to numeric (handle strings like "14%" or empty)
-            $normalizeRate = function ($value, $default) {
-                $raw = is_null($value) ? '' : (string)$value;
-                $clean = preg_replace('/[^0-9.]/', '', $raw);
-                $num = $clean === '' ? (float)$default : (float)$clean;
-                return $num;
-            };
-
-            $serviceChargeRate = $normalizeRate(system_setting('hotel_service_charge_rate'), 10.0);
-            $salesTaxRate = $normalizeRate(system_setting('hotel_sales_tax_rate'), 14.0);
-            $cityTaxRate = $normalizeRate(system_setting('hotel_city_tax_rate'), 5.0);
-            
-            $serviceChargeAmount = (float)$totalRevenue * ($serviceChargeRate / 100.0);
-            $salesTaxAmount = (float)$totalRevenue * ($salesTaxRate / 100.0);
-            $cityTaxAmount = (float)$totalRevenue * ($cityTaxRate / 100.0);
-            $totalTaxesAmount = $serviceChargeAmount + $salesTaxAmount + $cityTaxAmount;
+            // Calculate total taxes as 22.36% of total revenue
+            $totalTaxRate = 22.36; // Total taxes percentage
+            $totalTaxesAmount = (float)$totalRevenue * ($totalTaxRate / 100.0);
             
             // Calculate revenue after taxes
             $revenueAfterTaxes = $totalRevenue - $totalTaxesAmount;
             
-            // For hotel bookings, commission is 15% of revenue AFTER taxes
-            // Hotel gets 85% of revenue AFTER taxes
-            $commissionRate = 15; // 15% commission for As-home
-            $hotelRate = 85; // 85% for hotel
+            // Commission is 15% of REVENUE AFTER TAXES (not gross revenue)
+            $commissionRate = 15; // 15% commission for As-home from revenue after taxes
+            $commissionAmount = (float)$revenueAfterTaxes * ($commissionRate / 100.0);
             
-            // Calculate commission on revenue AFTER taxes
-            $commissionAmount = $revenueAfterTaxes * ($commissionRate / 100);
+            // Total amount due is the commission (15% of revenue after taxes)
+            $totalAmountDue = $commissionAmount;
+            
+            // For display purposes (legacy calculations - kept for backwards compatibility)
+            $hotelRate = 85; // 85% for hotel (this is calculated on revenue after taxes for display)
             $hotelAmount = $revenueAfterTaxes * ($hotelRate / 100);
-            
-            // Net amount for hotel (85% of revenue after taxes)
             $netAmount = $hotelAmount;
+            
+            // Individual tax breakdowns for display (legacy - kept for email templates)
+            $serviceChargeRate = 10.0;
+            $salesTaxRate = 14.0;
+            $cityTaxRate = 5.0;
+            $serviceChargeAmount = (float)$totalRevenue * ($serviceChargeRate / 100.0);
+            $salesTaxAmount = (float)$totalRevenue * ($salesTaxRate / 100.0);
+            $cityTaxAmount = (float)$totalRevenue * ($cityTaxRate / 100.0);
 
-            // Get currency symbol
-            $currencySymbol = system_setting('currency_symbol') ?? '$';
+            // Get currency symbol (default to EGP instead of $)
+            $currencySymbol = system_setting('currency_symbol') ?? 'EGP';
 
             // Generate reservation details HTML
-            $reservationDetails = $this->generateReservationDetailsHtml($reservations);
+            $reservationDetails = $this->generateReservationDetailsHtml($reservations, $currencySymbol);
 
             // Generate property summary HTML
-            $propertySummary = $this->generatePropertySummaryHtml($reservations);
+            $propertySummary = $this->generatePropertySummaryHtml($reservations, $currencySymbol);
 
             // Get property from first reservation to determine classification
             $property = null;
@@ -334,12 +409,18 @@ class MonthlyTaxInvoiceService
             // Format month year for display
             $monthYearDisplay = Carbon::parse($monthYear . '-01')->format('F Y');
 
+            // Get property name for email template
+            $propertyName = $property ? ($property->title ?? 'Hotel') : 'Hotel';
+            
             $variables = [
                 'app_name' => $appName,
                 'owner_name' => $owner->name,
+                'property_name' => $propertyName,
                 'month_year' => $monthYearDisplay,
                 'total_reservations' => $reservations->count(),
-                'total_revenue' => number_format($totalRevenue, 2),
+                // Formatted values for email templates
+                'total_revenue' => number_format($totalRevenue, 2), // Room Sales (gross revenue)
+                'room_sales' => number_format($totalRevenue, 2), // Alias for Room Sales in PDF template
                 'currency_symbol' => $currencySymbol,
                 'service_charge_rate' => $serviceChargeRate,
                 'service_charge_amount' => number_format($serviceChargeAmount, 2),
@@ -347,14 +428,20 @@ class MonthlyTaxInvoiceService
                 'sales_tax_amount' => number_format($salesTaxAmount, 2),
                 'city_tax_rate' => $cityTaxRate,
                 'city_tax_amount' => number_format($cityTaxAmount, 2),
+                'total_taxes_rate' => $totalTaxRate, // 22.36% total taxes
                 'total_taxes_amount' => number_format($totalTaxesAmount, 2),
                 'revenue_after_taxes' => number_format($revenueAfterTaxes, 2),
-                'commission_rate' => $commissionRate,
-                'commission_amount' => number_format($commissionAmount, 2),
+                'commission_rate' => $commissionRate, // 15% commission
+                'commission_amount' => number_format($commissionAmount, 2), // 15% of total revenue
+                'total_amount_due' => number_format($totalAmountDue, 2), // Commission amount
                 'hotel_rate' => $hotelRate,
                 'hotel_amount' => number_format($hotelAmount, 2),
                 'net_amount' => number_format($netAmount, 2),
-                'revenue_after_taxes' => number_format($revenueAfterTaxes, 2),
+                // Raw numeric values for PDF template (to avoid double formatting)
+                'room_sales_raw' => $totalRevenue,
+                'commission_amount_raw' => $commissionAmount,
+                'total_amount_due_raw' => $totalAmountDue,
+                'hotel_amount_raw' => $hotelAmount, // For non-refundable invoices
                 'reservation_details' => $reservationDetails,
                 'property_summary' => $propertySummary,
             ];
@@ -367,6 +454,17 @@ class MonthlyTaxInvoiceService
             $variables['invoice_number'] = $invoiceNumber;
             $variables['accommodation_number'] = $accommodationNumber;
             $variables['vat_number'] = $vatNumber;
+            
+            // Add property information for PDF template (hotel name, address, and VAT number)
+            if ($property) {
+                $variables['property_name'] = $property->title ?? 'Hotel';
+                $variables['property_address'] = $property->address ?? ($property->client_address ?? '');
+                $variables['property_vat'] = $property->hotel_vat ?? '';
+            } else {
+                $variables['property_name'] = 'Hotel';
+                $variables['property_address'] = '';
+                $variables['property_vat'] = '';
+            }
             $variables['payment_method_type'] = $type === 'flexible' ? 'Flexible (Manual/Cash)' : 'Non-Refundable (Online)';
             $variables['invoice_type_label'] = $type === 'flexible' ? 'Flexible Rate Reservations' : 'Non-Refundable Reservations';
             $variables['hotel_percentage'] = $hotelRate; // 85% for hotel
@@ -480,9 +578,10 @@ class MonthlyTaxInvoiceService
      * Generate HTML for reservation details
      *
      * @param \Illuminate\Database\Eloquent\Collection $reservations
+     * @param string $currencySymbol
      * @return string
      */
-    private function generateReservationDetailsHtml($reservations)
+    private function generateReservationDetailsHtml($reservations, $currencySymbol = 'EGP')
     {
         $html = '<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">';
         $html .= '<thead><tr style="background-color: #f8f9fa;">';
@@ -503,7 +602,7 @@ class MonthlyTaxInvoiceService
             $html .= '<td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->check_in_date->format('d M Y') . '</td>';
             $html .= '<td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->check_out_date->format('d M Y') . '</td>';
             $html .= '<td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->number_of_guests . '</td>';
-            $html .= '<td style="border: 1px solid #ddd; padding: 8px;">$' . number_format($reservation->total_price, 2) . '</td>';
+            $html .= '<td style="border: 1px solid #ddd; padding: 8px;">' . $currencySymbol . ' ' . number_format($reservation->total_price, 2) . '</td>';
             $html .= '</tr>';
         }
 
@@ -515,9 +614,10 @@ class MonthlyTaxInvoiceService
      * Generate HTML for property summary
      *
      * @param \Illuminate\Database\Eloquent\Collection $reservations
+     * @param string $currencySymbol
      * @return string
      */
-    private function generatePropertySummaryHtml($reservations)
+    private function generatePropertySummaryHtml($reservations, $currencySymbol = 'EGP')
     {
         $propertySummary = $reservations->groupBy('reservable_id')->map(function ($reservations, $propertyId) {
             $firstReservation = $reservations->first();
@@ -543,7 +643,7 @@ class MonthlyTaxInvoiceService
             $html .= '<tr>';
             $html .= '<td style="border: 1px solid #ddd; padding: 8px;">' . $summary['property_name'] . '</td>';
             $html .= '<td style="border: 1px solid #ddd; padding: 8px;">' . $summary['reservations'] . '</td>';
-            $html .= '<td style="border: 1px solid #ddd; padding: 8px;">$' . number_format($summary['revenue'], 2) . '</td>';
+            $html .= '<td style="border: 1px solid #ddd; padding: 8px;">' . $currencySymbol . ' ' . number_format($summary['revenue'], 2) . '</td>';
             $html .= '</tr>';
         }
 
@@ -580,7 +680,8 @@ class MonthlyTaxInvoiceService
         $accountNumber = system_setting('bank_account_number') ?? '1234567890';
         $routingNumber = system_setting('bank_routing_number') ?? '987654321';
         $swiftCode = system_setting('bank_swift_code') ?? 'ASHOMEXX';
-        $accountHolder = system_setting('bank_account_holder') ?? 'As-home Group';
+        // CRITICAL: Always use "As Home for Asset Management" as Beneficiary Name
+        $accountHolder = 'As Home for Asset Management';
 
         $html = '<div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">';
         $html .= '<h3 style="color: #495057; margin-bottom: 15px;">Bank Account Details for Commission Payment</h3>';

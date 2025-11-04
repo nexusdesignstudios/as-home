@@ -239,3 +239,8 @@ If you encounter any issues during deployment:
 4. Check database connection
 5. Review Laravel logs: `storage/logs/laravel.log`
 
+
+
+
+
+

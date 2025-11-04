@@ -319,7 +319,7 @@
                 </tr>
                 <tr>
                     <td>Account Holder:</td>
-                    <td>{{ $settings['bank_account_holder'] }}</td>
+                    <td>As Home for Asset Management</td>
                 </tr>
                 <tr>
                     <td>Account Number:</td>

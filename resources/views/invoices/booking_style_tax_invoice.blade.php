@@ -33,9 +33,10 @@
         }
 
         .logo {
-            max-height: 50px;
-            max-width: 200px;
+            max-height: 80px;
+            max-width: 250px;
             margin-bottom: 10px;
+            object-fit: contain;
         }
 
         .recipient-info {
@@ -160,6 +161,38 @@
             width: 130px;
         }
 
+        .bank-details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 11px;
+        }
+
+        .bank-details-table th {
+            background-color: #003580;
+            color: #ffffff;
+            padding: 10px 8px;
+            text-align: left;
+            font-weight: bold;
+            border: 1px solid #003580;
+            width: 40%;
+        }
+
+        .bank-details-table td {
+            padding: 10px 8px;
+            text-align: left;
+            border: 1px solid #ddd;
+            background-color: #f5f5dc;
+            color: #333;
+            width: 60%;
+        }
+
+        .bank-details-table td.label-cell {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            width: 40%;
+        }
+
         .payment-code {
             margin-top: 15px;
             font-weight: bold;
@@ -197,31 +230,27 @@
             @if($settings['logo'])
                 <img src="{{ $settings['logo'] }}" alt="Company Logo" class="logo">
             @else
-                <div class="booking-blue" style="font-size: 20px; font-weight: bold;">{{ $settings['company_name'] ?? 'As-home' }}</div>
+                <div style="font-size: 20px; font-weight: bold; color: #e8c15e;">{{ $settings['company_name'] ?? 'As-Home for Asset Management' }}</div>
             @endif
             
             <div class="recipient-info" style="margin-top: 15px;">
-                <div><strong>{{ $owner->name }}</strong></div>
-                @if($owner->email)
-                    <div>{{ $owner->email }}</div>
+                @if($invoiceData['property_name'] ?? null)
+                    <div><strong>{{ $invoiceData['property_name'] }}</strong></div>
                 @endif
-                @if($owner->mobile)
-                    <div>{{ $owner->mobile }}</div>
+                @if($invoiceData['property_address'] ?? null)
+                    <div>{{ $invoiceData['property_address'] }}</div>
                 @endif
-                @if($owner->address)
-                    <div>{{ $owner->address }}</div>
-                @endif
+                <div>VAT: {{ $invoiceData['property_vat'] ?? '' }}</div>
             </div>
         </div>
         
         <div class="company-info">
-            <div class="company-name">{{ $settings['company_name'] ?? 'As-home' }}</div>
-            <div>{{ $settings['company_address'] ?? '' }}</div>
-            @if($settings['company_phone'])
-                <div>Phone: {{ $settings['company_phone'] }}</div>
-            @endif
+            <div class="company-name" style="color: #e8c15e;">{{ $settings['company_name'] ?? 'As-Home for Asset Management' }}</div>
+            <div>{{ $settings['company_address'] ?? 'P.O Box 25 – Hurghada, Egypt' }}</div>
+            <div>Phone: {{ $settings['company_phone'] ?? 'l M. +2 (0155) 379 7794' }}</div>
             @if($settings['company_email'])
                 <div>Email: {{ $settings['company_email'] }}</div>
+                <div>Tax Number: 4332 - 1233 - 7598</div>
             @endif
             @if($settings['company_vat_number'] ?? null)
                 <div>VAT: {{ $settings['company_vat_number'] }}</div>
@@ -259,94 +288,138 @@
         </div>
     </div>
 
+    <!-- Invoice Opening Statement -->
+    <div style="margin: 20px 0; padding: 15px; background-color: #f8f9fa; border-left: 4px solid #003580; font-size: 12px; line-height: 1.6;">
+        @if(strpos($templateType, 'non_refundable') !== false || strpos($templateType, 'non-refundable') !== false)
+            <p style="margin: 0;"><strong>We hereby provide your monthly tax invoice for the month of {{ $monthYearDisplay }} for Non-Refundable Reservations.</strong></p>
+        @else
+            <p style="margin: 0;"><strong>We hereby provide your monthly tax invoice for the month of {{ $monthYearDisplay }} for <span style="color: #003580;">{{ $invoiceData['property_name'] ?? 'Hotel' }}</span>.</strong></p>
+        @endif
+    </div>
+
     <!-- Invoice Title -->
     <div class="invoice-title-section">
         <div class="invoice-title">TAX INVOICE</div>
     </div>
 
-    <!-- Reservations Table: Description, Room Sales, Commission -->
+    <!-- Invoice Summary Table: Total Revenue, Commission, Total Amount Due -->
     <table class="reservations-table">
         <thead>
             <tr>
                 <th>Description</th>
-                <th class="amount">Room Sales</th>
-                <th class="amount">Commission</th>
+                <th class="amount">Amount ({{ $invoiceData['currency_symbol'] }})</th>
             </tr>
         </thead>
         <tbody>
             <tr>
-                <td>Reservations</td>
-                <td class="amount">{{ $invoiceData['currency_symbol'] }} {{ number_format($invoiceData['revenue_after_taxes'], 2, '.', ',') }}</td>
-                <td class="amount">{{ $invoiceData['currency_symbol'] }} {{ number_format($invoiceData['hotel_amount'], 2, '.', ',') }}</td>
+                <td>Total Revenue</td>
+                <td class="amount">{{ $invoiceData['currency_symbol'] }} {{ number_format($invoiceData['room_sales_raw'] ?? ($invoiceData['room_sales'] ?? $invoiceData['total_revenue']), 2, '.', ',') }}</td>
             </tr>
-            <tr class="total-row double-underline">
-                <td><strong>Total Amount Due</strong></td>
-                <td class="amount"></td>
-                <td class="amount"><strong>{{ $invoiceData['currency_symbol'] }} {{ number_format($invoiceData['hotel_amount'], 2, '.', ',') }}</strong></td>
-            </tr>
+            @if(strpos($templateType, 'non_refundable') !== false || strpos($templateType, 'non-refundable') !== false)
+                {{-- For non-refundable: Show Hotel Commission (85%) --}}
+                <tr>
+                    <td>Hotel Commission</td>
+                    <td class="amount">{{ $invoiceData['currency_symbol'] }} {{ number_format($invoiceData['hotel_amount_raw'] ?? ($invoiceData['hotel_amount'] ?? 0), 2, '.', ',') }}</td>
+                </tr>
+                <tr class="total-row double-underline">
+                    <td><strong>Total Amount Due</strong></td>
+                    <td class="amount"><strong>{{ $invoiceData['currency_symbol'] }} {{ number_format($invoiceData['hotel_amount_raw'] ?? ($invoiceData['hotel_amount'] ?? 0), 2, '.', ',') }}</strong></td>
+                </tr>
+            @else
+                {{-- For flexible: Show As-home Commission (15%) --}}
+                <tr>
+                    <td>Commission</td>
+                    <td class="amount">{{ $invoiceData['currency_symbol'] }} {{ number_format($invoiceData['commission_amount_raw'] ?? $invoiceData['commission_amount'], 2, '.', ',') }}</td>
+                </tr>
+                <tr class="total-row double-underline">
+                    <td><strong>Total Amount Due</strong></td>
+                    <td class="amount"><strong>{{ $invoiceData['currency_symbol'] }} {{ number_format($invoiceData['total_amount_due_raw'] ?? ($invoiceData['total_amount_due'] ?? $invoiceData['commission_amount']), 2, '.', ',') }}</strong></td>
+                </tr>
+            @endif
         </tbody>
     </table>
 
     <!-- Payment Information Section -->
-    <div class="payment-section">
-        <div class="payment-due">
-            <strong>Payment Due Date:</strong> {{ date('F d, Y', strtotime('+14 days')) }}
-        </div>
+    @if(strpos($templateType, 'non_refundable') === false && strpos($templateType, 'non-refundable') === false)
+        {{-- Show payment section only for flexible invoices --}}
+        <div class="payment-section">
+            <div class="payment-due">
+                <strong>Payment Due Date:</strong> {{ date('F d, Y', strtotime('+14 days')) }}
+            </div>
 
-        <div class="payment-instructions">
-            Please transfer the due amount to our bank account below by the Payment Due date. 
-            Be sure to include INVOICE {{ $invoiceData['invoice_number'] ?? $invoiceData['accommodation_number'] . '-' . date('Ymd') }} 
-            @if($invoiceData['accommodation_number'] ?? null)
-                and ACCOMMODATION NUMBER {{ $invoiceData['accommodation_number'] }}
+            <div class="payment-instructions">
+                Please transfer the due amount to our bank account below by the Payment Due date. 
+                Be sure to include INVOICE {{ $invoiceData['invoice_number'] ?? $invoiceData['accommodation_number'] . '-' . date('Ymd') }} 
+                @if($invoiceData['accommodation_number'] ?? null)
+                    and ACCOMMODATION NUMBER {{ $invoiceData['accommodation_number'] }}
+                @endif
+                with your payment instructions.
+            </div>
+
+            @if($settings['bank_name'] ?? null)
+                <div class="bank-details">
+                    <table class="bank-details-table">
+                        <tbody>
+                            <tr>
+                                <td class="label-cell">Bank Name</td>
+                                <td>{{ $settings['bank_name'] ?? '' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Branch</td>
+                                <td>{{ $settings['bank_branch'] ?? 'Hurghada Branch' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Bank Address</td>
+                                <td>{{ $settings['bank_address'] ?? 'EL Kawthar Hurghada Branch' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Currency</td>
+                                <td>{{ $settings['currency_symbol'] ?? 'EGP' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Swift Code</td>
+                                <td>{{ $settings['bank_swift_code'] ?? '' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Account No.</td>
+                                <td>{{ $settings['bank_account_number'] ?? '' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">Beneficiary Name</td>
+                                <td><span style="color: #e8c15e;">As Home for Asset Management</span></td>
+                            </tr>
+                            <tr>
+                                <td class="label-cell">IBAN</td>
+                                <td>{{ $settings['bank_iban'] ?? '' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             @endif
-            with your payment instructions.
+
+            @if($invoiceData['accommodation_number'] ?? null)
+                <div class="payment-code">
+                    <strong>Payment Code:</strong> {{ $invoiceData['accommodation_number'] }}
+                </div>
+            @endif
+
+            @if($settings['bank_name'] ?? null)
+                <div class="virtual-account-note">
+                    <strong>PLEASE NOTIFY YOUR BANKTELLER THAT THIS IS A VIRTUAL ACCOUNT NUMBER</strong>
+                </div>
+            @endif
         </div>
-
-        @if($settings['bank_name'] ?? null)
-            <div class="bank-details">
-                <div><strong>Bank Name:</strong> {{ $settings['bank_name'] }}</div>
-                @if($settings['bank_address'] ?? null)
-                    <div><strong>Bank Address:</strong> {{ $settings['bank_address'] }}</div>
-                @endif
-                @if($settings['bank_swift_code'] ?? null)
-                    <div><strong>Swift:</strong> {{ $settings['bank_swift_code'] }}</div>
-                @endif
-                @if($settings['bank_account_number'] ?? null)
-                    <div><strong>ACCOUNT:</strong> {{ $settings['bank_account_number'] }}</div>
-                @endif
-                @if($settings['bank_iban'] ?? null)
-                    <div><strong>IBAN:</strong> {{ $settings['bank_iban'] }}</div>
-                @endif
-                @if($settings['bank_account_holder'] ?? null)
-                    <div><strong>ACCOUNT HOLDER:</strong> {{ $settings['bank_account_holder'] }}</div>
-                @endif
-                @if($settings['currency_symbol'] ?? null)
-                    <div><strong>ACCOUNT CURRENCY:</strong> {{ $settings['currency_symbol'] }}</div>
-                @endif
-            </div>
-        @endif
-
-        @if($invoiceData['accommodation_number'] ?? null)
-            <div class="payment-code">
-                <strong>Payment Code:</strong> {{ $invoiceData['accommodation_number'] }}
-            </div>
-        @endif
-
-        @if($settings['bank_name'] ?? null)
-            <div class="virtual-account-note">
-                PLEASE NOTIFY YOUR BANKTELLER THAT IS A VIRTUAL ACCOUNT NUMBER
-                <br>
-                <span style="direction: rtl; display: block; margin-top: 5px;">
-                    الرجاء إخبار البنك الذي تتعامل معه عند تنفيذ التحويل أن الحساب الذي سيتم تحويل المبلغ إليه هو حساب إفتراضي
-                </span>
-            </div>
-        @endif
-    </div>
+    @endif
 
     <!-- Footer -->
     <div class="footer">
-        <div>{{ $settings['company_name'] ?? 'As-home' }}</div>
-        <div>{{ $settings['company_address'] ?? '' }}</div>
+        <div style="color: #e8c15e;">{{ $settings['company_name'] ?? 'As-Home for Asset Management' }}</div>
+        <div>{{ $settings['company_address'] ?? 'P.O Box 25 – Hurghada, Egypt' }}</div>
+    </div>
+    
+    <!-- Important Notice -->
+    <div style="margin-top: 30px; padding: 15px; background-color: #fff7e6; border: 1px solid #ffe8cc; border-radius: 5px; font-size: 11px; line-height: 1.6;">
+        <strong style="color: #d48806;">PLEASE BE AWARE THAT OUR INVOICES ARE BASED ON DEPARTURE DATE AND NOT ON ARRIVAL DATE</strong>
     </div>
 </body>
 </html>

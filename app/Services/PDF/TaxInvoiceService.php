@@ -33,7 +33,19 @@ class TaxInvoiceService
         $settings['logo'] = '';
         if (file_exists($logoPath)) {
             $imageData = file_get_contents($logoPath);
-            $settings['logo'] = 'data:image/png;base64,' . base64_encode($imageData);
+            // Detect image type based on file extension
+            $extension = strtolower(pathinfo($logoPath, PATHINFO_EXTENSION));
+            $mimeType = 'image/png'; // default
+            if ($extension === 'jpg' || $extension === 'jpeg') {
+                $mimeType = 'image/jpeg';
+            } elseif ($extension === 'png') {
+                $mimeType = 'image/png';
+            } elseif ($extension === 'gif') {
+                $mimeType = 'image/gif';
+            } elseif ($extension === 'svg') {
+                $mimeType = 'image/svg+xml';
+            }
+            $settings['logo'] = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
         }
 
         // Format month year for display
@@ -60,7 +72,10 @@ class TaxInvoiceService
         $pdf->setOptions([
             'isHtml5ParserEnabled' => true,
             'isRemoteEnabled' => true,
-            'defaultFont' => 'Arial'
+            'defaultFont' => 'DejaVu Sans',
+            'isPhpEnabled' => true,
+            'chroot' => public_path(),
+            'enable-local-file-access' => true
         ]);
 
         return $pdf;
@@ -186,9 +201,13 @@ class TaxInvoiceService
             'hotel_sales_tax_rate',
             'hotel_city_tax_rate',
             'bank_name',
+            'bank_branch',
+            'bank_address',
             'bank_account_number',
             'bank_routing_number',
             'bank_swift_code',
+            'bank_cif',
+            'bank_iban',
             'bank_account_holder'
         ];
         
@@ -196,9 +215,9 @@ class TaxInvoiceService
         
         // Set defaults for missing settings
         $defaults = [
-            'company_name' => 'As-home',
-            'company_address' => '123 Business Street, City, Country',
-            'company_phone' => '+1-234-567-8900',
+            'company_name' => 'As-Home for Asset Management',
+            'company_address' => 'P.O Box 25 – Hurghada, Egypt',
+            'company_phone' => 'l M. +2 (0155) 379 7794',
             'company_email' => 'info@as-home.com',
             'company_logo' => 'logo.png',
             'currency_symbol' => 'EGP',
@@ -206,14 +225,23 @@ class TaxInvoiceService
             'hotel_service_charge_rate' => 10,
             'hotel_sales_tax_rate' => 14,
             'hotel_city_tax_rate' => 5,
-            'bank_name' => 'As-home Bank',
-            'bank_account_number' => '1234567890',
+            'bank_name' => 'National Bank of Egypt',
+            'bank_branch' => 'Hurghada Branch',
+            'bank_address' => 'EL Kawthar Hurghada Branch',
+            'bank_account_number' => '3413131856116201017',
             'bank_routing_number' => '987654321',
-            'bank_swift_code' => 'ASHOMEXX',
-            'bank_account_holder' => 'As-home Group'
+            'bank_swift_code' => 'NBEGEGCX341',
+            'bank_cif' => '',
+            'bank_iban' => 'EG100003034131318561162010170',
+            'bank_account_holder' => 'As Home for Asset Management'
         ];
         
-        return array_merge($defaults, $settings);
+        $mergedSettings = array_merge($defaults, $settings);
+        
+        // CRITICAL: Always enforce "As Home for Asset Management" as Beneficiary Name
+        $mergedSettings['bank_account_holder'] = 'As Home for Asset Management';
+        
+        return $mergedSettings;
     }
 }
 
