@@ -1871,6 +1871,13 @@ class ApiController extends Controller
                         }
                     }
 
+                    // Save hotel_vat - always save if provided, regardless of property classification
+                    // This ensures hotel_vat is saved even if property_classification is not in the request
+                    // Check both isset and has() to handle FormData properly
+                    if (isset($request->hotel_vat) || $request->has('hotel_vat')) {
+                        $property->hotel_vat = $request->input('hotel_vat');
+                    }
+
                     // Set hotel specific fields if property classification is hotel (5)
                     if ($propertyClassification == 5) {
                         if (isset($request->refund_policy)) {
@@ -1887,10 +1894,6 @@ class ApiController extends Controller
                         }
                         if (isset($request->agent_addons)) {
                             $property->agent_addons = $request->agent_addons;
-                        }
-                        // Save hotel_vat - always save if provided, even if empty
-                        if (isset($request->hotel_vat) || $request->has('hotel_vat')) {
-                            $property->hotel_vat = $request->hotel_vat ?? null;
                         }
                         if (isset($request->hotelAvailableRooms)) {
                             $property->hotel_available_rooms = $request->hotelAvailableRooms;
