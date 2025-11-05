@@ -82,37 +82,40 @@ class MonthlyTaxInvoiceService
                     continue;
                 }
 
-                // Split reservations by payment method
-                // Flexible (Refundable): Cash/Manual payments → Hotel Booking Tax Invoice - Flexible (Manual/Cash)
-                // Non-Refundable: Online/Paymob payments → Monthly Tax Invoice - non-refundable
-                $flexibleReservations = collect();  // Refundable (Cash/Manual)
-                $nonRefundableReservations = collect();  // Non-Refundable (Online/Paymob)
+                // Filter reservations to only include cash/offline payments (exclude online/paymob)
+                // Only send Flexible invoices for all cash/offline reservations
+                $flexibleReservations = collect();  // Cash/Offline reservations only
 
                 foreach ($reservations as $reservation) {
                     $paymentMethod = strtolower($reservation->payment_method ?? 'cash');
                     
-                    // Check if it's an online payment (non-refundable)
-                    // Criteria: payment_method is 'paymob' or 'online', OR has a PaymobPayment record
+                    // If payment_method is explicitly 'cash', treat as flexible even if payment record exists
+                    if ($paymentMethod === 'cash') {
+                        // Cash/Manual payment → Flexible invoice
+                        $flexibleReservations->push($reservation);
+                        continue;
+                    }
+                    
+                    // Check if it's an online payment - EXCLUDE these from flexible invoices
+                    // Criteria: payment_method is 'paymob' or 'online', OR has a PaymobPayment record (but not if payment_method is 'cash')
                     $isOnlinePayment = (
                         $paymentMethod === 'paymob' || 
                         $paymentMethod === 'online' || 
-                        $reservation->payment !== null  // Has PaymobPayment record
+                        ($reservation->payment !== null && $paymentMethod !== 'cash')
                     );
                     
-                    if ($isOnlinePayment) {
-                        // Online/Paymob payment → Non-Refundable invoice
-                        $nonRefundableReservations->push($reservation);
-                    } else {
-                        // Cash/Manual payment → Flexible (Refundable) invoice
+                    // Only include cash/offline payments (exclude online/paymob)
+                    if (!$isOnlinePayment) {
+                        // Cash/Manual/Offline payment → Flexible invoice
                         $flexibleReservations->push($reservation);
                     }
                 }
 
                 $emailsSent = 0;
 
-                // Generate and send Flexible invoice (Manual/Cash reservations)
+                // Generate and send ONLY Flexible invoice (Cash/Offline reservations)
                 if ($flexibleReservations->isNotEmpty()) {
-                    $emailSent = $this->sendMonthlyTaxInvoice($owner, $flexibleReservations, $monthYear, 'flexible');
+                    $emailSent = $this->sendMonthlyTaxInvoice($owner, $flexibleReservations, $monthYear, 'flexible', null);
                     if ($emailSent) {
                         $emailsSent++;
                         Log::info('Flexible tax invoice sent successfully', [
@@ -127,22 +130,7 @@ class MonthlyTaxInvoiceService
                     }
                 }
 
-                // Generate and send Non-Refundable invoice (Online/Paymob reservations)
-                if ($nonRefundableReservations->isNotEmpty()) {
-                    $emailSent = $this->sendMonthlyTaxInvoice($owner, $nonRefundableReservations, $monthYear, 'non-refundable');
-                    if ($emailSent) {
-                        $emailsSent++;
-                        Log::info('Non-Refundable tax invoice sent successfully', [
-                            'owner_id' => $ownerId,
-                            'owner_email' => $owner->email,
-                            'reservations_count' => $nonRefundableReservations->count(),
-                            'month_year' => $monthYear
-                        ]);
-                    } else {
-                        $results['total_errors']++;
-                        $results['errors'][] = "Failed to send non-refundable invoice to owner: {$owner->email}";
-                    }
-                }
+                // Non-Refundable invoices are no longer sent - only flexible invoices for cash/offline reservations
 
                 if ($emailsSent > 0) {
                     $results['total_emails_sent'] += $emailsSent;
@@ -252,9 +240,10 @@ class MonthlyTaxInvoiceService
      * @param \Illuminate\Database\Eloquent\Collection $reservations
      * @param string $monthYear
      * @param string $type 'flexible' or 'non-refundable'
+     * @param string|null $overrideEmail Optional email to send to instead of owner's email
      * @return bool
      */
-    private function sendMonthlyTaxInvoice($owner, $reservations, $monthYear, $type = 'flexible')
+    private function sendMonthlyTaxInvoice($owner, $reservations, $monthYear, $type = 'flexible', $overrideEmail = null)
     {
         try {
             // CRITICAL: Verify ALL reservations are for hotels (classification 5) only
@@ -549,9 +538,12 @@ class MonthlyTaxInvoiceService
 
             // Keep body concise; reservation details are in the attached PDF
 
+            // Use override email if provided, otherwise use owner's email
+            $recipientEmail = $overrideEmail ?? $owner->email;
+
             $data = [
                 'email_template' => $emailTemplate,
-                'email' => $owner->email,
+                'email' => $recipientEmail,
                 'title' => $emailTypeData['title'],
             ];
 
@@ -747,6 +739,108 @@ class MonthlyTaxInvoiceService
                 'trace' => $e->getTraceAsString()
             ]);
             return null;
+        }
+    }
+
+    /**
+     * Send tax invoice for a specific property to a specific email address
+     *
+     * @param string $ownerEmail Owner's email address
+     * @param string $propertyName Property name to filter by
+     * @param string $monthYear Format: '2025-10'
+     * @param string $recipientEmail Email address to send invoice to
+     * @return bool
+     */
+    public function sendPropertyInvoiceToEmail($ownerEmail, $propertyName, $monthYear, $recipientEmail)
+    {
+        try {
+            // Find owner by email (case-insensitive)
+            $owner = Customer::whereRaw('LOWER(email) = ?', [strtolower($ownerEmail)])->first();
+            if (!$owner) {
+                Log::error('Owner not found', ['email' => $ownerEmail]);
+                return false;
+            }
+
+            // Find property by name and owner
+            // Check for both numeric 5 and string 'hotel_booking' for property_classification
+            $property = Property::where('added_by', $owner->id)
+                ->where(function($query) {
+                    $query->where('property_classification', 5)
+                          ->orWhere('property_classification', 'hotel_booking');
+                })
+                ->where(function($query) use ($propertyName) {
+                    $query->where('title', 'like', '%' . $propertyName . '%')
+                          ->orWhere('title', $propertyName);
+                })
+                ->first();
+
+            if (!$property) {
+                Log::error('Property not found', [
+                    'owner_email' => $ownerEmail,
+                    'property_name' => $propertyName
+                ]);
+                return false;
+            }
+
+            $startDate = Carbon::parse($monthYear . '-01')->startOfMonth();
+            $endDate = $startDate->copy()->endOfMonth();
+
+            // Get reservations for this specific property
+            $hotelRoomIds = \App\Models\HotelRoom::where('property_id', $property->id)->pluck('id');
+
+            $reservations = Reservation::where(function ($query) use ($property, $hotelRoomIds) {
+                $query->where(function ($q) use ($property) {
+                    $q->where('reservable_type', 'App\Models\Property')
+                      ->where('reservable_id', $property->id);
+                })->orWhere(function ($q) use ($hotelRoomIds) {
+                    $q->where('reservable_type', 'App\Models\HotelRoom')
+                      ->whereIn('reservable_id', $hotelRoomIds);
+                });
+            })
+                ->where('status', 'confirmed')
+                ->whereIn('payment_status', ['paid', 'cash'])
+                ->whereBetween('check_out_date', [$startDate, $endDate])
+                ->with(['reservable', 'customer', 'payment:id,reservation_id,status'])
+                ->get();
+
+            // Filter for cash/offline payments only
+            // If payment_method is 'cash', treat as flexible even if payment record exists
+            $flexibleReservations = $reservations->filter(function ($reservation) {
+                $paymentMethod = strtolower($reservation->payment_method ?? 'cash');
+                // If payment_method is explicitly 'cash', treat as flexible
+                if ($paymentMethod === 'cash') {
+                    return true;
+                }
+                // Otherwise, check if it's online payment
+                $isOnlinePayment = (
+                    $paymentMethod === 'paymob' || 
+                    $paymentMethod === 'online' || 
+                    ($reservation->payment !== null && $paymentMethod !== 'cash')
+                );
+                return !$isOnlinePayment;
+            });
+
+            if ($flexibleReservations->isEmpty()) {
+                Log::info('No flexible reservations found for property', [
+                    'property_id' => $property->id,
+                    'property_name' => $propertyName,
+                    'month_year' => $monthYear
+                ]);
+                return false;
+            }
+
+            // Send invoice using override email
+            return $this->sendMonthlyTaxInvoice($owner, $flexibleReservations, $monthYear, 'flexible', $recipientEmail);
+
+        } catch (\Exception $e) {
+            Log::error('Error sending property invoice to specific email', [
+                'owner_email' => $ownerEmail,
+                'property_name' => $propertyName,
+                'recipient_email' => $recipientEmail,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return false;
         }
     }
 }
