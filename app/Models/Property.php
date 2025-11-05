@@ -581,8 +581,12 @@ class Property extends Model
             foreach ($decodedValue as $key => $dateInfo) {
                 if (is_array($dateInfo)) {
                     // Ensure each date entry has the required fields
-                    if (!isset($dateInfo['price'])) {
+                    // Convert empty string or null price to 0, keep numeric values as-is
+                    if (!isset($dateInfo['price']) || $dateInfo['price'] === '' || $dateInfo['price'] === null) {
                         $decodedValue[$key]['price'] = 0;
+                    } else {
+                        // Ensure price is numeric (convert string numbers to integers/floats)
+                        $decodedValue[$key]['price'] = is_numeric($dateInfo['price']) ? (float)$dateInfo['price'] : 0;
                     }
                     if (!isset($dateInfo['type'])) {
                         // Set default type based on availability_type
@@ -627,8 +631,12 @@ class Property extends Model
                 // Make sure each date entry is an array with at least price and type
                 if (is_array($dateInfo)) {
                     // Set defaults if not provided
-                    if (!isset($dateInfo['price'])) {
+                    // Ensure price is always numeric (0 or positive number), convert empty strings/null to 0
+                    if (!isset($dateInfo['price']) || $dateInfo['price'] === '' || $dateInfo['price'] === null) {
                         $value[$key]['price'] = 0;
+                    } else {
+                        // Ensure price is numeric (convert string numbers to float)
+                        $value[$key]['price'] = is_numeric($dateInfo['price']) ? (float)$dateInfo['price'] : 0;
                     }
                     if (!isset($dateInfo['type'])) {
                         $value[$key]['type'] = 'open';
