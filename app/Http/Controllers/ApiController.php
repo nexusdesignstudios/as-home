@@ -1130,7 +1130,12 @@ class ApiController extends Controller
             // Set vacation home specific fields if property classification is vacation_homes (4)
             if (isset($request->property_classification) && $request->property_classification == 4) {
                 $saveProperty->availability_type = $request->availability_type;
-                $saveProperty->available_dates = $request->available_dates;
+                // Parse available_dates if it's a JSON string (from FormData)
+                $availableDates = $request->available_dates ?? [];
+                if (is_string($availableDates)) {
+                    $availableDates = json_decode($availableDates, true) ?? [];
+                }
+                $saveProperty->available_dates = $availableDates;
             }
 
             // Set hotel specific fields if property classification is hotel (5)
@@ -1867,7 +1872,12 @@ class ApiController extends Controller
                             $property->availability_type = $request->availability_type;
                         }
                         if (isset($request->available_dates)) {
-                            $property->available_dates = $request->available_dates;
+                            // Parse available_dates if it's a JSON string (from FormData)
+                            $availableDates = $request->available_dates;
+                            if (is_string($availableDates)) {
+                                $availableDates = json_decode($availableDates, true) ?? [];
+                            }
+                            $property->available_dates = $availableDates;
                         }
                     }
 
