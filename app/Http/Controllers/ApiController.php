@@ -713,7 +713,18 @@ class ApiController extends Controller
         $language = $request->has('language') ? $request->language : null;
 
         // Select fields - always include both English and Arabic fields, plus employee fields
-        $select = ['id', 'slug_id', 'title', 'price', 'description', 'address', 'propery_type', 'title_image', 'status', 'request_status', 'total_click', 'state', 'city', 'country', 'latitude', 'longitude', 'added_by', 'is_premium', 'property_classification', 'availability_type', 'available_dates', 'corresponding_day', 'instant_booking', 'non_refundable', 'title_ar', 'description_ar', 'area_description_ar', 'area_description', 'company_employee_username', 'company_employee_email', 'company_employee_phone_number', 'company_employee_whatsappnumber'];
+        // Include all fields that might be accessed by the helper function
+        $select = [
+            'id', 'slug_id', 'title', 'price', 'description', 'address', 'propery_type', 
+            'title_image', 'status', 'request_status', 'total_click', 'state', 'city', 
+            'country', 'latitude', 'longitude', 'added_by', 'is_premium', 'property_classification', 
+            'availability_type', 'available_dates', 'corresponding_day', 'instant_booking', 
+            'non_refundable', 'title_ar', 'description_ar', 'area_description_ar', 'area_description', 
+            'company_employee_username', 'company_employee_email', 'company_employee_phone_number', 
+            'company_employee_whatsappnumber', 'video_link', 'rentduration', 'meta_title', 
+            'meta_description', 'meta_keywords', 'meta_image', 'three_d_image', 'rent_package',
+            'created_at', 'title_image_hash', 'is_user_verified'
+        ];
 
         $property = Property::select($select)
             ->with('customer', 'user', 'category:id,category,image,slug_id', 'assignfacilities.outdoorfacilities', 'parameters', 'favourite', 'interested_users', 'certificates')

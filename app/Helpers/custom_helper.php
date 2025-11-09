@@ -431,13 +431,14 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['id'] = $row->id;
         $tempRow['slug_id'] = $row->slug_id;
         $tempRow['title'] = $row->title;
-        $tempRow['title_ar'] = $row->title_ar;
+        // Use getRawOriginal for Arabic fields to ensure we get the actual database value
+        $tempRow['title_ar'] = $row->getRawOriginal('title_ar');
         $tempRow['price'] = $row->price;
         $tempRow['category'] = $row->category;
         $tempRow['description'] = $row->description;
-        $tempRow['description_ar'] = $row->description_ar;
+        $tempRow['description_ar'] = $row->getRawOriginal('description_ar');
         $tempRow['area_description'] = $row->area_description;
-        $tempRow['area_description_ar'] = $row->area_description_ar;
+        $tempRow['area_description_ar'] = $row->getRawOriginal('area_description_ar');
         $tempRow['address'] = $row->address;
         $tempRow['property_type'] = $row->propery_type;
         $tempRow['is_interest_available'] = $row->getRawOriginal('propery_type') == 0 || $row->getRawOriginal('propery_type') == 1 ? true : false;
@@ -514,10 +515,11 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['property_classification'] = $row->getRawOriginal('property_classification');
         $tempRow['rent_package'] = $row->rent_package;
         $tempRow['area_description'] = $row->area_description;
-        $tempRow['company_employee_username'] = $row->company_employee_username;
-        $tempRow['company_employee_phone_number'] = $row->company_employee_phone_number;
-        $tempRow['company_employee_email'] = $row->company_employee_email;
-        $tempRow['company_employee_whatsappnumber'] = $row->company_employee_whatsappnumber;
+        // Use getRawOriginal to ensure we get the actual database value, not an accessor
+        $tempRow['company_employee_username'] = $row->getRawOriginal('company_employee_username');
+        $tempRow['company_employee_phone_number'] = $row->getRawOriginal('company_employee_phone_number');
+        $tempRow['company_employee_email'] = $row->getRawOriginal('company_employee_email');
+        $tempRow['company_employee_whatsappnumber'] = $row->getRawOriginal('company_employee_whatsappnumber');
         $tempRow['instant_booking'] = $row->instant_booking ? true : false;
         $tempRow['non_refundable'] = $row->non_refundable ? true : false;
         // Add revenue and reservation fields
