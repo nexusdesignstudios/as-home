@@ -1105,8 +1105,11 @@ class ApiController extends Controller
             $saveProperty->category_id = $request->category_id;
             $saveProperty->slug_id = generateUniqueSlug($slugData, 1);
             $saveProperty->title = $request->title;
+            $saveProperty->title_ar = (isset($request->title_ar) && !empty($request->title_ar)) ? $request->title_ar : null;
             $saveProperty->description = $request->description;
+            $saveProperty->description_ar = (isset($request->description_ar) && !empty($request->description_ar)) ? $request->description_ar : null;
             $saveProperty->area_description = (isset($request->area_description)) ? $request->area_description : null;
+            $saveProperty->area_description_ar = (isset($request->area_description_ar) && !empty($request->area_description_ar)) ? $request->area_description_ar : null;
             $saveProperty->company_employee_username = (isset($request->company_employee_username)) ? $request->company_employee_username : null;
             $saveProperty->company_employee_email = (isset($request->company_employee_email)) ? $request->company_employee_email : null;
             $saveProperty->company_employee_phone_number = (isset($request->company_employee_phone_number)) ? $request->company_employee_phone_number : null;
