@@ -514,7 +514,7 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['property_classification'] = $row->getRawOriginal('property_classification');
         $tempRow['rent_package'] = $row->rent_package;
         $tempRow['area_description'] = $row->area_description;
-        $tempRow['company_employee_username'] = $row->company_employee_user_name;
+        $tempRow['company_employee_username'] = $row->company_employee_username;
         $tempRow['company_employee_phone_number'] = $row->company_employee_phone_number;
         $tempRow['company_employee_email'] = $row->company_employee_email;
         $tempRow['company_employee_whatsappnumber'] = $row->company_employee_whatsappnumber;
