@@ -714,6 +714,7 @@ class ApiController extends Controller
 
         // Select fields - always include both English and Arabic fields, plus employee fields
         // Include all fields that might be accessed by the helper function
+        // Note: title_image_hash and is_user_verified are not columns in propertys table
         $select = [
             'id', 'slug_id', 'title', 'price', 'description', 'address', 'propery_type', 
             'title_image', 'status', 'request_status', 'total_click', 'state', 'city', 
@@ -723,7 +724,7 @@ class ApiController extends Controller
             'company_employee_username', 'company_employee_email', 'company_employee_phone_number', 
             'company_employee_whatsappnumber', 'video_link', 'rentduration', 'meta_title', 
             'meta_description', 'meta_keywords', 'meta_image', 'three_d_image', 'rent_package',
-            'created_at', 'title_image_hash', 'is_user_verified'
+            'created_at', 'category_id', 'client_address'
         ];
 
         $property = Property::select($select)
