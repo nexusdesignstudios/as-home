@@ -5,6 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\PaymobPayment;
 use App\Models\PaymobPayoutTransaction;
 use App\Models\SendMoney;
+use App\Models\PaymentTransaction;
+use App\Models\Package;
+use App\Models\UserPackage;
+use App\Models\PackageFeature;
+use App\Models\UserPackageLimit;
 use App\Services\ApiResponseService;
 use App\Services\Payment\PaymentService;
 use App\Services\Payment\PaymobPayoutService;
@@ -12,7 +17,9 @@ use App\Services\HelperService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 use App\Models\Reservation;
 
 class PaymobController extends Controller
@@ -155,11 +162,13 @@ class PaymobController extends Controller
             // Route callback based on transaction ID prefix
             $isSendMoney = strpos($transactionId, 'SEND_') === 0;
             $isReservation = strpos($transactionId, 'RES_') === 0;
+            $isPackage = strpos($transactionId, 'PKG_') === 0;
 
             Log::info('Paymob callback - Checking transaction type', [
                 'transaction_id' => $transactionId,
                 'is_send_money' => $isSendMoney,
-                'is_reservation' => $isReservation
+                'is_reservation' => $isReservation,
+                'is_package' => $isPackage
             ]);
 
             if ($isSendMoney) {
@@ -167,6 +176,11 @@ class PaymobController extends Controller
                     'transaction_id' => $transactionId
                 ]);
                 return $this->handleSendMoneyCallback($request);
+            } elseif ($isPackage) {
+                Log::info('Paymob callback - Package payment transaction detected', [
+                    'transaction_id' => $transactionId
+                ]);
+                return $this->handlePackagePaymentCallback($request, $transactionId, $paymentStatus, $paymobOrderId, $paymobTransactionId, $data);
             } elseif ($isReservation) {
                 Log::info('Paymob callback - Reservation transaction detected', [
                     'transaction_id' => $transactionId
@@ -534,11 +548,13 @@ class PaymobController extends Controller
             // Route return based on transaction ID prefix
             $isSendMoney = strpos($transactionId, 'SEND_') === 0;
             $isReservation = strpos($transactionId, 'RES_') === 0;
+            $isPackage = strpos($transactionId, 'PKG_') === 0;
 
             Log::info('Paymob return - Checking transaction type', [
                 'transaction_id' => $transactionId,
                 'is_send_money' => $isSendMoney,
-                'is_reservation' => $isReservation
+                'is_reservation' => $isReservation,
+                'is_package' => $isPackage
             ]);
 
             if ($isSendMoney) {
@@ -546,6 +562,46 @@ class PaymobController extends Controller
                     'transaction_id' => $transactionId
                 ]);
                 return $this->handleSendMoneyReturn($request);
+            } elseif ($isPackage) {
+                Log::info('Paymob return - Package payment transaction detected', [
+                    'transaction_id' => $transactionId
+                ]);
+                // Handle package payment return
+                $paymentTransaction = null;
+                if ($paymobOrderId) {
+                    $paymentTransaction = PaymentTransaction::where('order_id', $paymobOrderId)
+                        ->where('payment_type', 'online payment')
+                        ->first();
+                }
+                if (!$paymentTransaction && $transactionId) {
+                    $paymentTransaction = PaymentTransaction::where('transaction_id', $transactionId)
+                        ->where('payment_type', 'online payment')
+                        ->first();
+                }
+                
+                if ($paymentTransaction) {
+                    if ($paymentTransaction->payment_status === 'pending') {
+                        $paymentTransaction->payment_status = $success ? 'success' : 'failed';
+                        $paymentTransaction->save();
+                        
+                        if ($success && $paymentTransaction->package_id) {
+                            $this->assignPackageToUser($paymentTransaction);
+                        }
+                    }
+                    
+                    if ($success) {
+                        return redirect()->route('payments.paymob-success', [
+                            'transaction_id' => $transactionId ?: $paymentTransaction->transaction_id,
+                            'source' => 'paymob',
+                            'type' => 'package'
+                        ]);
+                    }
+                }
+                return redirect()->route('payments.paymob-failed', [
+                    'transaction_id' => $transactionId,
+                    'source' => 'paymob',
+                    'type' => 'package'
+                ]);
             } elseif ($isReservation) {
                 Log::info('Paymob return - Reservation transaction detected', [
                     'transaction_id' => $transactionId
@@ -2071,6 +2127,166 @@ As-home Asset Management Team';
             ]);
             ApiResponseService::errorResponse('Failed to process send money callback: ' . $e->getMessage(), null, 500);
             return;
+        }
+    }
+
+    /**
+     * Handle package payment callback from Paymob
+     *
+     * @param Request $request
+     * @param string $transactionId
+     * @param string $paymentStatus
+     * @param string|null $paymobOrderId
+     * @param string|null $paymobTransactionId
+     * @param array $data
+     * @return \Illuminate\Http\JsonResponse
+     */
+    private function handlePackagePaymentCallback(Request $request, $transactionId, $paymentStatus, $paymobOrderId, $paymobTransactionId, $data)
+    {
+        try {
+            Log::info('Paymob package payment callback - Processing', [
+                'transaction_id' => $transactionId,
+                'payment_status' => $paymentStatus,
+                'paymob_order_id' => $paymobOrderId
+            ]);
+
+            // Find payment transaction by transaction ID or order ID
+            $paymentTransaction = null;
+            
+            if ($paymobOrderId) {
+                $paymentTransaction = PaymentTransaction::where('order_id', $paymobOrderId)
+                    ->where('payment_type', 'online payment')
+                    ->first();
+            }
+
+            if (!$paymentTransaction) {
+                $paymentTransaction = PaymentTransaction::where('transaction_id', $transactionId)
+                    ->where('payment_type', 'online payment')
+                    ->first();
+            }
+
+            if (!$paymentTransaction) {
+                Log::error('Paymob package payment callback - Payment transaction not found', [
+                    'transaction_id' => $transactionId,
+                    'paymob_order_id' => $paymobOrderId
+                ]);
+                return ApiResponseService::errorResponse('Payment transaction not found', null, 404);
+            }
+
+            // Check if payment is already processed
+            if ($paymentTransaction->payment_status === 'success') {
+                Log::info('Paymob package payment callback - Payment already processed', [
+                    'payment_transaction_id' => $paymentTransaction->id
+                ]);
+                return ApiResponseService::successResponse('Payment already processed');
+            }
+
+            DB::beginTransaction();
+
+            // Update payment transaction status
+            $paymentTransaction->payment_status = $paymentStatus === 'succeed' ? 'success' : 'failed';
+            $paymentTransaction->transaction_id = $transactionId;
+            $paymentTransaction->save();
+
+            // If payment succeeded, assign package to user
+            if ($paymentStatus === 'succeed' && $paymentTransaction->package_id) {
+                $this->assignPackageToUser($paymentTransaction);
+            }
+
+            DB::commit();
+
+            Log::info('Paymob package payment callback - Successfully processed', [
+                'payment_transaction_id' => $paymentTransaction->id,
+                'package_id' => $paymentTransaction->package_id,
+                'user_id' => $paymentTransaction->user_id,
+                'payment_status' => $paymentTransaction->payment_status
+            ]);
+
+            return ApiResponseService::successResponse('Package payment processed successfully');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Paymob package payment callback error: ' . $e->getMessage(), [
+                'transaction_id' => $transactionId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return ApiResponseService::errorResponse('Failed to process package payment: ' . $e->getMessage(), null, 500);
+        }
+    }
+
+    /**
+     * Assign package to user after successful payment
+     *
+     * @param PaymentTransaction $paymentTransaction
+     * @return void
+     */
+    private function assignPackageToUser($paymentTransaction)
+    {
+        try {
+            $packageId = $paymentTransaction->package_id;
+            $userId = $paymentTransaction->user_id;
+            $package = Package::find($packageId);
+
+            if (!$package) {
+                Log::error('Package not found for assignment', [
+                    'package_id' => $packageId,
+                    'payment_transaction_id' => $paymentTransaction->id
+                ]);
+                return;
+            }
+
+            // Check if user already has an active package
+            $existingPackage = UserPackage::where(['user_id' => $userId, 'package_id' => $packageId])
+                ->onlyActive()
+                ->first();
+
+            if ($existingPackage) {
+                Log::info('User already has active package', [
+                    'user_id' => $userId,
+                    'package_id' => $packageId,
+                    'user_package_id' => $existingPackage->id
+                ]);
+                return;
+            }
+
+            // Assign Package to user
+            $userPackage = UserPackage::create([
+                'package_id'  => $packageId,
+                'user_id'     => $userId,
+                'start_date'  => Carbon::now(),
+                'end_date'    => $package->package_type == "unlimited" ? null : Carbon::now()->addHours($package->duration),
+            ]);
+
+            // Assign limited count feature to user with limits
+            $packageFeatures = PackageFeature::where(['package_id' => $packageId, 'limit_type' => 'limited'])->get();
+            if (collect($packageFeatures)->isNotEmpty()) {
+                $userPackageLimitData = array();
+                foreach ($packageFeatures as $key => $feature) {
+                    $userPackageLimitData[] = array(
+                        'user_package_id' => $userPackage->id,
+                        'package_feature_id' => $feature->id,
+                        'total_limit' => $feature->limit,
+                        'used_limit' => 0,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    );
+                }
+
+                if (!empty($userPackageLimitData)) {
+                    UserPackageLimit::insert($userPackageLimitData);
+                }
+            }
+
+            Log::info('Package assigned to user successfully', [
+                'user_id' => $userId,
+                'package_id' => $packageId,
+                'user_package_id' => $userPackage->id
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to assign package to user: ' . $e->getMessage(), [
+                'payment_transaction_id' => $paymentTransaction->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
         }
     }
 

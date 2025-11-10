@@ -1802,6 +1802,84 @@ class HelperService
                             ],
                         )
                     );
+                case 'bank_payment_accepted':
+                    return array(
+                        'title' => 'Bank Transfer Payment Accepted',
+                        'type' => 'bank_payment_accepted_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'user_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'customer_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'package_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'transaction_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'subscription_start_date',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'bank_payment_rejected':
+                    return array(
+                        'title' => 'Bank Transfer Payment Rejected',
+                        'type' => 'bank_payment_rejected_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'user_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'customer_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'package_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reject_reason',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'transaction_id',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
                 default:
                     // Return null for invalid types to indicate error
                     return null;
@@ -1958,6 +2036,14 @@ class HelperService
                 'title' => 'Payment Completed - New Booking',
                 'type' => 'payment_completion_owner',
             ],
+            [
+                'title' => 'Bank Transfer Payment Accepted',
+                'type' => 'bank_payment_accepted',
+            ],
+            [
+                'title' => 'Bank Transfer Payment Rejected',
+                'type' => 'bank_payment_rejected',
+            ],
         );
     }
 
@@ -2090,7 +2176,7 @@ class HelperService
     public static function getActivePaymentGateway()
     {
         try {
-            $paymentMethodTypes = array('stripe_gateway', 'razorpay_gateway', 'paystack_gateway', 'paypal_gateway', 'flutterwave_status');
+            $paymentMethodTypes = array('stripe_gateway', 'razorpay_gateway', 'paystack_gateway', 'paypal_gateway', 'flutterwave_status', 'paymob_gateway');
             $settingsData = Setting::whereIn('type', $paymentMethodTypes)->get();
             foreach ($settingsData as $key => $setting) {
                 if ($setting->data == 1) {
@@ -2134,6 +2220,17 @@ class HelperService
                     $types = array('flutterwave_public_key', 'flutterwave_secret_key', 'flutterwave_webhook_url', 'flutterwave_currency', ' flutterwave_status');
                     $data = array('payment_method' => 'flutterwave');
                     return array_merge($data, self::getMultipleSettingData($types));
+                    break;
+                case 'paymob_gateway':
+                    // Get Paymob settings from config file (since they're stored in .env)
+                    $data = array(
+                        'payment_method' => 'paymob',
+                        'paymob_api_key' => config('paymob.api_key'),
+                        'paymob_integration_id' => config('paymob.integration_id'),
+                        'paymob_iframe_id' => config('paymob.iframe_id'),
+                        'paymob_currency' => config('paymob.currency', 'EGP')
+                    );
+                    return $data;
                     break;
 
                 default:

@@ -7703,19 +7703,21 @@ class ApiController extends Controller
             }
 
             //Add Payment Data to Payment Transactions Table
+            // Use PKG_ prefix for package payments to identify them in callbacks
+            $packageTransactionId = 'PKG_' . Str::uuid();
             $paymentTransactionData = PaymentTransaction::create([
                 'user_id'         => Auth::user()->id,
-                'package_id'      => $request->package_id,
                 'package_id'      => $package->id,
                 'amount'          => $package->price,
                 'payment_gateway' => Str::ucfirst($paymentSettings['payment_method']),
                 'payment_status'  => 'pending',
                 'order_id'        => null,
+                'transaction_id' => $packageTransactionId,
                 'payment_type'    => 'online payment'
             ]);
 
-
-            $paymentIntent = PaymentService::create($paymentSettings)->createAndFormatPaymentIntent(round($package->price, 2), [
+            // Prepare metadata for payment intent
+            $metadata = [
                 'payment_transaction_id' => $paymentTransactionData->id,
                 'package_id'             => $package->id,
                 'user_id'                => Auth::user()->id,
@@ -7723,9 +7725,12 @@ class ApiController extends Controller
                 'platform_type'          => $request->platform_type,
                 'description'            => $request->description ?? $package->name,
                 'user_name'              => Auth::user()->name ?? "",
-                'address_line1'          => Auth::user()->address ?? "",
-                'address_city'           => Auth::user()->city ?? "",
-            ]);
+                'first_name'              => explode(' ', Auth::user()->name ?? 'Customer')[0] ?? 'Customer',
+                'last_name'               => explode(' ', Auth::user()->name ?? 'Customer', 2)[1] ?? 'Customer',
+                'phone'                   => Auth::user()->mobile ?? Auth::user()->whatsappnumber ?? 'NA',
+            ];
+
+            $paymentIntent = PaymentService::create($paymentSettings)->createAndFormatPaymentIntent(round($package->price, 2), $metadata);
             $paymentTransactionData->update(['order_id' => $paymentIntent['id']]);
 
             $paymentTransactionData = PaymentTransaction::findOrFail($paymentTransactionData->id);

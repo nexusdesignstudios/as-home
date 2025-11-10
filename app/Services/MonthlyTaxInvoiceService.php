@@ -447,12 +447,23 @@ class MonthlyTaxInvoiceService
             // Add property information for PDF template (hotel name, address, and VAT number)
             if ($property) {
                 $variables['property_name'] = $property->title ?? 'Hotel';
-                $variables['property_address'] = $property->address ?? ($property->client_address ?? '');
+                $propertyAddress = $property->address ?? ($property->client_address ?? '');
+                $variables['property_address'] = $propertyAddress;
                 $variables['property_vat'] = $property->hotel_vat ?? '';
+                
+                // Create Google Maps link for property location (for email template)
+                if (!empty($propertyAddress)) {
+                    $addressEncoded = urlencode($propertyAddress);
+                    $mapsLink = "https://www.google.com/maps/search/?api=1&query=" . $addressEncoded;
+                    $variables['property_location_link'] = '<a href="' . e($mapsLink) . '" target="_blank" style="color: #003580; text-decoration: underline;">Location</a>';
+                } else {
+                    $variables['property_location_link'] = '';
+                }
             } else {
                 $variables['property_name'] = 'Hotel';
                 $variables['property_address'] = '';
                 $variables['property_vat'] = '';
+                $variables['property_location_link'] = '';
             }
             $variables['payment_method_type'] = $type === 'flexible' ? 'Flexible (Manual/Cash)' : 'Non-Refundable (Online)';
             $variables['invoice_type_label'] = $type === 'flexible' ? 'Flexible Rate Reservations' : 'Non-Refundable Reservations';
@@ -469,6 +480,42 @@ class MonthlyTaxInvoiceService
             }
 
             $emailTemplate = HelperService::replaceEmailVariables($templateData, $variables);
+
+            // Build property information section (property name, address, location link, and VAT)
+            $propertyInfoHtml = '';
+            if ($property && (!empty($variables['property_name']) || !empty($variables['property_address']) || !empty($variables['property_vat']))) {
+                $propertyInfoHtml = '<div style="font-family:Segoe UI,Arial,sans-serif;background:#ffffff;border:1px solid #e9ecef;border-radius:8px;padding:16px;margin:0 0 16px 0;">';
+                
+                // 1. Property Name
+                if (!empty($variables['property_name'])) {
+                    $propertyInfoHtml .= '<div style="margin-bottom: 8px;">'
+                        . '<strong style="font-size: 16px; color: #0d6efd;">' . e($variables['property_name']) . '</strong>'
+                        . '</div>';
+                }
+                
+                // 2. Property Address (normal text)
+                if (!empty($variables['property_address'])) {
+                    $propertyInfoHtml .= '<div style="margin-bottom: 8px; color: #333;">'
+                        . e($variables['property_address'])
+                        . '</div>';
+                }
+                
+                // 3. Property Location (as hyperlink with "Location" text)
+                if (!empty($variables['property_location_link'])) {
+                    $propertyInfoHtml .= '<div style="margin-bottom: 8px; color: #333;">'
+                        . $variables['property_location_link']
+                        . '</div>';
+                }
+                
+                // 4. VAT
+                if (!empty($variables['property_vat'])) {
+                    $propertyInfoHtml .= '<div style="margin-bottom: 0; color: #333;">'
+                        . '<strong>VAT:</strong> ' . e($variables['property_vat'])
+                        . '</div>';
+                }
+                
+                $propertyInfoHtml .= '</div>';
+            }
 
             // Build styled summary with Property IDs, User ID, and Date
             $propertyIds = $reservations->map(function ($r) {
@@ -503,7 +550,8 @@ class MonthlyTaxInvoiceService
                 . '</div>';
 
             // Compose final email HTML content
-            $emailTemplate = $styledHeader . $emailTemplate;
+            // Order: Styled Header -> Property Info -> Email Template
+            $emailTemplate = $styledHeader . $propertyInfoHtml . $emailTemplate;
 
             // For flexible emails, append bank details and important notes
             if ($type === 'flexible') {
@@ -516,7 +564,7 @@ class MonthlyTaxInvoiceService
                     . '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Currency</strong></td><td style="padding:8px;border:1px solid #e9ecef;">EGP</td></tr>'
                     . '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Swift Code</strong></td><td style="padding:8px;border:1px solid #e9ecef;">NBEGEGCX341</td></tr>'
                     . '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Account No.</strong></td><td style="padding:8px;border:1px solid #e9ecef;">3413131856116201017</td></tr>'
-                    . '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Beneficiary Name</strong></td><td style="padding:8px;border:1px solid #e9ecef;">As Home for Asset Management<br/>اذ هوم لاداره الاصول</td></tr>'
+                    . '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Beneficiary Name</strong></td><td style="padding:8px;border:1px solid #e9ecef;">As Home for Asset Management</td></tr>'
                     . '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>IBAN</strong></td><td style="padding:8px;border:1px solid #e9ecef;">EG100003034131318561162010170</td></tr>'
                     . '</table>'
                     . '</div>';

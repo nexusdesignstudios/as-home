@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\DB;
 use App\Services\BootstrapTableService;
 use Illuminate\Support\Facades\Validator;
 use App\Services\PDF\PaymentReceiptService;
+use App\Models\Setting;
+use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
@@ -202,6 +204,111 @@ class PaymentController extends Controller
             }
 
             $statusText = $request->status == 'success' ? 'Accepted' : ($request->status == 'rejected' ? 'Rejected' : 'Failed');
+
+            // Send email notification for bank transfer payments
+            if ($payment->payment_type == 'bank transfer' && $payment->customer) {
+                try {
+                    $customer = $payment->customer;
+                    $package = $payment->package;
+                    $currencySymbol = HelperService::getSettingData('currency_symbol') ?? 'EGP';
+                    $appName = Setting::where('type', 'app_name')->first();
+                    $appNameValue = $appName ? $appName->data : config('app.name');
+
+                    if ($request->status == 'success') {
+                        // Payment accepted email
+                        $emailTypeData = HelperService::getEmailTemplatesTypes('bank_payment_accepted');
+                        $emailTemplateData = system_setting($emailTypeData['type']);
+
+                        if (empty($emailTemplateData)) {
+                            $emailTemplateData = 'Dear {user_name},
+
+We are pleased to inform you that your bank transfer payment has been accepted.
+
+Payment Details:
+- Package: {package_name}
+- Amount: {amount} {currency_symbol}
+- Transaction ID: {transaction_id}
+
+Your subscription has started on {subscription_start_date}. You can now enjoy all the features of your selected package.
+
+Thank you for your payment!
+
+Best regards,
+{app_name} Team';
+                        }
+
+                        $variables = array(
+                            'app_name' => $appNameValue,
+                            'user_name' => $customer->name,
+                            'customer_name' => $customer->name,
+                            'package_name' => $package ? $package->name : 'N/A',
+                            'amount' => number_format($payment->amount, 2),
+                            'currency_symbol' => $currencySymbol,
+                            'transaction_id' => $payment->transaction_id,
+                            'subscription_start_date' => Carbon::now()->format('d M Y, h:i A'),
+                        );
+
+                        $emailTemplate = HelperService::replaceEmailVariables($emailTemplateData, $variables);
+
+                        $data = array(
+                            'email_template' => $emailTemplate,
+                            'email' => $customer->email,
+                            'title' => $emailTypeData['title'],
+                        );
+
+                        HelperService::sendMail($data);
+                    } elseif ($request->status == 'rejected' || $request->status == 'failed') {
+                        // Payment rejected email
+                        $emailTypeData = HelperService::getEmailTemplatesTypes('bank_payment_rejected');
+                        $emailTemplateData = system_setting($emailTypeData['type']);
+
+                        if (empty($emailTemplateData)) {
+                            $emailTemplateData = 'Dear {user_name},
+
+We regret to inform you that your bank transfer payment has been rejected.
+
+Payment Details:
+- Package: {package_name}
+- Amount: {amount} {currency_symbol}
+- Transaction ID: {transaction_id}
+- Rejection Reason: {reject_reason}
+
+Please review the rejection reason and contact our support team if you have any questions or need assistance with resubmitting your payment.
+
+Best regards,
+{app_name} Team';
+                        }
+
+                        $variables = array(
+                            'app_name' => $appNameValue,
+                            'user_name' => $customer->name,
+                            'customer_name' => $customer->name,
+                            'package_name' => $package ? $package->name : 'N/A',
+                            'amount' => number_format($payment->amount, 2),
+                            'currency_symbol' => $currencySymbol,
+                            'reject_reason' => $payment->reject_reason ?? 'No reason provided',
+                            'transaction_id' => $payment->transaction_id,
+                        );
+
+                        $emailTemplate = HelperService::replaceEmailVariables($emailTemplateData, $variables);
+
+                        $data = array(
+                            'email_template' => $emailTemplate,
+                            'email' => $customer->email,
+                            'title' => $emailTypeData['title'],
+                        );
+
+                        HelperService::sendMail($data);
+                    }
+                } catch (\Exception $e) {
+                    // Log email error but don't fail the transaction
+                    Log::error('Failed to send payment status email', [
+                        'payment_id' => $payment->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                }
+            }
 
             //Send Notification To Customer
             $user_token = Usertokens::where('customer_id', $payment->user_id)->pluck('fcm_id')->toArray();

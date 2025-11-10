@@ -238,7 +238,19 @@
                     <div><strong>{{ $invoiceData['property_name'] }}</strong></div>
                 @endif
                 @if($invoiceData['property_address'] ?? null)
-                    <div>{{ $invoiceData['property_address'] }}</div>
+                    {{-- Property Address (normal text) --}}
+                    <div style="margin-bottom: 5px;">
+                        {{ $invoiceData['property_address'] }}
+                    </div>
+                    @php
+                        // Create Google Maps link from address
+                        $addressEncoded = urlencode($invoiceData['property_address']);
+                        $mapsLink = "https://www.google.com/maps/search/?api=1&query=" . $addressEncoded;
+                    @endphp
+                    {{-- Location (as hyperlink) --}}
+                    <div style="margin-bottom: 5px;">
+                        <a href="{{ $mapsLink }}" target="_blank" style="color: #003580; text-decoration: underline;">Location</a>
+                    </div>
                 @endif
                 <div>VAT: {{ $invoiceData['property_vat'] ?? '' }}</div>
             </div>
