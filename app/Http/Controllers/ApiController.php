@@ -84,6 +84,7 @@ use App\Services\ApiResponseService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Http;
 use Twilio\Exceptions\RestException;
 use App\Models\OldUserPurchasedPackage;
@@ -6412,13 +6413,31 @@ class ApiController extends Controller
             // Search the property
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
-                $propertyQuery = $propertyQuery->clone()->where(function ($query) use ($search) {
+                $isHotelSearch = $request->has('property_classification') && $request->property_classification == 5;
+                $hasHotelNameColumn = false;
+                
+                // Check if hotel_name column exists (only check once, outside query closure)
+                if ($isHotelSearch) {
+                    try {
+                        $hasHotelNameColumn = Schema::hasColumn('propertys', 'hotel_name');
+                    } catch (\Exception $e) {
+                        // Column doesn't exist, skip hotel_name search
+                        $hasHotelNameColumn = false;
+                    }
+                }
+                
+                $propertyQuery = $propertyQuery->clone()->where(function ($query) use ($search, $isHotelSearch, $hasHotelNameColumn) {
                     $query->where('title', 'LIKE', "%$search%")
-                        ->orWhere('address', 'LIKE', "%$search%")
-                        ->orWhere('hotel_name', 'LIKE', "%$search%")
-                        ->orWhereHas('category', function ($query1) use ($search) {
-                            $query1->where('category', 'LIKE', "%$search%");
-                        });
+                        ->orWhere('address', 'LIKE', "%$search%");
+                    
+                    // Only search hotel_name if it's a hotel search and column exists
+                    if ($isHotelSearch && $hasHotelNameColumn) {
+                        $query->orWhere('hotel_name', 'LIKE', "%$search%");
+                    }
+                    
+                    $query->orWhereHas('category', function ($query1) use ($search) {
+                        $query1->where('category', 'LIKE', "%$search%");
+                    });
                 });
             }
 
