@@ -34,35 +34,62 @@ class ViewServiceProvider extends ServiceProvider {
             }else{
                 $cache = app(CachingService::class);
                 $defaultLanguage = $cache->getDefaultLanguage();
-                Session::put('language', $defaultLanguage);
-                Session::put('locale', $defaultLanguage->code);
-                Session::save();
-                app()->setLocale($defaultLanguage->code);
-                Artisan::call('cache:clear');
-                $view->with('language', $cache->getDefaultLanguage());
+                if($defaultLanguage && isset($defaultLanguage->code)){
+                    Session::put('language', $defaultLanguage);
+                    Session::put('locale', $defaultLanguage->code);
+                    Session::save();
+                    app()->setLocale($defaultLanguage->code);
+                    Artisan::call('cache:clear');
+                    $view->with('language', $defaultLanguage);
+                } else {
+                    // Fallback to default locale if no language is found
+                    $defaultLocale = config('app.locale', 'en');
+                    Session::put('locale', $defaultLocale);
+                    app()->setLocale($defaultLocale);
+                    // Pass null to the view so it can handle it gracefully
+                    $view->with('language', null);
+                }
             }
         });
 
         View::composer('auth.login', static function (\Illuminate\View\View $view) use ($cache) {
             $cache = app(CachingService::class);
             $defaultLanguage = $cache->getDefaultLanguage();
-            Session::put('language', $defaultLanguage);
-            Session::put('locale', $defaultLanguage->code);
-            Session::save();
-            app()->setLocale($defaultLanguage->code);
-            Artisan::call('cache:clear');
-            $view->with('language', $cache->getDefaultLanguage());
+            if($defaultLanguage && isset($defaultLanguage->code)){
+                Session::put('language', $defaultLanguage);
+                Session::put('locale', $defaultLanguage->code);
+                Session::save();
+                app()->setLocale($defaultLanguage->code);
+                Artisan::call('cache:clear');
+                $view->with('language', $defaultLanguage);
+            } else {
+                // Fallback to default locale if no language is found
+                $defaultLocale = config('app.locale', 'en');
+                Session::put('locale', $defaultLocale);
+                app()->setLocale($defaultLocale);
+                // Pass null to the view so it can handle it gracefully
+                $view->with('language', null);
+            }
         });
 
         View::composer('customers.reset-password', static function (\Illuminate\View\View $view) use ($cache) {
             $cache = app(CachingService::class);
             $defaultLanguage = $cache->getDefaultLanguage();
-            Session::put('language', $defaultLanguage);
-            Session::put('locale', $defaultLanguage->code);
-            Session::save();
-            app()->setLocale($defaultLanguage->code);
-            Artisan::call('cache:clear');
-            $view->with('language', $cache->getDefaultLanguage());
+            if($defaultLanguage && isset($defaultLanguage->code)){
+                Session::put('language', $defaultLanguage);
+                Session::put('locale', $defaultLanguage->code);
+                Session::save();
+                app()->setLocale($defaultLanguage->code);
+                Artisan::call('cache:clear');
+                $view->with('language', $defaultLanguage);
+            } else {
+                // Fallback to default locale if no language is found
+                $defaultLocale = config('app.locale', 'en');
+                Session::put('locale', $defaultLocale);
+                app()->setLocale($defaultLocale);
+                // Pass null to the view so it can handle it gracefully
+                $view->with('language', null);
+            }
         });
     }
 }

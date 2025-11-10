@@ -174,7 +174,7 @@ class TestHotelEmailTemplate extends Command
 
             // Add bank details for flexible template using the same logic as MonthlyTaxInvoiceService
             if ($templateType === 'monthly_tax_invoice_hotels_flexible') {
-                $variables['bank_account_details'] = $this->generateBankAccountDetailsHtml();
+                $variables['bank_account_details'] = $this->generateBankAccountDetailsHtml($variables);
             }
 
             // Get template data
@@ -202,9 +202,17 @@ class TestHotelEmailTemplate extends Command
 
             // Add PDF attachment if requested
             if ($withPdf) {
-                $pdfData = $this->generatePdfAttachment($variables, $templateType, $month);
-                if ($pdfData) {
-                    $data['attachments'] = [$pdfData];
+                // Get owner from variables
+                $owner = $variables['owner'] ?? null;
+                if ($owner) {
+                    // Prepare invoiceData for PDF with numeric values (not formatted strings)
+                    $invoiceDataForPdf = $this->prepareInvoiceDataForPdf($variables);
+                    $pdfData = $this->generatePdfAttachment($owner, $invoiceDataForPdf, $templateType, $month);
+                    if ($pdfData) {
+                        $data['attachments'] = [$pdfData];
+                    }
+                } else {
+                    $this->warn("No owner data available for PDF generation");
                 }
             }
 
@@ -570,29 +578,48 @@ class TestHotelEmailTemplate extends Command
     /**
      * Generate bank account details HTML using the same logic as MonthlyTaxInvoiceService
      *
+     * @param array $variables
      * @return string
      */
-    private function generateBankAccountDetailsHtml()
+    private function generateBankAccountDetailsHtml($variables = [])
     {
-        // Get bank account details from system settings or use default
-        $bankName = system_setting('bank_name') ?? 'As-home Bank';
-        $accountNumber = system_setting('bank_account_number') ?? '1234567890';
-        $routingNumber = system_setting('bank_routing_number') ?? '987654321';
-        $swiftCode = system_setting('bank_swift_code') ?? 'ASHOMEXX';
-        $accountHolder = system_setting('bank_account_holder') ?? 'As-home Group';
+        // Get bank account details from system settings or use defaults (matching MonthlyTaxInvoiceService)
+        $bankName = system_setting('bank_name') ?? 'National Bank of Egypt';
+        $accountNumber = system_setting('bank_account_number') ?? '3413131856116201017';
+        $routingNumber = system_setting('bank_routing_number') ?? '';
+        $swiftCode = system_setting('bank_swift_code') ?? 'NBEGEGCX341';
+        $iban = system_setting('bank_iban') ?? 'EG100003034131318561162010170';
+        $accountHolder = 'As Home for Asset Management'; // Always use this value
 
-        $html = '<div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">';
-        $html .= '<h3 style="color: #495057; margin-bottom: 15px;">Bank Account Details for Commission Payment</h3>';
-        $html .= '<table style="width: 100%; border-collapse: collapse;">';
-        $html .= '<tr><td style="padding: 8px; font-weight: bold; width: 30%;">Bank Name:</td><td style="padding: 8px;">' . $bankName . '</td></tr>';
-        $html .= '<tr><td style="padding: 8px; font-weight: bold;">Account Holder:</td><td style="padding: 8px;">' . $accountHolder . '</td></tr>';
-        $html .= '<tr><td style="padding: 8px; font-weight: bold;">Account Number:</td><td style="padding: 8px;">' . $accountNumber . '</td></tr>';
-        $html .= '<tr><td style="padding: 8px; font-weight: bold;">Routing Number:</td><td style="padding: 8px;">' . $routingNumber . '</td></tr>';
-        $html .= '<tr><td style="padding: 8px; font-weight: bold;">SWIFT Code:</td><td style="padding: 8px;">' . $swiftCode . '</td></tr>';
+        // Get commission amount and currency from variables
+        $commissionAmount = $variables['commission_amount'] ?? '0.00';
+        $currencySymbol = $variables['currency_symbol'] ?? 'EGP';
+
+        $html = '<div style="font-family:Segoe UI,Arial,sans-serif;background:#ffffff;border:1px solid #e9ecef;border-radius:8px;padding:16px;margin:0 0 16px 0;">';
+        $html .= '<h3 style="margin:0 0 8px 0;color:#0d6efd;">Bank Details</h3>';
+        $html .= '<table style="width:100%;border-collapse:collapse;">';
+        $html .= '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;width:30%;"><strong>Bank Name</strong></td><td style="padding:8px;border:1px solid #e9ecef;">' . e($bankName) . '</td></tr>';
+        $html .= '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Branch</strong></td><td style="padding:8px;border:1px solid #e9ecef;">Hurghada Branch</td></tr>';
+        $html .= '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Bank Address</strong></td><td style="padding:8px;border:1px solid #e9ecef;">EL Kawthar Hurghada Branch</td></tr>';
+        $html .= '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Currency</strong></td><td style="padding:8px;border:1px solid #e9ecef;">EGP</td></tr>';
+        $html .= '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Swift Code</strong></td><td style="padding:8px;border:1px solid #e9ecef;">' . e($swiftCode) . '</td></tr>';
+        $html .= '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Account No.</strong></td><td style="padding:8px;border:1px solid #e9ecef;">' . e($accountNumber) . '</td></tr>';
+        $html .= '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>Beneficiary Name</strong></td><td style="padding:8px;border:1px solid #e9ecef;">' . e($accountHolder) . '</td></tr>';
+        $html .= '<tr><td style="padding:8px;border:1px solid #e9ecef;background:#f8f9fa;"><strong>IBAN</strong></td><td style="padding:8px;border:1px solid #e9ecef;">' . e($iban) . '</td></tr>';
         $html .= '</table>';
-        $html .= '<p style="margin-top: 15px; color: #6c757d; font-size: 14px;">';
-        $html .= '<strong>Note:</strong> Please transfer the commission amount ({commission_amount} {currency_symbol}) to the above account within 7 days of receiving this invoice.';
-        $html .= '</p>';
+        $html .= '</div>';
+
+        // Add important notes section
+        $html .= '<div style="font-family:Segoe UI,Arial,sans-serif;background:#fff7e6;border:1px solid #ffe8cc;border-radius:8px;padding:16px;margin:0 0 16px 0;">';
+        $html .= '<h4 style="margin:0 0 8px 0;color:#d48806;">IMPORTANT NOTES</h4>';
+        $html .= '<ul style="margin:0 0 0 18px;padding:0;">';
+        $html .= '<li>This invoice covers all flexible hotel bookings for the month of ' . e($variables['month_year'] ?? date('F Y')) . '</li>';
+        $html .= '<li>Commission has been calculated based on the standard rate of ' . e($variables['commission_rate'] ?? 15) . '%</li>';
+        $html .= '<li>All amounts are in ' . e($currencySymbol) . '</li>';
+        $html .= '<li>Please transfer the commission amount (' . e($currencySymbol) . ' ' . e($commissionAmount) . ') to the provided bank account within 7 days</li>';
+        $html .= '<li>Please keep this invoice for your tax records</li>';
+        $html .= '<li>For any questions regarding this invoice or payment, please contact our support team</li>';
+        $html .= '</ul>';
         $html .= '</div>';
 
         return $html;
@@ -622,26 +649,63 @@ class TestHotelEmailTemplate extends Command
     }
 
     /**
-     * Generate PDF attachment for the tax invoice
+     * Prepare invoice data for PDF (ensure numeric values, not formatted strings)
      *
      * @param array $variables
+     * @return array
+     */
+    private function prepareInvoiceDataForPdf($variables)
+    {
+        // Convert formatted strings back to floats for PDF template
+        $invoiceData = [
+            'total_reservations' => (int)($variables['total_reservations'] ?? 0),
+            'total_revenue' => (float)str_replace(',', '', $variables['total_revenue'] ?? 0),
+            'currency_symbol' => $variables['currency_symbol'] ?? 'EGP',
+            'service_charge_rate' => (float)($variables['service_charge_rate'] ?? 0),
+            'service_charge_amount' => (float)str_replace(',', '', $variables['service_charge_amount'] ?? 0),
+            'sales_tax_rate' => (float)($variables['sales_tax_rate'] ?? 0),
+            'sales_tax_amount' => (float)str_replace(',', '', $variables['sales_tax_amount'] ?? 0),
+            'city_tax_rate' => (float)($variables['city_tax_rate'] ?? 0),
+            'city_tax_amount' => (float)str_replace(',', '', $variables['city_tax_amount'] ?? 0),
+            'total_taxes_amount' => (float)str_replace(',', '', $variables['total_taxes_amount'] ?? 0),
+            'revenue_after_taxes' => (float)str_replace(',', '', $variables['revenue_after_taxes'] ?? 0),
+            'commission_rate' => (float)($variables['commission_rate'] ?? 0),
+            'commission_amount' => (float)str_replace(',', '', $variables['commission_amount'] ?? 0),
+            'net_amount' => (float)str_replace(',', '', $variables['net_amount'] ?? 0),
+            'reservation_details' => $variables['reservation_details'] ?? '',
+            'property_summary' => $variables['property_summary'] ?? '',
+        ];
+
+        return $invoiceData;
+    }
+
+    /**
+     * Generate PDF attachment for the tax invoice
+     *
+     * @param \App\Models\Customer $owner
+     * @param array $invoiceData
      * @param string $templateType
      * @param string $month
      * @return array|null
      */
-    private function generatePdfAttachment($variables, $templateType, $month)
+    private function generatePdfAttachment($owner, $invoiceData, $templateType, $month)
     {
         try {
             $taxInvoiceService = new TaxInvoiceService();
-            $owner = $variables['owner'] ?? null;
             
             if (!$owner) {
                 $this->warn("No owner data available for PDF generation");
                 return null;
             }
 
+            // Convert template type for PDF service
+            $pdfTemplateType = 'monthly_tax_invoice_hotels_flexible';
+            if ($templateType === 'monthly_tax_invoice_hotels_non_refundable') {
+                $pdfTemplateType = 'monthly_tax_invoice_hotels_non_refundable';
+            }
+
             // Generate PDF
-            $pdf = $taxInvoiceService->generatePDF($owner, $variables, $month, $templateType);
+            $pdf = $taxInvoiceService->generatePDF($owner, $invoiceData, $month, $pdfTemplateType);
             $pdfContent = $pdf->output();
             
             // Generate filename
@@ -658,6 +722,7 @@ class TestHotelEmailTemplate extends Command
             
         } catch (\Exception $e) {
             $this->error("Error generating PDF attachment: " . $e->getMessage());
+            $this->error("Stack trace: " . $e->getTraceAsString());
             return null;
         }
     }

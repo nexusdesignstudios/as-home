@@ -253,7 +253,7 @@ HTML;
   <tr><td><strong>Currency</strong></td><td>EGP</td></tr>
   <tr><td><strong>Swift Code</strong></td><td>NBEGEGCX341</td></tr>
   <tr><td><strong>Account No.</strong></td><td>3413131856116201017</td></tr>
-  <tr><td><strong>Beneficiary Name</strong></td><td>As Home for Asset Management<br/>اذ هوم لاداره الاصول</td></tr>
+  <tr><td><strong>Beneficiary Name</strong></td><td>As Home for Asset Management</td></tr>
   <tr><td><strong>IBAN</strong></td><td>EG100003034131318561162010170</td></tr>
 </table>
 <h4>IMPORTANT NOTES</h4>

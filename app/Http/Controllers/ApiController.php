@@ -84,6 +84,7 @@ use App\Services\ApiResponseService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Http;
 use Twilio\Exceptions\RestException;
 use App\Models\OldUserPurchasedPackage;
@@ -712,18 +713,20 @@ class ApiController extends Controller
         // Get language preference if specified
         $language = $request->has('language') ? $request->language : null;
 
-        // Select fields based on language preference
-        $select = ['id', 'slug_id', 'title', 'price', 'description', 'address', 'propery_type', 'title_image', 'status', 'request_status', 'total_click', 'state', 'city', 'country', 'latitude', 'longitude', 'added_by', 'is_premium', 'property_classification', 'availability_type', 'available_dates', 'corresponding_day', 'instant_booking', 'non_refundable', 'title_ar', 'description_ar', 'area_description_ar', 'area_description'];
-
-        // Always include Arabic fields unless specifically requesting English only
-        if ($language !== 'en') {
-            $select = array_merge($select, ['title_ar', 'description_ar', 'area_description_ar']);
-        }
-
-        // Always include English fields unless specifically requesting Arabic only
-        if ($language !== 'ar') {
-            $select = array_merge($select, ['area_description']);
-        }
+        // Select fields - always include both English and Arabic fields, plus employee fields
+        // Include all fields that might be accessed by the helper function
+        // Note: title_image_hash and is_user_verified are not columns in propertys table
+        $select = [
+            'id', 'slug_id', 'title', 'price', 'description', 'address', 'propery_type', 
+            'title_image', 'status', 'request_status', 'total_click', 'state', 'city', 
+            'country', 'latitude', 'longitude', 'added_by', 'is_premium', 'property_classification', 
+            'availability_type', 'available_dates', 'corresponding_day', 'instant_booking', 
+            'non_refundable', 'title_ar', 'description_ar', 'area_description_ar', 'area_description', 
+            'company_employee_username', 'company_employee_email', 'company_employee_phone_number', 
+            'company_employee_whatsappnumber', 'video_link', 'rentduration', 'meta_title', 
+            'meta_description', 'meta_keywords', 'meta_image', 'three_d_image', 'rent_package',
+            'created_at', 'category_id', 'client_address'
+        ];
 
         $property = Property::select($select)
             ->with('customer', 'user', 'category:id,category,image,slug_id', 'assignfacilities.outdoorfacilities', 'parameters', 'favourite', 'interested_users', 'certificates')
@@ -898,7 +901,15 @@ class ApiController extends Controller
                             'check_in',
                             'check_out',
                             'agent_addons',
-                            'corresponding_day'
+                            'corresponding_day',
+                            'title_ar',
+                            'description_ar',
+                            'area_description_ar',
+                            'area_description',
+                            'company_employee_username',
+                            'company_employee_email',
+                            'company_employee_phone_number',
+                            'company_employee_whatsappnumber'
                         )
                         ->with('certificates')
                         ->where(function ($query) {
@@ -926,7 +937,15 @@ class ApiController extends Controller
                             'check_in',
                             'check_out',
                             'agent_addons',
-                            'corresponding_day'
+                            'corresponding_day',
+                            'title_ar',
+                            'description_ar',
+                            'area_description_ar',
+                            'area_description',
+                            'company_employee_username',
+                            'company_employee_email',
+                            'company_employee_phone_number',
+                            'company_employee_whatsappnumber'
                         )
                         ->with('certificates')
                         ->where(function ($query) {
@@ -1087,8 +1106,11 @@ class ApiController extends Controller
             $saveProperty->category_id = $request->category_id;
             $saveProperty->slug_id = generateUniqueSlug($slugData, 1);
             $saveProperty->title = $request->title;
+            $saveProperty->title_ar = (isset($request->title_ar) && !empty($request->title_ar)) ? $request->title_ar : null;
             $saveProperty->description = $request->description;
+            $saveProperty->description_ar = (isset($request->description_ar) && !empty($request->description_ar)) ? $request->description_ar : null;
             $saveProperty->area_description = (isset($request->area_description)) ? $request->area_description : null;
+            $saveProperty->area_description_ar = (isset($request->area_description_ar) && !empty($request->area_description_ar)) ? $request->area_description_ar : null;
             $saveProperty->company_employee_username = (isset($request->company_employee_username)) ? $request->company_employee_username : null;
             $saveProperty->company_employee_email = (isset($request->company_employee_email)) ? $request->company_employee_email : null;
             $saveProperty->company_employee_phone_number = (isset($request->company_employee_phone_number)) ? $request->company_employee_phone_number : null;
@@ -5273,11 +5295,11 @@ class ApiController extends Controller
                 );
 
                 if ($request->has('id')) {
-                    $getSimilarPropertiesQueryData = Property::where(['post_type' => 1, 'added_by' => $loggedInUserID])->where('id', '!=', $request->id)->select('id', 'slug_id', 'category_id', 'title', 'added_by', 'address', 'city', 'country', 'state', 'propery_type', 'price', 'created_at', 'title_image')->orderBy('id', 'desc')->limit(10)->get();
+                    $getSimilarPropertiesQueryData = Property::where(['post_type' => 1, 'added_by' => $loggedInUserID])->where('id', '!=', $request->id)->select('id', 'slug_id', 'category_id', 'title', 'added_by', 'address', 'city', 'country', 'state', 'propery_type', 'price', 'created_at', 'title_image', 'title_ar', 'description_ar', 'area_description_ar', 'area_description', 'company_employee_username', 'company_employee_email', 'company_employee_phone_number', 'company_employee_whatsappnumber')->orderBy('id', 'desc')->limit(10)->get();
 
                     $getSimilarProperties = get_property_details($getSimilarPropertiesQueryData, $loggedInUserData);
                 } else if ($request->has('slug_id')) {
-                    $getSimilarPropertiesQueryData = Property::where(['post_type' => 1, 'added_by' => $loggedInUserID])->where('slug_id', '!=', $request->slug_id)->select('id', 'slug_id', 'category_id', 'title', 'added_by', 'address', 'city', 'country', 'state', 'propery_type', 'price', 'created_at', 'title_image', 'instant_booking', 'non_refundable', 'title_ar', 'description_ar', 'area_description_ar', 'area_description')->orderBy('id', 'desc')->limit(10)->get();
+                    $getSimilarPropertiesQueryData = Property::where(['post_type' => 1, 'added_by' => $loggedInUserID])->where('slug_id', '!=', $request->slug_id)->select('id', 'slug_id', 'category_id', 'title', 'added_by', 'address', 'city', 'country', 'state', 'propery_type', 'price', 'created_at', 'title_image', 'instant_booking', 'non_refundable', 'title_ar', 'description_ar', 'area_description_ar', 'area_description', 'company_employee_username', 'company_employee_email', 'company_employee_phone_number', 'company_employee_whatsappnumber')->orderBy('id', 'desc')->limit(10)->get();
                     $getSimilarProperties = get_property_details($getSimilarPropertiesQueryData, $loggedInUserData);
                 } else {
                     $getSimilarProperties = array();
@@ -6391,12 +6413,36 @@ class ApiController extends Controller
             // Search the property
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
-                $propertyQuery = $propertyQuery->clone()->where(function ($query) use ($search) {
-                    $query->where('title', 'LIKE', "%$search%")
-                        ->orWhere('address', 'LIKE', "%$search%")
-                        ->orWhereHas('category', function ($query1) use ($search) {
-                            $query1->where('category', 'LIKE', "%$search%");
-                        });
+                $isHotelSearch = $request->has('property_classification') && $request->property_classification == 5;
+                $hasHotelNameColumn = false;
+                
+                // Check if hotel_name column exists (only check once, outside query closure)
+                if ($isHotelSearch) {
+                    try {
+                        $hasHotelNameColumn = Schema::hasColumn('propertys', 'hotel_name');
+                    } catch (\Exception $e) {
+                        // Column doesn't exist, skip hotel_name search
+                        $hasHotelNameColumn = false;
+                    }
+                }
+                
+                // Normalize search: remove spaces from database fields to match frontend sanitization
+                // This allows "5starhotel" to match "5 star hotel" in the database
+                $propertyQuery = $propertyQuery->clone()->where(function ($query) use ($search, $isHotelSearch, $hasHotelNameColumn) {
+                    // Search title with spaces removed (normalized)
+                    $query->whereRaw("REPLACE(REPLACE(title, ' ', ''), '-', '') LIKE ?", ["%" . str_replace([' ', '-'], '', $search) . "%"])
+                        // Search address with spaces removed (normalized)
+                        ->orWhereRaw("REPLACE(REPLACE(address, ' ', ''), '-', '') LIKE ?", ["%" . str_replace([' ', '-'], '', $search) . "%"]);
+                    
+                    // Only search hotel_name if it's a hotel search and column exists
+                    if ($isHotelSearch && $hasHotelNameColumn) {
+                        $query->orWhereRaw("REPLACE(REPLACE(hotel_name, ' ', ''), '-', '') LIKE ?", ["%" . str_replace([' ', '-'], '', $search) . "%"]);
+                    }
+                    
+                    // Search category with spaces removed (normalized)
+                    $query->orWhereHas('category', function ($query1) use ($search) {
+                        $query1->whereRaw("REPLACE(REPLACE(category, ' ', ''), '-', '') LIKE ?", ["%" . str_replace([' ', '-'], '', $search) . "%"]);
+                    });
                 });
             }
 

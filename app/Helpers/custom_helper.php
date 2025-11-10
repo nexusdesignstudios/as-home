@@ -431,20 +431,22 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['id'] = $row->id;
         $tempRow['slug_id'] = $row->slug_id;
         $tempRow['title'] = $row->title;
-        $tempRow['title_ar'] = $row->title_ar;
+        // Get Arabic fields - use getRawOriginal if available, otherwise use regular accessor
+        $tempRow['title_ar'] = isset($row->getAttributes()['title_ar']) ? $row->getRawOriginal('title_ar') : ($row->title_ar ?? null);
         $tempRow['price'] = $row->price;
         $tempRow['category'] = $row->category;
         $tempRow['description'] = $row->description;
-        $tempRow['description_ar'] = $row->description_ar;
+        $tempRow['description_ar'] = isset($row->getAttributes()['description_ar']) ? $row->getRawOriginal('description_ar') : ($row->description_ar ?? null);
         $tempRow['area_description'] = $row->area_description;
-        $tempRow['area_description_ar'] = $row->area_description_ar;
+        $tempRow['area_description_ar'] = isset($row->getAttributes()['area_description_ar']) ? $row->getRawOriginal('area_description_ar') : ($row->area_description_ar ?? null);
         $tempRow['address'] = $row->address;
         $tempRow['property_type'] = $row->propery_type;
         $tempRow['is_interest_available'] = $row->getRawOriginal('propery_type') == 0 || $row->getRawOriginal('propery_type') == 1 ? true : false;
         $tempRow['is_report_available'] = $row->getRawOriginal('propery_type') == 0 || $row->getRawOriginal('propery_type') == 1 ? true : false;
         $tempRow['request_status'] = $row->request_status;
         $tempRow['title_image'] = $row->title_image;
-        $tempRow['title_image_hash'] = $row->title_image_hash != '' ? $row->title_image_hash : '';
+        // title_image_hash might not exist in the database, handle safely
+        $tempRow['title_image_hash'] = isset($row->title_image_hash) && $row->title_image_hash != '' ? $row->title_image_hash : '';
         $tempRow['three_d_image'] = $row->three_d_image;
         $tempRow['post_created'] = $row->created_at ? $row->created_at->diffForHumans() : '';
         $tempRow['gallery'] = $row->gallery;
@@ -465,7 +467,8 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['meta_image'] = !empty($row->meta_image) ? $row->meta_image : $row->title_image;
         $tempRow['is_premium'] = $row->is_premium == 1 ? true : false;
         $tempRow['assign_facilities'] = $row->assign_facilities;
-        $tempRow['is_verified'] = $row->is_user_verified;
+        // is_user_verified comes from customer relationship, not property table
+        $tempRow['is_verified'] = isset($row->is_user_verified) ? $row->is_user_verified : (isset($row->customer) && isset($row->customer->is_user_verified) ? $row->customer->is_user_verified : false);
         $tempRow['availability_type'] = $row->availability_type;
 
         // Ensure available_dates has proper structure with type field
@@ -514,10 +517,11 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['property_classification'] = $row->getRawOriginal('property_classification');
         $tempRow['rent_package'] = $row->rent_package;
         $tempRow['area_description'] = $row->area_description;
-        $tempRow['company_employee_username'] = $row->company_employee_user_name;
-        $tempRow['company_employee_phone_number'] = $row->company_employee_phone_number;
-        $tempRow['company_employee_email'] = $row->company_employee_email;
-        $tempRow['company_employee_whatsappnumber'] = $row->company_employee_whatsappnumber;
+        // Get employee fields - use getRawOriginal if available, otherwise use regular accessor
+        $tempRow['company_employee_username'] = isset($row->getAttributes()['company_employee_username']) ? $row->getRawOriginal('company_employee_username') : ($row->company_employee_username ?? null);
+        $tempRow['company_employee_phone_number'] = isset($row->getAttributes()['company_employee_phone_number']) ? $row->getRawOriginal('company_employee_phone_number') : ($row->company_employee_phone_number ?? null);
+        $tempRow['company_employee_email'] = isset($row->getAttributes()['company_employee_email']) ? $row->getRawOriginal('company_employee_email') : ($row->company_employee_email ?? null);
+        $tempRow['company_employee_whatsappnumber'] = isset($row->getAttributes()['company_employee_whatsappnumber']) ? $row->getRawOriginal('company_employee_whatsappnumber') : ($row->company_employee_whatsappnumber ?? null);
         $tempRow['instant_booking'] = $row->instant_booking ? true : false;
         $tempRow['non_refundable'] = $row->non_refundable ? true : false;
         // Add revenue and reservation fields

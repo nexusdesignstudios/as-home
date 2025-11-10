@@ -56,94 +56,131 @@ return new class extends Migration
         //  */
 
         /** Renames old tables */
-        if (Schema::hasTable('packages')) {
+        // Disable foreign key checks temporarily to handle table drops
+        Schema::disableForeignKeyConstraints();
+        
+        // Only rename if old_packages doesn't exist (migration hasn't been partially run)
+        if (Schema::hasTable('packages') && !Schema::hasTable('old_packages')) {
             Schema::rename('packages', 'old_packages');
+        } elseif (Schema::hasTable('packages') && Schema::hasTable('old_packages')) {
+            // If both exist, drop dependent tables first, then drop the new packages table
+            // as migration was partially run
+            Schema::dropIfExists('user_package_limits');
+            Schema::dropIfExists('user_packages');
+            Schema::dropIfExists('package_features');
+            Schema::dropIfExists('payment_transactions');
+            Schema::dropIfExists('packages');
         }
-        if (Schema::hasTable('user_purchased_packages')) {
+        
+        if (Schema::hasTable('user_purchased_packages') && !Schema::hasTable('old_user_purchased_packages')) {
             Schema::rename('user_purchased_packages', 'old_user_purchased_packages');
+        } elseif (Schema::hasTable('user_purchased_packages') && Schema::hasTable('old_user_purchased_packages')) {
+            Schema::dropIfExists('user_purchased_packages');
         }
-        if (Schema::hasTable('payments')) {
+        
+        if (Schema::hasTable('payments') && !Schema::hasTable('old_payments')) {
             Schema::rename('payments', 'old_payments');
+        } elseif (Schema::hasTable('payments') && Schema::hasTable('old_payments')) {
+            Schema::dropIfExists('payments');
         }
+        
+        // Re-enable foreign key checks
+        Schema::enableForeignKeyConstraints();
 
         /** New Packages Tables */
 
         //Features
-        Schema::create('features', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->boolean('status')->default(0);
-            $table->timestamps();
-            $table->softDeletes();
-        });
+        if (!Schema::hasTable('features')) {
+            Schema::create('features', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->boolean('status')->default(0);
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
 
         // Packages
-        Schema::create('packages', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('ios_product_id')->nullable(true)->unique();
-            $table->enum('package_type',['free','paid']);
-            $table->float('price',10,2)->nullable(true);
-            $table->integer('duration')->comment('In Hours');
-            $table->boolean('status')->default(0);
-            $table->timestamps();
-            $table->softDeletes();
-        });
+        if (!Schema::hasTable('packages')) {
+            Schema::create('packages', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('ios_product_id')->nullable(true)->unique();
+                $table->enum('package_type',['free','paid']);
+                $table->float('price',10,2)->nullable(true);
+                $table->integer('duration')->comment('In Hours');
+                $table->boolean('status')->default(0);
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
 
         // Package Features
-        Schema::create('package_features', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('package_id')->references('id')->on('packages')->onDelete('cascade');
-            $table->foreignId('feature_id')->references('id')->on('features')->onDelete('cascade');
-            $table->enum('limit_type',['limited','unlimited']);
-            $table->integer('limit')->nullable(true);
-            $table->unique(['package_id','feature_id'],'unique_ids');
-            $table->timestamps();
-            $table->softDeletes();
-        });
+        if (!Schema::hasTable('package_features')) {
+            Schema::create('package_features', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('package_id')->references('id')->on('packages')->onDelete('cascade');
+                $table->foreignId('feature_id')->references('id')->on('features')->onDelete('cascade');
+                $table->enum('limit_type',['limited','unlimited']);
+                $table->integer('limit')->nullable(true);
+                $table->unique(['package_id','feature_id'],'unique_ids');
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
 
         // User Packages
-        Schema::create('user_packages', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->comment('customers')->references('id')->on('customers')->onDelete('cascade');
-            $table->foreignId('package_id')->references('id')->on('packages')->onDelete('cascade');
-            $table->dateTime('start_date');
-            $table->dateTime('end_date')->nullable(true);
-            $table->timestamps();
-            $table->softDeletes();
-        });
+        if (!Schema::hasTable('user_packages')) {
+            Schema::create('user_packages', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('user_id')->comment('customers')->references('id')->on('customers')->onDelete('cascade');
+                $table->foreignId('package_id')->references('id')->on('packages')->onDelete('cascade');
+                $table->dateTime('start_date');
+                $table->dateTime('end_date')->nullable(true);
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
 
         // User Packages Limit
-        Schema::create('user_package_limits', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_package_id')->references('id')->on('user_packages')->onDelete('cascade');
-            $table->foreignId('package_feature_id')->references('id')->on('package_features')->onDelete('cascade');
-            $table->integer('total_limit');
-            $table->integer('used_limit');
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('user_package_limits')) {
+            Schema::create('user_package_limits', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('user_package_id')->references('id')->on('user_packages')->onDelete('cascade');
+                $table->foreignId('package_feature_id')->references('id')->on('package_features')->onDelete('cascade');
+                $table->integer('total_limit');
+                $table->integer('used_limit');
+                $table->timestamps();
+            });
+        }
 
         // Payment Transactions
-        Schema::create('payment_transactions', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->comment('Customers')->references('id')->on('customers')->onDelete('cascade');
-            $table->foreignId('package_id')->references('id')->on('packages')->onDelete('cascade');
-            $table->float('amount',10,2);
-            $table->string('payment_gateway',191);
-            $table->string('order_id',255)->nullable(true)->comment('Payment Intent Id / Order Id');
-            $table->string('transaction_id',255)->nullable(true)->comment('Success Transaction Id');
-            $table->enum('payment_status',['success','failed','pending'])->default('pending');
-            $table->unique(['payment_gateway','order_id','transaction_id','user_id'],'uniques');
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('payment_transactions')) {
+            Schema::create('payment_transactions', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('user_id')->comment('Customers')->references('id')->on('customers')->onDelete('cascade');
+                $table->foreignId('package_id')->references('id')->on('packages')->onDelete('cascade');
+                $table->float('amount',10,2);
+                $table->string('payment_gateway',191);
+                $table->string('order_id',255)->nullable(true)->comment('Payment Intent Id / Order Id');
+                $table->string('transaction_id',255)->nullable(true)->comment('Success Transaction Id');
+                $table->enum('payment_status',['success','failed','pending'])->default('pending');
+                $table->unique(['payment_gateway','order_id','transaction_id','user_id'],'uniques');
+                $table->timestamps();
+            });
+        }
         /********************************************************************************* */
         /** Project Feature */
         Schema::table('advertisements', function (Blueprint $table) {
             if (Schema::hasColumn('advertisements', 'image')) {
                 $table->dropColumn('image');
             }
-            $table->enum('for',['property','project'])->comment("Property or Project")->default('property')->after('end_date');
-            $table->foreignId('project_id')->nullable(true)->after('property_id')->references('id')->on('projects')->onDelete('cascade');
+            if (!Schema::hasColumn('advertisements', 'for')) {
+                $table->enum('for',['property','project'])->comment("Property or Project")->default('property')->after('end_date');
+            }
+            if (!Schema::hasColumn('advertisements', 'project_id')) {
+                $table->foreignId('project_id')->nullable(true)->after('property_id')->references('id')->on('projects')->onDelete('cascade');
+            }
         });
 
         /********************************************************************************* */
