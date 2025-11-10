@@ -566,6 +566,7 @@ class PaymobController extends Controller
                 Log::info('Paymob return - Package payment transaction detected', [
                     'transaction_id' => $transactionId
                 ]);
+                
                 // Handle package payment return
                 $paymentTransaction = null;
                 if ($paymobOrderId) {
@@ -580,12 +581,43 @@ class PaymobController extends Controller
                 }
                 
                 if ($paymentTransaction) {
-                    if ($paymentTransaction->payment_status === 'pending') {
-                        $paymentTransaction->payment_status = $success ? 'success' : 'failed';
-                        $paymentTransaction->save();
-                        
-                        if ($success && $paymentTransaction->package_id) {
-                            $this->assignPackageToUser($paymentTransaction);
+                    // Extract group transaction ID
+                    $groupTransactionId = null;
+                    if (strpos($paymentTransaction->transaction_id, 'PKG_GROUP_') === 0) {
+                        $parts = explode('_', $paymentTransaction->transaction_id);
+                        if (count($parts) >= 3) {
+                            // Reconstruct group ID: PKG_GROUP_UUID
+                            $groupTransactionId = $parts[0] . '_' . $parts[1] . '_' . $parts[2];
+                        }
+                    }
+                    
+                    // Find all transactions in group
+                    $allPaymentTransactions = [];
+                    if ($groupTransactionId) {
+                        $allPaymentTransactions = PaymentTransaction::where('transaction_id', 'LIKE', $groupTransactionId . '%')
+                            ->where('payment_type', 'online payment')
+                            ->where('order_id', $paymentTransaction->order_id)
+                            ->get();
+                    } else {
+                        // Fallback: find by order_id (for single package or backward compatibility)
+                        $allPaymentTransactions = PaymentTransaction::where('order_id', $paymentTransaction->order_id)
+                            ->where('payment_type', 'online payment')
+                            ->get();
+                    }
+                    
+                    if ($allPaymentTransactions->isEmpty()) {
+                        $allPaymentTransactions = collect([$paymentTransaction]);
+                    }
+                    
+                    // Update all transactions
+                    foreach ($allPaymentTransactions as $pt) {
+                        if ($pt->payment_status === 'pending') {
+                            $pt->payment_status = $success ? 'success' : 'failed';
+                            $pt->save();
+                            
+                            if ($success && $pt->package_id) {
+                                $this->assignPackageToUser($pt);
+                            }
                         }
                     }
                     
@@ -593,7 +625,8 @@ class PaymobController extends Controller
                         return redirect()->route('payments.paymob-success', [
                             'transaction_id' => $transactionId ?: $paymentTransaction->transaction_id,
                             'source' => 'paymob',
-                            'type' => 'package'
+                            'type' => 'package',
+                            'package_count' => $allPaymentTransactions->count()
                         ]);
                     }
                 }
@@ -2173,36 +2206,79 @@ As-home Asset Management Team';
                 return ApiResponseService::errorResponse('Payment transaction not found', null, 404);
             }
 
-            // Check if payment is already processed
-            if ($paymentTransaction->payment_status === 'success') {
-                Log::info('Paymob package payment callback - Payment already processed', [
-                    'payment_transaction_id' => $paymentTransaction->id
+            // Extract group transaction ID from the transaction_id
+            // Format: PKG_GROUP_UUID_PACKAGEID or PKG_UUID (for single package)
+            $groupTransactionId = null;
+            if (strpos($paymentTransaction->transaction_id, 'PKG_GROUP_') === 0) {
+                $parts = explode('_', $paymentTransaction->transaction_id);
+                if (count($parts) >= 3) {
+                    // Reconstruct group ID: PKG_GROUP_UUID
+                    $groupTransactionId = $parts[0] . '_' . $parts[1] . '_' . $parts[2];
+                }
+            }
+
+            // Find all payment transactions in this group
+            $allPaymentTransactions = [];
+            if ($groupTransactionId) {
+                // Find all transactions that start with the group ID
+                $allPaymentTransactions = PaymentTransaction::where('transaction_id', 'LIKE', $groupTransactionId . '%')
+                    ->where('payment_type', 'online payment')
+                    ->where('order_id', $paymentTransaction->order_id)
+                    ->get();
+            } else {
+                // Fallback: find by order_id (for single package or backward compatibility)
+                $allPaymentTransactions = PaymentTransaction::where('order_id', $paymentTransaction->order_id)
+                    ->where('payment_type', 'online payment')
+                    ->get();
+            }
+
+            if ($allPaymentTransactions->isEmpty()) {
+                // Fallback to single transaction
+                $allPaymentTransactions = collect([$paymentTransaction]);
+            }
+
+            // Check if any payment is already processed
+            $alreadyProcessed = $allPaymentTransactions->where('payment_status', 'success')->count();
+            if ($alreadyProcessed > 0 && $alreadyProcessed === $allPaymentTransactions->count()) {
+                Log::info('Paymob package payment callback - All payments already processed', [
+                    'count' => $allPaymentTransactions->count()
                 ]);
-                return ApiResponseService::successResponse('Payment already processed');
+                return ApiResponseService::successResponse('All payments already processed');
             }
 
             DB::beginTransaction();
 
-            // Update payment transaction status
-            $paymentTransaction->payment_status = $paymentStatus === 'succeed' ? 'success' : 'failed';
-            $paymentTransaction->transaction_id = $transactionId;
-            $paymentTransaction->save();
+            // Update all payment transaction statuses
+            foreach ($allPaymentTransactions as $pt) {
+                if ($pt->payment_status !== 'success') {
+                    $pt->payment_status = $paymentStatus === 'succeed' ? 'success' : 'failed';
+                    // Keep original transaction ID (don't overwrite with callback transaction_id)
+                    $pt->save();
+                }
+            }
 
-            // If payment succeeded, assign package to user
-            if ($paymentStatus === 'succeed' && $paymentTransaction->package_id) {
-                $this->assignPackageToUser($paymentTransaction);
+            // If payment succeeded, assign all packages to user
+            if ($paymentStatus === 'succeed') {
+                foreach ($allPaymentTransactions as $pt) {
+                    if ($pt->package_id) {
+                        $this->assignPackageToUser($pt);
+                    }
+                }
             }
 
             DB::commit();
 
             Log::info('Paymob package payment callback - Successfully processed', [
-                'payment_transaction_id' => $paymentTransaction->id,
-                'package_id' => $paymentTransaction->package_id,
+                'payment_transaction_count' => $allPaymentTransactions->count(),
+                'package_ids' => $allPaymentTransactions->pluck('package_id')->toArray(),
                 'user_id' => $paymentTransaction->user_id,
-                'payment_status' => $paymentTransaction->payment_status
+                'payment_status' => $paymentStatus === 'succeed' ? 'success' : 'failed'
             ]);
 
-            return ApiResponseService::successResponse('Package payment processed successfully');
+            return ApiResponseService::successResponse('Package payment processed successfully', [
+                'processed_count' => $allPaymentTransactions->count(),
+                'package_ids' => $allPaymentTransactions->pluck('package_id')->toArray()
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Paymob package payment callback error: ' . $e->getMessage(), [

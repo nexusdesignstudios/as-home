@@ -7724,13 +7724,18 @@ class ApiController extends Controller
 
     public function getPaymentIntent(Request $request)
     {
+        // Support both single package_id (backward compatibility) and multiple package_ids
         $validator = Validator::make($request->all(), [
-            'package_id'        => 'required',
+            'package_id'        => 'required_without:package_ids',
+            'package_ids'       => 'required_without:package_id|array|min:1',
+            'package_ids.*'     => 'required|exists:packages,id',
             'platform_type'     => 'required|in:app,web'
         ]);
+        
         if ($validator->fails()) {
             ApiResponseService::validationError($validator->errors()->first());
         }
+        
         try {
             DB::beginTransaction();
             $paymentSettings = HelperService::getActivePaymentDetails();
@@ -7738,56 +7743,120 @@ class ApiController extends Controller
                 ApiResponseService::validationError("None of payment method is activated");
             }
 
-            $package = Package::where(['id' => $request->package_id, 'package_type' => 'paid'])->first();
-            if (empty($package)) {
-                ApiResponseService::validationError("No paid package found");
+            // Determine package IDs (support both single and multiple)
+            $packageIds = [];
+            if ($request->has('package_ids') && is_array($request->package_ids)) {
+                $packageIds = $request->package_ids;
+            } elseif ($request->has('package_id')) {
+                $packageIds = [$request->package_id];
+            } else {
+                ApiResponseService::validationError("Either package_id or package_ids is required");
             }
 
-            $purchasedPackage = UserPackage::where(['user_id' => Auth::user()->id, 'package_id' => $request->package_id])->onlyActive()->first();
-            if (!empty($purchasedPackage)) {
-                ApiResponseService::validationError("You already have purchased this package");
+            $userId = Auth::user()->id;
+            
+            // Validate all packages
+            $packages = Package::whereIn('id', $packageIds)
+                ->where('package_type', 'paid')
+                ->get();
+                
+            if ($packages->count() !== count($packageIds)) {
+                ApiResponseService::validationError("One or more packages not found or are not paid packages");
             }
 
-            //Add Payment Data to Payment Transactions Table
-            // Use PKG_ prefix for package payments to identify them in callbacks
-            $packageTransactionId = 'PKG_' . Str::uuid();
-            $paymentTransactionData = PaymentTransaction::create([
-                'user_id'         => Auth::user()->id,
-                'package_id'      => $package->id,
-                'amount'          => $package->price,
-                'payment_gateway' => Str::ucfirst($paymentSettings['payment_method']),
-                'payment_status'  => 'pending',
-                'order_id'        => null,
-                'transaction_id' => $packageTransactionId,
-                'payment_type'    => 'online payment'
-            ]);
+            // Check if user already has any of these packages active
+            $purchasedPackages = UserPackage::where('user_id', $userId)
+                ->whereIn('package_id', $packageIds)
+                ->onlyActive()
+                ->pluck('package_id')
+                ->toArray();
+                
+            if (!empty($purchasedPackages)) {
+                $packageNames = Package::whereIn('id', $purchasedPackages)->pluck('name')->toArray();
+                ApiResponseService::validationError("You already have active packages: " . implode(', ', $packageNames));
+            }
 
-            // Prepare metadata for payment intent
+            // Calculate total amount
+            $totalAmount = $packages->sum('price');
+            
+            // Create a group transaction ID for linking all package transactions
+            $groupTransactionId = 'PKG_GROUP_' . Str::uuid();
+            
+            // Create payment transactions for each package
+            $paymentTransactions = [];
+            $packageDescriptions = [];
+            
+            foreach ($packages as $package) {
+                $packageTransactionId = $groupTransactionId . '_' . $package->id;
+                
+                $paymentTransaction = PaymentTransaction::create([
+                    'user_id'         => $userId,
+                    'package_id'      => $package->id,
+                    'amount'          => $package->price,
+                    'payment_gateway' => Str::ucfirst($paymentSettings['payment_method']),
+                    'payment_status'  => 'pending',
+                    'order_id'        => null,
+                    'transaction_id' => $packageTransactionId,
+                    'payment_type'    => 'online payment'
+                ]);
+                
+                $paymentTransactions[] = $paymentTransaction;
+                $packageDescriptions[] = $package->name;
+            }
+
+            // Prepare metadata for payment intent (using first transaction as primary)
+            $primaryTransaction = $paymentTransactions[0];
             $metadata = [
-                'payment_transaction_id' => $paymentTransactionData->id,
-                'package_id'             => $package->id,
-                'user_id'                => Auth::user()->id,
+                'payment_transaction_id' => $primaryTransaction->id,
+                'group_transaction_id'   => $groupTransactionId,
+                'package_ids'            => $packageIds,
+                'package_count'          => count($packageIds),
+                'user_id'                => $userId,
                 'email'                  => Auth::user()->email,
                 'platform_type'          => $request->platform_type,
-                'description'            => $request->description ?? $package->name,
+                'description'            => $request->description ?? (count($packageIds) > 1 ? 'Multiple Packages: ' . implode(', ', $packageDescriptions) : $packages[0]->name),
                 'user_name'              => Auth::user()->name ?? "",
-                'first_name'              => explode(' ', Auth::user()->name ?? 'Customer')[0] ?? 'Customer',
-                'last_name'               => explode(' ', Auth::user()->name ?? 'Customer', 2)[1] ?? 'Customer',
-                'phone'                   => Auth::user()->mobile ?? Auth::user()->whatsappnumber ?? 'NA',
+                'first_name'             => explode(' ', Auth::user()->name ?? 'Customer')[0] ?? 'Customer',
+                'last_name'              => explode(' ', Auth::user()->name ?? 'Customer', 2)[1] ?? 'Customer',
+                'phone'                  => Auth::user()->mobile ?? Auth::user()->whatsappnumber ?? 'NA',
             ];
 
-            $paymentIntent = PaymentService::create($paymentSettings)->createAndFormatPaymentIntent(round($package->price, 2), $metadata);
-            $paymentTransactionData->update(['order_id' => $paymentIntent['id']]);
+            // Create payment intent with total amount
+            $paymentIntent = PaymentService::create($paymentSettings)->createAndFormatPaymentIntent(
+                round($totalAmount, 2), 
+                $metadata
+            );
+            
+            // Update all payment transactions with the order_id
+            foreach ($paymentTransactions as $transaction) {
+                $transaction->update(['order_id' => $paymentIntent['id']]);
+            }
 
-            $paymentTransactionData = PaymentTransaction::findOrFail($paymentTransactionData->id);
+            // Reload transactions with updated data
+            $paymentTransactionsData = PaymentTransaction::whereIn('id', collect($paymentTransactions)->pluck('id'))->get();
+            
             // Custom Array to Show as response
             $paymentGatewayDetails = array(
                 ...$paymentIntent,
-                'payment_transaction_id' => $paymentTransactionData->id,
+                'group_transaction_id' => $groupTransactionId,
+                'total_amount' => $totalAmount,
+                'package_count' => count($packageIds),
+                'payment_transactions' => $paymentTransactionsData->map(function($pt) {
+                    return [
+                        'id' => $pt->id,
+                        'package_id' => $pt->package_id,
+                        'package_name' => $pt->package->name ?? 'N/A',
+                        'amount' => $pt->amount,
+                        'transaction_id' => $pt->transaction_id,
+                    ];
+                }),
             );
 
             DB::commit();
-            ApiResponseService::successResponse("", ["payment_intent" => $paymentGatewayDetails, "payment_transaction" => $paymentTransactionData]);
+            ApiResponseService::successResponse("", [
+                "payment_intent" => $paymentGatewayDetails, 
+                "payment_transactions" => $paymentTransactionsData
+            ]);
         } catch (Throwable $e) {
             DB::rollBack();
             ApiResponseService::logErrorResponse($e);
