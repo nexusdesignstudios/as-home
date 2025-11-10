@@ -82,6 +82,9 @@ Route::get('response/paystack/cancel', [SettingController::class, 'paystackPayme
 Route::group(['prefix' => 'install'], static function () {
     Route::get('purchase-code', [InstallerController::class, 'purchaseCodeIndex'])->name('install.purchase-code.index');
     Route::post('purchase-code', [InstallerController::class, 'checkPurchaseCode'])->name('install.purchase-code.post');
+    Route::get('keys', [InstallerController::class, 'keysIndex'])->name('install.keys');
+    Route::post('keys', [InstallerController::class, 'keysPost'])->name('install.keys');
+    Route::get('finish', [InstallerController::class, 'finish'])->name('install.finish');
 });
 
 

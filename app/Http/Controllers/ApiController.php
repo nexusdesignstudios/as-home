@@ -6415,6 +6415,7 @@ class ApiController extends Controller
                 $propertyQuery = $propertyQuery->clone()->where(function ($query) use ($search) {
                     $query->where('title', 'LIKE', "%$search%")
                         ->orWhere('address', 'LIKE', "%$search%")
+                        ->orWhere('hotel_name', 'LIKE', "%$search%")
                         ->orWhereHas('category', function ($query1) use ($search) {
                             $query1->where('category', 'LIKE', "%$search%");
                         });
