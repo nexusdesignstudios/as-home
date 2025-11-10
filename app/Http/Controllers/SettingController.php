@@ -182,6 +182,7 @@ class SettingController extends Controller
             'flutterwave_webhook_url',
             'flutterwave_currency',
             'flutterwave_status',
+            'paymob_gateway',
             'schema_for_deeplink',
             'favicon_icon',
             'company_logo',
@@ -204,7 +205,7 @@ class SettingController extends Controller
             DB::beginTransaction();
             $input = $request->except(['_token', 'btnAdd', 'bank_details_fields']);
 
-            if (($request->has('bank_transfer_status') && $request->bank_transfer_status == 0) && $request->razorpay_gateway == 0 && $request->paystack_gateway == 0 && $request->flutterwave_status == 0 && $request->stripe_gateway == 0 && $request->paypal_gateway == 0) {
+            if (($request->has('bank_transfer_status') && $request->bank_transfer_status == 0) && $request->razorpay_gateway == 0 && $request->paystack_gateway == 0 && $request->flutterwave_status == 0 && $request->stripe_gateway == 0 && $request->paypal_gateway == 0 && (!isset($request->paymob_gateway) || $request->paymob_gateway == 0)) {
                 ResponseService::errorResponse("Please enable at least one payment gateway");
             }
 
@@ -836,7 +837,7 @@ class SettingController extends Controller
         if (!has_permissions('read', 'email_templates')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
-        $types = array('verify_mail', 'reset_password', 'welcome_mail', 'property_status', 'project_status', 'property_ads_status', 'user_status', 'agent_verification_status', 'reservation_confirmation', 'reservation_approval', 'monthly_tax_invoice', 'monthly_tax_invoice_hotels_non_refundable', 'monthly_tax_invoice_hotels_flexible', 'vacation_homes_basic_tax_invoice', 'vacation_homes_premium_tax_invoice', 'hotel_booking_tax_invoice', 'hotel_booking_tax_invoice_flexible', 'hotel_booking_tax_invoice_non_refundable', 'selling_or_renting_contract', 'basic_package_self_managed', 'basic_package_renting_self_managed', 'premium_package_renting', 'vacation_homes_self_managed_basic_package', 'vacation_homes_ashome_managed_premium_package', 'hotel_booking', 'property_client_meeting', 'inquiry_form', 'reservation_approval_payment', 'flexible_hotel_booking_approval', 'send_money_payment', 'refund_approval', 'refund_rejection', 'reservation_rejection', 'reservation_cancellation', 'checkout_reminder', 'payment_form_submission', 'feedback_request', 'payment_completion_owner', 'bank_payment_accepted', 'bank_payment_rejected');
+        $types = array('verify_mail', 'reset_password', 'welcome_mail', 'property_status', 'project_status', 'property_ads_status', 'user_status', 'agent_verification_status', 'reservation_confirmation', 'reservation_approval', 'monthly_tax_invoice', 'monthly_tax_invoice_hotels_non_refundable', 'monthly_tax_invoice_hotels_flexible', 'vacation_homes_basic_tax_invoice', 'vacation_homes_premium_tax_invoice', 'hotel_booking_tax_invoice', 'hotel_booking_tax_invoice_flexible', 'hotel_booking_tax_invoice_non_refundable', 'selling_or_renting_contract', 'basic_package_self_managed', 'basic_package_renting_self_managed', 'premium_package_renting', 'vacation_homes_self_managed_basic_package', 'vacation_homes_ashome_managed_premium_package', 'hotel_booking', 'property_client_meeting', 'inquiry_form', 'reservation_approval_payment', 'vacation_home_pending_approval', 'flexible_hotel_booking_approval', 'send_money_payment', 'refund_approval', 'refund_rejection', 'reservation_rejection', 'reservation_cancellation', 'checkout_reminder', 'payment_form_submission', 'feedback_request', 'payment_completion_owner', 'bank_payment_accepted', 'bank_payment_rejected');
         if (!in_array($type, $types)) {
             ResponseService::errorRedirectResponse("Type is invalid");
         }
@@ -995,24 +996,50 @@ The <strong>{app_name}</strong> Team</p>';
     public function emailTemplatesList()
     {
         $data = HelperService::getEmailTemplatesTypes();
-        $total = count($data);
-
-        // $data->orderBy($sort, $order)->skip($offset)->take($limit);
-        // $res = $data->get();
-        $bulkData = array();
-        $bulkData['total'] = $total;
+        
+        // Group emails by category and sort
+        $groupedData = [
+            'main' => [],
+            'vacation_home' => [],
+            'hotel' => []
+        ];
+        
+        foreach ($data as $row) {
+            $category = $row['category'] ?? 'main';
+            if (!isset($groupedData[$category])) {
+                $groupedData[$category] = [];
+            }
+            $groupedData[$category][] = $row;
+        }
+        
+        // Build rows in order: Main, Vacation Home, Hotel
         $rows = array();
         $no = 1;
-        foreach ($data as $row) {
-            $operate = BootstrapTableService::editButton(route('modify-mail-templates.index', $row['type']));
-
-            $tempRow = $row;
-            $tempRow['no'] = $no;
-            $tempRow['operate'] = $operate;
-            $rows[] = $tempRow;
-            $no++;
+        
+        // Category order
+        $categoryOrder = ['main', 'vacation_home', 'hotel'];
+        
+        foreach ($categoryOrder as $category) {
+            if (!empty($groupedData[$category])) {
+                // Add emails for this category
+                foreach ($groupedData[$category] as $row) {
+                    $operate = BootstrapTableService::editButton(route('modify-mail-templates.index', $row['type']));
+                    $tempRow = [
+                        'title' => $row['title'] ?? '',
+                        'type' => $row['type'] ?? '',
+                        'no' => $no,
+                        'operate' => $operate,
+                        'category' => $category, // Keep category for row formatting
+                    ];
+                    $rows[] = $tempRow;
+                    $no++;
+                }
+            }
         }
-
+        
+        $total = count($rows);
+        $bulkData = array();
+        $bulkData['total'] = $total;
         $bulkData['rows'] = $rows;
         return response()->json($bulkData);
     }

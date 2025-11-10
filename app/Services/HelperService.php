@@ -378,10 +378,10 @@ class HelperService
                             ],
                         )
                     );
-                case 'flexible_hotel_booking_approval':
+                case 'vacation_home_pending_approval':
                     return array(
-                        'title' => 'Flexible Hotel Booking Pending Approval',
-                        'type' => 'flexible_hotel_booking_approval_mail_template',
+                        'title' => 'Vacation Home Reservation Pending Approval',
+                        'type' => 'vacation_home_pending_approval_mail_template',
                         'required_fields' => array(
                             [
                                 'name' => 'app_name',
@@ -392,23 +392,27 @@ class HelperService
                                 'is_condition' => false,
                             ],
                             [
+                                'name' => 'customer_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'guest_email',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'guest_phone',
+                                'is_condition' => false,
+                            ],
+                            [
                                 'name' => 'reservation_id',
                                 'is_condition' => false,
                             ],
                             [
-                                'name' => 'hotel_name',
+                                'name' => 'property_name',
                                 'is_condition' => false,
                             ],
                             [
-                                'name' => 'room_type',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'room_number',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'hotel_address',
+                                'name' => 'property_address',
                                 'is_condition' => false,
                             ],
                             [
@@ -425,6 +429,97 @@ class HelperService
                             ],
                             [
                                 'name' => 'total_price',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'payment_status',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'special_requests',
+                                'is_condition' => true,
+                            ],
+                        )
+                    );
+                case 'flexible_hotel_booking_approval':
+                    return array(
+                        'title' => 'Flexible Hotel Booking Confirmation',
+                        'type' => 'flexible_hotel_booking_approval_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'user_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'customer_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'guest_email',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'guest_phone',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'room_type',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'room_number',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_address',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_address',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_in_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_out_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'number_of_guests',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_price',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_amount',
                                 'is_condition' => false,
                             ],
                             [
@@ -1804,56 +1899,24 @@ class HelperService
                     );
                 case 'bank_payment_accepted':
                     return array(
-                        'title' => 'Bank Transfer Payment Accepted',
+                        'title' => 'Payment Approved – Subscription Activated',
                         'type' => 'bank_payment_accepted_mail_template',
                         'required_fields' => array(
-                            [
-                                'name' => 'app_name',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'user_name',
-                                'is_condition' => false,
-                            ],
                             [
                                 'name' => 'customer_name',
                                 'is_condition' => false,
                             ],
                             [
                                 'name' => 'package_name',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'amount',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'currency_symbol',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'transaction_id',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'subscription_start_date',
                                 'is_condition' => false,
                             ],
                         )
                     );
                 case 'bank_payment_rejected':
                     return array(
-                        'title' => 'Bank Transfer Payment Rejected',
+                        'title' => 'Payment Verification Unsuccessful – Action Required',
                         'type' => 'bank_payment_rejected_mail_template',
                         'required_fields' => array(
-                            [
-                                'name' => 'app_name',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'user_name',
-                                'is_condition' => false,
-                            ],
                             [
                                 'name' => 'customer_name',
                                 'is_condition' => false,
@@ -1863,19 +1926,7 @@ class HelperService
                                 'is_condition' => false,
                             ],
                             [
-                                'name' => 'amount',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'currency_symbol',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'reject_reason',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'transaction_id',
+                                'name' => 'receipt_upload_link',
                                 'is_condition' => false,
                             ],
                         )
@@ -1887,162 +1938,215 @@ class HelperService
         }
 
         // Return All if no type is passed
+        // Categories: 'main', 'vacation_home', 'hotel'
         return array(
+            // ========== MAIN / GENERAL EMAILS ==========
             [
                 'title' => 'Verify Account Email Account',
                 'type' => 'verify_mail',
+                'category' => 'main',
             ],
             [
                 'title' => 'Password Reset Mail',
                 'type' => 'reset_password',
+                'category' => 'main',
             ],
             [
                 'title' => 'Welcome Mail',
                 'type' => 'welcome_mail',
+                'category' => 'main',
             ],
             [
                 'title' => 'Property status change by admin',
                 'type' => 'property_status',
+                'category' => 'main',
             ],
             [
                 'title' => 'Project status change by admin',
                 'type' => 'project_status',
+                'category' => 'main',
             ],
             [
                 'title' => 'Property Advertisement status change by admin',
                 'type' => 'property_ads_status',
+                'category' => 'main',
             ],
             [
                 'title' => 'User account active de-active status',
                 'type' => 'user_status',
+                'category' => 'main',
             ],
             [
                 'title' => 'Agent Verification Status',
                 'type' => 'agent_verification_status',
+                'category' => 'main',
             ],
             [
                 'title' => 'Reservation Confirmation',
                 'type' => 'reservation_confirmation',
+                'category' => 'main',
             ],
             [
-                'title' => 'Monthly Tax Invoice',
-                'type' => 'monthly_tax_invoice',
-            ],
-            [
-                'title' => 'Monthly Tax Invoice (Hotels non-refundable)',
-                'type' => 'monthly_tax_invoice_hotels_non_refundable',
-            ],
-            [
-                'title' => 'Monthly Tax Invoice (Hotels Flexible)',
-                'type' => 'monthly_tax_invoice_hotels_flexible',
-            ],
-            [
-                'title' => 'Vacation Homes Basic Package Tax Invoice',
-                'type' => 'vacation_homes_basic_tax_invoice',
-            ],
-            [
-                'title' => 'Vacation Homes Premium Package Tax Invoice',
-                'type' => 'vacation_homes_premium_tax_invoice',
-            ],
-            [
-                'title' => 'Hotel Booking Tax Invoice',
-                'type' => 'hotel_booking_tax_invoice',
-            ],
-            [
-                'title' => 'Hotel Booking Tax Invoice - Flexible (Manual/Cash)',
-                'type' => 'hotel_booking_tax_invoice_flexible',
-            ],
-            [
-                'title' => 'Monthly Tax Invoice - non-refundable',
-                'type' => 'hotel_booking_tax_invoice_non_refundable',
-            ],
-            [
-                'title' => 'Selling or Renting All Cases Contract',
-                'type' => 'selling_or_renting_contract',
-            ],
-            [
-                'title' => 'Basic Package Self Managed Contract',
-                'type' => 'basic_package_self_managed',
-            ],
-            [
-                'title' => 'Basic Package Renting Self Managed Contract',
-                'type' => 'basic_package_renting_self_managed',
-            ],
-            [
-                'title' => 'Premium Package Renting Contract',
-                'type' => 'premium_package_renting',
-            ],
-            [
-                'title' => 'Vacation Homes Self Managed Basic Package Contract',
-                'type' => 'vacation_homes_self_managed_basic_package',
-            ],
-            [
-                'title' => 'Vacation Homes As-home Managed Premium Package Contract',
-                'type' => 'vacation_homes_ashome_managed_premium_package',
-            ],
-            [
-                'title' => 'Hotel Booking Contract',
-                'type' => 'hotel_booking',
-            ],
-            [
-                'title' => 'Property Client Meeting Notification',
-                'type' => 'property_client_meeting',
-            ],
-            [
-                'title' => 'Inquiry Form Submission',
-                'type' => 'inquiry_form',
+                'title' => 'Reservation Approval',
+                'type' => 'reservation_approval',
+                'category' => 'main',
             ],
             [
                 'title' => 'Reservation Approval with Payment Link',
                 'type' => 'reservation_approval_payment',
-            ],
-            [
-                'title' => 'Flexible Hotel Booking Pending Approval',
-                'type' => 'flexible_hotel_booking_approval',
-            ],
-            [
-                'title' => 'Send Money Payment Required',
-                'type' => 'send_money_payment',
-            ],
-            [
-                'title' => 'Refund Approval Notification',
-                'type' => 'refund_approval',
-            ],
-            [
-                'title' => 'Refund Rejection Notification',
-                'type' => 'refund_rejection',
+                'category' => 'main',
             ],
             [
                 'title' => 'Your Booking Request has been Declined',
                 'type' => 'reservation_rejection',
+                'category' => 'main',
             ],
             [
                 'title' => 'Your Booking Request Has Been Declined',
                 'type' => 'reservation_cancellation',
+                'category' => 'main',
             ],
             [
                 'title' => 'Checkout Reminder Notification',
                 'type' => 'checkout_reminder',
+                'category' => 'main',
+            ],
+            [
+                'title' => 'Monthly Tax Invoice',
+                'type' => 'monthly_tax_invoice',
+                'category' => 'main',
+            ],
+            [
+                'title' => 'Property Client Meeting Notification',
+                'type' => 'property_client_meeting',
+                'category' => 'main',
+            ],
+            [
+                'title' => 'Inquiry Form Submission',
+                'type' => 'inquiry_form',
+                'category' => 'main',
             ],
             [
                 'title' => 'Payment Form Submission Notification',
                 'type' => 'payment_form_submission',
+                'category' => 'main',
             ],
             [
                 'title' => 'Feedback Request Email',
                 'type' => 'feedback_request',
+                'category' => 'main',
             ],
             [
-                'title' => 'Payment Completed - New Booking',
+                'title' => 'Payment Completion Owner Notification',
                 'type' => 'payment_completion_owner',
+                'category' => 'main',
             ],
             [
-                'title' => 'Bank Transfer Payment Accepted',
+                'title' => 'Send Money Payment Required',
+                'type' => 'send_money_payment',
+                'category' => 'main',
+            ],
+            [
+                'title' => 'Refund Approval Notification',
+                'type' => 'refund_approval',
+                'category' => 'main',
+            ],
+            [
+                'title' => 'Refund Rejection Notification',
+                'type' => 'refund_rejection',
+                'category' => 'main',
+            ],
+            [
+                'title' => 'Payment Approved – Subscription Activated',
                 'type' => 'bank_payment_accepted',
+                'category' => 'main',
             ],
             [
-                'title' => 'Bank Transfer Payment Rejected',
+                'title' => 'Payment Verification Unsuccessful – Action Required',
                 'type' => 'bank_payment_rejected',
+                'category' => 'main',
+            ],
+            [
+                'title' => 'Selling or Renting All Cases Contract',
+                'type' => 'selling_or_renting_contract',
+                'category' => 'main',
+            ],
+            [
+                'title' => 'Basic Package Self Managed Contract',
+                'type' => 'basic_package_self_managed',
+                'category' => 'main',
+            ],
+            [
+                'title' => 'Basic Package Renting Self Managed Contract',
+                'type' => 'basic_package_renting_self_managed',
+                'category' => 'main',
+            ],
+            [
+                'title' => 'Premium Package Renting Contract',
+                'type' => 'premium_package_renting',
+                'category' => 'main',
+            ],
+            // ========== VACATION HOME EMAILS ==========
+            [
+                'title' => 'Vacation Home Reservation Pending Approval',
+                'type' => 'vacation_home_pending_approval',
+                'category' => 'vacation_home',
+            ],
+            [
+                'title' => 'Vacation Homes Basic Package Tax Invoice',
+                'type' => 'vacation_homes_basic_tax_invoice',
+                'category' => 'vacation_home',
+            ],
+            [
+                'title' => 'Vacation Homes Premium Package Tax Invoice',
+                'type' => 'vacation_homes_premium_tax_invoice',
+                'category' => 'vacation_home',
+            ],
+            [
+                'title' => 'Vacation Homes Self Managed Basic Package Contract',
+                'type' => 'vacation_homes_self_managed_basic_package',
+                'category' => 'vacation_home',
+            ],
+            [
+                'title' => 'Vacation Homes As-home Managed Premium Package Contract',
+                'type' => 'vacation_homes_ashome_managed_premium_package',
+                'category' => 'vacation_home',
+            ],
+            // ========== HOTEL EMAILS ==========
+            [
+                'title' => 'Flexible Hotel Booking Confirmation',
+                'type' => 'flexible_hotel_booking_approval',
+                'category' => 'hotel',
+            ],
+            [
+                'title' => 'Monthly Tax Invoice (Hotels non-refundable)',
+                'type' => 'monthly_tax_invoice_hotels_non_refundable',
+                'category' => 'hotel',
+            ],
+            [
+                'title' => 'Monthly Tax Invoice (Hotels Flexible)',
+                'type' => 'monthly_tax_invoice_hotels_flexible',
+                'category' => 'hotel',
+            ],
+            [
+                'title' => 'Hotel Booking Tax Invoice',
+                'type' => 'hotel_booking_tax_invoice',
+                'category' => 'hotel',
+            ],
+            [
+                'title' => 'Hotel Booking Tax Invoice - Flexible (Manual/Cash)',
+                'type' => 'hotel_booking_tax_invoice_flexible',
+                'category' => 'hotel',
+            ],
+            [
+                'title' => 'Monthly Tax Invoice - non-refundable',
+                'type' => 'hotel_booking_tax_invoice_non_refundable',
+                'category' => 'hotel',
+            ],
+            [
+                'title' => 'Hotel Booking Contract',
+                'type' => 'hotel_booking',
+                'category' => 'hotel',
             ],
         );
     }

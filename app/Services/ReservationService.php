@@ -1062,10 +1062,17 @@ Confirmation Date: {confirmation_date}
                 // Get currency symbol
                 $currencySymbol = system_setting('currency_symbol') ?? '$';
 
+                // Get customer email and phone
+                $guestEmail = $customer->email ?? $reservation->customer_email ?? 'N/A';
+                $guestPhone = $customer->mobile ?? $reservation->customer_phone ?? 'N/A';
+                $totalAmount = number_format($reservation->total_price, 2);
+
                 $variables = array(
                     'app_name' => $appName,
                     'customer_name' => $customer->name,
                     'user_name' => $customer->name, // Keep both for compatibility
+                    'guest_email' => $guestEmail,
+                    'guest_phone' => $guestPhone,
                     'property_name' => $hotelName,
                     'hotel_name' => $hotelName, // Keep both for compatibility
                     'reservation_id' => $reservation->id,
@@ -1076,7 +1083,8 @@ Confirmation Date: {confirmation_date}
                     'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
                     'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
                     'number_of_guests' => $reservation->number_of_guests,
-                    'total_price' => number_format($reservation->total_price, 2),
+                    'total_price' => $totalAmount,
+                    'total_amount' => $totalAmount, // Add total_amount alias for template compatibility
                     'currency_symbol' => $currencySymbol,
                     'payment_status' => ucfirst($reservation->payment_status),
                     'special_requests' => $reservation->special_requests ?? 'None',
@@ -1117,6 +1125,108 @@ Confirmation Date: {confirmation_date}
             }
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Failed to send flexible hotel booking approval email', [
+                'error' => $e->getMessage(),
+                'reservation_id' => $reservation->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
+     * Send vacation home pending approval email to customer.
+     *
+     * @param \App\Models\Reservation $reservation
+     * @return void
+     */
+    public function sendVacationHomePendingApprovalEmail($reservation)
+    {
+        try {
+            $customer = $reservation->customer;
+            if ($customer && $customer->email) {
+                // Get Data of email type
+                $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("vacation_home_pending_approval");
+
+                // Email Template
+                $emailTemplateData = system_setting('vacation_home_pending_approval_mail_template');
+                $appName = env("APP_NAME") ?? "As Home";
+
+                // Get property information
+                $propertyName = '';
+                $propertyAddress = '';
+
+                if ($reservation->reservable_type === 'App\\Models\\Property') {
+                    $property = $reservation->reservable;
+                    if ($property) {
+                        $propertyName = $property->title ?? 'Property';
+                        $propertyAddress = $property->address ?? 'N/A';
+                    }
+                } else {
+                    // For hotel room reservations, use property relation
+                    $propertyName = $reservation->property->title ?? 'Property';
+                    $propertyAddress = $reservation->property->address ?? 'N/A';
+                }
+
+                // Get currency symbol
+                $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+                // Get customer email and phone
+                $guestEmail = $customer->email ?? $reservation->customer_email ?? 'N/A';
+                $guestPhone = $customer->mobile ?? $reservation->customer_phone ?? 'N/A';
+                $totalAmount = number_format($reservation->total_price, 2);
+
+                $variables = array(
+                    'app_name' => $appName,
+                    'customer_name' => $customer->name,
+                    'user_name' => $customer->name, // Keep both for compatibility
+                    'guest_email' => $guestEmail,
+                    'guest_phone' => $guestPhone,
+                    'property_name' => $propertyName,
+                    'property_address' => $propertyAddress,
+                    'reservation_id' => $reservation->id,
+                    'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
+                    'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
+                    'number_of_guests' => $reservation->number_of_guests,
+                    'total_price' => $totalAmount,
+                    'total_amount' => $totalAmount, // Add total_amount alias for template compatibility
+                    'currency_symbol' => $currencySymbol,
+                    'payment_status' => ucfirst($reservation->payment_status),
+                    'special_requests' => $reservation->special_requests ?? 'None',
+                );
+
+                if (empty($emailTemplateData)) {
+                    $emailTemplateData = "Dear {customer_name},\n\nWe have received your reservation request for {property_name} and it is now pending approval from the property owner.\n\nYou'll receive a confirmation email once your booking is approved.\n\nThank you for choosing {app_name}!\n\nBest regards,\n{app_name} Team";
+                }
+                
+                // Log the template and variables for debugging
+                \Illuminate\Support\Facades\Log::info('Email template before variable replacement', [
+                    'reservation_id' => $reservation->id,
+                    'template' => $emailTemplateData,
+                    'variables' => $variables
+                ]);
+                
+                $emailTemplate = \App\Services\HelperService::replaceEmailVariables($emailTemplateData, $variables);
+                
+                // Log the template after variable replacement
+                \Illuminate\Support\Facades\Log::info('Email template after variable replacement', [
+                    'reservation_id' => $reservation->id,
+                    'final_template' => $emailTemplate
+                ]);
+
+                $data = array(
+                    'email_template' => $emailTemplate,
+                    'email' => $customer->email,
+                    'title' => $emailTypeData['title'],
+                );
+                \App\Services\HelperService::sendMail($data);
+
+                \Illuminate\Support\Facades\Log::info('Vacation home pending approval email sent successfully', [
+                    'reservation_id' => $reservation->id,
+                    'customer_email' => $customer->email,
+                    'property_name' => $propertyName
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send vacation home pending approval email', [
                 'error' => $e->getMessage(),
                 'reservation_id' => $reservation->id,
                 'trace' => $e->getTraceAsString()

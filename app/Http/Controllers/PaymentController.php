@@ -220,32 +220,34 @@ class PaymentController extends Controller
                         $emailTemplateData = system_setting($emailTypeData['type']);
 
                         if (empty($emailTemplateData)) {
-                            $emailTemplateData = 'Dear {user_name},
+                            $emailTemplateData = 'Dear {customer_name},
 
-We are pleased to inform you that your bank transfer payment has been accepted.
+Thank you for submitting your payment receipt for your {package_name} subscription on As-home.
 
-Payment Details:
-- Package: {package_name}
-- Amount: {amount} {currency_symbol}
-- Transaction ID: {transaction_id}
+We are pleased to inform you that your payment has been successfully verified and your subscription is now active. 
 
-Your subscription has started on {subscription_start_date}. You can now enjoy all the features of your selected package.
+You can now:
 
-Thank you for your payment!
+•	Access your dashboard
 
-Best regards,
-{app_name} Team';
+•	List and manage properties
+
+•	Explore our services based on your selected plan
+
+If you have any questions or need assistance, we are here to help.
+
+Welcome to As-home — we\'re glad to have you with us.
+
+Warm regards,
+
+As-home Team
+
+www.ashome-eg.com';
                         }
 
                         $variables = array(
-                            'app_name' => $appNameValue,
-                            'user_name' => $customer->name,
                             'customer_name' => $customer->name,
                             'package_name' => $package ? $package->name : 'N/A',
-                            'amount' => number_format($payment->amount, 2),
-                            'currency_symbol' => $currencySymbol,
-                            'transaction_id' => $payment->transaction_id,
-                            'subscription_start_date' => Carbon::now()->format('d M Y, h:i A'),
                         );
 
                         $emailTemplate = HelperService::replaceEmailVariables($emailTemplateData, $variables);
@@ -253,7 +255,7 @@ Best regards,
                         $data = array(
                             'email_template' => $emailTemplate,
                             'email' => $customer->email,
-                            'title' => $emailTypeData['title'],
+                            'title' => 'Payment Approved – Subscription Activated',
                         );
 
                         HelperService::sendMail($data);
@@ -263,31 +265,40 @@ Best regards,
                         $emailTemplateData = system_setting($emailTypeData['type']);
 
                         if (empty($emailTemplateData)) {
-                            $emailTemplateData = 'Dear {user_name},
+                            $emailTemplateData = 'Dear {customer_name},
 
-We regret to inform you that your bank transfer payment has been rejected.
+Thank you for submitting your payment receipt for your {package_name} subscription on As-home.
 
-Payment Details:
-- Package: {package_name}
-- Amount: {amount} {currency_symbol}
-- Transaction ID: {transaction_id}
-- Rejection Reason: {reject_reason}
+Unfortunately, we were unable to verify the payment based on the receipt provided. This can happen due to:
 
-Please review the rejection reason and contact our support team if you have any questions or need assistance with resubmitting your payment.
+•	Blurry or unclear receipt image
+
+•	Missing transaction details
+
+•	Payment not yet processed by the bank
+
+To proceed, kindly upload a clearer receipt or re-transfer the payment if needed.
+
+You can re-upload your receipt by logging into your account:
+
+{receipt_upload_link}
+
+If you believe this message is a mistake, please contact us and we\'ll gladly review it again.
 
 Best regards,
-{app_name} Team';
+
+As-home Team
+
+www.as-home.com';
                         }
 
+                        // Construct receipt upload link - using payment page URL
+                        $receiptUploadLink = config('app.url') . '/payment';
+
                         $variables = array(
-                            'app_name' => $appNameValue,
-                            'user_name' => $customer->name,
                             'customer_name' => $customer->name,
                             'package_name' => $package ? $package->name : 'N/A',
-                            'amount' => number_format($payment->amount, 2),
-                            'currency_symbol' => $currencySymbol,
-                            'reject_reason' => $payment->reject_reason ?? 'No reason provided',
-                            'transaction_id' => $payment->transaction_id,
+                            'receipt_upload_link' => $receiptUploadLink,
                         );
 
                         $emailTemplate = HelperService::replaceEmailVariables($emailTemplateData, $variables);
@@ -295,7 +306,7 @@ Best regards,
                         $data = array(
                             'email_template' => $emailTemplate,
                             'email' => $customer->email,
-                            'title' => $emailTypeData['title'],
+                            'title' => 'Payment Verification Unsuccessful – Action Required',
                         );
 
                         HelperService::sendMail($data);

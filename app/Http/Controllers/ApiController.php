@@ -3494,7 +3494,7 @@ class ApiController extends Controller
     }
     public function get_payment_settings(Request $request)
     {
-        $payment_settings = Setting::select('type', 'data')->whereIn('type', ['paypal_business_id', 'sandbox_mode', 'paypal_gateway', 'razor_key', 'razor_secret', 'razorpay_gateway', 'paystack_public_key', 'paystack_secret_key', 'paystack_currency', 'paystack_gateway', 'stripe_publishable_key', 'stripe_currency', 'stripe_gateway', 'stripe_secret_key', 'flutterwave_status', 'bank_transfer_status'])->get();
+        $payment_settings = Setting::select('type', 'data')->whereIn('type', ['paypal_business_id', 'sandbox_mode', 'paypal_gateway', 'razor_key', 'razor_secret', 'razorpay_gateway', 'paystack_public_key', 'paystack_secret_key', 'paystack_currency', 'paystack_gateway', 'stripe_publishable_key', 'stripe_currency', 'stripe_gateway', 'stripe_secret_key', 'flutterwave_status', 'paymob_gateway', 'bank_transfer_status'])->get();
         foreach ($payment_settings as $setting) {
             if ($setting->type === 'stripe_secret_key') {
                 $publicKey = file_get_contents(base_path('public_key.pem')); // Load the public key
@@ -9829,19 +9829,28 @@ class ApiController extends Controller
 
                 HelperService::sendMail($data);
 
-                // 2. Send Flexible Hotel Booking Pending Approval to Customer (always for payment form submissions)
+                // 2. Send appropriate pending approval email to Customer based on property classification
                 // Get the customer from the reservation
                 $customer = \App\Models\Customer::find($request->customer_id);
                 
                 if ($customer && $customer->email) {
-                    // Use the existing ReservationService to send the flexible booking email
+                    // Use the existing ReservationService to send the appropriate email
                     $reservationService = new \App\Services\ReservationService();
-                    $reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
+                    $propertyClassification = $property->getRawOriginal('property_classification');
                     
-                    Log::info('Both emails sent: Payment form submission to owner and flexible booking approval to customer', [
+                    if ($propertyClassification == 4) {
+                        // Vacation home - send pending approval email
+                        $reservationService->sendVacationHomePendingApprovalEmail($reservation);
+                    } elseif ($propertyClassification == 5) {
+                        // Hotel booking - send flexible hotel booking confirmation email
+                        $reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
+                    }
+                    
+                    Log::info('Both emails sent: Payment form submission to owner and pending approval email to customer', [
                         'reservation_id' => $reservation->id,
                         'property_owner_email' => $property->customer->email,
                         'customer_email' => $customer->email,
+                        'property_classification' => $propertyClassification,
                         'property_id' => $property->id,
                         'instant_booking' => $property->instant_booking,
                         'booking_type' => 'payment_form_submission'

@@ -611,6 +611,36 @@
                         </div>
                     </div>
 
+                    {{-- Paymob Setting --}}
+                    <div class="divider pt-3 mt-3">
+                        <h6 class="divider-text">{{ __('Paymob Setting') }}</h6>
+                    </div>
+                    <div class="form-group row">
+                        <div class="col-12 mt-2">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i> {{ __('Paymob credentials are configured via environment variables (.env file). Please ensure the following variables are set:') }}
+                                <ul class="mb-0 mt-2">
+                                    <li><code>PAYMOB_API_KEY</code></li>
+                                    <li><code>PAYMOB_INTEGRATION_ID</code></li>
+                                    <li><code>PAYMOB_IFRAME_ID</code></li>
+                                    <li><code>PAYMOB_CURRENCY</code> (default: EGP)</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        {{-- Status --}}
+                        <div class="col-sm-12 col-md-6 mt-2">
+                            <label class="form-check-label" id='lbl_paymob'>{{ __('Enable Paymob') }}</label>
+                            <div>
+                                <div class="form-check form-switch">
+                                    <input type="hidden" name="paymob_gateway" id="paymob_gateway" value="{{ isset($systemSettings['paymob_gateway']) && $systemSettings['paymob_gateway'] != '' ? $systemSettings['paymob_gateway'] : 0 }}">
+                                    <input class="form-check-input" type="checkbox" role="switch" class="switch-input" name='op' {{ isset($systemSettings['paymob_gateway']) && $systemSettings['paymob_gateway'] == '1' ? 'checked' : '' }} id="switch_paymob_gateway">
+                                    <label class="form-check-label" for="switch_paymob_gateway"></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {{-- Bank Details Setting --}}
                     <div class="divider pt-3 mt-3">
                         <h6 class="divider-text">{{ __('Bank Details Setting') }}</h6>
@@ -822,6 +852,7 @@
                             $("#switch_paystack_gateway").is(':checked') ? $("#paystack_gateway").val(1) : $("#paystack_gateway") .val(0);
                             $("#switch_stripe_gateway").is(':checked') ? $("#stripe_gateway").val(1) : $("#stripe_gateway") .val(0);
                             $("#switch_flutterwave_status").is(':checked') ? $("#flutterwave_status").val(1) : $("#flutterwave_status") .val(0);
+                            $("#switch_paymob_gateway").is(':checked') ? $("#paymob_gateway").val(1) : $("#paymob_gateway") .val(0);
                         }
                     });
                 }
@@ -896,6 +927,10 @@
 
         $("#switch_paystack_gateway").on('change', function() {
             $("#switch_paystack_gateway").is(':checked') ? $("#paystack_gateway").val(1) : $("#paystack_gateway") .val(0);
+        });
+
+        $("#switch_paymob_gateway").on('change', function() {
+            $("#switch_paymob_gateway").is(':checked') ? $("#paymob_gateway").val(1) : $("#paymob_gateway") .val(0);
         });
 
         $("#switch_flutterwave_status").on('change', function() {
@@ -1012,6 +1047,11 @@
         function formSuccessFunction(){
             window.location.reload();
         }
+
+        // Ensure Paymob gateway value is set before form submission
+        $('.create-form').on('submit', function() {
+            $("#switch_paymob_gateway").is(':checked') ? $("#paymob_gateway").val(1) : $("#paymob_gateway").val(0);
+        });
     </script>
 @endsection
 

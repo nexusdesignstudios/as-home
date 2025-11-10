@@ -436,8 +436,15 @@ class ReservationController extends Controller
                 // Create the reservation without sending emails (checkout without payment)
                 $reservation = $this->reservationService->createReservation($reservationData, true);
                 
-                // Send flexible hotel booking approval email for property reservations that require approval
-                $this->reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
+                // Send appropriate email based on property classification
+                $propertyClassification = $property->getRawOriginal('property_classification');
+                if ($propertyClassification == 4) {
+                    // Vacation home - send pending approval email
+                    $this->reservationService->sendVacationHomePendingApprovalEmail($reservation);
+                } elseif ($propertyClassification == 5) {
+                    // Hotel booking - send flexible hotel booking confirmation email
+                    $this->reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
+                }
 
                 ApiResponseService::successResponse('Reservation created successfully', [
                     'reservation' => $reservation
@@ -511,7 +518,8 @@ class ReservationController extends Controller
                     $reservation = $this->reservationService->createReservation($reservationData, true);
                     $reservations[] = $reservation;
                     
-                    // Send flexible hotel booking approval email for each reservation
+                    // Send flexible hotel booking confirmation email for hotel room reservations
+                    // Hotel rooms are always classification 5 (hotel booking)
                     $this->reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
                 }
 
