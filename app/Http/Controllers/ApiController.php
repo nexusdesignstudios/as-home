@@ -6426,17 +6426,22 @@ class ApiController extends Controller
                     }
                 }
                 
+                // Normalize search: remove spaces from database fields to match frontend sanitization
+                // This allows "5starhotel" to match "5 star hotel" in the database
                 $propertyQuery = $propertyQuery->clone()->where(function ($query) use ($search, $isHotelSearch, $hasHotelNameColumn) {
-                    $query->where('title', 'LIKE', "%$search%")
-                        ->orWhere('address', 'LIKE', "%$search%");
+                    // Search title with spaces removed (normalized)
+                    $query->whereRaw("REPLACE(REPLACE(title, ' ', ''), '-', '') LIKE ?", ["%" . str_replace([' ', '-'], '', $search) . "%"])
+                        // Search address with spaces removed (normalized)
+                        ->orWhereRaw("REPLACE(REPLACE(address, ' ', ''), '-', '') LIKE ?", ["%" . str_replace([' ', '-'], '', $search) . "%"]);
                     
                     // Only search hotel_name if it's a hotel search and column exists
                     if ($isHotelSearch && $hasHotelNameColumn) {
-                        $query->orWhere('hotel_name', 'LIKE', "%$search%");
+                        $query->orWhereRaw("REPLACE(REPLACE(hotel_name, ' ', ''), '-', '') LIKE ?", ["%" . str_replace([' ', '-'], '', $search) . "%"]);
                     }
                     
+                    // Search category with spaces removed (normalized)
                     $query->orWhereHas('category', function ($query1) use ($search) {
-                        $query1->where('category', 'LIKE', "%$search%");
+                        $query1->whereRaw("REPLACE(REPLACE(category, ' ', ''), '-', '') LIKE ?", ["%" . str_replace([' ', '-'], '', $search) . "%"]);
                     });
                 });
             }
