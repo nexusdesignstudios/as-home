@@ -1796,7 +1796,7 @@ The {app_name} Team';
             }
             
             if (!$customer) {
-                \Log::warning('Customer not found in getCustomerReservationCounts', [
+                Log::warning('Customer not found in getCustomerReservationCounts', [
                     'customer_id' => $customer_id
                 ]);
                 return ApiResponseService::errorResponse('Customer not found');
@@ -1804,7 +1804,7 @@ The {app_name} Team';
 
             // Debug: Log all reservations for this customer to see what reservable_type values exist
             $allReservations = Reservation::where('customer_id', $customer_id)->get(['id', 'reservable_type', 'status']);
-            \Log::info('All reservations for customer', [
+            Log::info('All reservations for customer', [
                 'customer_id' => $customer_id,
                 'customer_email' => $customer->email,
                 'total_reservations' => $allReservations->count(),
@@ -1826,7 +1826,7 @@ The {app_name} Team';
                 ->count();
             
             // Debug: Log the counts
-            \Log::info('Reservation counts for customer', [
+            Log::info('Reservation counts for customer', [
                 'customer_id' => $customer_id,
                 'customer_email' => $customer->email,
                 'vacation_homes_count' => $vacationHomesCount,
@@ -1875,7 +1875,7 @@ The {app_name} Team';
                 ->count();
             
             // Debug: Log completed counts
-            \Log::info('Completed reservation counts for customer', [
+            Log::info('Completed reservation counts for customer', [
                 'customer_id' => $customer_id,
                 'customer_email' => $customer->email,
                 'vacation_homes_completed' => $vacationHomesCompleted,
@@ -1969,10 +1969,22 @@ The {app_name} Team';
     {
         // Count all completed bookings (confirmed or approved) for discount calculation
         // This includes old reservations with discounts - all confirmed/approved reservations count toward tier milestones
-        $completedBookings = Reservation::where('customer_id', $customerId)
-            ->where('reservable_type', $reservableType)
-            ->whereIn('status', ['confirmed', 'approved'])
-            ->count();
+        // Handle hotel room reservable_type variants
+        if ($reservableType === 'App\\Models\\HotelRoom') {
+            $completedBookings = Reservation::where('customer_id', $customerId)
+                ->where(function($query) {
+                    $query->where('reservable_type', 'App\\Models\\HotelRoom')
+                          ->orWhere('reservable_type', 'App\Models\HotelRoom') // Single backslash variant
+                          ->orWhere('reservable_type', 'HotelRoom'); // Short variant
+                })
+                ->whereIn('status', ['confirmed', 'approved'])
+                ->count();
+        } else {
+            $completedBookings = Reservation::where('customer_id', $customerId)
+                ->where('reservable_type', $reservableType)
+                ->whereIn('status', ['confirmed', 'approved'])
+                ->count();
+        }
 
         $discountPercentage = 0;
         $tierMilestone = null;
@@ -2006,12 +2018,22 @@ The {app_name} Team';
         
         foreach ($tierMilestones as $milestone => $tierData) {
             if ($completedBookings >= $milestone && $nextReservationNumber == $tierData['reservation_number']) {
-                // Check if this discount has been used
-                $usedDiscount = \App\Models\CustomerTierDiscount::where('customer_id', $customerId)
-                    ->where('reservable_type', $reservableType)
+                // Check if this discount has been used - handle hotel room reservable_type variants
+                $usedDiscountQuery = \App\Models\CustomerTierDiscount::where('customer_id', $customerId)
                     ->where('tier_milestone', $milestone)
-                    ->where('used', true)
-                    ->exists();
+                    ->where('used', true);
+                
+                if ($reservableType === 'App\\Models\\HotelRoom') {
+                    $usedDiscountQuery->where(function($query) {
+                        $query->where('reservable_type', 'App\\Models\\HotelRoom')
+                              ->orWhere('reservable_type', 'App\Models\HotelRoom')
+                              ->orWhere('reservable_type', 'HotelRoom');
+                    });
+                } else {
+                    $usedDiscountQuery->where('reservable_type', $reservableType);
+                }
+                
+                $usedDiscount = $usedDiscountQuery->exists();
 
                 if (!$usedDiscount) {
                     // Found an available discount for this specific reservation number

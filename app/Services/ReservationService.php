@@ -823,7 +823,7 @@ Confirmation Date: {confirmation_date}
                 $checkIn = Carbon::parse($checkInDate);
                 $checkOut = Carbon::parse($checkOutDate);
             } catch (\Exception $e) {
-                \Log::error('Date parsing error in areDatesAvailable', [
+                \Illuminate\Support\Facades\Log::error('Date parsing error in areDatesAvailable', [
                     'checkInDate' => $checkInDate,
                     'checkOutDate' => $checkOutDate,
                     'error' => $e->getMessage()
@@ -854,7 +854,7 @@ Confirmation Date: {confirmation_date}
                     return false;
                 }
             } catch (\Exception $e) {
-                \Log::error('Error checking date overlap', [
+                \Illuminate\Support\Facades\Log::error('Error checking date overlap', [
                     'checkInDate' => $checkInDate,
                     'checkOutDate' => $checkOutDate,
                     'modelId' => $modelId,
@@ -874,7 +874,7 @@ Confirmation Date: {confirmation_date}
             
             return true;
         } catch (\Exception $e) {
-            \Log::error('Unexpected error in areDatesAvailable', [
+            \Illuminate\Support\Facades\Log::error('Unexpected error in areDatesAvailable', [
                 'modelType' => $modelType,
                 'modelId' => $modelId,
                 'checkInDate' => $checkInDate,
