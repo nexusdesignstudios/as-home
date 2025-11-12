@@ -133,7 +133,14 @@ class ApiController extends Controller
             } else if ($row->type == 'web_logo' || $row->type == 'web_placeholder_logo' || $row->type == 'app_home_screen' || $row->type == 'web_footer_logo' || $row->type == 'placeholder_logo' || $row->type == 'favicon_icon') {
 
 
-                $tempRow[$row->type] = url('/assets/images/logo/') . '/' . $row->data;
+                // Check if file exists, otherwise use default logo
+                $logoPath = public_path('assets/images/logo/' . $row->data);
+                if (!empty($row->data) && file_exists($logoPath)) {
+                    $tempRow[$row->type] = url('/assets/images/logo/') . '/' . $row->data;
+                } else {
+                    // Fallback to default logo if file doesn't exist
+                    $tempRow[$row->type] = url('/assets/images/logo/logo.png');
+                }
             } else {
                 $tempRow[$row->type] = $row->data;
             }
@@ -4562,7 +4569,14 @@ class ApiController extends Controller
 
             if ($row->type == 'app_home_screen' || $row->type == "placeholder_logo") {
 
-                $tempRow[$row->type] = url('/assets/images/logo/') . '/' . $row->data;
+                // Check if file exists, otherwise use default logo
+                $logoPath = public_path('assets/images/logo/' . $row->data);
+                if (!empty($row->data) && file_exists($logoPath)) {
+                    $tempRow[$row->type] = url('/assets/images/logo/') . '/' . $row->data;
+                } else {
+                    // Fallback to default logo if file doesn't exist
+                    $tempRow[$row->type] = url('/assets/images/logo/logo.png');
+                }
             }
         }
 
@@ -5815,7 +5829,14 @@ class ApiController extends Controller
                         $settingsData[$row->type] = $row->data == 1 ? true : false;
                     } else if ($row->type == 'web_favicon' || $row->type == 'web_logo' || $row->type == 'web_placeholder_logo' || $row->type == 'web_footer_logo') {
                         // Add Full URL to the specified type
-                        $settingsData[$row->type] = url('/assets/images/logo/') . '/' . $row->data;
+                        // Check if file exists, otherwise use default logo
+                        $logoPath = public_path('assets/images/logo/' . $row->data);
+                        if (!empty($row->data) && file_exists($logoPath)) {
+                            $settingsData[$row->type] = url('/assets/images/logo/') . '/' . $row->data;
+                        } else {
+                            // Fallback to default logo if file doesn't exist
+                            $settingsData[$row->type] = url('/assets/images/logo/logo.png');
+                        }
                     } else if ($row->type == 'place_api_key') {
                         // Add Full URL to the specified type
                         $publicKey = file_get_contents(base_path('public_key.pem')); // Load the public key
@@ -5943,7 +5964,14 @@ class ApiController extends Controller
                             $settingsData['default_language_rtl'] = 0;
                         }
                     } else if ($row->type == 'app_home_screen' || $row->type == "placeholder_logo") {
-                        $settingsData[$row->type] = url('/assets/images/logo/') . '/' . $row->data;
+                        // Check if file exists, otherwise use default logo
+                        $logoPath = public_path('assets/images/logo/' . $row->data);
+                        if (!empty($row->data) && file_exists($logoPath)) {
+                            $settingsData[$row->type] = url('/assets/images/logo/') . '/' . $row->data;
+                        } else {
+                            // Fallback to default logo if file doesn't exist
+                            $settingsData[$row->type] = url('/assets/images/logo/logo.png');
+                        }
                     } else if ($row->type == 'verification_required_for_user') {
                         // Change Value to Bool
                         $settingsData[$row->type] = $row->data == 1 ? true : false;
