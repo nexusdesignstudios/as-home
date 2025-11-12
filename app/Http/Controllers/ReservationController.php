@@ -917,6 +917,9 @@ class ReservationController extends Controller
                         'check_out_date' => $request->check_out_date,
                         'number_of_guests' => $request->number_of_guests ?? 1,
                         'total_price' => $discountInfo['final_amount'],
+                        'original_amount' => $discountInfo['original_amount'],
+                        'discount_percentage' => $discountInfo['discount_percentage'],
+                        'discount_amount' => $discountInfo['discount_amount'],
                         'special_requests' => $request->special_requests,
                         'status' => 'pending',
                         'payment_status' => 'unpaid',
@@ -1018,6 +1021,10 @@ class ReservationController extends Controller
 
                         // For the first room, create a reservation that will be linked to the payment
                         if ($index === 0) {
+                            // Calculate discount for this room (proportional to total discount)
+                            $roomOriginalAmount = $roomAmount / (1 - ($discountInfo['discount_percentage'] / 100));
+                            $roomDiscountAmount = $roomOriginalAmount - $roomAmount;
+                            
                             $mainReservation = Reservation::create([
                                 'customer_id' => Auth::guard('sanctum')->user()->id,
                                 'reservable_id' => $roomId,
@@ -1027,6 +1034,9 @@ class ReservationController extends Controller
                                 'check_out_date' => $request->check_out_date,
                                 'number_of_guests' => $request->number_of_guests ?? 1,
                                 'total_price' => $roomAmount,
+                                'original_amount' => $roomOriginalAmount,
+                                'discount_percentage' => $discountInfo['discount_percentage'],
+                                'discount_amount' => $roomDiscountAmount,
                                 'special_requests' => $request->special_requests,
                                 'status' => 'pending',
                                 'payment_status' => 'unpaid',
@@ -1059,6 +1069,10 @@ class ReservationController extends Controller
                             ]);
                         } else {
                             // For subsequent rooms, create reservations with the same transaction ID
+                            // Calculate discount for this room (proportional to total discount)
+                            $roomOriginalAmount = $roomAmount / (1 - ($discountInfo['discount_percentage'] / 100));
+                            $roomDiscountAmount = $roomOriginalAmount - $roomAmount;
+                            
                             $reservation = Reservation::create([
                                 'customer_id' => Auth::guard('sanctum')->user()->id,
                                 'reservable_id' => $roomId,
@@ -1068,6 +1082,9 @@ class ReservationController extends Controller
                                 'check_out_date' => $request->check_out_date,
                                 'number_of_guests' => $request->number_of_guests ?? 1,
                                 'total_price' => $roomAmount,
+                                'original_amount' => $roomOriginalAmount,
+                                'discount_percentage' => $discountInfo['discount_percentage'],
+                                'discount_amount' => $roomDiscountAmount,
                                 'special_requests' => $request->special_requests,
                                 'status' => 'pending',
                                 'payment_status' => 'unpaid',

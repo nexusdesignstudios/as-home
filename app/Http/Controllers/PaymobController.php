@@ -136,9 +136,13 @@ class PaymobController extends Controller
                 ]);
 
                 // Safely extract data with proper error handling
-                $transactionId = $data['obj']['order']['merchant_order_id'] ?? null;
+                // Try multiple possible locations for merchant_order_id
+                $transactionId = $data['obj']['order']['merchant_order_id'] 
+                    ?? $data['obj']['merchant_order_id'] 
+                    ?? $data['merchant_order_id'] 
+                    ?? null;
                 $paymentStatus = ($data['obj']['success'] ?? false) ? 'succeed' : 'failed';
-                $paymobOrderId = $data['obj']['order']['id'] ?? null;
+                $paymobOrderId = $data['obj']['order']['id'] ?? $data['obj']['id'] ?? null;
                 $paymobTransactionId = $data['obj']['id'] ?? null;
             }
 
@@ -2186,22 +2190,48 @@ As-home Asset Management Team';
             // Find payment transaction by transaction ID or order ID
             $paymentTransaction = null;
             
+            // First try to find by order_id (most reliable for Paymob)
             if ($paymobOrderId) {
                 $paymentTransaction = PaymentTransaction::where('order_id', $paymobOrderId)
                     ->where('payment_type', 'online payment')
                     ->first();
+                
+                Log::info('Paymob package payment callback - Search by order_id', [
+                    'paymob_order_id' => $paymobOrderId,
+                    'found' => $paymentTransaction ? true : false
+                ]);
             }
 
-            if (!$paymentTransaction) {
+            // If not found by order_id, try by transaction_id
+            if (!$paymentTransaction && $transactionId) {
                 $paymentTransaction = PaymentTransaction::where('transaction_id', $transactionId)
                     ->where('payment_type', 'online payment')
                     ->first();
+                
+                Log::info('Paymob package payment callback - Search by transaction_id', [
+                    'transaction_id' => $transactionId,
+                    'found' => $paymentTransaction ? true : false
+                ]);
+            }
+
+            // If still not found, try partial match for group transactions
+            if (!$paymentTransaction && $transactionId) {
+                // Try to find by partial transaction_id match (for group transactions)
+                $paymentTransaction = PaymentTransaction::where('transaction_id', 'LIKE', $transactionId . '%')
+                    ->where('payment_type', 'online payment')
+                    ->first();
+                
+                Log::info('Paymob package payment callback - Search by partial transaction_id', [
+                    'transaction_id' => $transactionId,
+                    'found' => $paymentTransaction ? true : false
+                ]);
             }
 
             if (!$paymentTransaction) {
                 Log::error('Paymob package payment callback - Payment transaction not found', [
                     'transaction_id' => $transactionId,
-                    'paymob_order_id' => $paymobOrderId
+                    'paymob_order_id' => $paymobOrderId,
+                    'callback_data' => json_encode($data)
                 ]);
                 return ApiResponseService::errorResponse('Payment transaction not found', null, 404);
             }

@@ -176,29 +176,39 @@ class PaymentController extends Controller
             $packageId = $payment->package_id;
             $userId = $payment->user_id;
             $package = Package::find($packageId);
-            if($request->status == 'success'){
-                $userPackage = UserPackage::create([
-                    'package_id'  => $packageId,
-                    'user_id'     => $userId,
-                    'start_date'  => Carbon::now(),
-                    'end_date'    => $package->package_type == "unlimited" ? null : Carbon::now()->addHours($package->duration),
-                ]);
-                $packageFeatures = PackageFeature::where(['package_id' => $packageId, 'limit_type' => 'limited'])->get();
-                if(collect($packageFeatures)->isNotEmpty()){
-                    $userPackageLimitData = array();
-                    foreach ($packageFeatures as $key => $feature) {
-                        $userPackageLimitData[] = array(
-                            'user_package_id' => $userPackage->id,
-                            'package_feature_id' => $feature->id,
-                            'total_limit' => $feature->limit,
-                            'used_limit' => 0,
-                            'created_at' => now(),
-                            'updated_at' => now()
-                        );
-                    }
+            if($request->status == 'success' && $packageId && $package){
+                // Check if user already has an active package of the same type
+                $existingPackage = UserPackage::where(['user_id' => $userId, 'package_id' => $packageId])
+                    ->where(function($query) {
+                        $query->whereNull('end_date')
+                              ->orWhere('end_date', '>', Carbon::now());
+                    })
+                    ->first();
+                
+                if (!$existingPackage) {
+                    $userPackage = UserPackage::create([
+                        'package_id'  => $packageId,
+                        'user_id'     => $userId,
+                        'start_date'  => Carbon::now(),
+                        'end_date'    => $package->package_type == "unlimited" ? null : Carbon::now()->addHours($package->duration),
+                    ]);
+                    $packageFeatures = PackageFeature::where(['package_id' => $packageId, 'limit_type' => 'limited'])->get();
+                    if(collect($packageFeatures)->isNotEmpty()){
+                        $userPackageLimitData = array();
+                        foreach ($packageFeatures as $key => $feature) {
+                            $userPackageLimitData[] = array(
+                                'user_package_id' => $userPackage->id,
+                                'package_feature_id' => $feature->id,
+                                'total_limit' => $feature->limit,
+                                'used_limit' => 0,
+                                'created_at' => now(),
+                                'updated_at' => now()
+                            );
+                        }
 
-                    if(!empty($userPackageLimitData)){
-                        UserPackageLimit::insert($userPackageLimitData);
+                        if(!empty($userPackageLimitData)){
+                            UserPackageLimit::insert($userPackageLimitData);
+                        }
                     }
                 }
             }
