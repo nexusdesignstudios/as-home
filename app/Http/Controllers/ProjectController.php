@@ -250,21 +250,21 @@ class ProjectController extends Controller
 
             $operate = null;
             
-            // Always show edit button for admins with update permissions (for any project)
+            // Show edit button for all projects if user has update permissions
             if (has_permissions('update', 'project')) {
                 $operate = BootstrapTableService::editButton(route('project.edit', $row->id), false);
             }
             
-            if ($row->is_admin_listing == true) {
-                // For admin listings, also show delete button if permissions allow
-                if (has_permissions('delete', 'project')) {
-                    $operate .= BootstrapTableService::deleteAjaxButton(route('project.destroy', $row->id));
-                }
-            } else {
-                // For non-admin listings, also show request status button
+            // Show change status button for all projects if user has update permissions
+            if (has_permissions('update', 'project')) {
                 $requestStatusButtonCustomClasses = ["btn", "icon", "btn-warning", "btn-sm", "rounded-pill", "request-status-btn"];
                 $requestStatusButtonCustomAttributes = ["id" => $row->id, "title" => trans('Change Status'), "data-toggle" => "modal", "data-bs-target" => "#changeRequestStatusModal", "data-bs-toggle" => "modal"];
                 $operate .= BootstrapTableService::button('fa fa-exclamation-circle', '', $requestStatusButtonCustomClasses, $requestStatusButtonCustomAttributes);
+            }
+            
+            // Show delete button for all projects if user has delete permissions
+            if (has_permissions('delete', 'project')) {
+                $operate .= BootstrapTableService::deleteAjaxButton(route('project.destroy', $row->id));
             }
 
             $tempRow = $row->toArray();
