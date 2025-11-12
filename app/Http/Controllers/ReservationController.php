@@ -14,6 +14,7 @@ use App\Services\HelperService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Exception;
@@ -1140,27 +1141,36 @@ class ReservationController extends Controller
                 // Create/update tier discount record if discount is available
                 if (isset($discountInfo['has_available_discount']) && $discountInfo['has_available_discount'] && isset($discountInfo['tier_milestone']) && $discountInfo['tier_milestone']) {
                     try {
-                        \App\Models\CustomerTierDiscount::updateOrCreate(
-                            [
+                        // Check if table exists before trying to create/update
+                        if (class_exists('\App\Models\CustomerTierDiscount') && Schema::hasTable('customer_tier_discounts')) {
+                            \App\Models\CustomerTierDiscount::updateOrCreate(
+                                [
+                                    'customer_id' => $customerId,
+                                    'reservable_type' => $modelType,
+                                    'tier_milestone' => $discountInfo['tier_milestone'],
+                                ],
+                                [
+                                    'used' => false, // Will be marked as used when reservation is confirmed
+                                ]
+                            );
+                            
+                            Log::info('Tier discount record created/updated', [
                                 'customer_id' => $customerId,
                                 'reservable_type' => $modelType,
                                 'tier_milestone' => $discountInfo['tier_milestone'],
-                            ],
-                            [
-                                'used' => false, // Will be marked as used when reservation is confirmed
-                            ]
-                        );
-                        
-                        Log::info('Tier discount record created/updated', [
-                            'customer_id' => $customerId,
-                            'reservable_type' => $modelType,
-                            'tier_milestone' => $discountInfo['tier_milestone'],
-                            'discount_percentage' => $discountInfo['discount_percentage']
-                        ]);
+                                'discount_percentage' => $discountInfo['discount_percentage']
+                            ]);
+                        } else {
+                            Log::warning('CustomerTierDiscount table does not exist, skipping discount tracking', [
+                                'customer_id' => $customerId
+                            ]);
+                        }
                     } catch (\Exception $e) {
                         Log::error('Failed to create/update tier discount record', [
                             'customer_id' => $customerId,
-                            'error' => $e->getMessage()
+                            'error' => $e->getMessage(),
+                            'file' => $e->getFile(),
+                            'line' => $e->getLine()
                         ]);
                         // Don't fail the payment if discount tracking fails
                     }
@@ -2137,24 +2147,36 @@ The {app_name} Team';
         $nextReservationNumber = $completedBookings + 1;
         
         foreach ($tierMilestones as $milestone => $tierData) {
-            if ($completedBookings >= $milestone && $nextReservationNumber == $tierData['reservation_number']) {
+                if ($completedBookings >= $milestone && $nextReservationNumber == $tierData['reservation_number']) {
                 // Check if this discount has been used - handle hotel room reservable_type variants
-                if ($reservableType === 'App\\Models\\HotelRoom') {
-                    $usedDiscount = \App\Models\CustomerTierDiscount::where('customer_id', $customerId)
-                        ->where('tier_milestone', $milestone)
-                        ->where('used', true)
-                        ->whereIn('reservable_type', [
-                            'App\\Models\\HotelRoom',
-                            'App\Models\HotelRoom',
-                            'HotelRoom'
-                        ])
-                        ->exists();
-                } else {
-                    $usedDiscount = \App\Models\CustomerTierDiscount::where('customer_id', $customerId)
-                        ->where('tier_milestone', $milestone)
-                        ->where('used', true)
-                        ->where('reservable_type', $reservableType)
-                        ->exists();
+                $usedDiscount = false;
+                try {
+                    if (class_exists('\App\Models\CustomerTierDiscount') && \Illuminate\Support\Facades\Schema::hasTable('customer_tier_discounts')) {
+                        if ($reservableType === 'App\\Models\\HotelRoom') {
+                            $usedDiscount = \App\Models\CustomerTierDiscount::where('customer_id', $customerId)
+                                ->where('tier_milestone', $milestone)
+                                ->where('used', true)
+                                ->whereIn('reservable_type', [
+                                    'App\\Models\\HotelRoom',
+                                    'App\Models\HotelRoom',
+                                    'HotelRoom'
+                                ])
+                                ->exists();
+                        } else {
+                            $usedDiscount = \App\Models\CustomerTierDiscount::where('customer_id', $customerId)
+                                ->where('tier_milestone', $milestone)
+                                ->where('used', true)
+                                ->where('reservable_type', $reservableType)
+                                ->exists();
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // If table doesn't exist or query fails, assume discount is not used
+                    Log::warning('Error checking used discount', [
+                        'customer_id' => $customerId,
+                        'error' => $e->getMessage()
+                    ]);
+                    $usedDiscount = false;
                 }
 
                 if (!$usedDiscount) {
