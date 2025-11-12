@@ -553,12 +553,32 @@ class PaymobController extends Controller
             $isSendMoney = strpos($transactionId, 'SEND_') === 0;
             $isReservation = strpos($transactionId, 'RES_') === 0;
             $isPackage = strpos($transactionId, 'PKG_') === 0;
+            
+            // If transaction ID is numeric, try to find the payment transaction to determine type
+            if (!$isSendMoney && !$isReservation && !$isPackage && is_numeric($transactionId)) {
+                // Try to find by PaymentTransaction ID first
+                $tempPaymentTransaction = PaymentTransaction::where('id', $transactionId)
+                    ->where('payment_type', 'online payment')
+                    ->first();
+                
+                if ($tempPaymentTransaction) {
+                    // Check if it's a package transaction
+                    if ($tempPaymentTransaction->package_id || strpos($tempPaymentTransaction->transaction_id, 'PKG_') === 0) {
+                        $isPackage = true;
+                    } elseif (strpos($tempPaymentTransaction->transaction_id, 'RES_') === 0) {
+                        $isReservation = true;
+                    } elseif (strpos($tempPaymentTransaction->transaction_id, 'SEND_') === 0) {
+                        $isSendMoney = true;
+                    }
+                }
+            }
 
             Log::info('Paymob return - Checking transaction type', [
                 'transaction_id' => $transactionId,
                 'is_send_money' => $isSendMoney,
                 'is_reservation' => $isReservation,
-                'is_package' => $isPackage
+                'is_package' => $isPackage,
+                'is_numeric' => is_numeric($transactionId)
             ]);
 
             if ($isSendMoney) {
