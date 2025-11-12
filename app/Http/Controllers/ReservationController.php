@@ -1815,6 +1815,15 @@ The {app_name} Team';
                 return ApiResponseService::errorResponse('Customer not found');
             }
 
+            // Initialize counters BEFORE try-catch to ensure they're always in scope
+            $vacationHomesCount = 0;
+            $hotelRoomsCount = 0;
+            $vacationHomesCompleted = 0;
+            $hotelRoomsCompleted = 0;
+            $vacationHomesByStatus = [];
+            $hotelRoomsByStatus = [];
+            $totalCount = 0;
+
             // SIMPLIFIED COUNTING: Get all reservations for this customer in one query
             // Then count them directly in PHP - simpler, more reliable, easier to debug
             try {
@@ -1822,48 +1831,52 @@ The {app_name} Team';
                     ->select('id', 'reservable_type', 'status')
                     ->get();
                 
-                // Initialize counters
-                $vacationHomesCount = 0;
-                $hotelRoomsCount = 0;
-                $vacationHomesCompleted = 0;
-                $hotelRoomsCompleted = 0;
-                $vacationHomesByStatus = [];
-                $hotelRoomsByStatus = [];
-                
                 // Count directly from the collection - simple and reliable
                 foreach ($allReservations as $reservation) {
-                    $reservableType = $reservation->reservable_type ?? '';
-                    $status = strtolower($reservation->status ?? '');
-                    
-                    // Check if it's a vacation home (Property)
-                    if ($reservableType === 'App\\Models\\Property') {
-                        $vacationHomesCount++;
+                    try {
+                        $reservableType = $reservation->reservable_type ?? '';
+                        $status = $reservation->status ?? '';
                         
-                        // Count by status
-                        if (!isset($vacationHomesByStatus[$status])) {
-                            $vacationHomesByStatus[$status] = 0;
-                        }
-                        $vacationHomesByStatus[$status]++;
+                        // Normalize status to lowercase for comparison
+                        $statusLower = strtolower($status);
                         
-                        // Count completed (confirmed, approved, completed)
-                        if (in_array($status, ['confirmed', 'approved', 'completed'])) {
-                            $vacationHomesCompleted++;
+                        // Check if it's a vacation home (Property)
+                        if ($reservableType === 'App\\Models\\Property') {
+                            $vacationHomesCount++;
+                            
+                            // Count by status (use original status, not lowercase, for consistency)
+                            if (!isset($vacationHomesByStatus[$statusLower])) {
+                                $vacationHomesByStatus[$statusLower] = 0;
+                            }
+                            $vacationHomesByStatus[$statusLower]++;
+                            
+                            // Count completed (confirmed, approved, completed)
+                            if (in_array($statusLower, ['confirmed', 'approved', 'completed'])) {
+                                $vacationHomesCompleted++;
+                            }
                         }
-                    }
-                    // Check if it's a hotel room (handle all variants)
-                    elseif (in_array($reservableType, ['App\\Models\\HotelRoom', 'App\Models\HotelRoom', 'HotelRoom'])) {
-                        $hotelRoomsCount++;
-                        
-                        // Count by status
-                        if (!isset($hotelRoomsByStatus[$status])) {
-                            $hotelRoomsByStatus[$status] = 0;
+                        // Check if it's a hotel room (handle all variants)
+                        elseif (in_array($reservableType, ['App\\Models\\HotelRoom', 'App\Models\HotelRoom', 'HotelRoom'])) {
+                            $hotelRoomsCount++;
+                            
+                            // Count by status (use original status, not lowercase, for consistency)
+                            if (!isset($hotelRoomsByStatus[$statusLower])) {
+                                $hotelRoomsByStatus[$statusLower] = 0;
+                            }
+                            $hotelRoomsByStatus[$statusLower]++;
+                            
+                            // Count completed (confirmed, approved, completed)
+                            if (in_array($statusLower, ['confirmed', 'approved', 'completed'])) {
+                                $hotelRoomsCompleted++;
+                            }
                         }
-                        $hotelRoomsByStatus[$status]++;
-                        
-                        // Count completed (confirmed, approved, completed)
-                        if (in_array($status, ['confirmed', 'approved', 'completed'])) {
-                            $hotelRoomsCompleted++;
-                        }
+                    } catch (\Exception $e) {
+                        // Skip this reservation if there's an error processing it
+                        Log::warning('Error processing reservation in counting loop', [
+                            'reservation_id' => $reservation->id ?? 'unknown',
+                            'error' => $e->getMessage()
+                        ]);
+                        continue;
                     }
                 }
                 
@@ -1887,17 +1900,13 @@ The {app_name} Team';
                 Log::error('Error fetching and counting reservations', [
                     'customer_id' => $customer_id,
                     'error' => $e->getMessage(),
-                    'trace' => substr($e->getTraceAsString(), 0, 500)
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => substr($e->getTraceAsString(), 0, 1000)
                 ]);
                 
-                // Set defaults on error
-                $vacationHomesCount = 0;
-                $hotelRoomsCount = 0;
-                $vacationHomesCompleted = 0;
-                $hotelRoomsCompleted = 0;
-                $totalCount = 0;
-                $vacationHomesByStatus = [];
-                $hotelRoomsByStatus = [];
+                // Variables are already initialized above, so they default to 0/[]
+                // No need to reset them here
             }
             
             // Counts are already logged above in the simplified counting section
