@@ -7007,14 +7007,15 @@ class ApiController extends Controller
                     if ($project->request_status == 'rejected') {
                         $project->reject_reason = $project->reject_reason()->select('id', 'project_id', 'reason', 'created_at')->latest()->first();
                     }
+                    $createdAt = $project->created_at;
                     $projectArray = $project->toArray();
-                    $projectArray['created_at'] = $project->created_at->diffForHumans();
+                    $projectArray['created_at'] = $createdAt ? $createdAt->diffForHumans() : '';
                     return $projectArray;
                 });
                 return ApiResponseService::successResponseReturn("Data Fetched Successfully", $data, array('total' => $total, 'total_clicks' => $totalClicks));
             }
         } catch (Exception $e) {
-            ApiResponseService::errorResponse();
+            ApiResponseService::errorResponse('Something Went Wrong', null, null, $e);
         }
     }
 
