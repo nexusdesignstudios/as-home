@@ -837,7 +837,7 @@ class SettingController extends Controller
         if (!has_permissions('read', 'email_templates')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
-        $types = array('verify_mail', 'reset_password', 'welcome_mail', 'property_status', 'project_status', 'property_ads_status', 'user_status', 'agent_verification_status', 'reservation_confirmation', 'reservation_approval', 'monthly_tax_invoice', 'monthly_tax_invoice_hotels_non_refundable', 'monthly_tax_invoice_hotels_flexible', 'vacation_homes_basic_tax_invoice', 'vacation_homes_premium_tax_invoice', 'hotel_booking_tax_invoice', 'hotel_booking_tax_invoice_flexible', 'hotel_booking_tax_invoice_non_refundable', 'selling_or_renting_contract', 'basic_package_self_managed', 'basic_package_renting_self_managed', 'premium_package_renting', 'vacation_homes_self_managed_basic_package', 'vacation_homes_ashome_managed_premium_package', 'hotel_booking', 'property_client_meeting', 'inquiry_form', 'reservation_approval_payment', 'vacation_home_pending_approval', 'flexible_hotel_booking_approval', 'send_money_payment', 'refund_approval', 'refund_rejection', 'reservation_rejection', 'reservation_cancellation', 'checkout_reminder', 'payment_form_submission', 'feedback_request', 'payment_completion_owner', 'bank_payment_accepted', 'bank_payment_rejected');
+        $types = array('verify_mail', 'reset_password', 'welcome_mail', 'property_status', 'project_status', 'property_ads_status', 'user_status', 'agent_verification_status', 'reservation_confirmation', 'reservation_approval', 'monthly_tax_invoice', 'monthly_tax_invoice_hotels_non_refundable', 'monthly_tax_invoice_hotels_flexible', 'vacation_homes_basic_tax_invoice', 'vacation_homes_premium_tax_invoice', 'hotel_booking_tax_invoice', 'hotel_booking_tax_invoice_flexible', 'hotel_booking_tax_invoice_non_refundable', 'selling_or_renting_contract', 'basic_package_self_managed', 'basic_package_renting_self_managed', 'premium_package_renting', 'vacation_homes_self_managed_basic_package', 'vacation_homes_ashome_managed_premium_package', 'hotel_booking', 'property_client_meeting', 'inquiry_form', 'reservation_approval_payment', 'vacation_home_pending_approval', 'flexible_hotel_booking_approval', 'send_money_payment', 'refund_approval', 'refund_rejection', 'reservation_rejection', 'reservation_cancellation', 'checkout_reminder', 'payment_form_submission', 'feedback_request', 'payment_completion_owner', 'bank_payment_accepted', 'bank_payment_rejected', 'subscription_success');
         if (!in_array($type, $types)) {
             ResponseService::errorRedirectResponse("Type is invalid");
         }
@@ -986,6 +986,35 @@ The <strong>{app_name}</strong> Team</p>';
 <p>Best regards,</p>
 <p>The <strong>{app_name}</strong> Team</p>';
             }
+        }
+        
+        // Provide default template for subscription_success if empty
+        if (empty($templateMailData) && $type === 'subscription_success') {
+            $templateMailData = 'Dear {customer_name},
+
+Thank you for your subscription to {package_name} on As-home!
+
+We are pleased to confirm that your payment has been successfully processed and your subscription is now active.
+
+Subscription Details:
+• Package: {package_name}
+• Start Date: {start_date}
+• End Date: {end_date}
+• Amount Paid: {amount_paid}
+
+You can now:
+• Access your dashboard
+• List and manage properties
+• Explore all features included in your plan
+
+If you have any questions or need assistance, please don\'t hesitate to contact our support team.
+
+Welcome to As-home — we\'re excited to have you with us!
+
+Best regards,
+As-home Team
+
+www.ashome-eg.com';
         }
         
         $templateMail = array('template' => $templateMailData);

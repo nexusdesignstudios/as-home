@@ -1931,6 +1931,33 @@ class HelperService
                             ],
                         )
                     );
+                case 'subscription_success':
+                    return array(
+                        'title' => 'Subscription Activated Successfully',
+                        'type' => 'subscription_success_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'customer_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'package_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'start_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'end_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'amount_paid',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
                 default:
                     // Return null for invalid types to indicate error
                     return null;
@@ -2064,6 +2091,11 @@ class HelperService
             [
                 'title' => 'Payment Verification Unsuccessful – Action Required',
                 'type' => 'bank_payment_rejected',
+                'category' => 'main',
+            ],
+            [
+                'title' => 'Subscription Activated Successfully',
+                'type' => 'subscription_success',
                 'category' => 'main',
             ],
             [

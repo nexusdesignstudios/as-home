@@ -2487,7 +2487,7 @@ As-home Asset Management Team';
 
             // Get email template type
             $emailTypeData = HelperService::getEmailTemplatesTypes('subscription_success');
-            $emailTemplateData = system_setting($emailTypeData['type'] ?? 'subscription_success_email');
+            $emailTemplateData = system_setting($emailTypeData['type'] ?? 'subscription_success_mail_template');
 
             // Default email template if not configured
             if (empty($emailTemplateData)) {
