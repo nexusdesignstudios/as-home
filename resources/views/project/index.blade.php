@@ -141,31 +141,34 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
 
-                <form class="create-form" action="{{ route('update-project-request-status') }}" data-success-function="editFormSuccessFunction" method="POST">
+                <form class="create-form" action="{{ route('update-project-request-status') }}" data-success-function="editFormSuccessFunction" method="POST" id="change-status-form">
                     <div class="modal-body">
                         {{ csrf_field() }}
 
-                        {!! Form::hidden('id', "", ['id' => 'edit-request-status-id']) !!}
+                        {!! Form::hidden('id', "", ['id' => 'edit-request-status-id', 'required' => true]) !!}
                         <div class="col-md-12 col-12 form-group mandatory">
                             <div class="row">
-                                {{ Form::label('', __('Status'), ['class' => 'form-label col-12 ']) }}
+                                {{ Form::label('request_status', __('Status'), ['class' => 'form-label col-12 ']) }}
 
                                 {{-- Approve --}}
                                 <div class="col-md-3">
-                                    {{ Form::radio('request_status', 'approved', null, [ 'class' => 'form-check-input request-status', 'id' => 'status-approve', 'required' => true ]) }}
+                                    {{ Form::radio('request_status', 'approved', null, [ 'class' => 'form-check-input request-status', 'id' => 'status-approve' ]) }}
                                     {{ Form::label('status-approve', __('Approve'), ['class' => 'form-check-label']) }}
                                 </div>
 
                                 {{-- Reject --}}
                                 <div class="col-md-3">
-                                    {{ Form::radio('request_status', 'rejected', null, [ 'class' => 'form-check-input request-status', 'id' => 'status-reject', 'required' => true, ]) }}
+                                    {{ Form::radio('request_status', 'rejected', null, [ 'class' => 'form-check-input request-status', 'id' => 'status-reject' ]) }}
                                     {{ Form::label('status-reject', __('Reject'), ['class' => 'form-check-label']) }}
                                 </div>
+
+                                {{-- Error container for status --}}
+                                <div id="status-error-container" class="col-12 text-danger"></div>
 
                                 {{-- Reason for Reject --}}
                                 <div class="col-12 mt-1 reject-reason-text-div" style="display: none">
                                     {{ Form::label('reject-reason-text', __('Reject Reason'), ['class' => 'form-label']) }}
-                                    {!! Form::textarea('reject_reason', null, ["id" => "reject-reason-text", "class" => 'form-control', "placeholder" => trans('Reject Reason')]) !!}
+                                    {!! Form::textarea('reject_reason', null, ["id" => "reject-reason-text", "name" => "reject_reason", "class" => 'form-control', "placeholder" => trans('Reject Reason')]) !!}
                                 </div>
 
                             </div>
@@ -325,8 +328,78 @@
                 $("#edit-request-status-id").val(row.id);
                 $('input[name=request_status]').prop('checked', false);
                 $(".reject-reason-text-div").hide();
+                $("#reject-reason-text").val('');
+                // Reset form validation
+                var validator = $('#changeRequestStatusModal form').validate();
+                if (validator) {
+                    validator.resetForm();
+                }
             }
         }
+
+        // Initialize jQuery Validate for the change status form
+        var changeStatusForm = $('#change-status-form');
+        changeStatusForm.validate({
+            rules: {
+                'request_status': {
+                    required: true
+                },
+                'reject_reason': {
+                    required: function() {
+                        return $('input[name="request_status"]:checked').val() === 'rejected';
+                    }
+                }
+            },
+            messages: {
+                'request_status': {
+                    required: 'Please select a status (Approve or Reject)'
+                },
+                'reject_reason': {
+                    required: 'Please provide a reason for rejection'
+                }
+            },
+            errorPlacement: function(error, element) {
+                if (element.attr('name') === 'request_status') {
+                    error.appendTo('#status-error-container');
+                } else {
+                    error.insertAfter(element);
+                }
+            }
+        });
+
+        // Override the default create-form handler for this specific form to use jQuery Validate
+        changeStatusForm.off('submit').on('submit', function(e) {
+            e.preventDefault();
+            var formElement = $(this);
+            var submitButtonElement = $(this).find(':submit');
+            var url = $(this).attr('action');
+            var submitButtonText = submitButtonElement.text() || submitButtonElement.html();
+            
+            // Use jQuery Validate instead of Parsley
+            if (!formElement.valid()) {
+                submitButtonElement.attr('disabled', false);
+                return false;
+            }
+            
+            submitButtonElement.text('Please Wait...').attr('disabled', true);
+            
+            setTimeout(() => {
+                var data = new FormData(this);
+                var customSuccessFunction = $(this).data('success-function');
+                
+                function successCallback(response) {
+                    formElement[0].reset();
+                    formElement.validate().resetForm();
+                    $('#table_list').bootstrapTable('refresh');
+                    if (customSuccessFunction) {
+                        eval(customSuccessFunction + "(response)");
+                    }
+                    submitButtonElement.text(submitButtonText).attr('disabled', false);
+                }
+                
+                formAjaxRequest('POST', url, data, formElement, submitButtonElement, successCallback);
+            }, 300);
+        });
 
         // Show/hide reject reason field based on status selection
         $(document).on('change', '.request-status', function() {
@@ -338,12 +411,17 @@
                 $("#reject-reason-text").removeAttr('required');
                 $("#reject-reason-text").val('');
             }
+            // Re-validate the form to update validation state
+            $('#changeRequestStatusModal form').valid();
         });
 
         function editFormSuccessFunction () {
             $('#table_list').bootstrapTable('refresh');
             setTimeout(function () {
                 $('#changeRequestStatusModal').modal('hide');
+                // Reset form and validation
+                $('#changeRequestStatusModal form')[0].reset();
+                $('#changeRequestStatusModal form').validate().resetForm();
             }, 1000);
         }
     </script>

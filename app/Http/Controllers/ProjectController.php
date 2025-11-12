@@ -741,7 +741,7 @@ class ProjectController extends Controller
                 //END ::  Send Notification To Customer
 
                 Notifications::create([
-                    'title' => $project->name . 'Project Updated',
+                    'title' => $project->title . ' Project Updated',
                     'message' => 'Your Project Post ' . $msg,
                     'image' => '',
                     'type' => '1',

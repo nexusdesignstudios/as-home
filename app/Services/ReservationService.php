@@ -812,27 +812,24 @@ Confirmation Date: {confirmation_date}
      * @param int $modelId
      * @param string $checkInDate
      * @param string $checkOutDate
+     * @param int|null $excludeReservationId Optional reservation ID to exclude from overlap check
      * @return bool
      */
-    public function areDatesAvailable($modelType, $modelId, $checkInDate, $checkOutDate)
+    public function areDatesAvailable($modelType, $modelId, $checkInDate, $checkOutDate, $excludeReservationId = null)
     {
         // Parse the check-in and check-out dates
         $checkIn = Carbon::parse($checkInDate);
         $checkOut = Carbon::parse($checkOutDate);
         $today = Carbon::today();
 
-        // Check for 31st day restriction
-        //if ($checkIn->format('d') == '31' || $checkOut->format('d') == '31') {
-        //    return false;
-        //}
-
         // Check for past dates
         if ($checkIn->lt($today) || $checkOut->lt($today)) {
             return false;
         }
 
-        // Check if there are any overlapping reservations
-        $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType);
+        // Check if there are any overlapping CONFIRMED reservations
+        // Only confirmed reservations should block availability
+        $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
         if ($hasOverlap) {
             return false;
         }
@@ -846,10 +843,9 @@ Confirmation Date: {confirmation_date}
         // Get available dates
         $availableDates = $model->available_dates ?? [];
 
-        // If there are no available dates defined, allow booking for pending properties
+        // If there are no available dates defined, allow booking
         // This allows booking even when room availability is not properly configured
         if (empty($availableDates) || !is_array($availableDates)) {
-            // For pending properties, allow booking even without proper availability configuration
             return true;
         }
 
@@ -866,6 +862,11 @@ Confirmation Date: {confirmation_date}
                     // Check if this date is within any busy date range
                     foreach ($availableDates as $dateInfo) {
                         if (!isset($dateInfo['from']) || !isset($dateInfo['to'])) {
+                            continue;
+                        }
+
+                        // Skip if this is a reserved date range for the excluded reservation
+                        if ($excludeReservationId && isset($dateInfo['reservation_id']) && $dateInfo['reservation_id'] == $excludeReservationId) {
                             continue;
                         }
 
@@ -886,13 +887,51 @@ Confirmation Date: {confirmation_date}
         }
 
         // Default behavior for "available_days" or other models
-        // For each date range, check if our requested dates are covered
+        // Check if any of the requested dates overlap with reserved dates
+        $requestedDates = $this->generateDateRange($checkInDate, $checkOutDate);
+        
+        foreach ($requestedDates as $date) {
+            $currentDate = Carbon::parse($date);
+            
+            foreach ($availableDates as $dateInfo) {
+                if (!isset($dateInfo['from']) || !isset($dateInfo['to'])) {
+                    continue;
+                }
+
+                // Skip if this is a reserved date range for the excluded reservation
+                if ($excludeReservationId && isset($dateInfo['reservation_id']) && $dateInfo['reservation_id'] == $excludeReservationId) {
+                    continue;
+                }
+
+                // If this date range is marked as reserved, check if our date falls within it
+                if (isset($dateInfo['type']) && $dateInfo['type'] === 'reserved') {
+                    $fromDate = Carbon::parse($dateInfo['from']);
+                    $toDate = Carbon::parse($dateInfo['to']);
+                    
+                    // If the date falls within a reserved range, it's not available
+                    if ($currentDate->gte($fromDate) && $currentDate->lte($toDate)) {
+                        // But only if there's a confirmed reservation for it
+                        // Check if there's actually a confirmed reservation for this date range
+                        if (isset($dateInfo['reservation_id'])) {
+                            $reservation = Reservation::find($dateInfo['reservation_id']);
+                            if ($reservation && $reservation->status === 'confirmed') {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // For "available_days" type, check if the requested dates are within any available (open) date range
         foreach ($availableDates as $dateInfo) {
-            // Skip if this isn't a date range format or is reserved
-            if (
-                !isset($dateInfo['from']) || !isset($dateInfo['to']) ||
-                (isset($dateInfo['type']) && $dateInfo['type'] === 'reserved')
-            ) {
+            // Skip if this isn't a date range format
+            if (!isset($dateInfo['from']) || !isset($dateInfo['to'])) {
+                continue;
+            }
+
+            // Skip reserved dates (we already checked those above)
+            if (isset($dateInfo['type']) && $dateInfo['type'] === 'reserved') {
                 continue;
             }
 
@@ -906,7 +945,8 @@ Confirmation Date: {confirmation_date}
         }
 
         // If no available date ranges cover the requested dates, 
-        // allow booking for pending properties (more permissive approach)
+        // but there are no confirmed reservations blocking it, allow booking
+        // This is more permissive to handle cases where availability isn't fully configured
         return true;
     }
 
