@@ -1029,23 +1029,47 @@ class ReservationController extends Controller
                         ]);
                         
                         // Try to find an alternative available room in the same hotel
-                        $alternativeRoom = HotelRoom::where('property_id', $request->property_id)
-                            ->where('id', '!=', $roomId)
-                            ->where(function ($query) {
-                                // Allow active rooms or rooms with status = 1
-                                $query->where('status', 1)
-                                    ->orWhere('status', true);
-                            })
-                            ->get()
-                            ->first(function ($altRoom) use ($modelType, $request) {
-                                // Check if this alternative room is available
-                                return $this->reservationService->areDatesAvailable(
-                                    $modelType,
-                                    $altRoom->id,
-                                    $request->check_in_date,
-                                    $request->check_out_date
-                                );
-                            });
+                        $alternativeRoom = null;
+                        try {
+                            $alternativeRooms = HotelRoom::where('property_id', $request->property_id)
+                                ->where('id', '!=', $roomId)
+                                ->where(function ($query) {
+                                    // Allow active rooms or rooms with status = 1
+                                    $query->where('status', 1)
+                                        ->orWhere('status', true);
+                                })
+                                ->get();
+                            
+                            foreach ($alternativeRooms as $altRoom) {
+                                try {
+                                    // Check if this alternative room is available
+                                    if ($this->reservationService->areDatesAvailable(
+                                        $modelType,
+                                        $altRoom->id,
+                                        $request->check_in_date,
+                                        $request->check_out_date
+                                    )) {
+                                        $alternativeRoom = $altRoom;
+                                        break; // Found an available alternative room
+                                    }
+                                } catch (\Exception $e) {
+                                    // Log but continue checking other rooms
+                                    Log::warning('Error checking alternative room availability', [
+                                        'room_id' => $altRoom->id,
+                                        'error' => $e->getMessage()
+                                    ]);
+                                    continue;
+                                }
+                            }
+                        } catch (\Exception $e) {
+                            // Log error but don't fail - we'll return the original error
+                            Log::error('Error finding alternative rooms', [
+                                'property_id' => $request->property_id,
+                                'original_room_id' => $roomId,
+                                'error' => $e->getMessage(),
+                                'trace' => $e->getTraceAsString()
+                            ]);
+                        }
                         
                         if ($alternativeRoom) {
                             // Found an alternative room - update the room object in the array
