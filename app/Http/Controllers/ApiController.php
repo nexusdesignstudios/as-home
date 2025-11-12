@@ -4733,6 +4733,17 @@ class ApiController extends Controller
             if ($request->description) {
                 $project->description = $request->description;
             }
+            // Save description_ar - convert empty string to null
+            if ($request->has('description_ar')) {
+                $project->description_ar = !empty(trim($request->description_ar)) ? $request->description_ar : null;
+            }
+            if ($request->area_description) {
+                $project->area_description = $request->area_description;
+            }
+            // Save area_description_ar - convert empty string to null
+            if ($request->has('area_description_ar')) {
+                $project->area_description_ar = !empty(trim($request->area_description_ar)) ? $request->area_description_ar : null;
+            }
             if ($request->location) {
                 $project->location = $request->location;
             }
@@ -4770,19 +4781,20 @@ class ApiController extends Controller
             if ($request->release_date) {
                 $project->release_date = $request->release_date;
             }
-            if ($request->bedroom) {
+            // Only save project details if they have values (not null/empty)
+            if ($request->has('bedroom') && $request->bedroom !== null && $request->bedroom !== '') {
                 $project->bedroom = $request->bedroom;
             }
-            if ($request->bathroom) {
+            if ($request->has('bathroom') && $request->bathroom !== null && $request->bathroom !== '') {
                 $project->bathroom = $request->bathroom;
             }
-            if ($request->garage) {
+            if ($request->has('garage') && $request->garage !== null && $request->garage !== '') {
                 $project->garage = $request->garage;
             }
-            if ($request->year_built) {
+            if ($request->has('year_built') && $request->year_built !== null && $request->year_built !== '') {
                 $project->year_built = $request->year_built;
             }
-            if ($request->lot_size) {
+            if ($request->has('lot_size') && $request->lot_size !== null && $request->lot_size !== '') {
                 $project->lot_size = $request->lot_size;
             }
             if ($request->id) {
@@ -4847,10 +4859,19 @@ class ApiController extends Controller
                 // }
             } else {
                 $project->title = $request->title;
+                // Save title_ar - convert empty string to null
+                if ($request->has('title_ar')) {
+                    $project->title_ar = !empty(trim($request->title_ar)) ? $request->title_ar : null;
+                }
                 $project->image = $request->hasFile('image') ? store_image($request->file('image'), 'PROJECT_TITLE_IMG_PATH') : '';
                 $project->meta_image = $request->hasFile('meta_image') ? store_image($request->file('meta_image'), 'PROJECT_SEO_IMG_PATH') : '';
                 $title = $request->title;
                 $project->slug_id = generateUniqueSlug($slugData, 4);
+            }
+            
+            // Save title_ar for update case - convert empty string to null
+            if ($request->id && $request->has('title_ar')) {
+                $project->title_ar = !empty(trim($request->title_ar)) ? $request->title_ar : null;
             }
 
             $project->save();
@@ -6843,11 +6864,20 @@ class ApiController extends Controller
         try {
             HelperService::checkPackageLimit('project_access');
             $getSimilarProjects = array();
-            $project = Projects::with('customer:id,name,profile,email,mobile,address,slug_id')
+            // Explicitly select all necessary fields including Arabic translations and project details
+            $project = Projects::select(
+                'id', 'slug_id', 'title', 'title_ar', 'description', 'description_ar', 
+                'area_description', 'area_description_ar', 'location', 'city', 'state', 
+                'country', 'latitude', 'longitude', 'video_link', 'type', 'image', 
+                'meta_title', 'meta_description', 'meta_keywords', 'meta_image',
+                'status', 'request_status', 'total_click', 'category_id', 'added_by',
+                'bedroom', 'bathroom', 'garage', 'year_built', 'lot_size', 'created_at', 'updated_at'
+            )
+                ->with('customer:id,name,profile,email,mobile,address,slug_id')
                 ->with('gallary_images')
                 ->with('documents')
                 ->with('plans')
-                ->with('category:id,category,image')
+                ->with('category:id,category,image,category_ar')
                 ->where(function ($query) {
                     $query->where(['request_status' => 'approved', 'status' => 1]);
                 });
@@ -6914,7 +6944,7 @@ class ApiController extends Controller
 
             // Base query for selected columns
             $projectsQuery = Projects::where('added_by', $user->id)
-                ->with('category:id,slug_id,image,category', 'gallary_images', 'customer:id,name,profile,email,mobile');
+                ->with('category:id,slug_id,image,category,category_ar', 'gallary_images', 'customer:id,name,profile,email,mobile');
 
             // Check if either id or slug_id is provided
             if ($request->filled('id') || $request->filled('slug_id')) {
@@ -6959,7 +6989,7 @@ class ApiController extends Controller
                         // IF Request Status is passed and status has approved or rejected or pending or all
                         $requestAccessData = explode(',', $request->request_status);
                         return $query->whereIn('request_status', $requestAccessData);
-                    })->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'type', 'image', 'location', 'status', 'category_id', 'added_by', 'created_at', 'request_status');
+                    })->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'title_ar', 'type', 'image', 'location', 'status', 'category_id', 'added_by', 'created_at', 'request_status', 'description', 'description_ar', 'area_description', 'area_description_ar', 'bedroom', 'bathroom', 'garage', 'year_built', 'lot_size');
                 // Get Total
                 $total = $projectsQuery->clone()->count();
 
@@ -6991,8 +7021,8 @@ class ApiController extends Controller
 
             // Query
             $projectsQuery = Projects::where(['request_status' => 'approved', 'status' => 1])
-                ->with('category:id,slug_id,image,category', 'gallary_images', 'customer:id,name,profile,email,mobile,slug_id')
-                ->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'type', 'image', 'status', 'location', 'category_id', 'added_by', 'is_admin_listing', 'request_status')
+                ->with('category:id,slug_id,image,category,category_ar', 'gallary_images', 'customer:id,name,profile,email,mobile,slug_id')
+                ->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'title_ar', 'type', 'image', 'status', 'location', 'category_id', 'added_by', 'is_admin_listing', 'request_status', 'description', 'description_ar', 'area_description', 'area_description_ar', 'bedroom', 'bathroom', 'garage', 'year_built', 'lot_size')
                 ->when($latitude && $longitude, function ($query) use ($latitude, $longitude, $radius) {
                     if ($radius && !empty($radius)) {
                         $query->selectRaw("
