@@ -999,6 +999,23 @@ class ReservationController extends Controller
 
                     if (!$isAvailable) {
                         // Log detailed information for debugging
+                        $overlappingReservations = \App\Models\Reservation::where('reservable_id', $roomId)
+                            ->where('reservable_type', $modelType)
+                            ->where('status', 'confirmed')
+                            ->where(function ($query) use ($request) {
+                                $query->where(function ($q) use ($request) {
+                                    $q->where('check_in_date', '>=', $request->check_in_date)
+                                        ->where('check_in_date', '<', $request->check_out_date);
+                                })->orWhere(function ($q) use ($request) {
+                                    $q->where('check_out_date', '>', $request->check_in_date)
+                                        ->where('check_out_date', '<=', $request->check_out_date);
+                                })->orWhere(function ($q) use ($request) {
+                                    $q->where('check_in_date', '<=', $request->check_in_date)
+                                        ->where('check_out_date', '>=', $request->check_out_date);
+                                });
+                            })
+                            ->get(['id', 'check_in_date', 'check_out_date', 'status']);
+                        
                         Log::warning('Room availability check failed in createReservationWithPayment', [
                             'room_id' => $roomId,
                             'check_in_date' => $request->check_in_date,
@@ -1006,7 +1023,9 @@ class ReservationController extends Controller
                             'property_id' => $request->property_id,
                             'model_type' => $modelType,
                             'room_available_dates' => $room->available_dates ?? null,
-                            'room_availability_type' => $room->availability_type ?? null
+                            'room_availability_type' => $room->availability_type ?? null,
+                            'overlapping_reservations' => $overlappingReservations->toArray(),
+                            'overlapping_count' => $overlappingReservations->count()
                         ]);
                         
                         ApiResponseService::errorResponse("Room {$roomId} is not available for the selected dates");
