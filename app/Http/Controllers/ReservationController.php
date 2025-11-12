@@ -1785,21 +1785,53 @@ The {app_name} Team';
     public function getCustomerReservationCounts($customer_id)
     {
         try {
-            // Validate customer exists
+            // Validate customer exists - try by ID first, then by email if ID fails
             $customer = \App\Models\Customer::find($customer_id);
+            if (!$customer && filter_var($customer_id, FILTER_VALIDATE_EMAIL)) {
+                // If customer_id is an email, try to find by email
+                $customer = \App\Models\Customer::where('email', $customer_id)->first();
+                if ($customer) {
+                    $customer_id = $customer->id; // Update to use the actual ID
+                }
+            }
+            
             if (!$customer) {
+                \Log::warning('Customer not found in getCustomerReservationCounts', [
+                    'customer_id' => $customer_id
+                ]);
                 return ApiResponseService::errorResponse('Customer not found');
             }
+
+            // Debug: Log all reservations for this customer to see what reservable_type values exist
+            $allReservations = Reservation::where('customer_id', $customer_id)->get(['id', 'reservable_type', 'status']);
+            \Log::info('All reservations for customer', [
+                'customer_id' => $customer_id,
+                'customer_email' => $customer->email,
+                'total_reservations' => $allReservations->count(),
+                'reservations' => $allReservations->toArray()
+            ]);
 
             // Get vacation homes (properties) reservation count
             $vacationHomesCount = Reservation::where('customer_id', $customer_id)
                 ->where('reservable_type', 'App\\Models\\Property')
                 ->count();
 
-            // Get hotel rooms reservation count
+            // Get hotel rooms reservation count - also check for variations in reservable_type
             $hotelRoomsCount = Reservation::where('customer_id', $customer_id)
-                ->where('reservable_type', 'App\\Models\\HotelRoom')
+                ->where(function($query) {
+                    $query->where('reservable_type', 'App\\Models\\HotelRoom')
+                          ->orWhere('reservable_type', 'App\Models\HotelRoom') // Single backslash variant
+                          ->orWhere('reservable_type', 'HotelRoom'); // Short variant
+                })
                 ->count();
+            
+            // Debug: Log the counts
+            \Log::info('Reservation counts for customer', [
+                'customer_id' => $customer_id,
+                'customer_email' => $customer->email,
+                'vacation_homes_count' => $vacationHomesCount,
+                'hotel_rooms_count' => $hotelRoomsCount
+            ]);
 
             // Get total count
             $totalCount = $vacationHomesCount + $hotelRoomsCount;
@@ -1812,9 +1844,13 @@ The {app_name} Team';
                 ->pluck('count', 'status')
                 ->toArray();
 
-            // Get counts by status for hotel rooms
+            // Get counts by status for hotel rooms - check for all variants
             $hotelRoomsByStatus = Reservation::where('customer_id', $customer_id)
-                ->where('reservable_type', 'App\\Models\\HotelRoom')
+                ->where(function($query) {
+                    $query->where('reservable_type', 'App\\Models\\HotelRoom')
+                          ->orWhere('reservable_type', 'App\Models\HotelRoom') // Single backslash variant
+                          ->orWhere('reservable_type', 'HotelRoom'); // Short variant
+                })
                 ->selectRaw('status, COUNT(*) as count')
                 ->groupBy('status')
                 ->pluck('count', 'status')
@@ -1830,9 +1866,21 @@ The {app_name} Team';
                 ->count();
             
             $hotelRoomsCompleted = Reservation::where('customer_id', $customer_id)
-                ->where('reservable_type', 'App\\Models\\HotelRoom')
+                ->where(function($query) {
+                    $query->where('reservable_type', 'App\\Models\\HotelRoom')
+                          ->orWhere('reservable_type', 'App\Models\HotelRoom') // Single backslash variant
+                          ->orWhere('reservable_type', 'HotelRoom'); // Short variant
+                })
                 ->whereIn('status', ['confirmed', 'approved'])
                 ->count();
+            
+            // Debug: Log completed counts
+            \Log::info('Completed reservation counts for customer', [
+                'customer_id' => $customer_id,
+                'customer_email' => $customer->email,
+                'vacation_homes_completed' => $vacationHomesCompleted,
+                'hotel_rooms_completed' => $hotelRoomsCompleted
+            ]);
             
             // Get used tier discounts
             $usedPropertyDiscounts = \App\Models\CustomerTierDiscount::where('customer_id', $customer_id)
@@ -1842,7 +1890,11 @@ The {app_name} Team';
                 ->toArray();
             
             $usedHotelDiscounts = \App\Models\CustomerTierDiscount::where('customer_id', $customer_id)
-                ->where('reservable_type', 'App\\Models\\HotelRoom')
+                ->where(function($query) {
+                    $query->where('reservable_type', 'App\\Models\\HotelRoom')
+                          ->orWhere('reservable_type', 'App\Models\HotelRoom') // Single backslash variant
+                          ->orWhere('reservable_type', 'HotelRoom'); // Short variant
+                })
                 ->where('used', true)
                 ->pluck('tier_milestone')
                 ->toArray();

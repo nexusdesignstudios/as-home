@@ -817,40 +817,74 @@ Confirmation Date: {confirmation_date}
      */
     public function areDatesAvailable($modelType, $modelId, $checkInDate, $checkOutDate, $excludeReservationId = null)
     {
-        // Parse the check-in and check-out dates
-        $checkIn = Carbon::parse($checkInDate);
-        $checkOut = Carbon::parse($checkOutDate);
-        $today = Carbon::today();
+        try {
+            // Parse the check-in and check-out dates with error handling
+            try {
+                $checkIn = Carbon::parse($checkInDate);
+                $checkOut = Carbon::parse($checkOutDate);
+            } catch (\Exception $e) {
+                \Log::error('Date parsing error in areDatesAvailable', [
+                    'checkInDate' => $checkInDate,
+                    'checkOutDate' => $checkOutDate,
+                    'error' => $e->getMessage()
+                ]);
+                return false;
+            }
+            
+            $today = Carbon::today();
 
-        // Check for past dates
-        if ($checkIn->lt($today) || $checkOut->lt($today)) {
+            // Check for past dates
+            if ($checkIn->lt($today) || $checkOut->lt($today)) {
+                return false;
+            }
+
+            // Get the model instance first
+            $model = $this->getModelInstance($modelType, $modelId);
+            if (!$model) {
+                return false;
+            }
+
+            // PRIMARY CHECK: Check if there are any overlapping CONFIRMED reservations
+            // Only confirmed reservations should block availability
+            // This is the most important check - actual reservations take precedence over availability configuration
+            try {
+                $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
+                if ($hasOverlap) {
+                    // There's a confirmed reservation blocking these dates
+                    return false;
+                }
+            } catch (\Exception $e) {
+                \Log::error('Error checking date overlap', [
+                    'checkInDate' => $checkInDate,
+                    'checkOutDate' => $checkOutDate,
+                    'modelId' => $modelId,
+                    'modelType' => $modelType,
+                    'error' => $e->getMessage()
+                ]);
+                // Continue with other checks even if overlap check fails
+            }
+
+            // SECONDARY CHECK: If there are no confirmed reservations, allow booking
+            // The availability configuration (available_dates) should only be used for display/pricing,
+            // not for blocking bookings when there are no actual confirmed reservations
+            
+            // Since we've already verified there are no confirmed reservations blocking the dates,
+            // we can safely allow the booking regardless of available_dates configuration
+            // This ensures that availability configuration doesn't accidentally block valid bookings
+            
+            return true;
+        } catch (\Exception $e) {
+            \Log::error('Unexpected error in areDatesAvailable', [
+                'modelType' => $modelType,
+                'modelId' => $modelId,
+                'checkInDate' => $checkInDate,
+                'checkOutDate' => $checkOutDate,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            // Return false on error to be safe
             return false;
         }
-
-        // Get the model instance first
-        $model = $this->getModelInstance($modelType, $modelId);
-        if (!$model) {
-            return false;
-        }
-
-        // PRIMARY CHECK: Check if there are any overlapping CONFIRMED reservations
-        // Only confirmed reservations should block availability
-        // This is the most important check - actual reservations take precedence over availability configuration
-        $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
-        if ($hasOverlap) {
-            // There's a confirmed reservation blocking these dates
-            return false;
-        }
-
-        // SECONDARY CHECK: If there are no confirmed reservations, allow booking
-        // The availability configuration (available_dates) should only be used for display/pricing,
-        // not for blocking bookings when there are no actual confirmed reservations
-        
-        // Since we've already verified there are no confirmed reservations blocking the dates,
-        // we can safely allow the booking regardless of available_dates configuration
-        // This ensures that availability configuration doesn't accidentally block valid bookings
-        
-        return true;
     }
 
     /**
