@@ -1909,78 +1909,10 @@ The {app_name} Team';
                 // No need to reset them here
             }
             
-            // Counts are already logged above in the simplified counting section
+            // SIMPLIFIED RESPONSE: Return basic counts only
+            // Tier discount logic removed - to be recreated
+            // Frontend components are kept intact for rebuilding
             
-            // Get used tier discounts - wrap in try-catch in case table doesn't exist
-            $usedPropertyDiscounts = [];
-            $usedHotelDiscounts = [];
-            
-            try {
-                $usedPropertyDiscounts = \App\Models\CustomerTierDiscount::where('customer_id', $customer_id)
-                    ->where('reservable_type', 'App\\Models\\Property')
-                    ->where('used', true)
-                    ->pluck('tier_milestone')
-                    ->toArray();
-            } catch (\Exception $e) {
-                Log::warning('Could not fetch used property discounts', [
-                    'customer_id' => $customer_id,
-                    'error' => $e->getMessage()
-                ]);
-            }
-            
-            try {
-                $usedHotelDiscounts = \App\Models\CustomerTierDiscount::where('customer_id', $customer_id)
-                    ->where(function($query) {
-                        $query->where('reservable_type', 'App\\Models\\HotelRoom')
-                              ->orWhere('reservable_type', 'App\Models\HotelRoom') // Single backslash variant
-                              ->orWhere('reservable_type', 'HotelRoom'); // Short variant
-                    })
-                    ->where('used', true)
-                    ->pluck('tier_milestone')
-                    ->toArray();
-            } catch (\Exception $e) {
-                Log::warning('Could not fetch used hotel discounts', [
-                    'customer_id' => $customer_id,
-                    'error' => $e->getMessage()
-                ]);
-            }
-            
-            // Calculate available discounts for vacation homes (Star Tiers)
-            $propertyDiscounts = [];
-            $propertyNextReservation = $vacationHomesCompleted + 1;
-            $propertyTierMilestones = [15 => ['reservation_number' => 16, 'discount' => 10], 10 => ['reservation_number' => 11, 'discount' => 7], 5 => ['reservation_number' => 6, 'discount' => 3]];
-            
-            foreach ($propertyTierMilestones as $milestone => $tierData) {
-                $isUsed = in_array($milestone, $usedPropertyDiscounts);
-                $isAvailable = $vacationHomesCompleted >= $milestone && $propertyNextReservation == $tierData['reservation_number'] && !$isUsed;
-                
-                $propertyDiscounts[] = [
-                    'tier_milestone' => $milestone,
-                    'reservation_number' => $tierData['reservation_number'],
-                    'discount_percentage' => $tierData['discount'],
-                    'is_available' => $isAvailable,
-                    'is_used' => $isUsed
-                ];
-            }
-            
-            // Calculate available discounts for hotels (Moon Tiers)
-            $hotelDiscounts = [];
-            $hotelNextReservation = $hotelRoomsCompleted + 1;
-            $hotelTierMilestones = [20 => ['reservation_number' => 21, 'discount' => 5], 15 => ['reservation_number' => 16, 'discount' => 4], 10 => ['reservation_number' => 11, 'discount' => 2]];
-            
-            foreach ($hotelTierMilestones as $milestone => $tierData) {
-                $isUsed = in_array($milestone, $usedHotelDiscounts);
-                $isAvailable = $hotelRoomsCompleted >= $milestone && $hotelNextReservation == $tierData['reservation_number'] && !$isUsed;
-                
-                $hotelDiscounts[] = [
-                    'tier_milestone' => $milestone,
-                    'reservation_number' => $tierData['reservation_number'],
-                    'discount_percentage' => $tierData['discount'],
-                    'is_available' => $isAvailable,
-                    'is_used' => $isUsed
-                ];
-            }
-
             return ApiResponseService::successResponse('Customer reservation counts retrieved successfully', [
                 'customer_id' => $customer_id,
                 'customer_name' => $customer->name ?? 'N/A',
@@ -1989,19 +1921,17 @@ The {app_name} Team';
                 'vacation_homes' => [
                     'total_count' => $vacationHomesCount,
                     'completed_count' => $vacationHomesCompleted,
-                    'next_reservation_number' => $propertyNextReservation,
+                    'next_reservation_number' => $vacationHomesCompleted + 1,
                     'by_status' => $vacationHomesByStatus,
-                    'tier_discounts' => $propertyDiscounts,
-                    // For tier display, use total_count (all reservations)
+                    'tier_discounts' => [], // Empty - to be recreated
                     'tier_count' => $vacationHomesCount
                 ],
                 'hotel_rooms' => [
                     'total_count' => $hotelRoomsCount,
                     'completed_count' => $hotelRoomsCompleted,
-                    'next_reservation_number' => $hotelNextReservation,
+                    'next_reservation_number' => $hotelRoomsCompleted + 1,
                     'by_status' => $hotelRoomsByStatus,
-                    'tier_discounts' => $hotelDiscounts,
-                    // For tier display, use total_count (all reservations)
+                    'tier_discounts' => [], // Empty - to be recreated
                     'tier_count' => $hotelRoomsCount
                 ]
             ]);
@@ -2030,101 +1960,39 @@ The {app_name} Team';
         }
     }
 
+    /**
+     * Calculate customer discount - SIMPLIFIED VERSION
+     * 
+     * This method has been simplified - all tier discount logic removed.
+     * Returns no discount by default. To be recreated with proper counting and discount logic.
+     * 
+     * TODO: Recreate the discount logic:
+     * 1. Count completed reservations correctly (confirmed, approved, completed statuses)
+     * 2. Define tier milestones (Star Tiers: 5->6 (3%), 10->11 (7%), 15->16 (10%) / Moon Tiers: 10->11 (2%), 15->16 (4%), 20->21 (5%))
+     * 3. Check if customer has reached a milestone
+     * 4. Check if discount has already been used for that milestone
+     * 5. Apply discount if eligible
+     * 6. Track used discounts to prevent double-dipping
+     * 
+     * @param int $customerId
+     * @param string $reservableType 'App\\Models\\Property' or 'App\\Models\\HotelRoom'
+     * @param float $originalAmount
+     * @return array
+     */
     private function calculateCustomerDiscount($customerId, $reservableType, $originalAmount)
     {
-        // Count all completed bookings (confirmed, approved, or completed) for discount calculation
-        // This includes old reservations with discounts - all confirmed/approved/completed reservations count toward tier milestones
-        // Match frontend logic: count confirmed, approved, completed (frontend shows these as "success" statuses)
-        // Exclude cancelled, rejected, refunded (frontend shows these as "fail" statuses)
-        // Handle hotel room reservable_type variants
-        if ($reservableType === 'App\\Models\\HotelRoom') {
-            $completedBookings = Reservation::where('customer_id', $customerId)
-                ->whereIn('reservable_type', [
-                    'App\\Models\\HotelRoom',
-                    'App\Models\HotelRoom',
-                    'HotelRoom'
-                ])
-                ->whereIn('status', ['confirmed', 'approved', 'completed'])
-                ->count();
-        } else {
-            $completedBookings = Reservation::where('customer_id', $customerId)
-                ->where('reservable_type', $reservableType)
-                ->whereIn('status', ['confirmed', 'approved', 'completed'])
-                ->count();
-        }
-
-        $discountPercentage = 0;
-        $tierMilestone = null;
-
-        // Define tier milestones and their discounts
-        // Discount applies to specific reservation numbers (6th, 11th, 16th for Star / 11th, 16th, 21st for Moon)
-        // This means: if customer has 5 completed, the 6th booking gets discount
-        //             if customer has 10 completed, the 11th booking gets discount
-        //             if customer has 15 completed, the 16th booking gets discount
+        // SIMPLIFIED: Just return the original amount with no discount
+        // TODO: Recreate the discount logic here
         
-        $tierMilestones = [];
-        if ($reservableType === 'App\\Models\\Property') {
-            // Star Tiers: 6th reservation (after 5), 11th (after 10), 16th (after 15)
-            $tierMilestones = [
-                15 => ['reservation_number' => 16, 'discount' => 10], // 10% discount on 16th reservation
-                10 => ['reservation_number' => 11, 'discount' => 7],  // 7% discount on 11th reservation
-                5 => ['reservation_number' => 6, 'discount' => 3]     // 3% discount on 6th reservation
-            ];
-        } elseif ($reservableType === 'App\\Models\\HotelRoom') {
-            // Moon Tiers: 11th reservation (after 10), 16th (after 15), 21st (after 20)
-            $tierMilestones = [
-                20 => ['reservation_number' => 21, 'discount' => 5], // 5% discount on 21st reservation
-                15 => ['reservation_number' => 16, 'discount' => 4], // 4% discount on 16th reservation
-                10 => ['reservation_number' => 11, 'discount' => 2]  // 2% discount on 11th reservation
-            ];
-        }
-
-        // Find the highest tier milestone that customer has reached and the next reservation matches
-        // The next reservation number will be: completedBookings + 1
-        $nextReservationNumber = $completedBookings + 1;
-        
-        foreach ($tierMilestones as $milestone => $tierData) {
-            if ($completedBookings >= $milestone && $nextReservationNumber == $tierData['reservation_number']) {
-                // Check if this discount has been used - handle hotel room reservable_type variants
-                if ($reservableType === 'App\\Models\\HotelRoom') {
-                    $usedDiscount = \App\Models\CustomerTierDiscount::where('customer_id', $customerId)
-                        ->where('tier_milestone', $milestone)
-                        ->where('used', true)
-                        ->whereIn('reservable_type', [
-                            'App\\Models\\HotelRoom',
-                            'App\Models\HotelRoom',
-                            'HotelRoom'
-                        ])
-                        ->exists();
-                } else {
-                    $usedDiscount = \App\Models\CustomerTierDiscount::where('customer_id', $customerId)
-                        ->where('tier_milestone', $milestone)
-                        ->where('used', true)
-                        ->where('reservable_type', $reservableType)
-                        ->exists();
-                }
-
-                if (!$usedDiscount) {
-                    // Found an available discount for this specific reservation number
-                    $tierMilestone = $milestone;
-                    $discountPercentage = $tierData['discount'];
-                    break;
-                }
-            }
-        }
-
-        $discountAmount = ($originalAmount * $discountPercentage) / 100;
-        $finalAmount = $originalAmount - $discountAmount;
-
         return [
             'original_amount' => $originalAmount,
-            'discount_percentage' => $discountPercentage,
-            'discount_amount' => $discountAmount,
-            'final_amount' => $finalAmount,
-            'completed_bookings' => $completedBookings,
-            'next_reservation_number' => $nextReservationNumber,
-            'tier_milestone' => $tierMilestone,
-            'has_available_discount' => $discountPercentage > 0
+            'discount_percentage' => 0,
+            'discount_amount' => 0,
+            'final_amount' => $originalAmount,
+            'has_available_discount' => false,
+            'tier_milestone' => null,
+            'completed_bookings' => 0,
+            'next_reservation_number' => 1
         ];
     }
 
