@@ -70,6 +70,30 @@
                         {{ Form::textarea('description', $project->description, [ 'class' => 'form-control mb-3', 'rows' => '5', 'id' => '', 'required' => 'true', 'placeholder' => __('Description') ]) }}
                     </div>
 
+                    {{-- Arabic Title --}}
+                    <div class="col-md-12 col-12 form-group">
+                        {{ Form::label('title_ar', __('Arabic Title'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::text('title_ar', $project->title_ar ?? '', [ 'class' => 'form-control ', 'placeholder' =>  __('Arabic Title'), 'id' => 'title_ar', 'dir' => 'rtl' ]) }}
+                    </div>
+
+                    {{-- Arabic Description --}}
+                    <div class="col-md-12 col-12 form-group">
+                        {{ Form::label('description_ar', __('Arabic Description'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::textarea('description_ar', $project->description_ar ?? '', [ 'class' => 'form-control mb-3', 'rows' => '5', 'id' => '', 'placeholder' => __('Arabic Description'), 'dir' => 'rtl' ]) }}
+                    </div>
+
+                    {{-- Area Description --}}
+                    <div class="col-md-12 col-12 form-group">
+                        {{ Form::label('area_description', __('Area Description'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::textarea('area_description', $project->area_description ?? '', [ 'class' => 'form-control mb-3', 'rows' => '5', 'id' => '', 'placeholder' => __('Area Description') ]) }}
+                    </div>
+
+                    {{-- Arabic Area Description --}}
+                    <div class="col-md-12 col-12 form-group">
+                        {{ Form::label('area_description_ar', __('Arabic Area Description'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::textarea('area_description_ar', $project->area_description_ar ?? '', [ 'class' => 'form-control mb-3', 'rows' => '5', 'id' => '', 'placeholder' => __('Arabic Area Description'), 'dir' => 'rtl' ]) }}
+                    </div>
+
                     {{-- Project Type --}}
                     <div class="col-md-12 col-12  form-group  mandatory">
                         <div class="row">
@@ -305,22 +329,39 @@
                         {{-- Documents --}}
                         <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3">
                             {{ Form::label('documents', __('Documents'), ['class' => 'form-label ']) }}
-                            <input type="file" class="filepond" id="documents" name="documents[]" multiple accept="application/pdf,application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-                            @if (!empty($project->documents))
-                                @foreach ($project->documents as $row)
-                                    <div class="properties_docs_main_div">
-                                        <div class="doc_icon">
-                                            <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 512 512" height="30" width="30" xmlns="http://www.w3.org/2000/svg"><path fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M208 64h66.75a32 32 0 0122.62 9.37l141.26 141.26a32 32 0 019.37 22.62V432a48 48 0 01-48 48H192a48 48 0 01-48-48V304"></path><path fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M288 72v120a32 32 0 0032 32h120"></path><path fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="32" d="M160 80v152a23.69 23.69 0 01-24 24c-12 0-24-9.1-24-24V88c0-30.59 16.57-56 48-56s48 24.8 48 55.38v138.75c0 43-27.82 77.87-72 77.87s-72-34.86-72-77.87V144"></path></svg>
+                            <input type="file" class="filepond doc-filepond" id="documents" name="documents[]" multiple accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                            <div class="row mt-3" id="existing-documents-container">
+                                @if (!empty($project->documents))
+                                    @foreach ($project->documents as $row)
+                                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 col-xxl-3 mt-2" id="document-{{ $row->id }}">
+                                            <div class="docs_main_div" style="position: relative;">
+                                                <div class="doc_icon">
+                                                    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 512 512" height="30" width="30" xmlns="http://www.w3.org/2000/svg"><path fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M208 64h66.75a32 32 0 0122.62 9.37l141.26 141.26a32 32 0 019.37 22.62V432a48 48 0 01-48 48H192a48 48 0 01-48-48V304"></path><path fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M288 72v120a32 32 0 0032 32h120"></path><path fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="32" d="M160 80v152a23.69 23.69 0 01-24 24c-12 0-24-9.1-24-24V88c0-30.59 16.57-56 48-56s48 24.8 48 55.38v138.75c0 43-27.82 77.87-72 77.87s-72-34.86-72-77.87V144"></path></svg>
+                                                </div>
+                                                <div class="doc_title">
+                                                    @php
+                                                        $filename = basename($row->getRawOriginal('name'));
+                                                    @endphp
+                                                    <span title="{{ $filename }}">{{ $filename }}</span>
+                                                </div>
+                                                <div class="doc_download_button">
+                                                    <a href="{{ $row->name }}" target="_blank">
+                                                        <span>
+                                                            <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" height="20" width="20" xmlns="http://www.w3.org/2000/svg"><path d="m12 16 4-5h-3V4h-2v7H8z"></path><path d="M20 18H4v-7H2v7c0 1.103.897 2 2 2h16c1.103 0 2-.897 2-2v-7h-2v7z"></path></svg>
+                                                        </span>
+                                                        <span>{{ __('Download') }}</span>
+                                                    </a>
+                                                </div>
+                                                <div class="doc_remove_button" style="position: absolute; top: 5px; right: 5px;">
+                                                    <button type="button" class="btn btn-danger btn-sm removeDocument" data-id="{{ $row->id }}" title="{{ __('Remove Document') }}" style="padding: 2px 6px; font-size: 12px;">
+                                                        <i class="fa fa-times"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="doc_title">
-                                            <a href="{{ $row->name }}" target="_blank"><span title="{{ $row->getRawOriginal('name') }}"> {{ $row->getRawOriginal('name') }} </span></a>
-                                        </div>
-                                        <div>
-                                            <button type="button" class="btn btn-danger btn-sm removeDocument" data-id={{ $row->id }}>X</button>
-                                        </div>
-                                    </div>
-                                @endforeach
-                            @endif
+                                    @endforeach
+                                @endif
+                            </div>
                         </div>
 
                         {{-- Video Link --}}
@@ -495,6 +536,26 @@
             $('.parsley-error filled,.parsley-required').hide();
             FilePond.registerPlugin(FilePondPluginImagePreview, FilePondPluginFileValidateSize,
                 FilePondPluginFileValidateType);
+            
+            // Configure FilePond for documents input
+            if ($('#documents').length) {
+                $('#documents').filepond({
+                    credits: null,
+                    allowFileSizeValidation: true,
+                    maxFileSize: '25MB',
+                    labelMaxFileSizeExceeded: 'File is too large',
+                    labelMaxFileSize: 'Maximum file size is {filesize}',
+                    allowFileTypeValidation: true,
+                    acceptedFileTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+                    labelFileTypeNotAllowed: 'File of invalid type',
+                    fileValidateTypeLabelExpectedTypes: 'Expects PDF or Word documents',
+                    storeAsFile: true,
+                    allowPdfPreview: true,
+                    pdfPreviewHeight: 320,
+                    pdfComponentExtraParams: 'toolbar=0&navpanes=0&scrollbar=0&view=fitH',
+                    allowMultiple: true
+                });
+            }
         });
 
         $(document).ready(function() {
@@ -637,18 +698,25 @@
 
 
 
-        $(".removeDocument").click(function(e) {
+        $(document).on('click', '.removeDocument', function(e) {
             e.preventDefault();
             var id = $(this).data('id');
+            var $documentElement = $('#document-' + id);
+            
             Swal.fire({
-                title: window.trans['Are you sure you wants to remove this document ?'],
-                icon: 'error',
+                title: window.trans['Are you sure you wants to remove this document ?'] || 'Are you sure you want to remove this document?',
+                icon: 'warning',
                 showDenyButton: true,
-                confirmButtonText: window.trans['Yes'],
-                denyCanceButtonText: window.trans['No'],
+                confirmButtonText: window.trans['Yes'] || 'Yes',
+                denyButtonText: window.trans['No'] || 'No',
             }).then((result) => {
                 /* Read more about isConfirmed, isDenied below */
                 if (result.isConfirmed) {
+                    // Remove from DOM immediately for better UX
+                    $documentElement.fadeOut(300, function() {
+                        $(this).remove();
+                    });
+                    
                     $.ajax({
                         url: "{{ route('project.remove-document') }}",
                         type: "POST",
@@ -659,31 +727,35 @@
                         success: function(response) {
                             if (response.error == false) {
                                 Toastify({
-                                    text: window.trans['Document Deleted Successfully'],
-                                    duration: 1500,
+                                    text: window.trans['Document Deleted Successfully'] || 'Document Deleted Successfully',
+                                    duration: 2000,
                                     close: !0,
                                     backgroundColor: "linear-gradient(to right, #00b09b, #96c93d)"
                                 }).showToast();
-
-                                setTimeout(() => {
-                                    window.location.reload();
-                                }, 1500);
-
-                                $("#" + id).html('');
                             } else if (response.error == true) {
+                                // If deletion failed, restore the element
+                                $documentElement.show();
                                 Toastify({
-                                    text: window.trans['Something Went Wrong'],
+                                    text: window.trans['Something Went Wrong'] || 'Something Went Wrong',
                                     duration: 5000,
                                     close: !0,
-                                    backgroundColor: '#dc3545' //"linear-gradient(to right, #dc3545, #96c93d)"
-                                }).showToast()
+                                    backgroundColor: '#dc3545'
+                                }).showToast();
                             }
                         },
-                        error: function(xhr) {}
+                        error: function(xhr) {
+                            // If deletion failed, restore the element
+                            $documentElement.show();
+                            Toastify({
+                                text: window.trans['Something Went Wrong'] || 'Something Went Wrong',
+                                duration: 5000,
+                                close: !0,
+                                backgroundColor: '#dc3545'
+                            }).showToast();
+                        }
                     });
                 }
-            })
-
+            });
         });
 
         function formSuccessFunction(response) {

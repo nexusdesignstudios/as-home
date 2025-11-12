@@ -4711,13 +4711,11 @@ class ApiController extends Controller
             if (!(isset($request->id))) {
                 $project = new Projects();
 
-                // Check the auto approve and verified user status and make project auto enable or disable
-                $autoApproveStatus = $this->getAutoApproveStatus($currentUser);
-                if ($autoApproveStatus) {
-                    $project->status = 1;
-                } else {
-                    $project->status = 0;
-                }
+                // Set status to inactive (0) by default - will be activated only when admin approves
+                $project->status = 0;
+                
+                // Set request_status to pending - waiting for admin approval
+                $project->request_status = 'pending';
             } else {
                 $project = Projects::where('added_by', $currentUser)->find($request->id);
                 if (!$project) {

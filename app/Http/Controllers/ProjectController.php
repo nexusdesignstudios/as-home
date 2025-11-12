@@ -96,9 +96,13 @@ class ProjectController extends Controller
 
             $project = new Projects();
             $project->title = $request->title;
+            $project->title_ar = $request->title_ar ?? null;
             $project->slug_id = generateUniqueSlug($slugData, 4);
             $project->category_id = $request->category_id;
             $project->description = $request->description;
+            $project->description_ar = $request->description_ar ?? null;
+            $project->area_description = $request->area_description ?? null;
+            $project->area_description_ar = $request->area_description_ar ?? null;
             $project->location = $request->address;
             $project->meta_title = $request->meta_title ?? null;
             $project->meta_description = $request->meta_description ?? null;
@@ -207,7 +211,7 @@ class ProjectController extends Controller
 
         if (isset($_GET['search']) && !empty($_GET['search'])) {
             $search = $_GET['search'];
-            $sql = $sql->where('id', 'LIKE', "%$search%")->orwhere('title', 'LIKE', "%$search%")->orwhere('location', 'LIKE', "%$search%")->orwhere('bedroom', 'LIKE', "%$search%")->orwhere('bathroom', 'LIKE', "%$search%")->orwhere('garage', 'LIKE', "%$search%")->orwhere('year_built', 'LIKE', "%$search%")->orwhere('lot_size', 'LIKE', "%$search%")->orwhereHas('category', function ($query) use ($search) {
+            $sql = $sql->where('id', 'LIKE', "%$search%")->orwhere('title', 'LIKE', "%$search%")->orwhere('title_ar', 'LIKE', "%$search%")->orwhere('description', 'LIKE', "%$search%")->orwhere('description_ar', 'LIKE', "%$search%")->orwhere('area_description', 'LIKE', "%$search%")->orwhere('area_description_ar', 'LIKE', "%$search%")->orwhere('location', 'LIKE', "%$search%")->orwhere('bedroom', 'LIKE', "%$search%")->orwhere('bathroom', 'LIKE', "%$search%")->orwhere('garage', 'LIKE', "%$search%")->orwhere('year_built', 'LIKE', "%$search%")->orwhere('lot_size', 'LIKE', "%$search%")->orwhereHas('category', function ($query) use ($search) {
                 $query->where('category', 'LIKE', "%$search%");
             })->orWhereHas('customer', function ($query) use ($search) {
                 $query->where('name', 'LIKE', "%$search%")->orwhere('email', 'LIKE', "%$search%");
@@ -245,17 +249,22 @@ class ProjectController extends Controller
             $documentAction = BootstrapTableService::button('bi bi-eye-fill', '', $documentsButtonCustomClasses, $documentsButtonCustomAttributes);
 
             $operate = null;
+            
+            // Always show edit button for admins with update permissions (for any project)
+            if (has_permissions('update', 'project')) {
+                $operate = BootstrapTableService::editButton(route('project.edit', $row->id), false);
+            }
+            
             if ($row->is_admin_listing == true) {
-                if (has_permissions('update', 'project')) {
-                    $operate = BootstrapTableService::editButton(route('project.edit', $row->id), false);
-                }
+                // For admin listings, also show delete button if permissions allow
                 if (has_permissions('delete', 'project')) {
                     $operate .= BootstrapTableService::deleteAjaxButton(route('project.destroy', $row->id));
                 }
             } else {
+                // For non-admin listings, also show request status button
                 $requestStatusButtonCustomClasses = ["btn", "icon", "btn-warning", "btn-sm", "rounded-pill", "request-status-btn"];
                 $requestStatusButtonCustomAttributes = ["id" => $row->id, "title" => trans('Change Status'), "data-toggle" => "modal", "data-bs-target" => "#changeRequestStatusModal", "data-bs-toggle" => "modal"];
-                $operate = BootstrapTableService::button('fa fa-exclamation-circle', '', $requestStatusButtonCustomClasses, $requestStatusButtonCustomAttributes);
+                $operate .= BootstrapTableService::button('fa fa-exclamation-circle', '', $requestStatusButtonCustomClasses, $requestStatusButtonCustomAttributes);
             }
 
             $tempRow = $row->toArray();
@@ -338,9 +347,13 @@ class ProjectController extends Controller
 
             $project = Projects::find($id);
             $project->title = $request->title;
+            $project->title_ar = $request->title_ar ?? null;
             $project->slug_id = generateUniqueSlug($slugData, 4, null, $id);
             $project->category_id = $request->category_id;
             $project->description = $request->description;
+            $project->description_ar = $request->description_ar ?? null;
+            $project->area_description = $request->area_description ?? null;
+            $project->area_description_ar = $request->area_description_ar ?? null;
             $project->location = $request->address;
             $project->meta_title = $request->meta_title ?? null;
             $project->meta_description = $request->meta_description ?? null;
@@ -655,8 +668,12 @@ class ProjectController extends Controller
                         'project_id' => $request->id,
                         'reason' => $request->reject_reason
                     ));
+                    // If rejected, keep status as inactive (0)
+                    Projects::where('id', $request->id)->update(['request_status' => $request->request_status, 'status' => 0]);
+                } else {
+                    // If approved, set status to active (1)
+                    Projects::where('id', $request->id)->update(['request_status' => $request->request_status, 'status' => 1]);
                 }
-                Projects::where('id', $request->id)->update(['request_status' => $request->request_status, 'status' => 0]);
                 DB::commit();
 
                 // Send mail for project status

@@ -75,6 +75,7 @@
                                     <th scope="col" data-field="owner_name" data-align="center" data-sortable="false"> {{ __('Client Name') }}</th>
                                     <th scope="col" data-field="customer.mobile" data-align="center" data-sortable="false"> {{ __('Mobile') }} </th>
                                     <th scope="col" data-field="title" data-align="center" data-sortable="true">{{ __('Title') }} </th>
+                                    <th scope="col" data-field="title_ar" data-align="center" data-sortable="true" data-formatter="arabicTextFormatter">{{ __('Arabic Title') }} </th>
                                     <th scope="col" data-field="category.category" data-align="center"> {{ __('Category') }}</th>
                                     <th scope="col" data-field="type" data-align="center" data-sortable="true" data-formatter="projectTypeFormatter"> {{ __('Type') }}</th>
                                     <th scope="col" data-field="release_date" data-align="center" data-sortable="true" data-formatter="dateFormatter"> {{ __('Release Date') }}</th>
@@ -196,6 +197,13 @@
         function dateFormatter(value, row) {
             if (value) {
                 return moment(value).format('DD MMM, YYYY');
+            }
+            return '-';
+        }
+
+        function arabicTextFormatter(value, row) {
+            if (value) {
+                return '<div dir="rtl" style="text-align: right;">' + value + '</div>';
             }
             return '-';
         }

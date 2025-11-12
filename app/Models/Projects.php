@@ -12,9 +12,13 @@ class Projects extends Model
     protected $dates = ['created_at', 'updated_at', 'deleted_at', 'release_date'];
     protected $fillable = array(
         'title',
+        'title_ar',
         'slug_id',
         'category_id',
         'description',
+        'description_ar',
+        'area_description',
+        'area_description_ar',
         'location',
         'added_by',
         'is_admin_listing',

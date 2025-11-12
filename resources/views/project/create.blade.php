@@ -71,6 +71,30 @@
                         {{ Form::textarea('description', '', [ 'class' => 'form-control mb-3', 'rows' => '5', 'id' => '', 'required' => 'true', 'placeholder' => __('Description') ]) }}
                     </div>
 
+                    {{-- Arabic Title --}}
+                    <div class="col-md-12 col-12 form-group">
+                        {{ Form::label('title_ar', __('Arabic Title'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::text('title_ar', '', [ 'class' => 'form-control ', 'placeholder' =>  __('Arabic Title'), 'id' => 'title_ar', 'dir' => 'rtl' ]) }}
+                    </div>
+
+                    {{-- Arabic Description --}}
+                    <div class="col-md-12 col-12 form-group">
+                        {{ Form::label('description_ar', __('Arabic Description'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::textarea('description_ar', '', [ 'class' => 'form-control mb-3', 'rows' => '5', 'id' => '', 'placeholder' => __('Arabic Description'), 'dir' => 'rtl' ]) }}
+                    </div>
+
+                    {{-- Area Description --}}
+                    <div class="col-md-12 col-12 form-group">
+                        {{ Form::label('area_description', __('Area Description'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::textarea('area_description', '', [ 'class' => 'form-control mb-3', 'rows' => '5', 'id' => '', 'placeholder' => __('Area Description') ]) }}
+                    </div>
+
+                    {{-- Arabic Area Description --}}
+                    <div class="col-md-12 col-12 form-group">
+                        {{ Form::label('area_description_ar', __('Arabic Area Description'), ['class' => 'form-label col-12 ']) }}
+                        {{ Form::textarea('area_description_ar', '', [ 'class' => 'form-control mb-3', 'rows' => '5', 'id' => '', 'placeholder' => __('Arabic Area Description'), 'dir' => 'rtl' ]) }}
+                    </div>
+
                     {{-- Project Type --}}
                     <div class="col-md-12 col-12  form-group  mandatory">
                         <div class="row">
