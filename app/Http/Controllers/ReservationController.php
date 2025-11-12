@@ -1028,7 +1028,70 @@ class ReservationController extends Controller
                             'overlapping_count' => $overlappingReservations->count()
                         ]);
                         
-                        ApiResponseService::errorResponse("Room {$roomId} is not available for the selected dates");
+                        // Try to find an alternative available room in the same hotel
+                        $alternativeRoom = HotelRoom::where('property_id', $request->property_id)
+                            ->where('id', '!=', $roomId)
+                            ->where(function ($query) {
+                                // Allow active rooms or rooms with status = 1
+                                $query->where('status', 1)
+                                    ->orWhere('status', true);
+                            })
+                            ->get()
+                            ->first(function ($altRoom) use ($modelType, $request) {
+                                // Check if this alternative room is available
+                                return $this->reservationService->areDatesAvailable(
+                                    $modelType,
+                                    $altRoom->id,
+                                    $request->check_in_date,
+                                    $request->check_out_date
+                                );
+                            });
+                        
+                        if ($alternativeRoom) {
+                            // Found an alternative room - update the room object in the array
+                            $roomObject['id'] = $alternativeRoom->id;
+                            // Recalculate amount based on alternative room price if needed
+                            // $numberOfDays is already calculated above
+                            $roomObject['amount'] = ($alternativeRoom->price_per_night ?? $alternativeRoom->price ?? 0) * $numberOfDays;
+                            
+                            Log::info('Using alternative room for reservation', [
+                                'original_room_id' => $roomId,
+                                'alternative_room_id' => $alternativeRoom->id,
+                                'property_id' => $request->property_id
+                            ]);
+                            
+                            // Update the room variable for the rest of the loop
+                            $room = $alternativeRoom;
+                            $roomId = $alternativeRoom->id;
+                            $roomAmount = $roomObject['amount'];
+                        } else {
+                            // No alternative room found - return error with suggestions
+                            $availableRooms = HotelRoom::where('property_id', $request->property_id)
+                                ->where('id', '!=', $roomId)
+                                ->where(function ($query) {
+                                    $query->where('status', 1)
+                                        ->orWhere('status', true);
+                                })
+                                ->get(['id', 'room_number', 'price_per_night', 'room_type_id'])
+                                ->take(5);
+                            
+                            $suggestions = $availableRooms->map(function ($r) {
+                                return [
+                                    'id' => $r->id,
+                                    'room_number' => $r->room_number,
+                                    'price_per_night' => $r->price_per_night
+                                ];
+                            })->toArray();
+                            
+                            ApiResponseService::errorResponse(
+                                "Room {$roomId} is not available for the selected dates. " . 
+                                ($availableRooms->count() > 0 
+                                    ? "Please try one of the other available rooms in this hotel." 
+                                    : "No other rooms are available in this hotel for the selected dates."),
+                                500,
+                                ['suggested_rooms' => $suggestions]
+                            );
+                        }
                     }
                 }
 
