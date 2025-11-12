@@ -1126,6 +1126,16 @@ class ReservationController extends Controller
                     $request->payment['amount']
                 );
 
+                // Validate discount info
+                if (!isset($discountInfo['final_amount']) || $discountInfo['final_amount'] <= 0) {
+                    Log::error('Invalid discount calculation result', [
+                        'discount_info' => $discountInfo,
+                        'payment_amount' => $request->payment['amount'],
+                        'customer_id' => $customerId
+                    ]);
+                    return ApiResponseService::errorResponse('Invalid payment amount after discount calculation');
+                }
+
                 // Use database transaction
                 $payment = null;
                 $mainReservation = null; // This will be the first reservation, linked to the payment
@@ -1229,12 +1239,29 @@ class ReservationController extends Controller
                 });
 
                 // Log payment record after transaction is committed
-                Log::info('Hotel room payment record committed to database', [
-                    'payment_id' => $payment->id,
-                    'transaction_id' => $payment->transaction_id,
-                    'status' => $payment->status,
-                    'reservation_id' => $payment->reservation_id
-                ]);
+                if (isset($payment) && $payment) {
+                    Log::info('Hotel room payment record committed to database', [
+                        'payment_id' => $payment->id,
+                        'transaction_id' => $payment->transaction_id,
+                        'status' => $payment->status,
+                        'reservation_id' => $payment->reservation_id
+                    ]);
+                } else {
+                    Log::error('Payment record was not created in database transaction for hotel room reservation', [
+                        'transaction_id' => $transactionId,
+                        'main_reservation_id' => $mainReservation->id ?? null
+                    ]);
+                    throw new \Exception('Failed to create payment record for hotel room reservation');
+                }
+
+                // Validate mainReservation was created
+                if (!isset($mainReservation) || !$mainReservation) {
+                    Log::error('mainReservation was not created in database transaction for hotel room reservation', [
+                        'transaction_id' => $transactionId,
+                        'payment_id' => $payment->id ?? null
+                    ]);
+                    throw new \Exception('Failed to create main reservation for hotel room booking');
+                }
 
                 // Set the reservation variable for the payment intent creation
                 $reservation = $mainReservation;
@@ -1267,7 +1294,17 @@ class ReservationController extends Controller
             $paymentService = app(\App\Services\Payment\PaymentService::class)->create($paymentData);
 
             // Create payment intent
-            $paymentIntent = $paymentService->createAndFormatPaymentIntent($discountInfo['final_amount'], $metadata);
+            try {
+                $paymentIntent = $paymentService->createAndFormatPaymentIntent($discountInfo['final_amount'], $metadata);
+            } catch (\Exception $paymentIntentException) {
+                Log::error('Failed to create payment intent in createReservationWithPayment', [
+                    'error' => $paymentIntentException->getMessage(),
+                    'trace' => $paymentIntentException->getTraceAsString(),
+                    'amount' => $discountInfo['final_amount'],
+                    'transaction_id' => $transactionId
+                ]);
+                throw $paymentIntentException;
+            }
 
             // Update payment record with Paymob order ID
             if (isset($payment) && isset($paymentIntent['id'])) {
@@ -1291,7 +1328,15 @@ class ReservationController extends Controller
             // Send flexible hotel booking approval email to customer if this is a flexible booking
             // (instant_booking = false for hotel properties)
             if (isset($reservation) && $reservation) {
-                $property = $reservation->property;
+                try {
+                    $property = $reservation->property;
+                } catch (\Exception $e) {
+                    Log::warning('Failed to load property relationship for reservation', [
+                        'reservation_id' => $reservation->id ?? null,
+                        'error' => $e->getMessage()
+                    ]);
+                    $property = null;
+                }
                 if ($property && $property->property_classification == 5 && !$property->instant_booking) {
                     try {
                         // Send flexible booking approval email to customer
@@ -1327,13 +1372,22 @@ class ReservationController extends Controller
                     'discount_info' => $discountInfo,
                 ]);
             } else {
+                // Validate that mainReservation exists before accessing its id
+                if (!isset($mainReservation) || !$mainReservation) {
+                    Log::error('mainReservation is null when trying to return response for hotel room reservations', [
+                        'reservations_count' => isset($reservations) ? count($reservations) : 0,
+                        'transaction_id' => $transactionId
+                    ]);
+                    throw new \Exception('Failed to create main reservation for hotel room booking');
+                }
+                
                 return ApiResponseService::successResponse('Multiple room reservations and payment intent created successfully', [
-                    'reservations' => $reservations,
+                    'reservations' => $reservations ?? [],
                     'main_reservation_id' => $mainReservation->id,
                     'payment_intent' => $paymentIntent,
                     'transaction_id' => $transactionId,
                     'discount_info' => $discountInfo,
-                    'rooms_count' => count($reservations)
+                    'rooms_count' => isset($reservations) ? count($reservations) : 0
                 ]);
             }
         } catch (\Exception $e) {
