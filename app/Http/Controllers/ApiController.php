@@ -6989,9 +6989,17 @@ class ApiController extends Controller
                         // IF Request Status is passed and status has approved or rejected or pending or all
                         $requestAccessData = explode(',', $request->request_status);
                         return $query->whereIn('request_status', $requestAccessData);
-                    })->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'title_ar', 'type', 'image', 'location', 'status', 'category_id', 'added_by', 'created_at', 'request_status', 'description', 'description_ar', 'area_description', 'area_description_ar', 'bedroom', 'bathroom', 'garage', 'year_built', 'lot_size');
+                    })->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'title_ar', 'type', 'image', 'location', 'status', 'category_id', 'added_by', 'created_at', 'request_status', 'description', 'description_ar', 'area_description', 'area_description_ar', 'bedroom', 'bathroom', 'garage', 'year_built', 'lot_size')
+                    ->orderBy('created_at', 'DESC');
                 // Get Total
                 $total = $projectsQuery->clone()->count();
+
+                // Calculate total clicks for all user projects (handle null values)
+                try {
+                    $totalClicks = Projects::where('added_by', $user->id)->sum('total_click') ?? 0;
+                } catch (Exception $e) {
+                    $totalClicks = 0;
+                }
 
                 // Get Data
                 $data = $projectsQuery->clone()->take($limit)->skip($offset)->get()->map(function ($project) {
@@ -7003,7 +7011,7 @@ class ApiController extends Controller
                     $projectArray['created_at'] = $project->created_at->diffForHumans();
                     return $projectArray;
                 });
-                return ApiResponseService::successResponseReturn("Data Fetched Successfully", $data, array('total' => $total));
+                return ApiResponseService::successResponseReturn("Data Fetched Successfully", $data, array('total' => $total, 'total_clicks' => $totalClicks));
             }
         } catch (Exception $e) {
             ApiResponseService::errorResponse();
