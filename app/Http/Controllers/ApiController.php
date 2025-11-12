@@ -6877,7 +6877,7 @@ class ApiController extends Controller
                 ->with('gallary_images')
                 ->with('documents')
                 ->with('plans')
-                ->with('category:id,category,image,category_ar')
+                ->with('category:id,category,image')
                 ->where(function ($query) {
                     $query->where(['request_status' => 'approved', 'status' => 1]);
                 });
@@ -6944,7 +6944,7 @@ class ApiController extends Controller
 
             // Base query for selected columns
             $projectsQuery = Projects::where('added_by', $user->id)
-                ->with('category:id,slug_id,image,category,category_ar', 'gallary_images', 'customer:id,name,profile,email,mobile');
+                ->with('category:id,slug_id,image,category', 'gallary_images', 'customer:id,name,profile,email,mobile');
 
             // Check if either id or slug_id is provided
             if ($request->filled('id') || $request->filled('slug_id')) {
@@ -7030,7 +7030,7 @@ class ApiController extends Controller
 
             // Query
             $projectsQuery = Projects::where(['request_status' => 'approved', 'status' => 1])
-                ->with('category:id,slug_id,image,category,category_ar', 'gallary_images', 'customer:id,name,profile,email,mobile,slug_id')
+                ->with('category:id,slug_id,image,category', 'gallary_images', 'customer:id,name,profile,email,mobile,slug_id')
                 ->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'title_ar', 'type', 'image', 'status', 'location', 'category_id', 'added_by', 'is_admin_listing', 'request_status', 'description', 'description_ar', 'area_description', 'area_description_ar', 'bedroom', 'bathroom', 'garage', 'year_built', 'lot_size')
                 ->when($latitude && $longitude, function ($query) use ($latitude, $longitude, $radius) {
                     if ($radius && !empty($radius)) {
