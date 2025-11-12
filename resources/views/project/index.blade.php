@@ -328,6 +328,18 @@
             }
         }
 
+        // Show/hide reject reason field based on status selection
+        $(document).on('change', '.request-status', function() {
+            if ($(this).val() === 'rejected') {
+                $(".reject-reason-text-div").show();
+                $("#reject-reason-text").attr('required', true);
+            } else {
+                $(".reject-reason-text-div").hide();
+                $("#reject-reason-text").removeAttr('required');
+                $("#reject-reason-text").val('');
+            }
+        });
+
         function editFormSuccessFunction () {
             $('#table_list').bootstrapTable('refresh');
             setTimeout(function () {
