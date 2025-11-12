@@ -196,7 +196,6 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
 
     /** Projects */
     Route::get('get-added-projects', [ApiController::class, 'getAddedProjects']);
-    Route::get('get-project-detail', [ApiController::class, 'getProjectDetail']);
     Route::post('change-project-status', [ApiController::class, 'changeProjectStatus']);
     /*********************************************************************** */
 
@@ -231,6 +230,7 @@ Route::get('get-all-similar-properties', [ApiController::class, 'getAllSimilarPr
 
 /** Projects */
 Route::get('get-projects', [ApiController::class, 'getProjects']);
+Route::get('get-project-detail', [ApiController::class, 'getProjectDetail']);
 /*********************************************************************** */
 
 /** User */
