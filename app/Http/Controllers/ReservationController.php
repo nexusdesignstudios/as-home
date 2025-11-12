@@ -1129,6 +1129,7 @@ class ReservationController extends Controller
                 // Use database transaction
                 $payment = null;
                 $mainReservation = null; // This will be the first reservation, linked to the payment
+                $reservations = []; // Initialize reservations array
 
                 DB::transaction(function () use ($request, $modelType, $roomObjects, $discountInfo, $transactionId, &$reservations, &$payment, &$mainReservation) {
                     // Create reservations for each room
@@ -1139,7 +1140,13 @@ class ReservationController extends Controller
                         // For the first room, create a reservation that will be linked to the payment
                         if ($index === 0) {
                             // Calculate discount for this room (proportional to total discount)
-                            $roomOriginalAmount = $roomAmount / (1 - ($discountInfo['discount_percentage'] / 100));
+                            // Prevent division by zero if discount_percentage is 100
+                            $discountDivisor = 1 - ($discountInfo['discount_percentage'] / 100);
+                            if ($discountDivisor <= 0) {
+                                $roomOriginalAmount = $roomAmount;
+                            } else {
+                                $roomOriginalAmount = $roomAmount / $discountDivisor;
+                            }
                             $roomDiscountAmount = $roomOriginalAmount - $roomAmount;
                             
                             $mainReservation = Reservation::create([
@@ -1187,7 +1194,13 @@ class ReservationController extends Controller
                         } else {
                             // For subsequent rooms, create reservations with the same transaction ID
                             // Calculate discount for this room (proportional to total discount)
-                            $roomOriginalAmount = $roomAmount / (1 - ($discountInfo['discount_percentage'] / 100));
+                            // Prevent division by zero if discount_percentage is 100
+                            $discountDivisor = 1 - ($discountInfo['discount_percentage'] / 100);
+                            if ($discountDivisor <= 0) {
+                                $roomOriginalAmount = $roomAmount;
+                            } else {
+                                $roomOriginalAmount = $roomAmount / $discountDivisor;
+                            }
                             $roomDiscountAmount = $roomOriginalAmount - $roomAmount;
                             
                             $reservation = Reservation::create([
