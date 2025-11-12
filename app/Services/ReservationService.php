@@ -443,6 +443,9 @@ class ReservationService
             $reservation->status = 'confirmed';
             $reservation->payment_status = $paymentStatus;
             $reservation->save();
+            
+            // Mark tier discount as used if this reservation used a discount
+            $this->markTierDiscountAsUsed($reservation);
 
             \Illuminate\Support\Facades\Log::info('Reservation status updated via admin confirmation', [
                 'reservation_id' => $reservation->id,
@@ -483,6 +486,61 @@ class ReservationService
                 'trace' => $e->getTraceAsString()
             ]);
             throw $e;
+        }
+    }
+
+    /**
+     * Mark tier discount as used when reservation is confirmed.
+     *
+     * @param \App\Models\Reservation $reservation
+     * @return void
+     */
+    private function markTierDiscountAsUsed($reservation)
+    {
+        try {
+            $customerId = $reservation->customer_id;
+            $reservableType = $reservation->reservable_type;
+            
+            // Find the unused tier discount for this customer and reservation type
+            $tierDiscount = \App\Models\CustomerTierDiscount::where('customer_id', $customerId)
+                ->where('reservable_type', $reservableType)
+                ->where('used', false)
+                ->orderBy('tier_milestone', 'desc') // Get highest tier first
+                ->first();
+            
+            // Also check for hotel room variants
+            if (!$tierDiscount && in_array($reservableType, ['App\\Models\\HotelRoom', 'App\Models\HotelRoom', 'HotelRoom'])) {
+                $tierDiscount = \App\Models\CustomerTierDiscount::where('customer_id', $customerId)
+                    ->whereIn('reservable_type', [
+                        'App\\Models\\HotelRoom',
+                        'App\Models\HotelRoom',
+                        'HotelRoom'
+                    ])
+                    ->where('used', false)
+                    ->orderBy('tier_milestone', 'desc')
+                    ->first();
+            }
+            
+            if ($tierDiscount) {
+                $tierDiscount->used = true;
+                $tierDiscount->reservation_id = $reservation->id;
+                $tierDiscount->used_at = now();
+                $tierDiscount->save();
+                
+                \Illuminate\Support\Facades\Log::info('Tier discount marked as used', [
+                    'tier_discount_id' => $tierDiscount->id,
+                    'reservation_id' => $reservation->id,
+                    'tier_milestone' => $tierDiscount->tier_milestone,
+                    'customer_id' => $customerId
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to mark tier discount as used', [
+                'error' => $e->getMessage(),
+                'reservation_id' => $reservation->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            // Don't throw - this is not critical
         }
     }
 
