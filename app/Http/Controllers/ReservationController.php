@@ -917,9 +917,9 @@ class ReservationController extends Controller
                         'check_out_date' => $request->check_out_date,
                         'number_of_guests' => $request->number_of_guests ?? 1,
                         'total_price' => $discountInfo['final_amount'],
-                        'original_amount' => $discountInfo['original_amount'],
-                        'discount_percentage' => $discountInfo['discount_percentage'],
-                        'discount_amount' => $discountInfo['discount_amount'],
+                        'original_amount' => $discountInfo['original_amount'] ?? $discountInfo['final_amount'],
+                        'discount_percentage' => $discountInfo['discount_percentage'] ?? 0,
+                        'discount_amount' => $discountInfo['discount_amount'] ?? 0,
                         'special_requests' => $request->special_requests,
                         'status' => 'pending',
                         'payment_status' => 'unpaid',
@@ -974,22 +974,23 @@ class ReservationController extends Controller
                     $room = HotelRoom::find($roomId);
 
                     if (!$room) {
-                        ApiResponseService::errorResponse("Hotel room with ID {$roomId} not found");
+                        return ApiResponseService::errorResponse("Hotel room with ID {$roomId} not found", 404);
                     }
 
                     // Check if the room belongs to the specified property
                     if ($room->property_id != $request->property_id) {
-                        ApiResponseService::errorResponse("Room {$roomId} does not belong to the specified property");
+                        return ApiResponseService::errorResponse("Room {$roomId} does not belong to the specified property", 400);
                     }
 
                     // Check room status - allow booking of active rooms (status = true) and pending rooms
                     // Only block inactive rooms (status = false)
                     // Note: This allows booking of rooms that are pending approval
                     // if ($room->status === false) {
-                    //     ApiResponseService::errorResponse("Room {$roomId} is currently inactive and cannot be booked");
+                    //     return ApiResponseService::errorResponse("Room {$roomId} is currently inactive and cannot be booked", 400);
                     // }
 
-                    // Check availability
+                    // Check availability - only confirmed reservations block availability
+                    // Pending/unpaid reservations do NOT block availability
                     $isAvailable = $this->reservationService->areDatesAvailable(
                         $modelType,
                         $roomId,
@@ -1107,13 +1108,13 @@ class ReservationController extends Controller
                                 ];
                             })->toArray();
                             
-                            ApiResponseService::errorResponse(
+                            return ApiResponseService::errorResponse(
                                 "Room {$roomId} is not available for the selected dates. " . 
                                 ($availableRooms->count() > 0 
                                     ? "Please try one of the other available rooms in this hotel." 
                                     : "No other rooms are available in this hotel for the selected dates."),
-                                500,
-                                ['suggested_rooms' => $suggestions]
+                                400,
+                                ['suggested_rooms' => $suggestions, 'overlapping_reservations' => $overlappingReservations->toArray()]
                             );
                         }
                     }
@@ -1168,9 +1169,9 @@ class ReservationController extends Controller
                                 'check_out_date' => $request->check_out_date,
                                 'number_of_guests' => $request->number_of_guests ?? 1,
                                 'total_price' => $roomAmount,
-                                'original_amount' => $roomOriginalAmount,
-                                'discount_percentage' => $discountInfo['discount_percentage'],
-                                'discount_amount' => $roomDiscountAmount,
+                                'original_amount' => $roomOriginalAmount ?? $roomAmount,
+                                'discount_percentage' => $discountInfo['discount_percentage'] ?? 0,
+                                'discount_amount' => $roomDiscountAmount ?? 0,
                                 'special_requests' => $request->special_requests,
                                 'status' => 'pending',
                                 'payment_status' => 'unpaid',
@@ -1222,9 +1223,9 @@ class ReservationController extends Controller
                                 'check_out_date' => $request->check_out_date,
                                 'number_of_guests' => $request->number_of_guests ?? 1,
                                 'total_price' => $roomAmount,
-                                'original_amount' => $roomOriginalAmount,
-                                'discount_percentage' => $discountInfo['discount_percentage'],
-                                'discount_amount' => $roomDiscountAmount,
+                                'original_amount' => $roomOriginalAmount ?? $roomAmount,
+                                'discount_percentage' => $discountInfo['discount_percentage'] ?? 0,
+                                'discount_amount' => $roomDiscountAmount ?? 0,
                                 'special_requests' => $request->special_requests,
                                 'status' => 'pending',
                                 'payment_status' => 'unpaid',

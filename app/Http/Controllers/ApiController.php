@@ -2958,12 +2958,13 @@ class ApiController extends Controller
             if ($request->feature_for == 'property') {
                 $packageData = HelperService::updatePackageLimit('property_feature', true);
                 $checkAdvertisement = $advertisementQuery->clone()->where('property_id', $request->property_id)->count();
+                if (collect($packageData)->isEmpty()) {
+                    ApiResponseService::validationError("Package not found");
+                }
             } else {
-                $packageData = HelperService::updatePackageLimit('project_feature', true);
+                // Project features are no longer tied to subscription plans - anyone can feature projects
+                $packageData = null;
                 $checkAdvertisement = $advertisementQuery->clone()->where('project_id', $request->project_id)->count();
-            }
-            if (collect($packageData)->isEmpty()) {
-                ApiResponseService::validationError("Package not found");
             }
             if (!empty($checkAdvertisement)) {
                 ApiResponseService::validationError("Advertisement Already Exists");
@@ -2974,9 +2975,21 @@ class ApiController extends Controller
             if (isset($request->end_date)) {
                 $advertisementData->end_date = $request->end_date;
             } else {
-                $advertisementData->end_date = Carbon::now()->addHours($packageData->duration);
+                // For projects, use a default duration (e.g., 30 days) since they're not tied to packages
+                // For properties, use package duration
+                if ($request->feature_for == 'property' && $packageData) {
+                    $advertisementData->end_date = Carbon::now()->addHours($packageData->duration);
+                } else {
+                    // Default 30 days for project features (not tied to subscription)
+                    $advertisementData->end_date = Carbon::now()->addDays(30);
+                }
             }
-            $advertisementData->package_id = $packageData->id;
+            // Only set package_id for properties (projects are not tied to packages)
+            if ($request->feature_for == 'property' && $packageData) {
+                $advertisementData->package_id = $packageData->id;
+            } else {
+                $advertisementData->package_id = null;
+            }
             $advertisementData->type = 'HomeScreen';
             if ($request->feature_for == 'property') {
                 $advertisementData->property_id = $request->property_id;
@@ -7922,7 +7935,7 @@ class ApiController extends Controller
     public function checkPackageLimit(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'type' => 'required|in:property_list,property_feature,project_list,project_feature,mortgage_calculator_detail,premium_properties,project_access',
+            'type' => 'required|in:property_list,property_feature,project_list,mortgage_calculator_detail,premium_properties,project_access',
         ]);
         if ($validator->fails()) {
             return ApiResponseService::validationError($validator->errors()->first());
