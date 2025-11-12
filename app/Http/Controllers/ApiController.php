@@ -6875,7 +6875,10 @@ class ApiController extends Controller
             ApiResponseService::validationError($validator->errors()->first());
         }
         try {
-            HelperService::checkPackageLimit('project_access');
+            // Skip package check for non-logged-in users to allow preview access
+            if (Auth::guard('sanctum')->check()) {
+                HelperService::checkPackageLimit('project_access');
+            }
             $getSimilarProjects = array();
             // Explicitly select all necessary fields including Arabic translations and project details
             $project = Projects::select(
@@ -6897,9 +6900,9 @@ class ApiController extends Controller
 
             if ($request->get_similar == 1) {
                 if ($request->has('id') && !empty($request->id)) {
-                    $getSimilarProjects = $project->clone()->where('id', '!=', $request->id)->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'type', 'image', 'location', 'category_id', 'added_by', 'request_status')->get();
+                    $getSimilarProjects = $project->clone()->where('id', '!=', $request->id)->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'title_ar', 'type', 'image', 'location', 'category_id', 'added_by', 'request_status')->get();
                 } else if ($request->has('slug_id') && !empty($request->slug_id)) {
-                    $getSimilarProjects = $project->clone()->where('slug_id', '!=', $request->slug_id)->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'type', 'image', 'location', 'category_id', 'added_by', 'request_status')->get();
+                    $getSimilarProjects = $project->clone()->where('slug_id', '!=', $request->slug_id)->select('id', 'slug_id', 'city', 'state', 'country', 'title', 'title_ar', 'type', 'image', 'location', 'category_id', 'added_by', 'request_status')->get();
                 }
             }
 
@@ -6938,11 +6941,19 @@ class ApiController extends Controller
                 $data->customer = (object) $customCustomer;
             }
 
-
+            // Include similar projects in response if requested
+            $responseData = $data;
+            if ($request->get_similar == 1 && !empty($getSimilarProjects)) {
+                return ApiResponseService::successResponseReturn(
+                    "Data Fetch Successfully",
+                    $responseData,
+                    array('similar_projects' => $getSimilarProjects)
+                );
+            }
 
             return ApiResponseService::successResponseReturn(
                 "Data Fetch Successfully",
-                $data,
+                $responseData,
             );
         } catch (Exception $e) {
             ApiResponseService::errorResponse();
