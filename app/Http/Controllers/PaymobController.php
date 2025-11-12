@@ -10,6 +10,7 @@ use App\Models\Package;
 use App\Models\UserPackage;
 use App\Models\PackageFeature;
 use App\Models\UserPackageLimit;
+use App\Models\Customer;
 use App\Services\ApiResponseService;
 use App\Services\Payment\PaymentService;
 use App\Services\Payment\PaymobPayoutService;
@@ -2452,12 +2453,113 @@ As-home Asset Management Team';
                 'package_id' => $packageId,
                 'user_package_id' => $userPackage->id
             ]);
+
+            // Send subscription success email to user
+            $this->sendSubscriptionSuccessEmail($paymentTransaction, $package, $userPackage);
         } catch (\Exception $e) {
             Log::error('Failed to assign package to user: ' . $e->getMessage(), [
                 'payment_transaction_id' => $paymentTransaction->id,
                 'trace' => $e->getTraceAsString()
             ]);
             throw $e;
+        }
+    }
+
+    /**
+     * Send subscription success email to user
+     *
+     * @param PaymentTransaction $paymentTransaction
+     * @param Package $package
+     * @param UserPackage $userPackage
+     * @return void
+     */
+    private function sendSubscriptionSuccessEmail($paymentTransaction, $package, $userPackage)
+    {
+        try {
+            $customer = Customer::find($paymentTransaction->user_id);
+            
+            if (!$customer || !$customer->email) {
+                Log::warning('Cannot send subscription email - customer not found or no email', [
+                    'user_id' => $paymentTransaction->user_id
+                ]);
+                return;
+            }
+
+            // Get email template type
+            $emailTypeData = HelperService::getEmailTemplatesTypes('subscription_success');
+            $emailTemplateData = system_setting($emailTypeData['type'] ?? 'subscription_success_email');
+
+            // Default email template if not configured
+            if (empty($emailTemplateData)) {
+                $emailTemplateData = 'Dear {customer_name},
+
+Thank you for your subscription to {package_name} on As-home!
+
+We are pleased to confirm that your payment has been successfully processed and your subscription is now active.
+
+Subscription Details:
+• Package: {package_name}
+• Start Date: {start_date}
+• End Date: {end_date}
+• Amount Paid: {amount_paid}
+
+You can now:
+• Access your dashboard
+• List and manage properties
+• Explore all features included in your plan
+
+If you have any questions or need assistance, please don\'t hesitate to contact our support team.
+
+Welcome to As-home — we\'re excited to have you with us!
+
+Best regards,
+As-home Team
+
+www.ashome-eg.com';
+            }
+
+            // Format dates
+            $startDate = $userPackage->start_date ? Carbon::parse($userPackage->start_date)->format('F d, Y') : 'N/A';
+            $endDate = $userPackage->end_date ? Carbon::parse($userPackage->end_date)->format('F d, Y') : 'Unlimited';
+            
+            // Get currency symbol
+            $currencySymbol = HelperService::getSettingData('currency_symbol') ?? 'EGP';
+            $amountPaid = $currencySymbol . ' ' . number_format($paymentTransaction->amount, 2);
+
+            // Prepare email variables
+            $variables = [
+                'customer_name' => $customer->name ?? 'Valued Customer',
+                'package_name' => $package->name ?? 'Subscription Package',
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'amount_paid' => $amountPaid,
+            ];
+
+            // Replace variables in template
+            $emailTemplate = HelperService::replaceEmailVariables($emailTemplateData, $variables);
+
+            // Send email
+            $data = [
+                'email_template' => $emailTemplate,
+                'email' => $customer->email,
+                'title' => 'Subscription Activated Successfully',
+            ];
+
+            HelperService::sendMail($data);
+
+            Log::info('Subscription success email sent', [
+                'user_id' => $customer->id,
+                'email' => $customer->email,
+                'package_id' => $package->id,
+                'package_name' => $package->name
+            ]);
+        } catch (\Exception $e) {
+            // Log error but don't throw - email failure shouldn't break package assignment
+            Log::error('Failed to send subscription success email: ' . $e->getMessage(), [
+                'payment_transaction_id' => $paymentTransaction->id,
+                'user_id' => $paymentTransaction->user_id,
+                'trace' => $e->getTraceAsString()
+            ]);
         }
     }
 
