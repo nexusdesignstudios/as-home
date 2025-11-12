@@ -1248,7 +1248,14 @@ class ReservationController extends Controller
                 }
             }
 
-            throw new \Exception('Failed to create reservation with payment: ' . $e->getMessage());
+            // Log the error for debugging
+            Log::error('Failed to create reservation with payment', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->except(['payment'])
+            ]);
+
+            return ApiResponseService::errorResponse('Failed to create reservation with payment: ' . $e->getMessage());
         }
     }
 
