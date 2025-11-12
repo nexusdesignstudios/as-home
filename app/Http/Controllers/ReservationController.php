@@ -1943,33 +1943,45 @@ The {app_name} Team';
             $usedHotelDiscounts = [];
             
             try {
-                $usedPropertyDiscounts = \App\Models\CustomerTierDiscount::where('customer_id', $customer_id)
-                    ->where('reservable_type', 'App\\Models\\Property')
-                    ->where('used', true)
-                    ->pluck('tier_milestone')
-                    ->toArray();
+                if (class_exists('\App\Models\CustomerTierDiscount')) {
+                    $usedPropertyDiscounts = \App\Models\CustomerTierDiscount::where('customer_id', $customer_id)
+                        ->where('reservable_type', 'App\\Models\\Property')
+                        ->where('used', true)
+                        ->pluck('tier_milestone')
+                        ->toArray();
+                }
             } catch (\Exception $e) {
                 Log::warning('Could not fetch used property discounts', [
                     'customer_id' => $customer_id,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
                 ]);
+                // Set empty array on error
+                $usedPropertyDiscounts = [];
             }
             
             try {
-                $usedHotelDiscounts = \App\Models\CustomerTierDiscount::where('customer_id', $customer_id)
-                    ->where(function($query) {
-                        $query->where('reservable_type', 'App\\Models\\HotelRoom')
-                              ->orWhere('reservable_type', 'App\Models\HotelRoom')
-                              ->orWhere('reservable_type', 'HotelRoom');
-                    })
-                    ->where('used', true)
-                    ->pluck('tier_milestone')
-                    ->toArray();
+                if (class_exists('\App\Models\CustomerTierDiscount')) {
+                    $usedHotelDiscounts = \App\Models\CustomerTierDiscount::where('customer_id', $customer_id)
+                        ->where(function($query) {
+                            $query->where('reservable_type', 'App\\Models\\HotelRoom')
+                                  ->orWhere('reservable_type', 'App\Models\HotelRoom')
+                                  ->orWhere('reservable_type', 'HotelRoom');
+                        })
+                        ->where('used', true)
+                        ->pluck('tier_milestone')
+                        ->toArray();
+                }
             } catch (\Exception $e) {
                 Log::warning('Could not fetch used hotel discounts', [
                     'customer_id' => $customer_id,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
                 ]);
+                // Set empty array on error
+                $usedHotelDiscounts = [];
             }
             
             // Calculate available discounts for vacation homes (Star Tiers)
