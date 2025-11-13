@@ -6906,7 +6906,9 @@ class ApiController extends Controller
             // Projects are always previewable for all users (signed in and unsigned) regardless of subscription
             // Package check removed to allow preview access for everyone
             $getSimilarProjects = array();
-            // Explicitly select all necessary fields including Arabic translations and project details
+            // Select core fields that are guaranteed to exist in all database versions
+            // Optional fields (ownership_type, admin fields, company fields) are excluded to prevent SQL errors
+            // These can be added back if migrations are confirmed to be run on production
             $project = Projects::select(
                 'id', 'slug_id', 'title', 'title_ar', 'description', 'description_ar', 
                 'area_description', 'area_description_ar', 'location', 'city', 'state', 
@@ -6914,10 +6916,7 @@ class ApiController extends Controller
                 'meta_title', 'meta_description', 'meta_keywords', 'meta_image',
                 'status', 'request_status', 'total_click', 'category_id', 'added_by',
                 'bedroom', 'bathroom', 'garage', 'year_built', 'lot_size', 
-                'ownership_type', 'admin_full_name', 'admin_email', 'admin_phone_number', 
-                'admin_whatsapp_number', 'admin_address', 'admin_profile_image',
-                'company_employee_username', 'company_employee_email', 'company_employee_phone_number', 
-                'company_employee_whatsappnumber', 'is_admin_listing', 'created_at', 'updated_at'
+                'is_admin_listing', 'created_at', 'updated_at'
             )
                 ->with('customer:id,name,profile,email,mobile,whatsappnumber,address,slug_id')
                 ->with('gallary_images')
