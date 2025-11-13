@@ -9836,6 +9836,7 @@ class ApiController extends Controller
             ]);
 
             // Create reservation record for the revenue tab
+            // Note: $request->amount is the discounted amount (after discount is applied)
             $reservationData = [
                 'customer_id' => $request->customer_id, // Use customer ID from request
                 'customer_name' => $request->customer_name,
@@ -9847,7 +9848,12 @@ class ApiController extends Controller
                 'check_in_date' => $request->check_in_date,
                 'check_out_date' => $request->check_out_date,
                 'number_of_guests' => $request->number_of_guests,
-                'total_price' => $request->amount,
+                'total_price' => $request->amount, // This is the discounted amount (after discount)
+                'original_amount' => $request->original_amount ?? $request->amount, // Original amount before discount
+                'discount_percentage' => $request->discount_percentage ?? 0, // Discount percentage
+                'discount_amount' => isset($request->original_amount) && isset($request->amount) 
+                    ? ($request->original_amount - $request->amount) 
+                    : 0, // Calculate discount amount
                 'payment_method' => 'Card',
                 'payment_status' => 'pending',
                 'status' => 'pending',
