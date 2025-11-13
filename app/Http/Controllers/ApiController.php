@@ -6903,10 +6903,8 @@ class ApiController extends Controller
             ApiResponseService::validationError($validator->errors()->first());
         }
         try {
-            // Skip package check for non-logged-in users to allow preview access
-            if (Auth::guard('sanctum')->check()) {
-                HelperService::checkPackageLimit('project_access');
-            }
+            // Projects are always previewable for all users (signed in and unsigned) regardless of subscription
+            // Package check removed to allow preview access for everyone
             $getSimilarProjects = array();
             // Explicitly select all necessary fields including Arabic translations and project details
             $project = Projects::select(
