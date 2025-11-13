@@ -305,15 +305,15 @@ class ReservationController extends Controller
             'check_out_date' => 'required|date|after:check_in_date',
         ]);
 
-        // Custom validation for dates
-        $checkInDate = Carbon::parse($request->check_in_date);
-        $checkOutDate = Carbon::parse($request->check_out_date);
-        $today = Carbon::today();
+        // Custom validation for dates - use timezone-aware comparison
+        $checkInDate = Carbon::parse($request->check_in_date)->startOfDay();
+        $checkOutDate = Carbon::parse($request->check_out_date)->startOfDay();
+        $appTimezone = \App\Services\HelperService::getSettingData('timezone') ?? config('app.timezone', 'UTC');
+        $today = Carbon::today($appTimezone)->startOfDay();
 
-        
-
-        // Check for past dates
-        if ($checkInDate->lt($today) || $checkOutDate->lt($today)) {
+        // Check for past dates - compare dates only (not time) to avoid timezone issues
+        if ($checkInDate->format('Y-m-d') < $today->format('Y-m-d') || 
+            $checkOutDate->format('Y-m-d') < $today->format('Y-m-d')) {
             $validator->errors()->add('past_date', 'Check-in and check-out dates cannot be in the past');
         }
 
@@ -370,15 +370,15 @@ class ReservationController extends Controller
             ]);
         }
 
-        // Custom validation for dates
-        $checkInDate = Carbon::parse($request->check_in_date);
-        $checkOutDate = Carbon::parse($request->check_out_date);
-        $today = Carbon::today();
+        // Custom validation for dates - use timezone-aware comparison
+        $checkInDate = Carbon::parse($request->check_in_date)->startOfDay();
+        $checkOutDate = Carbon::parse($request->check_out_date)->startOfDay();
+        $appTimezone = \App\Services\HelperService::getSettingData('timezone') ?? config('app.timezone', 'UTC');
+        $today = Carbon::today($appTimezone)->startOfDay();
 
-        
-
-        // Check for past dates
-        if ($checkInDate->lt($today) || $checkOutDate->lt($today)) {
+        // Check for past dates - compare dates only (not time) to avoid timezone issues
+        if ($checkInDate->format('Y-m-d') < $today->format('Y-m-d') || 
+            $checkOutDate->format('Y-m-d') < $today->format('Y-m-d')) {
             $validator->errors()->add('past_date', 'Check-in and check-out dates cannot be in the past');
         }
 
@@ -847,15 +847,15 @@ class ReservationController extends Controller
             ]);
         }
 
-        // Custom validation for dates
-        $checkInDate = Carbon::parse($request->check_in_date);
-        $checkOutDate = Carbon::parse($request->check_out_date);
-        $today = Carbon::today();
+        // Custom validation for dates - use timezone-aware comparison
+        $checkInDate = Carbon::parse($request->check_in_date)->startOfDay();
+        $checkOutDate = Carbon::parse($request->check_out_date)->startOfDay();
+        $appTimezone = \App\Services\HelperService::getSettingData('timezone') ?? config('app.timezone', 'UTC');
+        $today = Carbon::today($appTimezone)->startOfDay();
 
-        
-
-        // Check for past dates
-        if ($checkInDate->lt($today) || $checkOutDate->lt($today)) {
+        // Check for past dates - compare dates only (not time) to avoid timezone issues
+        if ($checkInDate->format('Y-m-d') < $today->format('Y-m-d') || 
+            $checkOutDate->format('Y-m-d') < $today->format('Y-m-d')) {
             $validator->errors()->add('past_date', 'Check-in and check-out dates cannot be in the past');
         }
 

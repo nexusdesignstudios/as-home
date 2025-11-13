@@ -888,8 +888,9 @@ Confirmation Date: {confirmation_date}
         try {
             // Parse the check-in and check-out dates with error handling
             try {
-                $checkIn = Carbon::parse($checkInDate);
-                $checkOut = Carbon::parse($checkOutDate);
+                // Parse dates and set to start of day to avoid timezone issues
+                $checkIn = Carbon::parse($checkInDate)->startOfDay();
+                $checkOut = Carbon::parse($checkOutDate)->startOfDay();
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Date parsing error in areDatesAvailable', [
                     'checkInDate' => $checkInDate,
@@ -899,10 +900,14 @@ Confirmation Date: {confirmation_date}
                 return false;
             }
             
-            $today = Carbon::today();
+            // Get today's date in the application timezone, set to start of day for accurate comparison
+            $appTimezone = \App\Services\HelperService::getSettingData('timezone') ?? config('app.timezone', 'UTC');
+            $today = Carbon::today($appTimezone)->startOfDay();
 
-            // Check for past dates
-            if ($checkIn->lt($today) || $checkOut->lt($today)) {
+            // Check for past dates - compare dates only (not time)
+            // Use format comparison to avoid timezone issues
+            if ($checkIn->format('Y-m-d') < $today->format('Y-m-d') || 
+                $checkOut->format('Y-m-d') < $today->format('Y-m-d')) {
                 return false;
             }
 
