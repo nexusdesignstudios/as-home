@@ -320,6 +320,176 @@
             </div>
         </div>
 
+        {{-- Agreements --}}
+        <div class="col-md-12">
+            <div class="card">
+                <h3 class="card-header">{{ __('Agreements') }}</h3>
+                <hr>
+                <div class="card-body">
+                    <div class="row">
+                        {{-- Ownership Contract --}}
+                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3">
+                            {{ Form::label('ownership_contract', __('Ownership Contract'), ['class' => 'form-label']) }}
+                            <input type="file" class="filepond" id="ownership_contract" name="ownership_contract" accept="image/jpg,image/png,image/jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                        </div>
+
+                        {{-- National ID/Passport --}}
+                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3">
+                            {{ Form::label('national_id_passport', __('National ID/Passport'), ['class' => 'form-label']) }}
+                            <input type="file" class="filepond" id="national_id_passport" name="national_id_passport" accept="image/jpg,image/png,image/jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                        </div>
+
+                        {{-- Alternative ID --}}
+                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3">
+                            {{ Form::label('alternative_id', __('Alternative ID'), ['class' => 'form-label']) }}
+                            <input type="file" class="filepond" id="alternative_id" name="alternative_id" accept="image/jpg,image/png,image/jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                        </div>
+
+                        {{-- Utilities Bills --}}
+                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3">
+                            {{ Form::label('utilities_bills', __('Utilities Bills'), ['class' => 'form-label']) }}
+                            <input type="file" class="filepond" id="utilities_bills" name="utilities_bills" accept="image/jpg,image/png,image/jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                        </div>
+
+                        {{-- Power of Attorney --}}
+                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3">
+                            {{ Form::label('power_of_attorney', __('Power of Attorney'), ['class' => 'form-label']) }}
+                            <input type="file" class="filepond" id="power_of_attorney" name="power_of_attorney" accept="image/jpg,image/png,image/jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Contact Details --}}
+        <div class="col-md-12">
+            <div class="card">
+                <h3 class="card-header">{{ __('Contact Details') }}</h3>
+                <hr>
+                <div class="card-body">
+                    {{-- Ownership Type --}}
+                    <div class="form-group mb-4">
+                        {{ Form::label('ownership_type', __('Ownership Type'), ['class' => 'form-label col-12']) }}
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                {{ Form::radio('ownership_type', 'individual', true, ['class' => 'form-check-input', 'id' => 'ownership_individual']) }}
+                                {{ Form::label('ownership_individual', __('Admin Info'), ['class' => 'form-check-label']) }}
+                            </div>
+                            <div class="form-check">
+                                {{ Form::radio('ownership_type', 'employee', false, ['class' => 'form-check-input', 'id' => 'ownership_employee']) }}
+                                {{ Form::label('ownership_employee', __('Employee Details'), ['class' => 'form-check-label']) }}
+                            </div>
+                            <div class="form-check">
+                                {{ Form::radio('ownership_type', 'company', false, ['class' => 'form-check-input', 'id' => 'ownership_company']) }}
+                                {{ Form::label('ownership_company', __('Company'), ['class' => 'form-check-label']) }}
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Admin Info (Individual) --}}
+                    <div id="admin-info-section" class="contact-section">
+                        <h5 class="mb-3">{{ __('Admin Info') }}</h5>
+                        <div class="row">
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('admin_full_name', __('Full Name'), ['class' => 'form-label']) }}
+                                {{ Form::text('admin_full_name', '', ['class' => 'form-control', 'placeholder' => __('Full Name')]) }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('admin_email', __('Email'), ['class' => 'form-label']) }}
+                                {{ Form::email('admin_email', '', ['class' => 'form-control', 'placeholder' => __('Email')]) }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('admin_phone_number', __('Phone Number'), ['class' => 'form-label']) }}
+                                {{ Form::text('admin_phone_number', '', ['class' => 'form-control', 'placeholder' => __('Phone Number')]) }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('admin_whatsapp_number', __('WhatsApp Number'), ['class' => 'form-label']) }}
+                                {{ Form::text('admin_whatsapp_number', '', ['class' => 'form-control', 'placeholder' => __('WhatsApp Number')]) }}
+                            </div>
+                            <div class="col-md-12 form-group">
+                                {{ Form::label('admin_address', __('Address'), ['class' => 'form-label']) }}
+                                {{ Form::textarea('admin_address', '', ['class' => 'form-control', 'rows' => '3', 'placeholder' => __('Address')]) }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('admin_profile_image', __('Profile Image'), ['class' => 'form-label']) }}
+                                <input type="file" class="filepond" id="admin_profile_image" name="admin_profile_image" accept="image/jpg,image/png,image/jpeg">
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Employee Details --}}
+                    <div id="employee-section" class="contact-section" style="display: none;">
+                        <h5 class="mb-3">{{ __('Employee Details') }}</h5>
+                        <div class="row">
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('company_employee_username', __('Username'), ['class' => 'form-label']) }}
+                                {{ Form::text('company_employee_username', '', ['class' => 'form-control', 'placeholder' => __('Username')]) }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('company_employee_email', __('Email'), ['class' => 'form-label']) }}
+                                {{ Form::email('company_employee_email', '', ['class' => 'form-control', 'placeholder' => __('Email')]) }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('company_employee_phone_number', __('Phone Number'), ['class' => 'form-label']) }}
+                                {{ Form::text('company_employee_phone_number', '', ['class' => 'form-control', 'placeholder' => __('Phone Number')]) }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('company_employee_whatsappnumber', __('WhatsApp Number'), ['class' => 'form-label']) }}
+                                {{ Form::text('company_employee_whatsappnumber', '', ['class' => 'form-control', 'placeholder' => __('WhatsApp Number')]) }}
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Company Details --}}
+                    <div id="company-section" class="contact-section" style="display: none;">
+                        <h5 class="mb-3">{{ __('Company Details') }}</h5>
+                        <div class="row">
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('company_legal_name', __('Company Legal Name'), ['class' => 'form-label']) }}
+                                {{ Form::text('company_legal_name', '', ['class' => 'form-control', 'placeholder' => __('Company Legal Name')]) }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('manager_name', __('Manager Name'), ['class' => 'form-label']) }}
+                                {{ Form::text('manager_name', '', ['class' => 'form-control', 'placeholder' => __('Manager Name')]) }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('type_of_company', __('Type of Company'), ['class' => 'form-label']) }}
+                                {{ Form::text('type_of_company', '', ['class' => 'form-control', 'placeholder' => __('Type of Company')]) }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('company_email_address', __('Email Address'), ['class' => 'form-label']) }}
+                                {{ Form::email('company_email_address', '', ['class' => 'form-control', 'placeholder' => __('Email Address')]) }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('bank_branch', __('Bank Branch'), ['class' => 'form-label']) }}
+                                {{ Form::text('bank_branch', '', ['class' => 'form-control', 'placeholder' => __('Bank Branch')]) }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('company_country', __('Country'), ['class' => 'form-label']) }}
+                                {{ Form::text('company_country', '', ['class' => 'form-control', 'placeholder' => __('Country')]) }}
+                            </div>
+                            <div class="col-md-12 form-group">
+                                {{ Form::label('bank_address', __('Bank Address'), ['class' => 'form-label']) }}
+                                {{ Form::textarea('bank_address', '', ['class' => 'form-control', 'rows' => '3', 'placeholder' => __('Bank Address')]) }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('bank_account_number', __('Bank Account Number'), ['class' => 'form-label']) }}
+                                {{ Form::text('bank_account_number', '', ['class' => 'form-control', 'placeholder' => __('Bank Account Number')]) }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('iban', __('IBAN'), ['class' => 'form-label']) }}
+                                {{ Form::text('iban', '', ['class' => 'form-control', 'placeholder' => __('IBAN')]) }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                {{ Form::label('swift_code', __('Swift Code'), ['class' => 'form-label']) }}
+                                {{ Form::text('swift_code', '', ['class' => 'form-control', 'placeholder' => __('Swift Code')]) }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- Save --}}
         <div class='col-md-12 d-flex justify-content-end mb-3'>
             <input type="submit" class="btn btn-primary" value="{{ __('Save') }}"> &nbsp;&nbsp;
@@ -341,6 +511,19 @@
         $(document).ready(function() {
             getWordCount("meta_title", "meta_title_count", "19.9px arial");
             getWordCount("meta_description", "meta_description_count", "12.9px arial");
+
+            // Handle ownership type change
+            $('input[name="ownership_type"]').on('change', function() {
+                var selectedType = $(this).val();
+                $('.contact-section').hide();
+                if (selectedType === 'individual') {
+                    $('#admin-info-section').show();
+                } else if (selectedType === 'employee') {
+                    $('#employee-section').show();
+                } else if (selectedType === 'company') {
+                    $('#company-section').show();
+                }
+            });
         });
 
         function initMap() {
