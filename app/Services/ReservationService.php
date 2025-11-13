@@ -439,6 +439,16 @@ class ReservationService
     public function handleReservationConfirmation($reservation, $paymentStatus = 'paid')
     {
         try {
+            // Prevent duplicate email sending - if already confirmed and paid, skip
+            if ($reservation->status === 'confirmed' && $reservation->payment_status === 'paid') {
+                \Illuminate\Support\Facades\Log::info('Reservation already confirmed and paid, skipping duplicate confirmation', [
+                    'reservation_id' => $reservation->id,
+                    'status' => $reservation->status,
+                    'payment_status' => $reservation->payment_status
+                ]);
+                return;
+            }
+            
             // Update reservation status and payment status
             $reservation->status = 'confirmed';
             $reservation->payment_status = $paymentStatus;
