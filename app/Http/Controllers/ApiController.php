@@ -6917,7 +6917,7 @@ class ApiController extends Controller
                 'ownership_type', 'admin_full_name', 'admin_email', 'admin_phone_number', 
                 'admin_whatsapp_number', 'admin_address', 'admin_profile_image',
                 'company_employee_username', 'company_employee_email', 'company_employee_phone_number', 
-                'company_employee_whatsappnumber', 'created_at', 'updated_at'
+                'company_employee_whatsappnumber', 'is_admin_listing', 'created_at', 'updated_at'
             )
                 ->with('customer:id,name,profile,email,mobile,whatsappnumber,address,slug_id')
                 ->with('gallary_images')
@@ -6949,35 +6949,43 @@ class ApiController extends Controller
             $total = $project->clone()->count();
             $data = $project->first();
 
-            if (!empty($data) && $data->is_admin_listing == 1) {
+            // Check if project exists
+            if (empty($data)) {
+                return ApiResponseService::errorResponse("Project not found", null, 404);
+            }
+
+            if (!empty($data) && isset($data->is_admin_listing) && $data->is_admin_listing == 1) {
                 $adminCompanyTel1 = system_setting('company_tel1');
                 $adminEmail = system_setting('company_email');
                 $adminAddress = system_setting('company_address');
                 $adminData = User::where('type', 0)->select('id', 'name', 'profile', 'slug_id')->first();
 
-                // Create modified customer data
-                $customCustomer = [
-                    'id' => $adminData->id,
-                    'name' => $adminData->name,
-                    'slug_id' => $adminData->slug_id,
-                    'profile' => !empty($adminData->getRawOriginal('profile')) ? $adminData->profile : url('assets/images/faces/2.jpg'),
-                    'mobile' => !empty($adminCompanyTel1) ? $adminCompanyTel1 : "",
-                    'email' => !empty($adminEmail) ? $adminEmail : "",
-                    'address' => !empty($adminAddress) ? $adminAddress : "",
-                ];
+                // Only create custom customer if admin data exists
+                if (!empty($adminData)) {
+                    // Create modified customer data
+                    $customCustomer = [
+                        'id' => $adminData->id,
+                        'name' => $adminData->name,
+                        'slug_id' => $adminData->slug_id,
+                        'profile' => !empty($adminData->getRawOriginal('profile')) ? $adminData->profile : url('assets/images/faces/2.jpg'),
+                        'mobile' => !empty($adminCompanyTel1) ? $adminCompanyTel1 : "",
+                        'email' => !empty($adminEmail) ? $adminEmail : "",
+                        'address' => !empty($adminAddress) ? $adminAddress : "",
+                    ];
 
-                // Force Laravel to include the modified customer data
-                $data->setRelation('customer', (object) $customCustomer);
-                $data->customer = (object) $customCustomer;
+                    // Force Laravel to include the modified customer data
+                    $data->setRelation('customer', (object) $customCustomer);
+                    $data->customer = (object) $customCustomer;
+                }
             }
 
             // Include similar projects in response if requested
             $responseData = $data;
-            if ($request->get_similar == 1 && !empty($getSimilarProjects)) {
+            if ($request->get_similar == 1) {
                 return ApiResponseService::successResponseReturn(
                     "Data Fetch Successfully",
                     $responseData,
-                    array('similar_projects' => $getSimilarProjects)
+                    array('similar_projects' => !empty($getSimilarProjects) ? $getSimilarProjects : [])
                 );
             }
 
@@ -6986,7 +6994,8 @@ class ApiController extends Controller
                 $responseData,
             );
         } catch (Exception $e) {
-            ApiResponseService::errorResponse();
+            ApiResponseService::logErrorResponse($e, $e->getMessage(), 'Something Went Wrong');
+            ApiResponseService::errorResponse('Something Went Wrong', null, null, $e);
         }
     }
 
