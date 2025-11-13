@@ -59,10 +59,14 @@ class PaymobPayment implements PaymentInterface
     private function createOrder($token, $amount, $metadata)
     {
         try {
+            // Ensure amount_cents is an integer (Paymob requirement)
+            // Round to 2 decimal places first to handle floating point precision issues
+            $amountCents = (int) round($amount * 100, 0);
+            
             $response = Http::post($this->baseUrl . '/ecommerce/orders', [
                 'auth_token' => $token,
                 'delivery_needed' => false,
-                'amount_cents' => $amount * 100,
+                'amount_cents' => $amountCents,
                 'currency' => $this->currencyCode,
                 'merchant_order_id' => $metadata['payment_transaction_id'] ?? time(),
                 'items' => []
@@ -106,9 +110,13 @@ class PaymobPayment implements PaymentInterface
                 'state' => 'NA',
             ];
 
+            // Ensure amount_cents is an integer (Paymob requirement)
+            // Round to 2 decimal places first to handle floating point precision issues
+            $amountCents = (int) round($amount * 100, 0);
+            
             $response = Http::post($this->baseUrl . '/acceptance/payment_keys', [
                 'auth_token' => $token,
-                'amount_cents' => $amount * 100,
+                'amount_cents' => $amountCents,
                 'expiration' => 3600,
                 'order_id' => $orderId,
                 'billing_data' => $billingData,
@@ -219,10 +227,13 @@ class PaymobPayment implements PaymentInterface
         try {
             $token = $this->getAuthToken();
 
+            // Ensure amount_cents is an integer (Paymob requirement)
+            $amountCents = (int) round($amount * 100, 0);
+            
             $response = Http::post($this->baseUrl . '/acceptance/void_refund/refund', [
                 'auth_token' => $token,
                 'transaction_id' => $transactionId,
-                'amount_cents' => $amount * 100,
+                'amount_cents' => $amountCents,
                 'reason' => $reason
             ]);
 
@@ -293,9 +304,12 @@ class PaymobPayment implements PaymentInterface
             $token = $this->getAuthToken();
 
             // Format the payout data according to Paymob's requirements
+            // Ensure amount_cents is an integer (Paymob requirement)
+            $amountCents = (int) round($payoutData['amount'] * 100, 0);
+            
             $formattedData = [
                 'auth_token' => $token,
-                'amount_cents' => $payoutData['amount'] * 100,
+                'amount_cents' => $amountCents,
                 'currency' => $payoutData['currency'] ?? $this->currencyCode,
                 'disbursement_type' => $payoutData['disbursement_type'] ?? 'bank_wallet', // bank_wallet, bank_card, mobile_wallet
                 'beneficiary' => [
