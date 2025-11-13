@@ -1832,7 +1832,7 @@ The {app_name} Team';
             // Validate customer exists - try by ID first, then by email if ID fails
             $customer = null;
             try {
-                $customer = \App\Models\Customer::find($customer_id);
+            $customer = \App\Models\Customer::find($customer_id);
                 if (!$customer && filter_var($customer_id, FILTER_VALIDATE_EMAIL)) {
                     // If customer_id is an email, try to find by email
                     $customer = \App\Models\Customer::where('email', $customer_id)->first();
@@ -1882,7 +1882,7 @@ The {app_name} Team';
                         // Check if it's a vacation home (Property)
                         if ($reservableType === 'App\\Models\\Property') {
                             $vacationHomesCount++;
-                            
+
                             // Count by status (use original status, not lowercase, for consistency)
                             if (!isset($vacationHomesByStatus[$statusLower])) {
                                 $vacationHomesByStatus[$statusLower] = 0;
@@ -1918,10 +1918,10 @@ The {app_name} Team';
                         continue;
                     }
                 }
-                
-                // Get total count
-                $totalCount = $vacationHomesCount + $hotelRoomsCount;
-                
+
+            // Get total count
+            $totalCount = $vacationHomesCount + $hotelRoomsCount;
+
                 // Debug: Log the counts
                 Log::info('Reservation counts for customer (simplified counting)', [
                     'customer_id' => $customer_id,
@@ -1955,10 +1955,10 @@ The {app_name} Team';
             try {
                 if (class_exists('\App\Models\CustomerTierDiscount')) {
                     $usedPropertyDiscounts = \App\Models\CustomerTierDiscount::where('customer_id', $customer_id)
-                        ->where('reservable_type', 'App\\Models\\Property')
+                ->where('reservable_type', 'App\\Models\\Property')
                         ->where('used', true)
                         ->pluck('tier_milestone')
-                        ->toArray();
+                ->toArray();
                 }
             } catch (\Exception $e) {
                 Log::warning('Could not fetch used property discounts', [
@@ -1981,7 +1981,7 @@ The {app_name} Team';
                         })
                         ->where('used', true)
                         ->pluck('tier_milestone')
-                        ->toArray();
+                ->toArray();
                 }
             } catch (\Exception $e) {
                 Log::warning('Could not fetch used hotel discounts', [
@@ -2110,10 +2110,10 @@ The {app_name} Team';
                 ->whereIn('status', ['confirmed', 'approved', 'completed'])
                 ->count();
         } else {
-            $completedBookings = Reservation::where('customer_id', $customerId)
-                ->where('reservable_type', $reservableType)
+        $completedBookings = Reservation::where('customer_id', $customerId)
+            ->where('reservable_type', $reservableType)
                 ->whereIn('status', ['confirmed', 'approved', 'completed'])
-                ->count();
+            ->count();
         }
 
         $discountPercentage = 0;

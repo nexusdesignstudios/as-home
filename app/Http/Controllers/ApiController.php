@@ -6915,9 +6915,13 @@ class ApiController extends Controller
                 'country', 'latitude', 'longitude', 'video_link', 'type', 'image', 
                 'meta_title', 'meta_description', 'meta_keywords', 'meta_image',
                 'status', 'request_status', 'total_click', 'category_id', 'added_by',
-                'bedroom', 'bathroom', 'garage', 'year_built', 'lot_size', 'created_at', 'updated_at'
+                'bedroom', 'bathroom', 'garage', 'year_built', 'lot_size', 
+                'ownership_type', 'admin_full_name', 'admin_email', 'admin_phone_number', 
+                'admin_whatsapp_number', 'admin_address', 'admin_profile_image',
+                'company_employee_username', 'company_employee_email', 'company_employee_phone_number', 
+                'company_employee_whatsappnumber', 'created_at', 'updated_at'
             )
-                ->with('customer:id,name,profile,email,mobile,address,slug_id')
+                ->with('customer:id,name,profile,email,mobile,whatsappnumber,address,slug_id')
                 ->with('gallary_images')
                 ->with('documents')
                 ->with('plans')
