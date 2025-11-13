@@ -897,11 +897,43 @@ class ReservationController extends Controller
                 }
 
                 // Calculate discount
-                $discountInfo = $this->calculateCustomerDiscount(
-                    $customerId,
-                    $modelType,
-                    $request->payment['amount']
-                );
+                try {
+                    $discountInfo = $this->calculateCustomerDiscount(
+                        $customerId,
+                        $modelType,
+                        $request->payment['amount']
+                    );
+                } catch (\Exception $e) {
+                    Log::error('Error calculating customer discount for property reservation', [
+                        'customer_id' => $customerId,
+                        'property_id' => $request->property_id,
+                        'amount' => $request->payment['amount'],
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    return ApiResponseService::errorResponse('Failed to calculate discount. Please try again.');
+                }
+
+                // Validate discount info
+                if (!$discountInfo || !is_array($discountInfo)) {
+                    Log::error('Invalid discount calculation result - discountInfo is null or not an array for property reservation', [
+                        'discount_info' => $discountInfo,
+                        'payment_amount' => $request->payment['amount'],
+                        'customer_id' => $customerId,
+                        'property_id' => $request->property_id
+                    ]);
+                    return ApiResponseService::errorResponse('Failed to calculate discount. Please try again.');
+                }
+
+                if (!isset($discountInfo['final_amount']) || $discountInfo['final_amount'] <= 0) {
+                    Log::error('Invalid discount calculation result for property reservation', [
+                        'discount_info' => $discountInfo,
+                        'payment_amount' => $request->payment['amount'],
+                        'customer_id' => $customerId,
+                        'property_id' => $request->property_id
+                    ]);
+                    return ApiResponseService::errorResponse('Invalid payment amount after discount calculation');
+                }
 
                 // Use database transaction
                 $reservation = null;
