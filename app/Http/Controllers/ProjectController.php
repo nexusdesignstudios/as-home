@@ -131,6 +131,48 @@ class ProjectController extends Controller
                 $project->meta_image = store_image($request->file('meta_image'), 'PROJECT_SEO_IMG_PATH');
             }
 
+            // Agreements documents
+            if ($request->hasFile('ownership_contract')) {
+                $project->ownership_contract = store_image($request->file('ownership_contract'), 'PROJECT_DOCUMENT_PATH');
+            }
+            if ($request->hasFile('national_id_passport')) {
+                $project->national_id_passport = store_image($request->file('national_id_passport'), 'PROJECT_DOCUMENT_PATH');
+            }
+            if ($request->hasFile('alternative_id')) {
+                $project->alternative_id = store_image($request->file('alternative_id'), 'PROJECT_DOCUMENT_PATH');
+            }
+            if ($request->hasFile('utilities_bills')) {
+                $project->utilities_bills = store_image($request->file('utilities_bills'), 'PROJECT_DOCUMENT_PATH');
+            }
+            if ($request->hasFile('power_of_attorney')) {
+                $project->power_of_attorney = store_image($request->file('power_of_attorney'), 'PROJECT_DOCUMENT_PATH');
+            }
+
+            // Contact details
+            $project->ownership_type = $request->ownership_type ?? null;
+            $project->admin_full_name = $request->admin_full_name ?? null;
+            $project->admin_email = $request->admin_email ?? null;
+            $project->admin_phone_number = $request->admin_phone_number ?? null;
+            $project->admin_whatsapp_number = $request->admin_whatsapp_number ?? null;
+            $project->admin_address = $request->admin_address ?? null;
+            if ($request->hasFile('admin_profile_image')) {
+                $project->admin_profile_image = store_image($request->file('admin_profile_image'), 'PROJECT_DOCUMENT_PATH');
+            }
+            $project->company_employee_username = $request->company_employee_username ?? null;
+            $project->company_employee_email = $request->company_employee_email ?? null;
+            $project->company_employee_phone_number = $request->company_employee_phone_number ?? null;
+            $project->company_employee_whatsappnumber = $request->company_employee_whatsappnumber ?? null;
+            $project->company_legal_name = $request->company_legal_name ?? null;
+            $project->manager_name = $request->manager_name ?? null;
+            $project->type_of_company = $request->type_of_company ?? null;
+            $project->company_email_address = $request->company_email_address ?? null;
+            $project->bank_branch = $request->bank_branch ?? null;
+            $project->bank_address = $request->bank_address ?? null;
+            $project->company_country = $request->company_country ?? null;
+            $project->bank_account_number = $request->bank_account_number ?? null;
+            $project->iban = $request->iban ?? null;
+            $project->swift_code = $request->swift_code ?? null;
+
             $project->save();
 
             if ($request->hasfile('gallery_images')) {
@@ -250,21 +292,21 @@ class ProjectController extends Controller
 
             $operate = null;
             
-            // Show edit button for all projects if user has update permissions
+            // Always show edit button for admins with update permissions (for any project)
             if (has_permissions('update', 'project')) {
                 $operate = BootstrapTableService::editButton(route('project.edit', $row->id), false);
             }
             
-            // Show change status button for all projects if user has update permissions
-            if (has_permissions('update', 'project')) {
+            if ($row->is_admin_listing == true) {
+                // For admin listings, also show delete button if permissions allow
+                if (has_permissions('delete', 'project')) {
+                    $operate .= BootstrapTableService::deleteAjaxButton(route('project.destroy', $row->id));
+                }
+            } else {
+                // For non-admin listings, also show request status button
                 $requestStatusButtonCustomClasses = ["btn", "icon", "btn-warning", "btn-sm", "rounded-pill", "request-status-btn"];
                 $requestStatusButtonCustomAttributes = ["id" => $row->id, "title" => trans('Change Status'), "data-toggle" => "modal", "data-bs-target" => "#changeRequestStatusModal", "data-bs-toggle" => "modal"];
                 $operate .= BootstrapTableService::button('fa fa-exclamation-circle', '', $requestStatusButtonCustomClasses, $requestStatusButtonCustomAttributes);
-            }
-            
-            // Show delete button for all projects if user has delete permissions
-            if (has_permissions('delete', 'project')) {
-                $operate .= BootstrapTableService::deleteAjaxButton(route('project.destroy', $row->id));
             }
 
             $tempRow = $row->toArray();
@@ -379,6 +421,48 @@ class ProjectController extends Controller
             if ($request->hasFile('meta_image')) {
                 $project->meta_image = store_image($request->file('meta_image'), 'PROJECT_SEO_IMG_PATH');
             }
+
+            // Agreements documents
+            if ($request->hasFile('ownership_contract')) {
+                $project->ownership_contract = store_image($request->file('ownership_contract'), 'PROJECT_DOCUMENT_PATH');
+            }
+            if ($request->hasFile('national_id_passport')) {
+                $project->national_id_passport = store_image($request->file('national_id_passport'), 'PROJECT_DOCUMENT_PATH');
+            }
+            if ($request->hasFile('alternative_id')) {
+                $project->alternative_id = store_image($request->file('alternative_id'), 'PROJECT_DOCUMENT_PATH');
+            }
+            if ($request->hasFile('utilities_bills')) {
+                $project->utilities_bills = store_image($request->file('utilities_bills'), 'PROJECT_DOCUMENT_PATH');
+            }
+            if ($request->hasFile('power_of_attorney')) {
+                $project->power_of_attorney = store_image($request->file('power_of_attorney'), 'PROJECT_DOCUMENT_PATH');
+            }
+
+            // Contact details
+            $project->ownership_type = $request->ownership_type ?? null;
+            $project->admin_full_name = $request->admin_full_name ?? null;
+            $project->admin_email = $request->admin_email ?? null;
+            $project->admin_phone_number = $request->admin_phone_number ?? null;
+            $project->admin_whatsapp_number = $request->admin_whatsapp_number ?? null;
+            $project->admin_address = $request->admin_address ?? null;
+            if ($request->hasFile('admin_profile_image')) {
+                $project->admin_profile_image = store_image($request->file('admin_profile_image'), 'PROJECT_DOCUMENT_PATH');
+            }
+            $project->company_employee_username = $request->company_employee_username ?? null;
+            $project->company_employee_email = $request->company_employee_email ?? null;
+            $project->company_employee_phone_number = $request->company_employee_phone_number ?? null;
+            $project->company_employee_whatsappnumber = $request->company_employee_whatsappnumber ?? null;
+            $project->company_legal_name = $request->company_legal_name ?? null;
+            $project->manager_name = $request->manager_name ?? null;
+            $project->type_of_company = $request->type_of_company ?? null;
+            $project->company_email_address = $request->company_email_address ?? null;
+            $project->bank_branch = $request->bank_branch ?? null;
+            $project->bank_address = $request->bank_address ?? null;
+            $project->company_country = $request->company_country ?? null;
+            $project->bank_account_number = $request->bank_account_number ?? null;
+            $project->iban = $request->iban ?? null;
+            $project->swift_code = $request->swift_code ?? null;
 
             $project->save();
 
@@ -741,7 +825,7 @@ class ProjectController extends Controller
                 //END ::  Send Notification To Customer
 
                 Notifications::create([
-                    'title' => $project->title . ' Project Updated',
+                    'title' => $project->name . 'Project Updated',
                     'message' => 'Your Project Post ' . $msg,
                     'image' => '',
                     'type' => '1',
