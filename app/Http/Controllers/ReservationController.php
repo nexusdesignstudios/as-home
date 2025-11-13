@@ -1000,124 +1000,49 @@ class ReservationController extends Controller
                     );
 
                     if (!$isAvailable) {
-                        // Log detailed information for debugging
-                        $overlappingReservations = \App\Models\Reservation::where('reservable_id', $roomId)
-                            ->where('reservable_type', $modelType)
-                            ->where('status', 'confirmed')
-                            ->where(function ($query) use ($request) {
-                                $query->where(function ($q) use ($request) {
-                                    $q->where('check_in_date', '>=', $request->check_in_date)
-                                        ->where('check_in_date', '<', $request->check_out_date);
-                                })->orWhere(function ($q) use ($request) {
-                                    $q->where('check_out_date', '>', $request->check_in_date)
-                                        ->where('check_out_date', '<=', $request->check_out_date);
-                                })->orWhere(function ($q) use ($request) {
-                                    $q->where('check_in_date', '<=', $request->check_in_date)
-                                        ->where('check_out_date', '>=', $request->check_out_date);
-                                });
-                            })
-                            ->get(['id', 'check_in_date', 'check_out_date', 'status']);
+                        // NEW CONDITION: Only block if room type availability equals zero
+                        // Check if there are any available rooms of the same type
+                        $roomTypeId = $room->room_type_id ?? null;
+                        $hasAvailableRooms = false;
                         
-                        Log::warning('Room availability check failed in createReservationWithPayment', [
-                            'room_id' => $roomId,
-                            'check_in_date' => $request->check_in_date,
-                            'check_out_date' => $request->check_out_date,
-                            'property_id' => $request->property_id,
-                            'model_type' => $modelType,
-                            'room_available_dates' => $room->available_dates ?? null,
-                            'room_availability_type' => $room->availability_type ?? null,
-                            'overlapping_reservations' => $overlappingReservations->toArray(),
-                            'overlapping_count' => $overlappingReservations->count()
-                        ]);
-                        
-                        // Try to find an alternative available room in the same hotel
-                        $alternativeRoom = null;
-                        try {
-                            $alternativeRooms = HotelRoom::where('property_id', $request->property_id)
-                                ->where('id', '!=', $roomId)
-                                ->where(function ($query) {
-                                    // Allow active rooms or rooms with status = 1
-                                    $query->where('status', 1)
-                                        ->orWhere('status', true);
-                                })
+                        if ($roomTypeId) {
+                            // Get all rooms of the same type in the same property
+                            $sameTypeRooms = HotelRoom::where('room_type_id', $roomTypeId)
+                                ->where('property_id', $request->property_id)
+                                ->where('status', 1) // Only active rooms
+                                ->where('id', '!=', $roomId) // Exclude the current room
                                 ->get();
                             
-                            foreach ($alternativeRooms as $altRoom) {
-                                try {
-                                    // Check if this alternative room is available
-                                    if ($this->reservationService->areDatesAvailable(
-                                        $modelType,
-                                        $altRoom->id,
-                                        $request->check_in_date,
-                                        $request->check_out_date
-                                    )) {
-                                        $alternativeRoom = $altRoom;
-                                        break; // Found an available alternative room
-                                    }
-                                } catch (\Exception $e) {
-                                    // Log but continue checking other rooms
-                                    Log::warning('Error checking alternative room availability', [
-                                        'room_id' => $altRoom->id,
-                                        'error' => $e->getMessage()
-                                    ]);
-                                    continue;
+                            // Check if any room of this type is available (no confirmed reservations)
+                            foreach ($sameTypeRooms as $sameTypeRoom) {
+                                $roomAvailable = $this->reservationService->areDatesAvailable(
+                                    $modelType,
+                                    $sameTypeRoom->id,
+                                    $request->check_in_date,
+                                    $request->check_out_date
+                                );
+                                if ($roomAvailable) {
+                                    $hasAvailableRooms = true;
+                                    // Use this available room instead
+                                    $roomObject['id'] = $sameTypeRoom->id;
+                                    $room = $sameTypeRoom;
+                                    $roomId = $sameTypeRoom->id;
+                                    $roomAmount = $roomObject['amount'];
+                                    break;
                                 }
                             }
-                        } catch (\Exception $e) {
-                            // Log error but don't fail - we'll return the original error
-                            Log::error('Error finding alternative rooms', [
-                                'property_id' => $request->property_id,
-                                'original_room_id' => $roomId,
-                                'error' => $e->getMessage(),
-                                'trace' => $e->getTraceAsString()
-                            ]);
                         }
                         
-                        if ($alternativeRoom) {
-                            // Found an alternative room - update the room object in the array
-                            $roomObject['id'] = $alternativeRoom->id;
-                            // Recalculate amount based on alternative room price if needed
-                            // $numberOfDays is already calculated above
-                            $roomObject['amount'] = ($alternativeRoom->price_per_night ?? $alternativeRoom->price ?? 0) * $numberOfDays;
-                            
-                            Log::info('Using alternative room for reservation', [
-                                'original_room_id' => $roomId,
-                                'alternative_room_id' => $alternativeRoom->id,
-                                'property_id' => $request->property_id
-                            ]);
-                            
-                            // Update the room variable for the rest of the loop
-                            $room = $alternativeRoom;
-                            $roomId = $alternativeRoom->id;
-                            $roomAmount = $roomObject['amount'];
-                        } else {
-                            // No alternative room found - return error with suggestions
-                            $availableRooms = HotelRoom::where('property_id', $request->property_id)
-                                ->where('id', '!=', $roomId)
-                                ->where(function ($query) {
-                                    $query->where('status', 1)
-                                        ->orWhere('status', true);
-                                })
-                                ->get(['id', 'room_number', 'price_per_night', 'room_type_id'])
-                                ->take(5);
-                            
-                            $suggestions = $availableRooms->map(function ($r) {
-                                return [
-                                    'id' => $r->id,
-                                    'room_number' => $r->room_number,
-                                    'price_per_night' => $r->price_per_night
-                                ];
-                            })->toArray();
-                            
+                        // Only block if no rooms of this type are available (room type availability = 0)
+                        if (!$hasAvailableRooms) {
+                            // All rooms of this type are fully booked - return error
                             return ApiResponseService::errorResponse(
-                                "Room {$roomId} is not available for the selected dates. " . 
-                                ($availableRooms->count() > 0 
-                                    ? "Please try one of the other available rooms in this hotel." 
-                                    : "No other rooms are available in this hotel for the selected dates."),
-                                400,
-                                ['suggested_rooms' => $suggestions, 'overlapping_reservations' => $overlappingReservations->toArray()]
+                                "No rooms available for the selected dates. All rooms of this type are fully booked.",
+                                400
                             );
                         }
+                        // If hasAvailableRooms is true, we've already updated the room to use an available one
+                        // Continue with the booking process
                     }
                 }
 

@@ -917,14 +917,46 @@ Confirmation Date: {confirmation_date}
                 return false;
             }
 
-            // PRIMARY CHECK: Check if there are any overlapping CONFIRMED reservations
-            // Only confirmed reservations should block availability
-            // This is the most important check - actual reservations take precedence over availability configuration
+            // NEW CONDITION: Only block if there are confirmed reservations for this specific room
+            // Don't block for any other conditions (available_dates, availability_type, etc.)
+            // Only block when room type availability equals zero AND no available rooms for this day
             try {
-                $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
-                if ($hasOverlap) {
-                    // There's a confirmed reservation blocking these dates
-                    return false;
+                // For hotel rooms, check if this specific room has a confirmed reservation
+                if ($modelType === 'App\\Models\\HotelRoom') {
+                    $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
+                    if ($hasOverlap) {
+                        // This specific room has a confirmed reservation - check if there are other available rooms
+                        // Get the room to check its room type
+                        $room = \App\Models\HotelRoom::find($modelId);
+                        if ($room) {
+                            // Check if there are other rooms of the same type available for these dates
+                            $sameTypeRooms = \App\Models\HotelRoom::where('room_type_id', $room->room_type_id)
+                                ->where('property_id', $room->property_id)
+                                ->where('id', '!=', $modelId)
+                                ->where('status', 1) // Only active rooms
+                                ->get();
+                            
+                            // Check if any of these rooms are available (no confirmed reservations)
+                            foreach ($sameTypeRooms as $altRoom) {
+                                $altHasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $altRoom->id, $modelType);
+                                if (!$altHasOverlap) {
+                                    // Found an available room of the same type - allow booking
+                                    return true;
+                                }
+                            }
+                            
+                            // No available rooms of this type - block booking
+                            return false;
+                        }
+                        // If room not found, block to be safe
+                        return false;
+                    }
+                } else {
+                    // For properties, use the standard overlap check
+                    $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
+                    if ($hasOverlap) {
+                        return false;
+                    }
                 }
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Error checking date overlap', [
@@ -934,17 +966,12 @@ Confirmation Date: {confirmation_date}
                     'modelType' => $modelType,
                     'error' => $e->getMessage()
                 ]);
-                // Continue with other checks even if overlap check fails
+                // On error, allow booking to avoid false blocks
+                return true;
             }
 
-            // SECONDARY CHECK: If there are no confirmed reservations, allow booking
-            // The availability configuration (available_dates) should only be used for display/pricing,
-            // not for blocking bookings when there are no actual confirmed reservations
-            
-            // Since we've already verified there are no confirmed reservations blocking the dates,
-            // we can safely allow the booking regardless of available_dates configuration
-            // This ensures that availability configuration doesn't accidentally block valid bookings
-            
+            // If no confirmed reservations blocking, allow booking
+            // Don't check available_dates, availability_type, or any other conditions
             return true;
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Unexpected error in areDatesAvailable', [
