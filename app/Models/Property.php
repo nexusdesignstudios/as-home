@@ -52,6 +52,7 @@ class Property extends Model
         'available_dates',
         'refund_policy',
         'corresponding_day',
+        'orientation_day_selected',
         'hotel_apartment_type_id',
         'rent_package',
         'check_in',
@@ -886,6 +887,28 @@ class Property extends Model
     public function setCorrespondingDayAttribute($value)
     {
         $this->attributes['corresponding_day'] = is_array($value) ? json_encode($value) : $value;
+    }
+
+    /**
+     * Get the orientation_day_selected attribute.
+     *
+     * @param  string|null  $value
+     * @return array|null
+     */
+    public function getOrientationDaySelectedAttribute($value)
+    {
+        return $value ? json_decode($value, true) : null;
+    }
+
+    /**
+     * Set the orientation_day_selected attribute.
+     *
+     * @param  mixed  $value
+     * @return void
+     */
+    public function setOrientationDaySelectedAttribute($value)
+    {
+        $this->attributes['orientation_day_selected'] = is_array($value) ? json_encode($value) : $value;
     }
 
     /**

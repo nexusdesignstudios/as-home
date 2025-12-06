@@ -9129,23 +9129,55 @@ class ApiController extends Controller
                 ], 404);
             }
 
-            // Get Data of email type
-            $emailTypeData = HelperService::getEmailTemplatesTypes("property_client_meeting");
-
-            // Email Template
-            $emailTemplateData = system_setting($emailTypeData['type']);
             $appName = Setting::where('type', 'app_name')->first();
             $appNameValue = $appName ? $appName->data : config('app.name');
 
-            // Get corresponding day from request
-            $correspondingDay = $request->corresponding_day;
+            // Parse corresponding_day JSON
+            $correspondingDayData = json_decode($request->corresponding_day, true);
+            $orientationDay = '';
+            $orientationTime = '';
+            
+            if (is_array($correspondingDayData)) {
+                $orientationDay = $correspondingDayData['day'] ?? '';
+                $orientationTime = $correspondingDayData['from'] ?? '';
+            } else {
+                $orientationDay = $request->corresponding_day;
+            }
 
-            // Prepare variables for email template
+            // Format day name for display
+            $dayNames = [
+                'sun' => 'Sunday',
+                'mon' => 'Monday',
+                'tue' => 'Tuesday',
+                'wed' => 'Wednesday',
+                'thu' => 'Thursday',
+                'fri' => 'Friday',
+                'sat' => 'Saturday'
+            ];
+            $orientationDayFormatted = $dayNames[$orientationDay] ?? ucfirst($orientationDay);
+            $correspondingDayFormatted = $orientationDayFormatted . ($orientationTime ? ' at ' . $orientationTime : '');
+
+            // Save orientation day selection to property
+            $orientationDayData = [
+                'day' => $orientationDay,
+                'time' => $orientationTime,
+                'client_name' => $request->client_name,
+                'client_email' => $request->client_email,
+                'client_number' => $request->client_number,
+                'selected_at' => now()->toDateTimeString()
+            ];
+            $property->orientation_day_selected = json_encode($orientationDayData);
+            $property->save();
+
+            // 1. Send email to property owner (existing functionality)
+            $emailTypeData = HelperService::getEmailTemplatesTypes("property_client_meeting");
+            $emailTemplateData = system_setting($emailTypeData['type']);
+
             $variables = array(
                 'app_name' => $appNameValue,
                 'customer_name' => $property->customer->name,
                 'client_name' => $request->client_name,
-                'corresponding_day' => $correspondingDay,
+                'corresponding_day' => $correspondingDayFormatted,
                 'client_number' => $request->client_number,
                 'client_email' => $request->client_email,
                 'current_date_today' => now()->format('d M Y, h:i A'),
@@ -9163,17 +9195,195 @@ class ApiController extends Controller
                 'title' => $emailTypeData['title'],
             );
 
-            // Send email
             HelperService::sendMail($data);
+
+            // 2. Send confirmation email to client (user who selected orientation day)
+            $clientEmailTypeData = HelperService::getEmailTemplatesTypes("orientation_day_confirmation");
+            $clientEmailTemplateData = system_setting($clientEmailTypeData['type']);
+
+            $clientVariables = array(
+                'app_name' => $appNameValue,
+                'client_name' => $request->client_name,
+                'property_name' => $property->title ?? 'Property',
+                'property_address' => $property->address ?? 'N/A',
+                'orientation_day' => $orientationDayFormatted,
+                'orientation_time' => $orientationTime,
+                'property_owner_name' => $property->customer->name ?? 'N/A',
+                'property_owner_phone' => $property->customer->mobile ?? $property->mobile ?? 'N/A',
+                'property_owner_email' => $property->customer->email ?? $property->email ?? 'N/A',
+            );
+
+            if (empty($clientEmailTemplateData)) {
+                $clientEmailTemplateData = "Dear {client_name},
+
+Thank you for selecting an orientation day for {property_name}!
+
+Your Orientation Day Details:
+• Property: {property_name}
+• Address: {property_address}
+• Day: {orientation_day}
+• Time: {orientation_time}
+
+Property Owner Contact Information:
+• Name: {property_owner_name}
+• Phone: {property_owner_phone}
+• Email: {property_owner_email}
+
+We look forward to seeing you on {orientation_day} at {orientation_time}!
+
+Best regards,
+{app_name} Team";
+            }
+
+            $clientEmailTemplate = HelperService::replaceEmailVariables($clientEmailTemplateData, $clientVariables);
+
+            $clientData = array(
+                'email_template' => $clientEmailTemplate,
+                'email' => $request->client_email,
+                'title' => $clientEmailTypeData['title'] ?? 'Orientation Day Confirmation',
+            );
+
+            HelperService::sendMail($clientData);
 
             return response()->json([
                 'error' => false,
-                'message' => 'Email sent successfully'
+                'message' => 'Orientation day saved and emails sent successfully'
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'error' => true,
-                'message' => 'Failed to send email: ' . $e->getMessage()
+                'message' => 'Failed to process orientation day: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get property reviews for hotels and vacation homes
+     * Only shows reviews to users who were guests at the property
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPropertyReviews(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'property_id' => 'required|exists:propertys,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'error' => true,
+                'message' => $validator->errors()->first()
+            ], 422);
+        }
+
+        try {
+            $property = Property::findOrFail($request->property_id);
+            
+            // Only allow reviews for hotels (5) and vacation homes (4)
+            if ($property->property_classification != 4 && $property->property_classification != 5) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Reviews are only available for hotels and vacation homes'
+                ], 403);
+            }
+
+            // Get authenticated user if available (optional for viewing reviews)
+            $customer = Auth::guard('sanctum')->user();
+            $customerId = $customer ? $customer->id : null;
+
+            // Check if user was a guest at this property (has a reservation)
+            $isGuest = false;
+            if ($customerId) {
+                $isGuest = \App\Models\Reservation::where('customer_id', $customerId)
+                    ->where(function($query) use ($property) {
+                        $query->where(function($q) use ($property) {
+                            $q->where('reservable_type', 'App\Models\Property')
+                              ->where('reservable_id', $property->id);
+                        })->orWhereHas('reservable', function($q) use ($property) {
+                            // For hotel rooms, check if the room belongs to this property
+                            $q->where('property_id', $property->id);
+                        });
+                    })
+                    ->whereIn('status', ['approved', 'completed'])
+                    ->exists();
+            }
+
+            // Get all reviews for this property
+            $reviews = PropertyQuestionAnswer::with([
+                'customer:id,name,email',
+                'reservation:id,check_in_date,check_out_date',
+                'property_question_field:id,name,field_type'
+            ])
+            ->where('property_id', $property->id)
+            ->whereHas('property_question_field', function($query) use ($property) {
+                $query->where('property_classification', $property->property_classification);
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+            // Group reviews by customer and reservation
+            $groupedReviews = [];
+            foreach ($reviews as $review) {
+                $key = ($review->customer_id ?? 'anonymous') . '_' . ($review->reservation_id ?? 'no_reservation');
+                
+                if (!isset($groupedReviews[$key])) {
+                    $groupedReviews[$key] = [
+                        'id' => $review->id,
+                        'customer_name' => $review->customer ? $review->customer->name : 'Anonymous',
+                        'customer_id' => $review->customer_id,
+                        'reservation_id' => $review->reservation_id,
+                        'check_in_date' => $review->reservation ? $review->reservation->check_in_date : null,
+                        'check_out_date' => $review->reservation ? $review->reservation->check_out_date : null,
+                        'created_at' => $review->created_at,
+                        'answers' => []
+                    ];
+                }
+
+                // Process value based on field type
+                $value = $review->value;
+                $fieldType = $review->property_question_field->field_type ?? 'text';
+                
+                if ($fieldType == 'file') {
+                    $value = url('') . config('global.IMG_PATH') . config('global.PROPERTY_QUESTION_PATH') . '/' . $value;
+                } elseif ($fieldType == 'checkbox') {
+                    $value = json_decode($value, true);
+                }
+
+                $groupedReviews[$key]['answers'][] = [
+                    'field_id' => $review->property_question_field_id,
+                    'field_name' => $review->property_question_field->name ?? 'Unknown',
+                    'field_type' => $fieldType,
+                    'value' => $value,
+                ];
+            }
+
+            // Convert to array and reset keys
+            $reviewsList = array_values($groupedReviews);
+
+            // Only show reviews if user is a guest OR if there are no reviews yet (to show empty state)
+            // If there are reviews but user is not a guest, don't show them
+            $canViewReviews = $isGuest || count($reviewsList) === 0;
+            $reviewsToShow = $canViewReviews ? $reviewsList : [];
+
+            return response()->json([
+                'error' => false,
+                'data' => [
+                    'reviews' => $reviewsToShow,
+                    'total_reviews' => count($reviewsList),
+                    'is_guest' => $isGuest,
+                    'can_view_reviews' => $canViewReviews,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('getPropertyReviews error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+            
+            return response()->json([
+                'error' => true,
+                'message' => 'Failed to fetch reviews: ' . $e->getMessage()
             ], 500);
         }
     }

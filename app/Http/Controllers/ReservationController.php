@@ -2228,7 +2228,7 @@ The {app_name} Team';
             );
 
             if (empty($templateData)) {
-                $templateData = 'New flexible booking request received for {hotel_name} from {customer_name} ({customer_email}). Room Type: {room_type}. Amount: {total_price} {currency_symbol}. Check-in: {check_in_date}, Check-out: {check_out_date}. Reservation ID: {reservation_id}. Please review and approve this booking in your dashboard.';
+                $templateData = 'New flexible booking request received for {hotel_name} from {customer_name} ({customer_email}). Room Type: {room_type}. Amount: {total_price} {currency_symbol}. Check-in: {check_in_date}, Check-out: {check_out_date}. Number of Guests: {number_of_guests}. Special Requests: {special_requests}. Reservation ID: {reservation_id}. Please review and approve this booking in your dashboard.';
             }
 
             $emailTemplate = \App\Services\HelperService::replaceEmailVariables($templateData, $variables);

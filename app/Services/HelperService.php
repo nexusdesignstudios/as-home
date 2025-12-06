@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Log;
 use App\Services\ApiResponseService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Symfony\Component\Intl\Currencies;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -1230,6 +1231,49 @@ class HelperService
                             ],
                         )
                     );
+                case 'orientation_day_confirmation':
+                    return array(
+                        'title' => 'Orientation Day Confirmation',
+                        'type' => 'orientation_day_confirmation_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'client_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_address',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'orientation_day',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'orientation_time',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_owner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_owner_phone',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_owner_email',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
                 case 'inquiry_form':
                     return array(
                         'title' => 'New Inquiry Form Submission',
@@ -2049,6 +2093,11 @@ class HelperService
                 'category' => 'main',
             ],
             [
+                'title' => 'Orientation Day Confirmation',
+                'type' => 'orientation_day_confirmation',
+                'category' => 'main',
+            ],
+            [
                 'title' => 'Inquiry Form Submission',
                 'type' => 'inquiry_form',
                 'category' => 'main',
@@ -2206,6 +2255,22 @@ class HelperService
     {
         try {
             $adminMail = env('MAIL_FROM_ADDRESS');
+
+            // Get logo URL for email footer
+            $logoUrl = '';
+            $webFooterLogo = system_setting('web_footer_logo');
+            $webLogo = system_setting('web_logo');
+            $companyLogo = system_setting('company_logo');
+            
+            // Prefer footer logo, then web logo, then company logo
+            $logoFile = !empty($webFooterLogo) ? $webFooterLogo : (!empty($webLogo) ? $webLogo : $companyLogo);
+            
+            if (!empty($logoFile)) {
+                $logoUrl = URL::to('assets/images/logo/' . $logoFile);
+            }
+            
+            // Add logo URL to data array for template
+            $data['logo_url'] = $logoUrl;
 
             // 1) Render the full HTML email content using selected template (fallback to default)
             //    We will convert this to PDF and attach

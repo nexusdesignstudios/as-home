@@ -68,8 +68,8 @@
                             data-page-list="[5, 10, 20, 50, 100, 200]" data-search="true" data-search-align="right"
                             data-toolbar="#toolbar" data-show-columns="true" data-show-refresh="true"
                             data-trim-on-search="false" data-responsive="true" data-sort-name="id" data-sort-order="desc"
-                            data-pagination-successively-size="3" data-query-params="queryParams">
-                            <thead class="thead-dark">
+                            data-pagination-successively-size="3" data-query-params="queryParams" data-height="600">
+                                <thead class="thead-dark">
                                 <tr>
                                     <th scope="col" data-field="id" data-sortable="true"> {{ __('ID') }}</th>
                                     <th scope="col" data-field="owner_name" data-align="center" data-sortable="false"> {{ __('Client Name') }}</th>
@@ -186,6 +186,58 @@
 @endsection
 
 @section('script')
+    <style>
+        /* Projects table scrollable container */
+        #table_list {
+            margin-bottom: 0;
+        }
+        
+        /* Ensure Bootstrap Table container has proper scrolling */
+        .bootstrap-table .fixed-table-container {
+            max-height: 70vh;
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+        
+        /* Make table header sticky when scrolling */
+        .bootstrap-table .fixed-table-header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #fff;
+        }
+        
+        /* Custom scrollbar styling for better visibility */
+        .bootstrap-table .fixed-table-container::-webkit-scrollbar,
+        .bootstrap-table .fixed-table-body::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        
+        .bootstrap-table .fixed-table-container::-webkit-scrollbar-track,
+        .bootstrap-table .fixed-table-body::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 5px;
+        }
+        
+        .bootstrap-table .fixed-table-container::-webkit-scrollbar-thumb,
+        .bootstrap-table .fixed-table-body::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 5px;
+        }
+        
+        .bootstrap-table .fixed-table-container::-webkit-scrollbar-thumb:hover,
+        .bootstrap-table .fixed-table-body::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Firefox scrollbar styling */
+        .bootstrap-table .fixed-table-container,
+        .bootstrap-table .fixed-table-body {
+            scrollbar-width: thin;
+            scrollbar-color: #888 #f1f1f1;
+        }
+    </style>
     <script>
         $('#status').on('change', function() {
             $('#table_list').bootstrapTable('refresh');

@@ -8,5 +8,11 @@
 </head>
 <body>
     {!! $email_template !!}
+    
+    @if(!empty($logo_url))
+    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e9ecef; text-align: center;">
+        <img src="{{ $logo_url }}" alt="As-home Logo" style="max-width: 200px; max-height: 80px; height: auto; margin: 20px auto; display: block;" />
+    </div>
+    @endif
 </body>
 </html>

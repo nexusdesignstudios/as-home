@@ -42,6 +42,7 @@ Route::get('get-slider', [ApiController::class, 'getSlider']);
 Route::get('get_facilities', [ApiController::class, 'get_facilities']);
 Route::get('get_seo_settings', [ApiController::class, 'get_seo_settings']);
 Route::get('get_report_reasons', [ApiController::class, 'get_report_reasons']);
+Route::get('get-property-reviews', [ApiController::class, 'getPropertyReviews']);
 Route::get('get-active-room-types', [HotelRoomTypeController::class, 'getActiveRoomTypes']);
 Route::get('get-hotel-apartment-types', [HotelApartmentTypeController::class, 'getHotelApartmentTypes']);
 Route::get('get-property-question-fields', [ApiController::class, 'getPropertyQuestionFields']);
