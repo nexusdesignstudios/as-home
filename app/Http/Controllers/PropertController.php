@@ -1667,6 +1667,22 @@ class PropertController extends Controller
             }
             $contractTemplate = HelperService::replaceEmailVariables($contractTemplateData, $variables);
 
+            // For selling_or_renting_contract, wrap the template with a welcoming message
+            if ($contractType === 'selling_or_renting_contract') {
+                $welcomingMessage = '<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 20px; background-color: #f8f9fa; border-radius: 8px; margin-bottom: 30px;">';
+                $welcomingMessage .= '<h2 style="color: #007bff; margin-top: 0;">Welcome to {app_name}, {partner_name}!</h2>';
+                $welcomingMessage .= '<p style="font-size: 16px; margin-bottom: 15px;">We are delighted to have you as our partner. Your property has been successfully approved and we are excited to work with you.</p>';
+                $welcomingMessage .= '<p style="font-size: 16px; margin-bottom: 15px;">Your official contract document has been prepared and is attached to this email as a PDF file. Please review the contract carefully and keep it for your records.</p>';
+                $welcomingMessage .= '<p style="font-size: 16px; margin-bottom: 0;"><strong>Important:</strong> The complete contract details are included in the attached PDF document.</p>';
+                $welcomingMessage .= '</div>';
+                
+                // Replace variables in welcoming message
+                $welcomingMessage = HelperService::replaceEmailVariables($welcomingMessage, $variables);
+                
+                // Combine welcoming message with contract template
+                $contractTemplate = $welcomingMessage . '<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 20px;">' . $contractTemplate . '</div>';
+            }
+
             $contractData = array(
                 'email_template' => $contractTemplate,
                 'email' => $propertyData->customer->email,

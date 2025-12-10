@@ -2278,7 +2278,19 @@ class HelperService
             $emailHtml = view($viewName, $data)->render();
 
             // 2) Generate PDF from the HTML content (A4 portrait)
+            // Set PDF options to remove character/content limits and enable full content rendering
             $pdf = Pdf::loadHTML($emailHtml)->setPaper('A4', 'portrait');
+            $pdf->setOptions([
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true,
+                'defaultFont' => 'DejaVu Sans',
+                'isPhpEnabled' => true,
+                'chroot' => public_path(),
+                'enable-local-file-access' => true,
+                'dpi' => 150,
+                'enable-font-subsetting' => false,
+                'isFontSubsettingEnabled' => false,
+            ]);
             $pdfContent = $pdf->output();
 
             // Build filename (safe)
