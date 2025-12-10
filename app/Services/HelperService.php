@@ -2279,6 +2279,10 @@ class HelperService
 
             // 2) Generate PDF from the HTML content (A4 portrait)
             // Set PDF options to remove character/content limits and enable full content rendering
+            // Increase memory limit temporarily for large PDFs
+            $originalMemoryLimit = ini_get('memory_limit');
+            ini_set('memory_limit', '512M');
+            
             $pdf = Pdf::loadHTML($emailHtml)->setPaper('A4', 'portrait');
             $pdf->setOptions([
                 'isHtml5ParserEnabled' => true,
@@ -2290,8 +2294,22 @@ class HelperService
                 'dpi' => 150,
                 'enable-font-subsetting' => false,
                 'isFontSubsettingEnabled' => false,
+                'isJavascriptEnabled' => false,
+                'debugKeepTemp' => false,
+                'debugCss' => false,
+                'logOutputFile' => '',
+                'tempDir' => sys_get_temp_dir(),
+                'fontHeightRatio' => 1.1,
+                'enableCssFloat' => true,
+                'enableInlineCss' => true,
             ]);
+            
+            // Set unlimited page height to allow content to flow across multiple pages
+            $pdf->setOption('enable-smart-shrinking', false);
             $pdfContent = $pdf->output();
+            
+            // Restore original memory limit
+            ini_set('memory_limit', $originalMemoryLimit);
 
             // Build filename (safe)
             $safeTitle = preg_replace('/[^A-Za-z0-9_-]+/', '_', (string)($data['title'] ?? 'document'));
