@@ -1179,9 +1179,14 @@ class PropertController extends Controller
             // Documents
             $documentsButtonCustomClasses = ["btn", "icon", "btn-primary", "btn-sm", "rounded-pill", "documents-btn"];
             $documentsButtonCustomAttributes = ["id" => $row->id, "title" => trans('Documents'), "data-toggle" => "modal", "data-bs-target" => "#documentsModal", "data-bs-toggle" => "modal"];
-            $documentsCount = count($row->documents);
+            // Get documents using the accessor and convert to array
+            $documents = $row->documents ?? collect([]);
+            $documentsArray = $documents->toArray();
+            $documentsCount = count($documentsArray);
             $documentsButton = BootstrapTableService::button('bi bi-eye-fill', '', $documentsButtonCustomClasses, $documentsButtonCustomAttributes, $documentsCount);
             $tempRow['documents-btn'] = $documentsButton;
+            // Ensure documents are included in the response array (convert Collection to array)
+            $tempRow['documents'] = $documentsArray;
 
 
             $tempRow['operate'] = $operate;

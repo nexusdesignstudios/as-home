@@ -521,13 +521,17 @@ class Property extends Model
 
     public function getDocumentsAttribute()
     {
-        return PropertiesDocument::select('id', 'property_id', 'name', 'type')->where('property_id', $this->id)->get()->map(function ($document) {
-            $document->id = $document->id;
-            $document->file_name = $document->getRawOriginal('name');
-            $document->file = $document->name;
-            unset($document->name);
-            return $document;
-        });
+        return PropertiesDocument::select('id', 'property_id', 'name', 'type')
+            ->where('property_id', $this->id)
+            ->whereNull('deleted_at') // Only get non-deleted documents
+            ->get()
+            ->map(function ($document) {
+                $document->id = $document->id;
+                $document->file_name = $document->getRawOriginal('name');
+                $document->file = $document->name;
+                unset($document->name);
+                return $document;
+            });
     }
 
     public function getIsUserVerifiedAttribute()
