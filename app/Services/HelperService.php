@@ -2256,8 +2256,9 @@ class HelperService
         try {
             $adminMail = env('MAIL_FROM_ADDRESS');
 
-            // Get logo URL for email footer
+            // Get logo for email footer - embed as base64 for email compatibility
             $logoUrl = '';
+            $logoBase64 = '';
             $webFooterLogo = system_setting('web_footer_logo');
             $webLogo = system_setting('web_logo');
             $companyLogo = system_setting('company_logo');
@@ -2266,23 +2267,39 @@ class HelperService
             $logoFile = !empty($webFooterLogo) ? $webFooterLogo : (!empty($webLogo) ? $webLogo : $companyLogo);
             
             if (!empty($logoFile)) {
+                $logoPath = public_path('assets/images/logo/' . $logoFile);
+                // Generate URL for PDF (PDF can access URLs)
                 $logoUrl = URL::to('assets/images/logo/' . $logoFile);
+                
+                // Generate base64 for email (email clients need embedded images)
+                if (file_exists($logoPath)) {
+                    $imageData = file_get_contents($logoPath);
+                    $imageInfo = getimagesize($logoPath);
+                    $mimeType = $imageInfo['mime'] ?? 'image/png';
+                    $logoBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+                }
             }
             
-            // Add logo URL to data array for template
+            // Add logo URL (for PDF) and base64 (for email) to data array
             $data['logo_url'] = $logoUrl;
+            $data['logo_base64'] = $logoBase64;
 
             // 1) Render the full HTML email content using selected template (fallback to default)
+            // For email: use base64 logo (embedded, works in all email clients)
+            $emailData = $data;
+            $emailData['use_base64_logo'] = true; // Flag to use base64 in email template
             $viewName = isset($data['view']) && is_string($data['view']) ? $data['view'] : 'mail-templates.mail-template';
-            $emailHtml = view($viewName, $data)->render();
+            $emailHtml = view($viewName, $emailData)->render();
 
             // 2) Generate PDF - use separate PDF template if provided, otherwise use email template
             // This allows email body and PDF content to be different (e.g., welcoming message in email, contract only in PDF)
+            // For PDF: use URL logo (PDF generators can access URLs)
             $pdfData = $data;
             if (isset($data['pdf_template'])) {
                 // Use separate PDF template (e.g., contract only without welcoming message)
                 $pdfData['email_template'] = $data['pdf_template'];
             }
+            $pdfData['use_base64_logo'] = false; // Flag to use URL in PDF template
             $pdfHtml = view($viewName, $pdfData)->render();
 
             // 3) Generate PDF from the HTML content (A4 portrait)

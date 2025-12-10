@@ -42,9 +42,15 @@
 <body>
     {!! $email_template !!}
     
-    @if(!empty($logo_url))
+    @if(!empty($logo_url) || !empty($logo_base64))
     <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e9ecef; text-align: center;">
-        <img src="{{ $logo_url }}" alt="As-home Logo" style="max-width: 200px; max-height: 80px; height: auto; margin: 20px auto; display: block;" />
+        @if(isset($use_base64_logo) && $use_base64_logo && !empty($logo_base64))
+            {{-- Use base64 for email (embedded, works in all email clients) --}}
+            <img src="{{ $logo_base64 }}" alt="As-home Logo" style="max-width: 200px; max-height: 80px; height: auto; margin: 20px auto; display: block;" />
+        @elseif(!empty($logo_url))
+            {{-- Use URL for PDF (PDF generators can access URLs) --}}
+            <img src="{{ $logo_url }}" alt="As-home Logo" style="max-width: 200px; max-height: 80px; height: auto; margin: 20px auto; display: block;" />
+        @endif
     </div>
     @endif
 </body>
