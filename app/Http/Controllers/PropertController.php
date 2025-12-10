@@ -1667,26 +1667,39 @@ class PropertController extends Controller
             }
             $contractTemplate = HelperService::replaceEmailVariables($contractTemplateData, $variables);
 
-            // For selling_or_renting_contract, wrap the template with a welcoming message
+            // For selling_or_renting_contract, create email body with welcoming message
+            // and include contract template for PDF generation
             if ($contractType === 'selling_or_renting_contract') {
-                $welcomingMessage = '<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 20px; background-color: #f8f9fa; border-radius: 8px; margin-bottom: 30px;">';
-                $welcomingMessage .= '<h2 style="color: #007bff; margin-top: 0;">Welcome to {app_name}, {partner_name}!</h2>';
-                $welcomingMessage .= '<p style="font-size: 16px; margin-bottom: 15px;">We are delighted to have you as our partner. Your property has been successfully approved and we are excited to work with you.</p>';
-                $welcomingMessage .= '<p style="font-size: 16px; margin-bottom: 15px;">Your official contract document has been prepared and is attached to this email as a PDF file. Please review the contract carefully and keep it for your records.</p>';
-                $welcomingMessage .= '<p style="font-size: 16px; margin-bottom: 0;"><strong>Important:</strong> The complete contract details are included in the attached PDF document.</p>';
-                $welcomingMessage .= '</div>';
+                // Email body content (shown in email)
+                $emailBodyContent = '<div style="font-family: Arial, sans-serif; line-height: 1.8; color: #333; padding: 30px; max-width: 600px; margin: 0 auto;">';
+                $emailBodyContent .= '<p style="font-size: 16px; margin-bottom: 20px;">Dear {partner_name},</p>';
+                $emailBodyContent .= '<p style="font-size: 16px; margin-bottom: 20px;">Thank you for choosing {app_name} to list your property.</p>';
+                $emailBodyContent .= '<p style="font-size: 16px; margin-bottom: 20px;">Please find the {app_name} Property Listing Contract attached as a PDF.</p>';
+                $emailBodyContent .= '<p style="font-size: 16px; margin-bottom: 20px;">Kindly review the document at your convenience. If you have any questions or need clarification, we are always happy to assist.</p>';
+                $emailBodyContent .= '<p style="font-size: 16px; margin-bottom: 10px;">Warm regards,</p>';
+                $emailBodyContent .= '<p style="font-size: 16px; margin-bottom: 5px; font-weight: bold;">{app_name} Team</p>';
+                $emailBodyContent .= '<p style="font-size: 14px; margin-bottom: 0;"><a href="https://www.ashome-eg.com" style="color: #007bff; text-decoration: none;">www.ashome-eg.com</a></p>';
+                $emailBodyContent .= '</div>';
                 
-                // Replace variables in welcoming message
-                $welcomingMessage = HelperService::replaceEmailVariables($welcomingMessage, $variables);
+                // Replace variables in email body
+                $emailBodyContent = HelperService::replaceEmailVariables($emailBodyContent, $variables);
                 
-                // Combine welcoming message with contract template
-                $contractTemplate = $welcomingMessage . '<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 20px;">' . $contractTemplate . '</div>';
+                // Combine email body with contract template
+                // The contract template will be included in the PDF
+                // Use a page break style for PDF to separate email body from contract
+                $contractTemplate = $emailBodyContent . '<div style="page-break-before: always; margin-top: 40px; padding-top: 40px; border-top: 2px solid #e9ecef;">' . $contractTemplate . '</div>';
+            }
+
+            // Update title for selling_or_renting_contract
+            $emailTitle = $contractEmailTypeData['title'];
+            if ($contractType === 'selling_or_renting_contract') {
+                $emailTitle = 'Your As-home Property Listing Contract';
             }
 
             $contractData = array(
                 'email_template' => $contractTemplate,
                 'email' => $propertyData->customer->email,
-                'title' => $contractEmailTypeData['title'],
+                'title' => $emailTitle,
             );
             HelperService::sendMail($contractData);
         } catch (Exception $e) {
