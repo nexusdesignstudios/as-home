@@ -1668,9 +1668,9 @@ class PropertController extends Controller
             $contractTemplate = HelperService::replaceEmailVariables($contractTemplateData, $variables);
 
             // For selling_or_renting_contract, create email body with welcoming message
-            // and include contract template for PDF generation
+            // PDF will contain only the contract template (without welcoming message)
             if ($contractType === 'selling_or_renting_contract') {
-                // Email body content (shown in email)
+                // Email body content (shown in email only, not in PDF)
                 $emailBodyContent = '<div style="font-family: Arial, sans-serif; line-height: 1.8; color: #333; padding: 30px; max-width: 600px; margin: 0 auto;">';
                 $emailBodyContent .= '<p style="font-size: 16px; margin-bottom: 20px;">Dear {partner_name},</p>';
                 $emailBodyContent .= '<p style="font-size: 16px; margin-bottom: 20px;">Thank you for choosing {app_name} to list your property.</p>';
@@ -1684,10 +1684,11 @@ class PropertController extends Controller
                 // Replace variables in email body
                 $emailBodyContent = HelperService::replaceEmailVariables($emailBodyContent, $variables);
                 
-                // Combine email body with contract template
-                // The contract template will be included in the PDF
-                // Use a page break style for PDF to separate email body from contract
-                $contractTemplate = $emailBodyContent . '<div style="page-break-before: always; margin-top: 40px; padding-top: 40px; border-top: 2px solid #e9ecef;">' . $contractTemplate . '</div>';
+                // Store original contract template for PDF (without welcoming message)
+                $pdfTemplate = $contractTemplate;
+                
+                // Use email body content for email display
+                $contractTemplate = $emailBodyContent;
             }
 
             // Update title for selling_or_renting_contract
@@ -1701,6 +1702,12 @@ class PropertController extends Controller
                 'email' => $propertyData->customer->email,
                 'title' => $emailTitle,
             );
+            
+            // For selling_or_renting_contract, pass separate PDF template (contract only, no welcoming message)
+            if ($contractType === 'selling_or_renting_contract' && isset($pdfTemplate)) {
+                $contractData['pdf_template'] = $pdfTemplate;
+            }
+            
             HelperService::sendMail($contractData);
         } catch (Exception $e) {
             Log::error("Something Went Wrong in Contract Email Sending for type {$contractType}: " . $e->getMessage());

@@ -2273,17 +2273,25 @@ class HelperService
             $data['logo_url'] = $logoUrl;
 
             // 1) Render the full HTML email content using selected template (fallback to default)
-            //    We will convert this to PDF and attach
             $viewName = isset($data['view']) && is_string($data['view']) ? $data['view'] : 'mail-templates.mail-template';
             $emailHtml = view($viewName, $data)->render();
 
-            // 2) Generate PDF from the HTML content (A4 portrait)
+            // 2) Generate PDF - use separate PDF template if provided, otherwise use email template
+            // This allows email body and PDF content to be different (e.g., welcoming message in email, contract only in PDF)
+            $pdfData = $data;
+            if (isset($data['pdf_template'])) {
+                // Use separate PDF template (e.g., contract only without welcoming message)
+                $pdfData['email_template'] = $data['pdf_template'];
+            }
+            $pdfHtml = view($viewName, $pdfData)->render();
+
+            // 3) Generate PDF from the HTML content (A4 portrait)
             // Set PDF options to remove character/content limits and enable full content rendering
             // Increase memory limit temporarily for large PDFs
             $originalMemoryLimit = ini_get('memory_limit');
             ini_set('memory_limit', '512M');
             
-            $pdf = Pdf::loadHTML($emailHtml)->setPaper('A4', 'portrait');
+            $pdf = Pdf::loadHTML($pdfHtml)->setPaper('A4', 'portrait');
             $pdf->setOptions([
                 'isHtml5ParserEnabled' => true,
                 'isRemoteEnabled' => true,
