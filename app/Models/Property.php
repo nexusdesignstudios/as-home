@@ -84,7 +84,8 @@ class Property extends Model
         'hotel_addons',
         'hotel_apartment_type',
         'certificates',
-        'property_questions'
+        'property_questions',
+        'vacation_apartments'
     ];
 
     protected static function boot()
@@ -277,6 +278,14 @@ class Property extends Model
     }
 
     /**
+     * Get the vacation apartments for this property.
+     */
+    public function vacationApartments()
+    {
+        return $this->hasMany(VacationApartment::class);
+    }
+
+    /**
      * Get hotel rooms attribute for API response
      */
     public function getHotelRoomsAttribute()
@@ -284,6 +293,19 @@ class Property extends Model
         // Only return hotel rooms if this is a hotel property
         if ($this->getRawOriginal('property_classification') == 5) {
             return $this->hotelRooms()->with('roomType')->get();
+        }
+
+        return null;
+    }
+
+    /**
+     * Get vacation apartments attribute for API response
+     */
+    public function getVacationApartmentsAttribute()
+    {
+        // Only return vacation apartments if this is a vacation home property
+        if ($this->getRawOriginal('property_classification') == 4) {
+            return $this->vacationApartments()->get();
         }
 
         return null;

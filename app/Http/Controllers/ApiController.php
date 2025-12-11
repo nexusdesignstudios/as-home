@@ -1437,6 +1437,35 @@ class ApiController extends Controller
             }
             // END :: ADD HOTEL ROOMS
 
+            // START :: ADD VACATION APARTMENTS
+            if (isset($request->property_classification) && $request->property_classification == 4 && isset($request->vacation_apartments) && !empty($request->vacation_apartments)) {
+                try {
+                    // Process vacation apartments
+                    foreach ($request->vacation_apartments as $index => $apartment) {
+                        try {
+                            $vacationApartment = \App\Models\VacationApartment::create([
+                                'property_id' => $saveProperty->id,
+                                'apartment_number' => $apartment['apartment_number'],
+                                'price_per_night' => (float)$apartment['price_per_night'],
+                                'discount_percentage' => isset($apartment['discount_percentage']) ? (float)$apartment['discount_percentage'] : 0,
+                                'availability_type' => $apartment['availability_type'] ?? null,
+                                'available_dates' => $apartment['available_dates'] ?? null,
+                                'description' => $apartment['description'] ?? null,
+                                'status' => $apartment['status'] ?? 1,
+                                'max_guests' => isset($apartment['max_guests']) ? (int)$apartment['max_guests'] : null,
+                                'bedrooms' => isset($apartment['bedrooms']) ? (int)$apartment['bedrooms'] : null,
+                                'bathrooms' => isset($apartment['bathrooms']) ? (int)$apartment['bathrooms'] : null,
+                            ]);
+                        } catch (\Exception $apartmentEx) {
+                            throw $apartmentEx;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    throw $e;
+                }
+            }
+            // END :: ADD VACATION APARTMENTS
+
             // START :: ADD ADDONS PACKAGES
             // Check if property classification is 5 (hotel) either from request or saved property
             $isHotelProperty = (isset($request->property_classification) && $request->property_classification == 5) ||
