@@ -736,7 +736,7 @@ class ApiController extends Controller
         ];
 
         $property = Property::select($select)
-            ->with('customer', 'user', 'category:id,category,image,slug_id', 'assignfacilities.outdoorfacilities', 'parameters', 'favourite', 'interested_users', 'certificates')
+            ->with('customer', 'user', 'category:id,category,image,slug_id', 'assignfacilities.outdoorfacilities', 'parameters', 'favourite', 'interested_users', 'certificates', 'vacationApartments')
             ->where(['status' => 1, 'request_status' => 'approved']);
 
         // If Property Classification is passed
@@ -883,6 +883,34 @@ class ApiController extends Controller
 
             // Check that Property Details exists or not
             if (isset($property_details) && collect($property_details)->isNotEmpty()) {
+                // If apartment_id is provided, add selected apartment data to property details
+                if ($request->has('apartment_id') && !empty($request->apartment_id)) {
+                    $apartmentId = $request->apartment_id;
+                    $property = $result->first();
+                    
+                    // Load vacation apartments if not already loaded
+                    if (!$property->relationLoaded('vacationApartments')) {
+                        $property->load('vacationApartments');
+                    }
+                    
+                    // Find the selected apartment
+                    $selectedApartment = $property->vacationApartments->firstWhere('id', $apartmentId);
+                    
+                    if ($selectedApartment) {
+                        // Add selected apartment data to property details
+                        foreach ($property_details as &$detail) {
+                            $detail->selected_apartment_id = $apartmentId;
+                            $detail->selected_apartment = $selectedApartment;
+                            // Update price to show apartment price
+                            $detail->price = $selectedApartment->price_per_night;
+                            // Add apartment-specific fields
+                            $detail->apartment_number = $selectedApartment->apartment_number;
+                            $detail->bedrooms = $selectedApartment->bedrooms;
+                            $detail->bathrooms = $selectedApartment->bathrooms;
+                            $detail->max_guests = $selectedApartment->max_guests;
+                        }
+                    }
+                }
                 /**
                  * Check that id or slug id passed and get the similar properties data according to param passed
                  * If both passed then priority given to id param
@@ -6696,7 +6724,7 @@ class ApiController extends Controller
 
             // Get properties list data
             $propertiesData = $propertyQuery->clone()
-                ->with('category:id,category,image,slug_id')
+                ->with('category:id,category,image,slug_id', 'vacationApartments')
                 ->select('id', 'slug_id', 'propery_type', 'title_image', 'category_id', 'title', 'price', 'city', 'state', 'country', 'rentduration', 'added_by', 'is_premium', 'property_classification', 'rent_package', 'latitude', 'longitude', 'total_click')
                 ->withCount('favourite');
 
@@ -6722,8 +6750,51 @@ class ApiController extends Controller
 
             $propertiesData = $propertiesData->skip($offset)
                 ->take($limit)
-                ->get()
-                ->map(function ($property) {
+                ->get();
+            
+            // Expand vacation homes with apartments into separate listing items
+            $expandedProperties = collect();
+            foreach ($propertiesData as $property) {
+                // Check if this is a vacation home (classification 4) with apartments
+                if ($property->property_classification == 4 && 
+                    $property->vacationApartments && 
+                    $property->vacationApartments->count() > 0) {
+                    // Create a separate listing item for each apartment
+                    foreach ($property->vacationApartments as $apartment) {
+                        $apartmentProperty = clone $property;
+                        // Keep original property ID and slug_id for navigation
+                        $apartmentProperty->apartment_id = $apartment->id;
+                        $apartmentProperty->parent_property_id = $property->id;
+                        $apartmentProperty->title = $property->title . ' - ' . $apartment->apartment_number;
+                        $apartmentProperty->price = $apartment->price_per_night;
+                        $apartmentProperty->apartment_number = $apartment->apartment_number;
+                        $apartmentProperty->bedrooms = $apartment->bedrooms;
+                        $apartmentProperty->bathrooms = $apartment->bathrooms;
+                        $apartmentProperty->max_guests = $apartment->max_guests;
+                        $apartmentProperty->is_apartment = true;
+                        $apartmentProperty->selected_apartment = $apartment; // Include full apartment data
+                        $apartmentProperty->promoted = $property->is_promoted;
+                        $apartmentProperty->is_premium = $property->is_premium == 1 ? true : false;
+                        $apartmentProperty->property_type = $property->propery_type;
+                        // Get property type from parameters if available (for display purposes)
+                        $propertyTypeParam = null;
+                        if ($property->parameters && is_array($property->parameters)) {
+                          $typeParam = collect($property->parameters)->firstWhere('name', 'Property Type');
+                          if ($typeParam && isset($typeParam->value)) {
+                            $propertyTypeParam = $typeParam->value;
+                          }
+                        }
+                        $apartmentProperty->unit_type = $propertyTypeParam; // Store property type for frontend display
+                        $apartmentProperty->assign_facilities = $property->assign_facilities;
+                        $apartmentProperty->parameters = $property->parameters;
+                        $apartmentProperty->property_classification = $property->property_classification;
+                        $apartmentProperty->rent_package = $property->rent_package;
+                        unset($apartmentProperty->propery_type);
+                        unset($apartmentProperty->vacationApartments);
+                        $expandedProperties->push($apartmentProperty);
+                    }
+                } else {
+                    // Regular property (no apartments or not a vacation home)
                     $property->promoted = $property->is_promoted;
                     $property->is_premium = $property->is_premium == 1 ? true : false;
                     $property->property_type = $property->propery_type;
@@ -6731,19 +6802,35 @@ class ApiController extends Controller
                     $property->parameters = $property->parameters;
                     $property->property_classification = $property->property_classification;
                     $property->rent_package = $property->rent_package;
-                    // Keep property_classification as is
+                    $property->is_apartment = false;
                     unset($property->propery_type);
-                    return $property;
-                });
+                    unset($property->vacationApartments);
+                    $expandedProperties->push($property);
+                }
+            }
 
             // Sort properties based on the promoted attribute
-            $propertiesData = $propertiesData->sortByDesc(function ($property) {
+            $propertiesData = $expandedProperties->sortByDesc(function ($property) {
                 return $property->promoted;
             })->values()->filter();
 
+            // Adjust total count - count vacation homes with apartments before expansion
+            $vacationHomesQuery = $propertyQuery->clone()
+                ->where('property_classification', 4)
+                ->with('vacationApartments')
+                ->get();
+            
+            $additionalListings = 0;
+            foreach ($vacationHomesQuery as $property) {
+                if ($property->vacationApartments && $property->vacationApartments->count() > 0) {
+                    $additionalListings += $property->vacationApartments->count() - 1; // -1 because original property is replaced
+                }
+            }
+            $adjustedTotal = $totalProperties + $additionalListings;
+
             $response = array(
                 'error' => false,
-                'total' => $totalProperties,
+                'total' => $adjustedTotal,
                 'data' => $propertiesData,
                 'message' => 'Data fetched Successfully'
             );
