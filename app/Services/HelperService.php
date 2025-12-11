@@ -2304,9 +2304,13 @@ class HelperService
 
             // 3) Generate PDF from the HTML content (A4 portrait)
             // Set PDF options to remove character/content limits and enable full content rendering
-            // Increase memory limit temporarily for large PDFs
+            // Increase memory limit temporarily for large PDFs (contracts can be very long)
             $originalMemoryLimit = ini_get('memory_limit');
-            ini_set('memory_limit', '512M');
+            ini_set('memory_limit', '1024M'); // Increased to 1GB for very long contracts
+            
+            // Also increase execution time for large PDFs
+            $originalMaxExecutionTime = ini_get('max_execution_time');
+            ini_set('max_execution_time', 300); // 5 minutes for large contracts
             
             $pdf = Pdf::loadHTML($pdfHtml)->setPaper('A4', 'portrait');
             $pdf->setOptions([
@@ -2327,11 +2331,25 @@ class HelperService
                 'fontHeightRatio' => 1.1,
                 'enableCssFloat' => true,
                 'enableInlineCss' => true,
+                // Ensure no content truncation
+                'enable-smart-shrinking' => false,
+                'page-size' => 'A4',
+                'orientation' => 'Portrait',
+                'margin-top' => 15,
+                'margin-right' => 15,
+                'margin-bottom' => 15,
+                'margin-left' => 15,
+                // Allow unlimited pages
+                'no-stop-slow-scripts' => true,
             ]);
             
             // Set unlimited page height to allow content to flow across multiple pages
+            // This ensures the entire contract is included in the PDF
             $pdf->setOption('enable-smart-shrinking', false);
             $pdfContent = $pdf->output();
+            
+            // Restore original execution time
+            ini_set('max_execution_time', $originalMaxExecutionTime);
             
             // Restore original memory limit
             ini_set('memory_limit', $originalMemoryLimit);

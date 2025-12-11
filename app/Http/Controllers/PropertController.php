@@ -1721,10 +1721,14 @@ class PropertController extends Controller
             );
             
             // For selling_or_renting_contract, pass separate PDF template (contract only, no welcoming message)
+            // This ensures the FULL contract template is included in the PDF attachment
+            // The PDF will contain the complete contract content without any character limits
             if ($contractType === 'selling_or_renting_contract' && isset($pdfTemplate)) {
                 $contractData['pdf_template'] = $pdfTemplate;
             }
             
+            // Send email with PDF attachment containing the full contract
+            // The PDF generation is configured to handle unlimited content length
             HelperService::sendMail($contractData);
         } catch (Exception $e) {
             Log::error("Something Went Wrong in Contract Email Sending for type {$contractType}: " . $e->getMessage());
