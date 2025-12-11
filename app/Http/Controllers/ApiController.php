@@ -1294,6 +1294,18 @@ class ApiController extends Controller
                 $saveProperty->power_of_attorney = $poaName;
             }
 
+            // Fact Sheet (for hotels)
+            if ($request->hasFile('fact_sheet')) {
+                $destinationPath = public_path('images') . config('global.PROPERTY_FACT_SHEET_PATH');
+                if (!is_dir($destinationPath)) {
+                    mkdir($destinationPath, 0777, true);
+                }
+                $file = $request->file('fact_sheet');
+                $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
+                $factSheetName = handleFileUpload($request, 'fact_sheet', $destinationPath, $fileName);
+                $saveProperty->fact_sheet = $factSheetName;
+            }
+
             $saveProperty->is_premium = isset($request->is_premium) ? ($request->is_premium == "true" ? 1 : 0) : 0;
             $saveProperty->save();
 
@@ -1509,17 +1521,16 @@ class ApiController extends Controller
                         mkdir($certificateFolderPath, 0777, true);
                     }
 
-                    // Process each certificate
-                    foreach ($request->certificates as $certificate) {
-                        // Create the certificate
+                    // Process each certificate (use index-based file keys to match FormData)
+                    foreach ($request->certificates as $certificateIndex => $certificate) {
                         $propertyCertificate = new PropertyCertificate();
                         $propertyCertificate->title = $certificate['title'];
                         $propertyCertificate->description = $certificate['description'] ?? null;
                         $propertyCertificate->property_id = $saveProperty->id;
 
-                        // Handle file uploads
-                        if ($request->hasFile('certificates.' . $certificate['title'] . '.file')) {
-                            $file = $request->file('certificates.' . $certificate['title'] . '.file');
+                        // Handle file uploads via index-based key
+                        if ($request->hasFile('certificates.' . $certificateIndex . '.file')) {
+                            $file = $request->file('certificates.' . $certificateIndex . '.file');
                             $uploadedFileName = store_image($file, 'PROPERTY_CERTIFICATE_PATH');
                             $propertyCertificate->file = $uploadedFileName;
                         }
@@ -2097,6 +2108,19 @@ class ApiController extends Controller
                         $poaName = handleFileUpload($request, 'power_of_attorney', $destinationPath, $fileName, $property->getRawOriginal('power_of_attorney'));
                         if ($poaName) {
                             $property->power_of_attorney = $poaName;
+                        }
+                    }
+
+                    // Handle fact_sheet file
+                    if ($request->hasFile('fact_sheet')) {
+                        $destinationPath = public_path('images') . config('global.PROPERTY_FACT_SHEET_PATH');
+                        if (!is_dir($destinationPath)) {
+                            mkdir($destinationPath, 0777, true);
+                        }
+                        $fileName = microtime(true) . "." . $request->file('fact_sheet')->getClientOriginalExtension();
+                        $factSheetName = handleFileUpload($request, 'fact_sheet', $destinationPath, $fileName, $property->getRawOriginal('fact_sheet'));
+                        if ($factSheetName) {
+                            $property->fact_sheet = $factSheetName;
                         }
                     }
 

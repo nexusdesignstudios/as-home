@@ -151,6 +151,7 @@ class PropertController extends Controller
                 'national_id_passport' => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
                 'utilities_bills'   => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
                 'power_of_attorney' => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
+                'fact_sheet' => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
                 'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
                     if (!empty($value)) {
                         // Regular expression to validate YouTube URLs
@@ -266,6 +267,11 @@ class PropertController extends Controller
                 // Power of Attorney
                 if ($request->hasFile('power_of_attorney')) {
                     $saveProperty->power_of_attorney = store_image($request->file('power_of_attorney'), 'PROPERTY_POA_PATH');
+                }
+
+                // Fact Sheet (for hotels)
+                if ($request->hasFile('fact_sheet')) {
+                    $saveProperty->fact_sheet = store_image($request->file('fact_sheet'), 'PROPERTY_FACT_SHEET_PATH');
                 }
 
                 // Set hotel specific fields if property classification is hotel (5)
@@ -723,6 +729,12 @@ class PropertController extends Controller
                 if ($request->hasFile('power_of_attorney')) {
                     \unlink_image($UpdateProperty->power_of_attorney);
                     $UpdateProperty->setAttribute('power_of_attorney', \store_image($request->file('power_of_attorney'), 'PROPERTY_POA_PATH'));
+                }
+
+                // Fact Sheet (for hotels)
+                if ($request->hasFile('fact_sheet')) {
+                    \unlink_image($UpdateProperty->fact_sheet);
+                    $UpdateProperty->setAttribute('fact_sheet', \store_image($request->file('fact_sheet'), 'PROPERTY_FACT_SHEET_PATH'));
                 }
 
                 $UpdateProperty->update();

@@ -47,6 +47,7 @@ class Property extends Model
         'national_id_passport',
         'utilities_bills',
         'power_of_attorney',
+        'fact_sheet',
         'weekend_commission',
         'availability_type',
         'available_dates',
@@ -379,6 +380,16 @@ class Property extends Model
     public function setPowerOfAttorneyAttribute($value)
     {
         $this->attributes['power_of_attorney'] = $value;
+    }
+
+    public function getFactSheetAttribute($value)
+    {
+        return $value != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_FACT_SHEET_PATH') . $value : '';
+    }
+
+    public function setFactSheetAttribute($value)
+    {
+        $this->attributes['fact_sheet'] = $value;
     }
 
     public function getProperyTypeAttribute($value)
