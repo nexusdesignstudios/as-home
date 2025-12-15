@@ -525,6 +525,69 @@ class Property extends Model
                     ];
                 }
             }
+
+            // Check if this is a commercial property with hotel type
+            $isCommercialHotel = false;
+            if ($this->getRawOriginal('property_classification') == 2) {
+                // Check if there's a "Property Type" parameter with value "hotel"
+                foreach ($parameters as $param) {
+                    if (stripos($param['name'], 'Property Type') !== false || 
+                        stripos($param['name'], 'property type') !== false) {
+                        $propertyTypeValue = is_string($param['value']) ? strtolower(trim($param['value'])) : '';
+                        if (stripos($propertyTypeValue, 'hotel') !== false) {
+                            $isCommercialHotel = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // If it's a commercial hotel property, order parameters according to the specified sequence
+            if ($isCommercialHotel) {
+                // Define the order for hotel commercial properties
+                // Key patterns to match (case-insensitive, flexible)
+                $hotelParameterOrder = [
+                    ['pattern' => '/total\s+area/i', 'order' => 1],
+                    ['pattern' => '/no\.?\s*available\s+rooms/i', 'order' => 2],
+                    ['pattern' => '/no\.?\s*restaurants/i', 'order' => 3],
+                    ['pattern' => '/no\.?\s*bars/i', 'order' => 4],
+                    ['pattern' => '/no\.?\s*swimming\s+pool/i', 'order' => 5],
+                    ['pattern' => '/spa\s*[&\s]*wellness\s+center/i', 'order' => 6],
+                    ['pattern' => '/^gym$/i', 'order' => 7],
+                    ['pattern' => '/no\.?\s*shops/i', 'order' => 8],
+                ];
+
+                // Helper function to get order for a parameter name
+                $getParameterOrder = function($paramName) use ($hotelParameterOrder) {
+                    foreach ($hotelParameterOrder as $item) {
+                        if (preg_match($item['pattern'], $paramName)) {
+                            return $item['order'];
+                        }
+                    }
+                    return null;
+                };
+
+                // Sort parameters: hotel-specific ones first in order, then others
+                usort($parameters, function ($a, $b) use ($getParameterOrder) {
+                    $orderA = $getParameterOrder($a['name']);
+                    $orderB = $getParameterOrder($b['name']);
+                    
+                    // If both are in the order list, sort by order
+                    if ($orderA !== null && $orderB !== null) {
+                        return $orderA <=> $orderB;
+                    }
+                    // If only A is in the order list, A comes first
+                    if ($orderA !== null) {
+                        return -1;
+                    }
+                    // If only B is in the order list, B comes first
+                    if ($orderB !== null) {
+                        return 1;
+                    }
+                    // If neither is in the order list, maintain original order
+                    return 0;
+                });
+            }
         }
         return $parameters ?? null;
     }
