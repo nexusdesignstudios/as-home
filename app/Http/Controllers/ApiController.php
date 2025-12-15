@@ -1611,7 +1611,8 @@ class ApiController extends Controller
                 'propertiesDocuments',
                 'hotelRooms.roomType',
                 'addons_packages.addon_values.hotel_addon_field',
-                'certificates'
+                'certificates',
+                'vacationApartments'
             ])->where('id', $saveProperty->id)->get();
             $property_details = get_property_details($result);
 
@@ -2264,7 +2265,8 @@ class ApiController extends Controller
                         'propertiesDocuments',
                         'hotelRooms.roomType',
                         'addons_packages.addon_values.hotel_addon_field',
-                        'certificates'
+                        'certificates',
+                        'vacationApartments'
                     ])->where('id', $request->id)->get();
 
                     /// START :: UPLOAD GALLERY IMAGE

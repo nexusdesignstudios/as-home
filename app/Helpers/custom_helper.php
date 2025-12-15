@@ -450,7 +450,25 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['three_d_image'] = $row->three_d_image;
         $tempRow['post_created'] = $row->created_at ? $row->created_at->diffForHumans() : '';
         $tempRow['gallery'] = $row->gallery;
-        $tempRow['documents'] = $row->documents;
+        
+        // Ensure documents are properly loaded and formatted
+        // Use the relationship if available, otherwise use the accessor
+        if ($row->relationLoaded('propertiesDocuments')) {
+            // Use the relationship data directly and format it
+            $tempRow['documents'] = $row->propertiesDocuments->map(function ($document) {
+                return [
+                    'id' => $document->id,
+                    'property_id' => $document->property_id,
+                    'file_name' => $document->getRawOriginal('name'),
+                    'file' => $document->name, // This uses the accessor which includes full URL
+                    'type' => $document->type
+                ];
+            });
+        } else {
+            // Fallback to accessor if relationship not loaded
+            $tempRow['documents'] = $row->documents;
+        }
+        
         $tempRow['total_view'] = $row->total_click;
         $tempRow['status'] = $row->status;
         $tempRow['state'] = $row->state;
@@ -547,6 +565,9 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
             $tempRow['agent_addons'] = $row->agent_addons;
             $tempRow['available_rooms'] = $row->available_rooms;
             $tempRow['hotel_vat'] = $row->hotel_vat;
+            
+            // Add vacation apartments for vacation home properties (classification 4)
+            $tempRow['vacation_apartments'] = $row->vacationApartments;
         // }
 
         // Get Property Inquiry Data on the basis of current user and status is completed
