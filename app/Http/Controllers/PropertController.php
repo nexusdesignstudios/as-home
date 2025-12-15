@@ -867,6 +867,7 @@ class PropertController extends Controller
                                 'max_guests' => isset($apartment['max_guests']) ? (int)$apartment['max_guests'] : null,
                                 'bedrooms' => isset($apartment['bedrooms']) ? (int)$apartment['bedrooms'] : null,
                                 'bathrooms' => isset($apartment['bathrooms']) ? (int)$apartment['bathrooms'] : null,
+                                'quantity' => isset($apartment['quantity']) ? (int)$apartment['quantity'] : 1,
                             ]);
                         }
                     } catch (\Exception $e) {

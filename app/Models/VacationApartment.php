@@ -21,6 +21,7 @@ class VacationApartment extends Model
         'max_guests',
         'bedrooms',
         'bathrooms',
+        'quantity',
     ];
 
     protected $casts = [
@@ -31,6 +32,7 @@ class VacationApartment extends Model
         'max_guests' => 'integer',
         'bedrooms' => 'integer',
         'bathrooms' => 'integer',
+        'quantity' => 'integer',
     ];
 
     /**
