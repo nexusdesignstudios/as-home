@@ -2488,6 +2488,64 @@ class ApiController extends Controller
                     }
                     // END :: UPDATE HOTEL ROOMS
 
+                    // START :: UPDATE VACATION APARTMENTS
+                    if (isset($request->property_classification) && $request->property_classification == 4) {
+                        if (isset($request->vacation_apartments) && !empty($request->vacation_apartments)) {
+                            \Log::info('Processing vacation apartments', [
+                                'total_apartments' => count($request->vacation_apartments),
+                                'property_id' => $property->id
+                            ]);
+
+                            foreach ($request->vacation_apartments as $index => $apartment) {
+                                if (isset($apartment['id']) && !empty($apartment['id'])) {
+                                    // Update existing apartment
+                                    $vacationApartment = \App\Models\VacationApartment::find($apartment['id']);
+                                    if ($vacationApartment && $vacationApartment->property_id == $property->id) {
+                                        
+                                        $availableDates = $apartment['available_dates'] ?? $vacationApartment->available_dates;
+                                        if (is_string($availableDates)) {
+                                            $availableDates = json_decode($availableDates, true) ?? $vacationApartment->available_dates;
+                                        }
+
+                                        $vacationApartment->apartment_number = $apartment['apartment_number'] ?? $vacationApartment->apartment_number;
+                                        $vacationApartment->price_per_night = isset($apartment['price_per_night']) ? (float)$apartment['price_per_night'] : $vacationApartment->price_per_night;
+                                        $vacationApartment->discount_percentage = isset($apartment['discount_percentage']) ? (float)$apartment['discount_percentage'] : $vacationApartment->discount_percentage;
+                                        $vacationApartment->description = $apartment['description'] ?? $vacationApartment->description;
+                                        $vacationApartment->status = isset($apartment['status']) ? (bool)$apartment['status'] : $vacationApartment->status;
+                                        $vacationApartment->availability_type = isset($apartment['availability_type']) ? (int)$apartment['availability_type'] : $vacationApartment->getRawOriginal('availability_type');
+                                        $vacationApartment->available_dates = $availableDates;
+                                        $vacationApartment->max_guests = isset($apartment['max_guests']) ? (int)$apartment['max_guests'] : $vacationApartment->max_guests;
+                                        $vacationApartment->bedrooms = isset($apartment['bedrooms']) ? (int)$apartment['bedrooms'] : $vacationApartment->bedrooms;
+                                        $vacationApartment->bathrooms = isset($apartment['bathrooms']) ? (int)$apartment['bathrooms'] : $vacationApartment->bathrooms;
+                                        $vacationApartment->quantity = isset($apartment['quantity']) ? (int)$apartment['quantity'] : $vacationApartment->quantity;
+                                        $vacationApartment->save();
+                                    }
+                                } else {
+                                    // Create new apartment
+                                    $availableDates = $apartment['available_dates'] ?? [];
+                                    if (is_string($availableDates)) {
+                                        $availableDates = json_decode($availableDates, true) ?? [];
+                                    }
+
+                                    \App\Models\VacationApartment::create([
+                                        'property_id' => $property->id,
+                                        'apartment_number' => $apartment['apartment_number'] ?? '',
+                                        'price_per_night' => (float)($apartment['price_per_night'] ?? 0),
+                                        'discount_percentage' => isset($apartment['discount_percentage']) ? (float)$apartment['discount_percentage'] : 0,
+                                        'availability_type' => isset($apartment['availability_type']) ? (int)$apartment['availability_type'] : 1,
+                                        'available_dates' => $availableDates,
+                                        'description' => $apartment['description'] ?? null,
+                                        'status' => isset($apartment['status']) ? (bool)$apartment['status'] : 1,
+                                        'max_guests' => isset($apartment['max_guests']) ? (int)$apartment['max_guests'] : 0,
+                                        'bedrooms' => isset($apartment['bedrooms']) ? (int)$apartment['bedrooms'] : 0,
+                                        'bathrooms' => isset($apartment['bathrooms']) ? (int)$apartment['bathrooms'] : 0,
+                                        'quantity' => isset($apartment['quantity']) ? (int)$apartment['quantity'] : 1,
+                                    ]);
+                                }
+                            }
+                        }
+                    }
+
                     // START :: UPDATE HOTEL ADDON VALUES AND PACKAGES
                     // Always process addon packages if they are provided in the request
                     // Create destination path for hotel addon files
