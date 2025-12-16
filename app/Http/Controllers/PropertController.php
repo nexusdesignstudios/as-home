@@ -859,10 +859,15 @@ class PropertController extends Controller
                     
                     // If vacation_apartments is explicitly set (even if empty array), process it
                     if ($vacationApartments !== null) {
-                        // Delete all existing apartments first
-                        \App\Models\VacationApartment::where('property_id', $UpdateProperty->id)->delete();
+                        // Get all existing apartment IDs for this property
+                        $existingApartmentIds = \App\Models\VacationApartment::where('property_id', $UpdateProperty->id)
+                            ->pluck('id')
+                            ->toArray();
                         
-                        // Only create new apartments if the array is not empty
+                        // Track which apartments are being updated/created
+                        $processedApartmentIds = [];
+                        
+                        // Only process apartments if the array is not empty
                         if (!empty($vacationApartments) && is_array($vacationApartments)) {
                             try {
                                 foreach ($vacationApartments as $apartment) {
@@ -872,25 +877,63 @@ class PropertController extends Controller
                                         $availableDates = json_decode($availableDates, true);
                                     }
                                     
-                                    \App\Models\VacationApartment::create([
-                                        'property_id' => $UpdateProperty->id,
-                                        'apartment_number' => $apartment['apartment_number'] ?? null,
-                                        'price_per_night' => isset($apartment['price_per_night']) ? (float)$apartment['price_per_night'] : 0,
-                                        'discount_percentage' => isset($apartment['discount_percentage']) ? (float)$apartment['discount_percentage'] : 0,
-                                        'availability_type' => isset($apartment['availability_type']) ? (int)$apartment['availability_type'] : null,
-                                        'available_dates' => $availableDates,
-                                        'description' => $apartment['description'] ?? null,
-                                        'status' => isset($apartment['status']) ? (($apartment['status'] === '1' || $apartment['status'] === 1 || $apartment['status'] === true) ? true : false) : true,
-                                        'max_guests' => isset($apartment['max_guests']) ? (int)$apartment['max_guests'] : null,
-                                        'bedrooms' => isset($apartment['bedrooms']) ? (int)$apartment['bedrooms'] : null,
-                                        'bathrooms' => isset($apartment['bathrooms']) ? (int)$apartment['bathrooms'] : null,
-                                        'quantity' => isset($apartment['quantity']) ? (int)$apartment['quantity'] : 1,
-                                    ]);
+                                    // Check if this is an existing apartment (has id and id exists for this property)
+                                    if (isset($apartment['id']) && !empty($apartment['id']) && $apartment['id'] !== null) {
+                                        $apartmentId = (int)$apartment['id'];
+                                        $existingApartment = \App\Models\VacationApartment::find($apartmentId);
+                                        
+                                        // Only update if the apartment exists and belongs to this property
+                                        if ($existingApartment && $existingApartment->property_id == $UpdateProperty->id) {
+                                            $existingApartment->apartment_number = $apartment['apartment_number'] ?? $existingApartment->apartment_number;
+                                            $existingApartment->price_per_night = isset($apartment['price_per_night']) ? (float)$apartment['price_per_night'] : $existingApartment->price_per_night;
+                                            $existingApartment->discount_percentage = isset($apartment['discount_percentage']) ? (float)$apartment['discount_percentage'] : $existingApartment->discount_percentage;
+                                            $existingApartment->availability_type = isset($apartment['availability_type']) ? (int)$apartment['availability_type'] : $existingApartment->availability_type;
+                                            $existingApartment->available_dates = $availableDates ?? $existingApartment->available_dates;
+                                            $existingApartment->description = $apartment['description'] ?? $existingApartment->description;
+                                            $existingApartment->status = isset($apartment['status']) ? (($apartment['status'] === '1' || $apartment['status'] === 1 || $apartment['status'] === true) ? true : false) : $existingApartment->status;
+                                            $existingApartment->max_guests = isset($apartment['max_guests']) ? (int)$apartment['max_guests'] : $existingApartment->max_guests;
+                                            $existingApartment->bedrooms = isset($apartment['bedrooms']) ? (int)$apartment['bedrooms'] : $existingApartment->bedrooms;
+                                            $existingApartment->bathrooms = isset($apartment['bathrooms']) ? (int)$apartment['bathrooms'] : $existingApartment->bathrooms;
+                                            $existingApartment->quantity = isset($apartment['quantity']) ? (int)$apartment['quantity'] : $existingApartment->quantity;
+                                            $existingApartment->save();
+                                            
+                                            $processedApartmentIds[] = $apartmentId;
+                                        }
+                                    } else {
+                                        // Create new apartment (no id provided)
+                                        $newApartment = \App\Models\VacationApartment::create([
+                                            'property_id' => $UpdateProperty->id,
+                                            'apartment_number' => $apartment['apartment_number'] ?? null,
+                                            'price_per_night' => isset($apartment['price_per_night']) ? (float)$apartment['price_per_night'] : 0,
+                                            'discount_percentage' => isset($apartment['discount_percentage']) ? (float)$apartment['discount_percentage'] : 0,
+                                            'availability_type' => isset($apartment['availability_type']) ? (int)$apartment['availability_type'] : null,
+                                            'available_dates' => $availableDates,
+                                            'description' => $apartment['description'] ?? null,
+                                            'status' => isset($apartment['status']) ? (($apartment['status'] === '1' || $apartment['status'] === 1 || $apartment['status'] === true) ? true : false) : true,
+                                            'max_guests' => isset($apartment['max_guests']) ? (int)$apartment['max_guests'] : null,
+                                            'bedrooms' => isset($apartment['bedrooms']) ? (int)$apartment['bedrooms'] : null,
+                                            'bathrooms' => isset($apartment['bathrooms']) ? (int)$apartment['bathrooms'] : null,
+                                            'quantity' => isset($apartment['quantity']) ? (int)$apartment['quantity'] : 1,
+                                        ]);
+                                        
+                                        $processedApartmentIds[] = $newApartment->id;
+                                    }
                                 }
                             } catch (\Exception $e) {
                                 throw $e;
                             }
                         }
+                        
+                        // Delete any apartments that were not included in the request
+                        $apartmentsToDelete = array_diff($existingApartmentIds, $processedApartmentIds);
+                        if (!empty($apartmentsToDelete)) {
+                            \App\Models\VacationApartment::where('property_id', $UpdateProperty->id)
+                                ->whereIn('id', $apartmentsToDelete)
+                                ->delete();
+                        }
+                    } else {
+                        // If vacation_apartments is explicitly null, delete all existing apartments
+                        \App\Models\VacationApartment::where('property_id', $UpdateProperty->id)->delete();
                     }
                 }
                 // END :: UPDATE VACATION APARTMENTS
