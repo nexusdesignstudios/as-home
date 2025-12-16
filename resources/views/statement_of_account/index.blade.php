@@ -34,22 +34,29 @@
                         <input type="date" id="date-from-filter" class="form-control">
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <div class="form-group">
                         <label for="date-to-filter">To Date</label>
                         <input type="date" id="date-to-filter" class="form-control">
                     </div>
                 </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button id="load-statement-btn" class="btn btn-primary w-100 me-2">
-                        <i class="bi bi-search"></i> Load Statement
-                    </button>
-                    <button id="load-tax-invoice-btn" class="btn btn-info w-100 me-2">
-                        <i class="bi bi-receipt"></i> Load Tax Invoice
-                    </button>
-                    <button id="export-statement-btn" class="btn btn-success w-100" style="display: none;">
-                        <i class="bi bi-download"></i> Export
-                    </button>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label style="visibility: hidden;">Actions</label>
+                        <div class="d-flex flex-column" style="gap: 8px;">
+                            <div class="d-flex" style="gap: 8px;">
+                                <button id="load-statement-btn" class="btn btn-primary" style="flex: 1;">
+                                    <i class="bi bi-search"></i> Load Statement
+                                </button>
+                                <button id="load-tax-invoice-btn" class="btn btn-info" style="flex: 1;">
+                                    <i class="bi bi-receipt"></i> Load Tax Invoice
+                                </button>
+                            </div>
+                            <button id="export-statement-btn" class="btn btn-success w-100" style="display: none;">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
