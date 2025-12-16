@@ -354,6 +354,9 @@ class ReservationController extends Controller
             'check_out_date' => 'required|date|after:check_in_date',
             'number_of_guests' => 'integer|min:1',
             'special_requests' => 'nullable|string',
+            // Vacation apartment specific (optional) — used for vacation homes
+            'apartment_id' => 'nullable|integer|exists:vacation_apartments,id',
+            'apartment_quantity' => 'nullable|integer|min:1',
         ]);
 
         // Add conditional validation rules based on reservable_type
@@ -417,7 +420,25 @@ class ReservationController extends Controller
                 $checkIn = Carbon::parse($request->check_in_date);
                 $checkOut = Carbon::parse($request->check_out_date);
                 $numberOfDays = $checkIn->diffInDays($checkOut);
+
+                // If a vacation apartment is selected, price should come from the apartment (per unit * quantity)
                 $totalPrice = $property->price * $numberOfDays;
+                $selectedApartmentId = $request->apartment_id;
+                $apartmentQuantity = $request->apartment_quantity ?? 1;
+
+                $isVacationHome = $property->getRawOriginal('property_classification') == 4;
+                if ($isVacationHome && $selectedApartmentId) {
+                    $apartment = \App\Models\VacationApartment::where('id', $selectedApartmentId)
+                        ->where('property_id', $property->id)
+                        ->first();
+
+                    if ($apartment) {
+                        $pricePerNight = (float)$apartment->price_per_night;
+                        $discount = (float)($apartment->discount_percentage ?? 0);
+                        $discountedPrice = $pricePerNight * (1 - ($discount / 100));
+                        $totalPrice = $discountedPrice * $numberOfDays * max(1, (int)$apartmentQuantity);
+                    }
+                }
 
                 // Create reservation data
                 $reservationData = [
@@ -433,6 +454,12 @@ class ReservationController extends Controller
                     'status' => 'pending',
                     'payment_status' => 'unpaid',
                 ];
+
+                // Attach apartment selection info into special_requests for traceability (no schema change)
+                if ($isVacationHome && $selectedApartmentId) {
+                    $reservationData['special_requests'] = trim(($request->special_requests ?? '') . ' ' .
+                        'Apartment ID: ' . $selectedApartmentId . ', Quantity: ' . max(1, (int)$apartmentQuantity));
+                }
 
                 // Create the reservation without sending emails (checkout without payment)
                 $reservation = $this->reservationService->createReservation($reservationData, true);
