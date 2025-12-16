@@ -44,6 +44,9 @@
                     <button id="load-statement-btn" class="btn btn-primary w-100 me-2">
                         <i class="bi bi-search"></i> Load Statement
                     </button>
+                    <button id="load-tax-invoice-btn" class="btn btn-info w-100 me-2">
+                        <i class="bi bi-receipt"></i> Load Tax Invoice
+                    </button>
                     <button id="export-statement-btn" class="btn btn-success w-100" style="display: none;">
                         <i class="bi bi-download"></i> Export
                     </button>
@@ -98,9 +101,9 @@
                             <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Reference #</th>
                             <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Description</th>
                             <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Payment</th>
-                            <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold; text-align: right;">Debit</th>
-                            <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold; text-align: right;">Credit</th>
-                            <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold; text-align: right;">Balance</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold; text-align: right;" id="debit-header">Debit</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold; text-align: right;" id="credit-header">Credit</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold; text-align: right;" id="balance-header">Balance</th>
                             <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Comments</th>
                             <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold; width: 80px;">Action</th>
                         </tr>
@@ -160,6 +163,11 @@ $(document).ready(function() {
     // Load statement button
     $('#load-statement-btn').on('click', function() {
         loadOwnerStatement();
+    });
+
+    // Load tax invoice button
+    $('#load-tax-invoice-btn').on('click', function() {
+        loadTaxInvoice();
     });
 
     // Export statement button
@@ -758,12 +766,74 @@ function loadOwnerStatement() {
             }
 
             currentStatementData = response;
+            // Reset table headers
+            $('#debit-header').text('Debit');
+            $('#credit-header').text('Credit');
+            $('#balance-header').text('Balance');
             renderStatement(response);
             $('#export-statement-btn').show();
         },
         error: function(xhr) {
             console.error('Error loading statement:', xhr);
             let errorMessage = 'Failed to load statement';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            }
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: errorMessage
+            });
+            $('#statement-tbody').html('<tr><td colspan="7" class="text-center text-danger">' + errorMessage + '</td></tr>');
+        }
+    });
+}
+
+function loadTaxInvoice() {
+    const propertyId = $('#property-select').val();
+    const dateFrom = $('#date-from-filter').val();
+    const dateTo = $('#date-to-filter').val();
+
+    if (!propertyId) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Select Property',
+            text: 'Please select a property first'
+        });
+        return;
+    }
+
+    // Show loading
+    $('#statement-tbody').html('<tr><td colspan="9" class="text-center"><i class="spinner-border spinner-border-sm"></i> Loading tax invoice...</td></tr>');
+    $('#statement-card').show();
+    $('#owner-info-card').show();
+
+    $.ajax({
+        url: '{{ route("statement-of-account.tax-invoice") }}',
+        method: 'GET',
+        data: {
+            property_id: propertyId,
+            date_from: dateFrom,
+            date_to: dateTo
+        },
+        success: function(response) {
+            if (response.error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: response.message || 'Failed to load tax invoice'
+                });
+                $('#statement-tbody').html('<tr><td colspan="9" class="text-center text-danger">' + (response.message || 'Error loading tax invoice') + '</td></tr>');
+                return;
+            }
+
+            currentStatementData = response;
+            renderTaxInvoice(response);
+            $('#export-statement-btn').show();
+        },
+        error: function(xhr) {
+            console.error('Error loading tax invoice:', xhr);
+            let errorMessage = 'Failed to load tax invoice';
             if (xhr.responseJSON && xhr.responseJSON.message) {
                 errorMessage = xhr.responseJSON.message;
             }
@@ -1051,6 +1121,102 @@ function renderStatement(data) {
     setTimeout(function() {
         updateAllTotals(); // Recalculate all totals from actual row values
     }, 100);
+    
+    $('#total-row').show();
+}
+
+function renderTaxInvoice(data) {
+    // Update owner information
+    if (data.owner) {
+        $('#owner-name').text(data.owner.name || '-');
+        
+        // Set owner address as clickable link
+        const address = data.owner.address || '-';
+        $('#owner-address').text(address);
+        if (address && address !== '-') {
+            // Create Google Maps link
+            const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address);
+            $('#owner-address-link').attr('href', mapsUrl);
+        } else {
+            $('#owner-address-link').attr('href', '#').removeAttr('target');
+        }
+        
+        $('#owner-phone').text(data.owner.mobile || '-');
+        $('#owner-email').text(data.owner.email || '-');
+        $('#customer-number').text(data.owner.id || '-');
+        $('#unit-number').text(data.property_id || '-');
+        $('#statement-date').text(data.statement_date || '-');
+    }
+
+    // Clear and render transactions
+    let tbody = $('#statement-tbody');
+    tbody.empty();
+
+    // Update table headers for tax invoice
+    $('#debit-header').text('AS Home Commission');
+    $('#credit-header').text('Hotel Commission');
+    $('#balance-header').text('Net Revenue');
+
+    if (!data.commissions || data.commissions.length === 0) {
+        tbody.html('<tr><td colspan="9" class="text-center">No commission data found</td></tr>');
+        $('#total-row').hide();
+        return;
+    }
+
+    let totalAsHomeCommission = 0;
+    let totalHotelCommission = 0;
+
+    data.commissions.forEach(function(commission, index) {
+        totalAsHomeCommission += parseFloat(commission.as_home_commission || 0);
+        totalHotelCommission += parseFloat(commission.hotel_commission || 0);
+
+        let tr = $('<tr></tr>');
+        
+        // Date
+        tr.append($('<td style="padding: 8px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd;"></td>').text(commission.date || ''));
+        
+        // Reference
+        tr.append($('<td style="padding: 8px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd;"></td>').text(commission.reference || ''));
+        
+        // Description
+        let descriptionText = commission.description || '';
+        if (commission.room_number && commission.room_number !== 'N/A' && commission.room_number !== '0' && commission.room_number !== 0) {
+            descriptionText += ` - Room ${commission.room_number}`;
+        }
+        tr.append($('<td style="padding: 8px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd;"></td>').text(descriptionText));
+        
+        // Payment Method Badge
+        let paymentMethodBadge = '';
+        if (commission.payment_method === 'online') {
+            paymentMethodBadge = '<span class="badge bg-primary" title="Online Payment (Paymob/Gateway)"><i class="bi bi-credit-card"></i> Online</span>';
+        } else {
+            paymentMethodBadge = '<span class="badge bg-secondary" title="Manual/Cash Payment"><i class="bi bi-cash"></i> Manual</span>';
+        }
+        tr.append($('<td style="padding: 8px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd; text-align: center;"></td>').html(paymentMethodBadge));
+        
+        // AS Home Commission (Debit column)
+        tr.append($('<td style="padding: 8px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd; text-align: right;"></td>').text(formatNumber(commission.as_home_commission || 0)));
+        
+        // Hotel Commission (Credit column)
+        tr.append($('<td style="padding: 8px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd; text-align: right;"></td>').text(formatNumber(commission.hotel_commission || 0)));
+        
+        // Net Revenue (Balance column)
+        let netRevenue = parseFloat(commission.as_home_commission || 0) + parseFloat(commission.hotel_commission || 0);
+        tr.append($('<td style="padding: 8px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd; text-align: right;"></td>').text(formatNumber(netRevenue)));
+        
+        // Comments
+        tr.append($('<td style="padding: 8px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd;"></td>').text(commission.comments || ''));
+        
+        // Action column (empty for tax invoice)
+        tr.append($('<td style="padding: 4px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd; text-align: center;"></td>').text(''));
+
+        tbody.append(tr);
+    });
+
+    // Update totals
+    $('#total-debit').text(formatNumber(totalAsHomeCommission));
+    $('#total-credit').text(formatNumber(totalHotelCommission));
+    $('#total-balance').text(formatNumber(totalAsHomeCommission + totalHotelCommission));
     
     $('#total-row').show();
 }

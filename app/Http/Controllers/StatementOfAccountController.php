@@ -1111,6 +1111,229 @@ class StatementOfAccountController extends Controller
     }
 
     /**
+     * Get tax invoice data showing commissions for AS Home and Hotel.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function getTaxInvoice(Request $request)
+    {
+        $propertyId = $request->property_id ?? null;
+        $ownerId = $request->owner_id ?? null;
+        $dateFrom = $request->date_from ?? null;
+        $dateTo = $request->date_to ?? null;
+
+        try {
+            // If property ID is provided, get owner from property
+            if ($propertyId) {
+                $property = Property::with('customer')->find($propertyId);
+                if (!$property) {
+                    return response()->json([
+                        'error' => true,
+                        'message' => 'Invalid property selected.',
+                        'owner' => null,
+                        'commissions' => []
+                    ]);
+                }
+
+                // Use raw value for classification to avoid casting issues
+                $classification = $property->getRawOriginal('property_classification');
+                if ($classification != 5) {
+                    return response()->json([
+                        'error' => true,
+                        'message' => 'Selected property is not a hotel (class 5).',
+                        'owner' => null,
+                        'commissions' => []
+                    ]);
+                }
+                $owner = $property->customer;
+                if (!$owner) {
+                    return response()->json([
+                        'error' => true,
+                        'message' => 'Property has no owner.',
+                        'owner' => null,
+                        'commissions' => []
+                    ]);
+                }
+                $ownerId = $owner->id;
+            } else if ($ownerId) {
+                // Get owner directly
+                $owner = Customer::find($ownerId);
+                if (!$owner) {
+                    return response()->json([
+                        'error' => true,
+                        'message' => 'Owner not found.',
+                        'owner' => null,
+                        'commissions' => []
+                    ]);
+                }
+            } else {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Please select a property or owner.',
+                    'owner' => null,
+                    'commissions' => []
+                ]);
+            }
+
+            // Get all properties for this owner (hotel properties only)
+            $properties = Property::where('property_classification', 5)
+                ->where('added_by', $ownerId)
+                ->get();
+
+            if ($properties->isEmpty()) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Owner has no hotel properties.',
+                    'owner' => [
+                        'id' => $owner->id,
+                        'name' => $owner->name ?? 'N/A',
+                        'email' => $owner->email ?? 'N/A',
+                        'mobile' => $owner->mobile ?? 'N/A',
+                        'address' => $owner->address ?? 'N/A',
+                    ],
+                    'commissions' => []
+                ]);
+            }
+
+            // Get hotel room IDs for owner's properties
+            $propertyIds = $properties->pluck('id');
+            $hotelRoomIds = DB::table('hotel_rooms')->whereIn('property_id', $propertyIds)->pluck('id');
+
+            // Get all confirmed, paid or cash reservations
+            $query = Reservation::where('reservable_type', 'App\\Models\\HotelRoom')
+                ->whereIn('reservable_id', $hotelRoomIds)
+                ->whereIn('status', ['confirmed', 'approved'])
+                ->whereIn('payment_status', ['paid', 'cash'])
+                ->with(['customer', 'reservable.roomType', 'reservable.property', 'payment:id,reservation_id,status']);
+
+            // Filter by date range
+            if ($dateFrom) {
+                $query->where('check_in_date', '>=', $dateFrom);
+            }
+            if ($dateTo) {
+                $query->where('check_in_date', '<=', $dateTo);
+            }
+
+            $reservations = $query->orderBy('check_in_date', 'ASC')->get();
+
+            // Get tax rates
+            $serviceChargeRate = (float)(system_setting('hotel_service_charge_rate') ?? 10);
+            $salesTaxRate = (float)(system_setting('hotel_sales_tax_rate') ?? 14);
+            $cityTaxRate = (float)(system_setting('hotel_city_tax_rate') ?? 5);
+            $currencySymbol = system_setting('currency_symbol') ?? 'EGP';
+
+            $commissions = [];
+
+            foreach ($reservations as $reservation) {
+                $hotelRoom = $reservation->reservable ?? null;
+                if (!$hotelRoom) continue;
+                
+                $property = $hotelRoom->property ?? null;
+                if (!$property) continue;
+
+                // Determine payment method
+                $paymentMethod = $reservation->payment_method ?? 'cash';
+                $isOnlinePayment = ($paymentMethod === 'paymob' || $paymentMethod === 'online' || $reservation->payment);
+                $paymentMethodBadge = $isOnlinePayment ? 'online' : 'cash';
+
+                // Get property-level credit edit
+                $propertyEdit = null;
+                try {
+                    if (Schema::hasTable('statement_of_account_edits')) {
+                        $propertyEdit = StatementOfAccountEdit::where('property_id', $property->id)
+                            ->whereNull('reservation_id')
+                            ->first();
+                    }
+                } catch (\Exception $e) {
+                    // Skip if table doesn't exist
+                }
+
+                // Get reservation-level edit
+                $reservationEdit = null;
+                try {
+                    if (Schema::hasTable('statement_of_account_edits')) {
+                        $reservationEdit = StatementOfAccountEdit::where('reservation_id', $reservation->id)->first();
+                    }
+                } catch (\Exception $e) {
+                    // Skip if table doesn't exist
+                }
+
+                // Calculate financials
+                $revenueBeforeTax = (float)$reservation->total_price;
+                
+                // Calculate taxes from gross revenue
+                $serviceCharge = $revenueBeforeTax * ($serviceChargeRate / 100);
+                $salesTax = $revenueBeforeTax * ($salesTaxRate / 100);
+                $cityTax = $revenueBeforeTax * ($cityTaxRate / 100);
+                $totalTaxAmount = $serviceCharge + $salesTax + $cityTax;
+                
+                // Calculate net revenue (pure reservation amount without taxes)
+                $netRevenue = $revenueBeforeTax - $totalTaxAmount;
+
+                // Calculate commission from net revenue
+                // AS Home: 15% of net revenue
+                // Hotel: 85% of net revenue
+                $asHomeCommission = $netRevenue * 0.15;  // 15% commission for AS Home
+                $hotelCommission = $netRevenue * 0.85;   // 85% for hotel
+
+                // Use property-level edit if exists, otherwise reservation-level edit
+                if ($propertyEdit && $propertyEdit->credit_amount !== null) {
+                    $hotelCommission = (float)$propertyEdit->credit_amount;
+                    $asHomeCommission = $netRevenue - $hotelCommission;
+                } else if ($reservationEdit && $reservationEdit->credit_amount !== null) {
+                    $hotelCommission = (float)$reservationEdit->credit_amount;
+                    $asHomeCommission = $netRevenue - $hotelCommission;
+                }
+
+                // Add commission entry
+                $commissions[] = [
+                    'date' => $reservation->check_in_date->format('d-M-y'),
+                    'reference' => 'Invoice',
+                    'description' => 'Reservation Commission',
+                    'as_home_commission' => $asHomeCommission,
+                    'hotel_commission' => $hotelCommission,
+                    'comments' => $propertyEdit->description ?? $reservationEdit->description ?? 'Commission breakdown',
+                    'reservation_id' => $reservation->id,
+                    'property_id' => $property->id,
+                    'payment_method' => $paymentMethodBadge,
+                    'room_number' => (!empty($hotelRoom->room_number) && $hotelRoom->room_number != '0') ? $hotelRoom->room_number : null,
+                ];
+            }
+
+            // Get property ID if property was selected
+            $selectedPropertyId = $propertyId ?? ($properties->first()->id ?? null);
+
+            return response()->json([
+                'error' => false,
+                'owner' => [
+                    'id' => $owner->id,
+                    'name' => $owner->name ?? 'N/A',
+                    'email' => $owner->email ?? 'N/A',
+                    'mobile' => $owner->mobile ?? 'N/A',
+                    'address' => $owner->address ?? 'N/A',
+                ],
+                'property_id' => $selectedPropertyId,
+                'commissions' => $commissions,
+                'currency_symbol' => $currencySymbol,
+                'statement_date' => now()->format('d-M-y'),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in getTaxInvoice: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'error' => true,
+                'message' => 'Failed to load tax invoice: ' . $e->getMessage(),
+                'owner' => null,
+                'commissions' => []
+            ], 500);
+        }
+    }
+
+    /**
      * Export statement data to CSV/Excel.
      *
      * @param  \Illuminate\Http\Request  $request

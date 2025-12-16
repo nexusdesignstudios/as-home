@@ -323,6 +323,7 @@ Route::middleware(['language'])->group(function () {
         Route::get('statement-of-account/hotel-properties', [\App\Http\Controllers\StatementOfAccountController::class, 'getHotelProperties'])->name('statement-of-account.hotel-properties');
         Route::get('statement-of-account/data', [\App\Http\Controllers\StatementOfAccountController::class, 'getStatementData'])->name('statement-of-account.data');
         Route::get('statement-of-account/owner-statement', [\App\Http\Controllers\StatementOfAccountController::class, 'getOwnerStatement'])->name('statement-of-account.owner-statement');
+        Route::get('statement-of-account/tax-invoice', [\App\Http\Controllers\StatementOfAccountController::class, 'getTaxInvoice'])->name('statement-of-account.tax-invoice');
         Route::post('statement-of-account/{reservationId}/update-field', [\App\Http\Controllers\StatementOfAccountController::class, 'updateField'])->name('statement-of-account.update-field');
         Route::post('statement-of-account/property/{propertyId}/update-credit', [\App\Http\Controllers\StatementOfAccountController::class, 'updatePropertyCredit'])->name('statement-of-account.update-property-credit');
         Route::post('statement-of-account/property/{propertyId}/manual-entry', [\App\Http\Controllers\StatementOfAccountController::class, 'saveManualEntry'])->name('statement-of-account.save-manual-entry');
