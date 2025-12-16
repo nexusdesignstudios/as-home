@@ -851,27 +851,46 @@ class PropertController extends Controller
                 // END :: UPDATE HOTEL ROOMS
 
                 // START :: UPDATE VACATION APARTMENTS
-                if (isset($request->property_classification) && $request->property_classification == 4 && isset($request->vacation_apartments) && !empty($request->vacation_apartments)) {
-                    try {
+                // Check if property classification is 4 (vacation homes)
+                // Also handle the case where vacation_apartments might be null/empty to delete existing apartments
+                if (isset($request->property_classification) && $request->property_classification == 4) {
+                    // Use input() to properly parse nested FormData arrays
+                    $vacationApartments = $request->input('vacation_apartments');
+                    
+                    // If vacation_apartments is explicitly set (even if empty array), process it
+                    if ($vacationApartments !== null) {
+                        // Delete all existing apartments first
                         \App\Models\VacationApartment::where('property_id', $UpdateProperty->id)->delete();
-                        foreach ($request->vacation_apartments as $apartment) {
-                            \App\Models\VacationApartment::create([
-                                'property_id' => $UpdateProperty->id,
-                                'apartment_number' => $apartment['apartment_number'] ?? null,
-                                'price_per_night' => isset($apartment['price_per_night']) ? (float)$apartment['price_per_night'] : 0,
-                                'discount_percentage' => isset($apartment['discount_percentage']) ? (float)$apartment['discount_percentage'] : 0,
-                                'availability_type' => isset($apartment['availability_type']) ? (int)$apartment['availability_type'] : null,
-                                'available_dates' => $apartment['available_dates'] ?? null,
-                                'description' => $apartment['description'] ?? null,
-                                'status' => $apartment['status'] ?? 1,
-                                'max_guests' => isset($apartment['max_guests']) ? (int)$apartment['max_guests'] : null,
-                                'bedrooms' => isset($apartment['bedrooms']) ? (int)$apartment['bedrooms'] : null,
-                                'bathrooms' => isset($apartment['bathrooms']) ? (int)$apartment['bathrooms'] : null,
-                                'quantity' => isset($apartment['quantity']) ? (int)$apartment['quantity'] : 1,
-                            ]);
+                        
+                        // Only create new apartments if the array is not empty
+                        if (!empty($vacationApartments) && is_array($vacationApartments)) {
+                            try {
+                                foreach ($vacationApartments as $apartment) {
+                                    // Parse available_dates if it's a JSON string
+                                    $availableDates = $apartment['available_dates'] ?? null;
+                                    if (is_string($availableDates)) {
+                                        $availableDates = json_decode($availableDates, true);
+                                    }
+                                    
+                                    \App\Models\VacationApartment::create([
+                                        'property_id' => $UpdateProperty->id,
+                                        'apartment_number' => $apartment['apartment_number'] ?? null,
+                                        'price_per_night' => isset($apartment['price_per_night']) ? (float)$apartment['price_per_night'] : 0,
+                                        'discount_percentage' => isset($apartment['discount_percentage']) ? (float)$apartment['discount_percentage'] : 0,
+                                        'availability_type' => isset($apartment['availability_type']) ? (int)$apartment['availability_type'] : null,
+                                        'available_dates' => $availableDates,
+                                        'description' => $apartment['description'] ?? null,
+                                        'status' => isset($apartment['status']) ? (($apartment['status'] === '1' || $apartment['status'] === 1 || $apartment['status'] === true) ? true : false) : true,
+                                        'max_guests' => isset($apartment['max_guests']) ? (int)$apartment['max_guests'] : null,
+                                        'bedrooms' => isset($apartment['bedrooms']) ? (int)$apartment['bedrooms'] : null,
+                                        'bathrooms' => isset($apartment['bathrooms']) ? (int)$apartment['bathrooms'] : null,
+                                        'quantity' => isset($apartment['quantity']) ? (int)$apartment['quantity'] : 1,
+                                    ]);
+                                }
+                            } catch (\Exception $e) {
+                                throw $e;
+                            }
                         }
-                    } catch (\Exception $e) {
-                        throw $e;
                     }
                 }
                 // END :: UPDATE VACATION APARTMENTS
