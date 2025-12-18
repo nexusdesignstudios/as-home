@@ -494,6 +494,18 @@ class Property extends Model
         $parameterQueryData = $this->parameters()->get();
         if (isset($parameterQueryData) && !empty($parameterQueryData)) {
             $parameters = [];
+            
+            // Get category parameter order if available
+            $categoryParameterOrder = [];
+            if ($this->category_id) {
+                $category = $this->category;
+                if ($category && !empty($category->parameter_types)) {
+                    $categoryParameterOrder = explode(',', $category->parameter_types);
+                    // Remove empty values and convert to integers
+                    $categoryParameterOrder = array_filter(array_map('intval', $categoryParameterOrder));
+                }
+            }
+            
             foreach ($parameterQueryData as $res) {
                 // Get pivot value - the AssignParameters model has a getValueAttribute accessor
                 // that automatically decodes JSON, so we use the accessor
@@ -538,6 +550,29 @@ class Property extends Model
                         'value' => $value,
                     ];
                 }
+            }
+            
+            // Sort parameters by category order if available
+            if (!empty($categoryParameterOrder) && !empty($parameters)) {
+                usort($parameters, function ($a, $b) use ($categoryParameterOrder) {
+                    $indexA = array_search($a['id'], $categoryParameterOrder);
+                    $indexB = array_search($b['id'], $categoryParameterOrder);
+                    
+                    // If both are in the category order, sort by their position
+                    if ($indexA !== false && $indexB !== false) {
+                        return $indexA <=> $indexB;
+                    }
+                    // If only A is in the category order, A comes first
+                    if ($indexA !== false) {
+                        return -1;
+                    }
+                    // If only B is in the category order, B comes first
+                    if ($indexB !== false) {
+                        return 1;
+                    }
+                    // If neither is in the category order, maintain original order (by id)
+                    return $a['id'] <=> $b['id'];
+                });
             }
 
             // Check if this is a commercial property with hotel type

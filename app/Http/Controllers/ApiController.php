@@ -756,6 +756,32 @@ class ApiController extends Controller
             });
         }
 
+        // If bedrooms filter is passed - exact match on parameter value
+        if ($request->has('bedrooms') && $request->bedrooms !== null && $request->bedrooms !== '') {
+            $bedroomsValue = (string) $request->bedrooms;
+            $property = $property->whereHas('assignParameter', function ($query) use ($bedroomsValue) {
+                $query->whereHas('parameter', function ($paramQuery) {
+                    $paramQuery->where(function ($nameQuery) {
+                        $nameQuery->where('name', 'LIKE', '%bedroom%')
+                            ->orWhere('name', 'LIKE', '%bed%');
+                    });
+                })->whereRaw('value = ?', [$bedroomsValue]);
+            });
+        }
+
+        // If bathrooms filter is passed - exact match on parameter value
+        if ($request->has('bathrooms') && $request->bathrooms !== null && $request->bathrooms !== '') {
+            $bathroomsValue = (string) $request->bathrooms;
+            $property = $property->whereHas('assignParameter', function ($query) use ($bathroomsValue) {
+                $query->whereHas('parameter', function ($paramQuery) {
+                    $paramQuery->where(function ($nameQuery) {
+                        $nameQuery->where('name', 'LIKE', '%bathroom%')
+                            ->orWhere('name', 'LIKE', '%bath%');
+                    });
+                })->whereRaw('value = ?', [$bathroomsValue]);
+            });
+        }
+
         // If Max Price And Min Price passed
         if (isset($request->max_price) && isset($request->min_price) && (!empty($request->max_price) && !empty($min_price))) {
             $property = $property->whereBetween('price', [$min_price, $max_price]);
@@ -6617,6 +6643,32 @@ class ApiController extends Controller
                 });
             }
 
+            // If bedrooms filter is passed - exact match on parameter value
+            if ($request->has('bedrooms') && $request->bedrooms !== null && $request->bedrooms !== '') {
+                $bedroomsValue = (string) $request->bedrooms;
+                $propertyQuery = $propertyQuery->clone()->whereHas('assignParameter', function ($query) use ($bedroomsValue) {
+                    $query->whereHas('parameter', function ($paramQuery) {
+                        $paramQuery->where(function ($nameQuery) {
+                            $nameQuery->where('name', 'LIKE', '%bedroom%')
+                                ->orWhere('name', 'LIKE', '%bed%');
+                        });
+                    })->whereRaw('value = ?', [$bedroomsValue]);
+                });
+            }
+
+            // If bathrooms filter is passed - exact match on parameter value
+            if ($request->has('bathrooms') && $request->bathrooms !== null && $request->bathrooms !== '') {
+                $bathroomsValue = (string) $request->bathrooms;
+                $propertyQuery = $propertyQuery->clone()->whereHas('assignParameter', function ($query) use ($bathroomsValue) {
+                    $query->whereHas('parameter', function ($paramQuery) {
+                        $paramQuery->where(function ($nameQuery) {
+                            $nameQuery->where('name', 'LIKE', '%bathroom%')
+                                ->orWhere('name', 'LIKE', '%bath%');
+                        });
+                    })->whereRaw('value = ?', [$bathroomsValue]);
+                });
+            }
+
             // If Category Slug is Passed
             if ($request->has('category_slug_id') && !empty($request->category_slug_id)) {
                 $categorySlugId = $request->category_slug_id;
@@ -7625,7 +7677,33 @@ class ApiController extends Controller
     public function getFacilitiesForFilter(Request $request)
     {
         try {
-            $parameters = parameter::get();
+            $categoryId = $request->has('category_id') && !empty($request->category_id) ? $request->category_id : null;
+            
+            if ($categoryId) {
+                // Get parameters ordered by category
+                $category = Category::find($categoryId);
+                if ($category && !empty($category->parameter_types)) {
+                    $parameterIds = explode(',', $category->parameter_types);
+                    // Remove empty values and convert to integers
+                    $parameterIds = array_filter(array_map('intval', $parameterIds));
+                    
+                    if (!empty($parameterIds)) {
+                        $parameters = parameter::whereIn('id', $parameterIds)->get();
+                        // Sort by the order in category's parameter_types
+                        $parameters = $parameters->sortBy(function ($item) use ($parameterIds) {
+                            return array_search($item->id, $parameterIds);
+                        })->values();
+                    } else {
+                        $parameters = parameter::get();
+                    }
+                } else {
+                    $parameters = parameter::get();
+                }
+            } else {
+                // Return all parameters if no category_id provided
+                $parameters = parameter::get();
+            }
+            
             ApiResponseService::successResponse("Data Fetched Successfully", $parameters);
         } catch (Exception $e) {
             ApiResponseService::errorResponse();

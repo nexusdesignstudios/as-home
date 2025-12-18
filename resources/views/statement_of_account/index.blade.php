@@ -102,6 +102,14 @@
 
     <!-- Statement of Account Table -->
     <div class="card" id="statement-card" style="display: none;">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Statement Details</h5>
+            <div class="btn-group" role="group">
+                <button type="button" id="view-toggle-btn" class="btn btn-sm btn-outline-primary" title="Toggle between Summary and Detailed view">
+                    <i class="bi bi-list-ul"></i> <span id="view-toggle-text">Summary View</span>
+                </button>
+            </div>
+        </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-bordered mb-0" id="statement-table" style="border-collapse: collapse;">
@@ -109,6 +117,7 @@
                         <tr>
                             <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Date</th>
                             <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Reference #</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Ref ID</th>
                             <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Description</th>
                             <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Payment</th>
                             <th style="padding: 10px; border: 1px solid #ddd; font-weight: bold; text-align: right;" id="debit-header">Debit</th>
@@ -123,11 +132,15 @@
                     </tbody>
                     <tfoot style="background-color: #FFEB3B;">
                         <tr id="total-row" style="display: none;">
-                            <td colspan="3" style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Total</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Total</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;"></td>
+                            <td id="total-refid" style="padding: 10px; border: 1px solid #ddd; font-weight: bold;"></td>
+                            <td id="total-description" style="padding: 10px; border: 1px solid #ddd; font-weight: bold;"></td>
                             <td style="padding: 10px; border: 1px solid #ddd; text-align: center;"></td>
                             <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold;" id="total-debit">0.00</td>
                             <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold;" id="total-credit">0.00</td>
                             <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold;" id="total-balance">0.00</td>
+                            <td style="padding: 10px; border: 1px solid #ddd;"></td>
                             <td style="padding: 10px; border: 1px solid #ddd;"></td>
                         </tr>
                     </tfoot>
@@ -140,6 +153,10 @@
 
 @section('js')
 <script>
+// Global variable to track view mode: 'summary' or 'detailed'
+let currentViewMode = 'detailed'; // Default to detailed view
+let currentStatementData = null;
+
 $(document).ready(function() {
     // Initialize Select2 for property dropdown
     $('#property-select').select2({
@@ -180,6 +197,11 @@ $(document).ready(function() {
         loadTaxInvoice();
     });
 
+    // View toggle button (Summary/Detailed)
+    $('#view-toggle-btn').on('click', function() {
+        toggleViewMode();
+    });
+
     // Export statement button
     $('#export-statement-btn').on('click', function() {
         exportStatement();
@@ -196,8 +218,6 @@ $(document).ready(function() {
     // Setup credit editing for statement
     setupStatementCreditEditing();
 });
-
-let currentStatementData = null;
 
 function setupStatementCreditEditing() {
     // Track changes instead of auto-saving on blur
@@ -511,7 +531,7 @@ function updateAllTotals() {
         let $row = $(this);
         
         // Get debit value (from input or text)
-        let $debitCell = $row.find('td').eq(4); // Debit column (index changed due to payment method column)
+        let $debitCell = $row.find('td').eq(5); // Debit column (index changed: Date=0, Ref#=1, RefID=2, Desc=3, Payment=4, Debit=5)
         let debit = 0;
         if ($debitCell.find('input').length) {
             debit = parseFloat($debitCell.find('input').val() || 0);
@@ -520,7 +540,7 @@ function updateAllTotals() {
         }
         
         // Get credit value (from input or text)
-        let $creditCell = $row.find('td').eq(5); // Credit column (index changed due to payment method column)
+        let $creditCell = $row.find('td').eq(6); // Credit column (index changed: Date=0, Ref#=1, RefID=2, Desc=3, Payment=4, Debit=5, Credit=6)
         let credit = 0;
         if ($creditCell.find('input').length) {
             credit = parseFloat($creditCell.find('input').val() || 0);
@@ -787,6 +807,10 @@ function loadOwnerStatement() {
             $('#balance-header').text('Balance');
             renderStatement(response);
             $('#export-statement-btn').show();
+            // Reset view mode to detailed when loading new data
+            currentViewMode = 'detailed';
+            $('#view-toggle-text').text('Summary View');
+            $('#view-toggle-btn').removeClass('btn-outline-success').addClass('btn-outline-primary');
         },
         error: function(xhr) {
             console.error('Error loading statement:', xhr);
@@ -846,6 +870,12 @@ function loadTaxInvoice() {
             renderTaxInvoice(response);
             $('#export-statement-btn').show();
             $('#export-tax-invoice-btn').show();
+            // Set view mode to summary for tax invoice (only show totals)
+            currentViewMode = 'summary';
+            $('#view-toggle-text').text('Detailed View');
+            $('#view-toggle-btn').removeClass('btn-outline-primary').addClass('btn-outline-success');
+            // Apply summary view immediately
+            applyViewMode();
         },
         error: function(xhr) {
             console.error('Error loading tax invoice:', xhr);
@@ -946,6 +976,11 @@ function renderStatement(data) {
             referenceCell = $('<td style="padding: 8px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd;"></td>').text(transaction.reference || '');
         }
         tr.append(referenceCell);
+        
+        // Ref ID (Reservation ID) - Same as tax invoice
+        let refIdText = transaction.reservation_id ? '#' + transaction.reservation_id : '';
+        let refIdCell = $('<td style="padding: 8px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd;"></td>').text(refIdText);
+        tr.append(refIdCell);
         
         // Description with refund policy indicator (only for credit transactions, not for "As-home Commission")
         let descriptionCell;
@@ -1105,9 +1140,13 @@ function renderStatement(data) {
         // Reference
         tr.append($('<td style="padding: 4px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd;"></td>')
             .append('<input type="text" class="form-control form-control-sm manual-reference" placeholder="Ref" />'));
+        // Ref ID (empty for manual entries)
+        tr.append($('<td style="padding: 8px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd;"></td>').text(''));
         // Description
         tr.append($('<td style="padding: 4px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd;"></td>')
             .append('<input type="text" class="form-control form-control-sm manual-description" placeholder="Description" />'));
+        // Payment Method (empty for manual entries)
+        tr.append($('<td style="padding: 8px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd; text-align: center;"></td>').html('<span class="badge bg-secondary">-</span>'));
         // Debit
         tr.append($('<td style="padding: 4px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd; text-align: right;"></td>')
             .append('<input type="number" step="0.01" class="form-control form-control-sm text-end manual-debit" placeholder="0" />'));
@@ -1139,6 +1178,29 @@ function renderStatement(data) {
     }, 100);
     
     $('#total-row').show();
+    
+    // Auto-generate refid for total row (Statement of Account)
+    // Use the same format as tax invoice to ensure consistency
+    // Set this after showing the row to ensure it's visible
+    let refIdText = generateRefId(data);
+    if (refIdText) {
+        // Format as Ref-{invoice_number}, removing dashes from invoice number for cleaner reference
+        let refNumber = refIdText.replace(/-/g, '');
+        $('#total-refid').text('Ref-' + refNumber);
+    } else {
+        $('#total-refid').text('');
+    }
+    // Keep description column empty
+    $('#total-description').text('');
+    
+    // Apply current view mode
+    applyViewMode();
+    
+    // Ensure refid is still set after view mode is applied
+    if (refIdText) {
+        let refNumber = refIdText.replace(/-/g, '');
+        $('#total-refid').text('Ref-' + refNumber);
+    }
 }
 
 function renderTaxInvoice(data) {
@@ -1174,7 +1236,7 @@ function renderTaxInvoice(data) {
     $('#balance-header').text('Net Revenue');
 
     if (!data.commissions || data.commissions.length === 0) {
-        tbody.html('<tr><td colspan="9" class="text-center">No commission data found</td></tr>');
+        tbody.html('<tr><td colspan="10" class="text-center">No commission data found</td></tr>');
         $('#total-row').hide();
         return;
     }
@@ -1193,6 +1255,10 @@ function renderTaxInvoice(data) {
         
         // Reference
         tr.append($('<td style="padding: 8px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd;"></td>').text(commission.reference || ''));
+        
+        // Ref ID (Reservation ID) - Same as statement of account
+        let refIdText = commission.reservation_id ? '#' + commission.reservation_id : '';
+        tr.append($('<td style="padding: 8px; border: 1px solid #ddd; border-style: dotted; border-bottom: 1px solid #ddd;"></td>').text(refIdText));
         
         // Description
         let descriptionText = commission.description || '';
@@ -1235,6 +1301,83 @@ function renderTaxInvoice(data) {
     $('#total-balance').text(formatNumber(totalAsHomeCommission + totalHotelCommission));
     
     $('#total-row').show();
+    
+    // Auto-generate refid for total row (Tax Invoice)
+    // Use the same format as statement of account to ensure consistency
+    // Set this after showing the row to ensure it's visible
+    let refIdText = generateRefId(data);
+    if (refIdText) {
+        // Format as Ref-{invoice_number}, removing dashes from invoice number for cleaner reference
+        let refNumber = refIdText.replace(/-/g, '');
+        $('#total-refid').text('Ref-' + refNumber);
+    } else {
+        $('#total-refid').text('');
+    }
+    // Keep description column empty
+    $('#total-description').text('');
+    
+    // Apply current view mode (should be summary for tax invoice)
+    // Note: The view mode is set to 'summary' in the loadTaxInvoice success callback
+    applyViewMode();
+    
+    // Ensure refid is still set after view mode is applied
+    if (refIdText) {
+        let refNumber = refIdText.replace(/-/g, '');
+        $('#total-refid').text('Ref-' + refNumber);
+    }
+}
+
+// Generate refid in same format as tax invoice invoice number: owner_id-monthYear-F
+// Shared function to ensure consistency between statement and tax invoice
+function generateRefId(data) {
+    let refIdText = '';
+    if (data.owner && data.owner.id) {
+        // Get month/year from date filter or first transaction/commission date
+        let monthYear = '';
+        
+        // Try to get from date filter first
+        let dateFrom = $('#date-from-filter').val();
+        if (dateFrom) {
+            let date = new Date(dateFrom);
+            monthYear = date.getFullYear() + String(date.getMonth() + 1).padStart(2, '0');
+        } else if (data.transactions && data.transactions.length > 0) {
+            // Use first transaction date
+            let firstDate = data.transactions[0].date;
+            if (firstDate) {
+                let dateParts = firstDate.split('-');
+                if (dateParts.length === 3) {
+                    let monthMap = {'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04', 'May': '05', 'Jun': '06', 
+                                   'Jul': '07', 'Aug': '08', 'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'};
+                    let month = monthMap[dateParts[1]] || '01';
+                    let year = '20' + dateParts[2];
+                    monthYear = year + month;
+                }
+            }
+        } else if (data.commissions && data.commissions.length > 0) {
+            // Use first commission date
+            let firstDate = data.commissions[0].date;
+            if (firstDate) {
+                let dateParts = firstDate.split('-');
+                if (dateParts.length === 3) {
+                    let monthMap = {'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04', 'May': '05', 'Jun': '06', 
+                                   'Jul': '07', 'Aug': '08', 'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'};
+                    let month = monthMap[dateParts[1]] || '01';
+                    let year = '20' + dateParts[2];
+                    monthYear = year + month;
+                }
+            }
+        }
+        
+        // Default to current month/year if not found
+        if (!monthYear) {
+            let now = new Date();
+            monthYear = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0');
+        }
+        
+        // Generate invoice number format: owner_id-monthYear-F (F for flexible)
+        refIdText = data.owner.id + '-' + monthYear + '-F';
+    }
+    return refIdText;
 }
 
 function formatNumber(value) {
@@ -1246,6 +1389,67 @@ function formatNumber(value) {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
     });
+}
+
+// Toggle between summary and detailed view
+function toggleViewMode() {
+    // Ensure currentViewMode is defined
+    if (typeof currentViewMode === 'undefined') {
+        currentViewMode = 'detailed';
+    }
+    
+    if (currentViewMode === 'detailed') {
+        // Switch to summary view
+        currentViewMode = 'summary';
+        $('#view-toggle-text').text('Detailed View');
+        $('#view-toggle-btn').removeClass('btn-outline-primary').addClass('btn-outline-success');
+        
+        // Hide all transaction rows (keep only totals)
+        $('#statement-tbody tr').each(function() {
+            if (!$(this).hasClass('summary-row')) {
+                $(this).hide();
+            }
+        });
+        
+        // Show totals row
+        $('#total-row').show();
+    } else {
+        // Switch to detailed view
+        currentViewMode = 'detailed';
+        $('#view-toggle-text').text('Summary View');
+        $('#view-toggle-btn').removeClass('btn-outline-success').addClass('btn-outline-primary');
+        
+        // Show all transaction rows
+        $('#statement-tbody tr').show();
+        
+        // Show totals row
+        $('#total-row').show();
+    }
+}
+
+// Apply view mode when data is rendered
+function applyViewMode() {
+    // Ensure currentViewMode is defined
+    if (typeof currentViewMode === 'undefined') {
+        currentViewMode = 'detailed';
+        return; // Don't apply if not defined yet
+    }
+    
+    if (currentViewMode === 'summary') {
+        // Hide all transaction rows
+        $('#statement-tbody tr').each(function() {
+            // Hide all rows except summary rows (if any)
+            if (!$(this).hasClass('summary-row')) {
+                $(this).hide();
+            }
+        });
+        // Show totals
+        $('#total-row').show();
+    } else {
+        // Show all rows
+        $('#statement-tbody tr').show();
+        $('#total-row').show();
+    }
 }
 
 function exportTaxInvoicePDF() {

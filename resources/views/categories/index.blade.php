@@ -269,15 +269,14 @@
                                     @endif
 
                                 </div>
-                                {{ Form::label('Sequence', __('Sequence'), ['class' => 'col-sm-12 col-form-label ']) }}
+                                {{ Form::label('Sequence', __('Facilities Order'), ['class' => 'col-sm-12 col-form-label ']) }}
+                                <small class="text-muted d-block mb-2">{{ __('Drag and drop to reorder facilities') }}</small>
 
                                 <div class="col-sm-12 sequence">
-
-                                    <div id="par" class="d-flex row">
-
+                                    <div id="par" class="d-flex flex-wrap gap-2 p-3 border rounded" style="min-height: 60px; background-color: #f8f9fa;">
+                                        <!-- Facilities will be displayed here -->
                                     </div>
                                     <input type="hidden" name="update_seq" id="update_seq">
-
                                 </div>
                                 <div class="col-sm-12" style="margin-top: 7%">
 
@@ -313,6 +312,25 @@
         integrity="sha512-MrA7WH8h42LMq8GWxQGmWjrtalBjrfIzCQ+i2EZA26cZ7OBiBd/Uct5S3NP9IBqKx5b+MMNH1PhzTsk6J9nPQQ=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script> --}}
     <script src=https://bevacqua.github.io/dragula/dist/dragula.js></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dragula@3.7.3/dist/dragula.min.css">
+    <style>
+        #par {
+            min-height: 60px;
+        }
+        .seq {
+            transition: transform 0.2s ease;
+        }
+        .seq:hover {
+            transform: scale(1.05);
+        }
+        .gu-mirror {
+            opacity: 0.8;
+            cursor: grabbing !important;
+        }
+        .gu-transit {
+            opacity: 0.2;
+        }
+    </style>
     <script>
         $(document).ready(function() {
             getWordCount("meta_title", "meta_title_count", "19.9px arial");
@@ -389,12 +407,10 @@
 
                     if (text_of_opt) {
                         $('#par').append($(
-                            '<div class="col-md-3">' +
-                            '<div class="seq" id=' + val_of_opt +
-                            '><span class="badge rounded-pill" style="background:var( --bs-primary);margin-left:2px;cursor:grab;">' +
-                            text_of_opt + '</span></div></div>'
-
-
+                            '<div class="seq mb-2" id=' + val_of_opt +
+                            ' style="cursor: move; user-select: none;">' +
+                            '<span class="badge rounded-pill p-2" style="background:var(--bs-primary); display: inline-block; font-size: 0.9rem;">' +
+                            '<span style="margin-right: 5px;">☰</span>' + text_of_opt + '</span></div>'
                         ));
                     }
 
@@ -409,6 +425,36 @@
 
                 });
                 $('#update_seq').val(sequence.toString());
+
+                // Re-initialize dragula after facilities change
+                if (window.dragulaInstance) {
+                    window.dragulaInstance.destroy();
+                }
+
+                var containers = [document.getElementById('par')];
+                window.dragulaInstance = dragula(containers, {
+                    moves: function (el, source, handle, sibling) {
+                        return el.classList.contains('seq');
+                    }
+                }).on('drag', function(el) {
+                    el.style.opacity = '0.5';
+                }).on('dragend', function(el) {
+                    el.style.opacity = '1';
+                }).on('drop', function(el, target, source, sibling) {
+                    var sequence = [];
+                    var existingIDs = {};
+
+                    $('.seq').each(function() {
+                        var id = $(this).attr('id');
+
+                        if (!existingIDs[id]) {
+                            existingIDs[id] = true;
+                            sequence.push(id);
+                        }
+                    });
+
+                    $('#update_seq').val(sequence.join(','));
+                });
 
             }
 
@@ -484,10 +530,10 @@
                     text_op = ($('#edit_parameter_type option[value="' + v + '"]').text());
                     if (v != '') {
                         $('#par').append($(
-                            '<div class="col-md-3">' +
-                            '<div class="seq" id=' + v +
-                            '><span class="badge rounded-pill" style="background:var( --bs-primary);margin-left:2px;cursor:grab;">' +
-                            text_op + '</span></div></div>'
+                            '<div class="seq mb-2" id=' + v +
+                            ' style="cursor: move; user-select: none;">' +
+                            '<span class="badge rounded-pill p-2" style="background:var(--bs-primary); display: inline-block; font-size: 0.9rem;">' +
+                            '<span style="margin-right: 5px;">☰</span>' + text_op + '</span></div>'
                         ));
                     }
 
@@ -505,13 +551,23 @@
 
                 $('#update_seq').val(sequence.toString());
 
-                // var containers = document.getElementById('par');
+                // Destroy existing dragula instance if it exists
+                if (window.dragulaInstance) {
+                    window.dragulaInstance.destroy();
+                }
 
+                // Initialize dragula for drag and drop
                 var containers = [document.getElementById('par')];
 
-                dragula(containers, {
-                    // Additional options for Dragula can be added here
-                }).on('drop', function() {
+                window.dragulaInstance = dragula(containers, {
+                    moves: function (el, source, handle, sibling) {
+                        return el.classList.contains('seq');
+                    }
+                }).on('drag', function(el) {
+                    el.style.opacity = '0.5';
+                }).on('dragend', function(el) {
+                    el.style.opacity = '1';
+                }).on('drop', function(el, target, source, sibling) {
                     var sequence = [];
                     var existingIDs = {};
 
@@ -523,7 +579,6 @@
                             sequence.push(id);
                         }
                     });
-
 
                     $('#update_seq').val(sequence.join(','));
                 });
