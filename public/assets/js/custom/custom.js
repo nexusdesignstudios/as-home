@@ -90,7 +90,8 @@ $(document).ready(function () {
 document.addEventListener("DOMContentLoaded", () => {
     tinymce.init({
         selector: '#tinymce_editor,.tinymce_editor',
-        height: 400,
+        height: 600,
+        max_chars: 0, // No character limit (0 = unlimited) - supports large email templates and contracts
         menubar: true,
         plugins: [
             'advlist autolink lists link charmap print preview anchor textcolor',
@@ -104,6 +105,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 //tinyMCE.triggerSave(); // updates all instances
                 editor.save(); // updates this instance's textarea
                 $(editor.getElement()).trigger('change'); // for garlic to detect change
+            });
+            // Ensure no character limits for large content
+            editor.on('init', function() {
+                editor.getBody().setAttribute('data-maxlength', '0');
             });
         }
     });

@@ -1,0 +1,235 @@
+{
+  "endpoints": {
+    "base_url": "https://maroon-fox-767665.hostingersite.com/api",
+    "get_categories": "/api/get-categories",
+    "get_facilities": "/api/get-facilities-for-filter",
+    "get_cities": "/api/get-cities-data",
+    "get_properties": "/api/get-property-list"
+  },
+  "example_responses": {
+    "get_categories": {
+      "error": false,
+      "message": "Data Fetch Successfully",
+      "total": 5,
+      "data": [
+        {
+          "id": 1,
+          "category": "Apartment",
+          "image": "https://maroon-fox-767665.hostingersite.com/images/category/apartment.jpg",
+          "slug_id": "apartment",
+          "property_classification": 1,
+          "parameter_types": [
+            {
+              "id": 1,
+              "name": "Bedrooms",
+              "type_of_parameter": "number",
+              "type_values": null,
+              "is_required": 1,
+              "image": "https://maroon-fox-767665.hostingersite.com/images/parameter/bedroom.png"
+            },
+            {
+              "id": 2,
+              "name": "Bathrooms",
+              "type_of_parameter": "number",
+              "type_values": null,
+              "is_required": 1,
+              "image": "https://maroon-fox-767665.hostingersite.com/images/parameter/bathroom.png"
+            }
+          ]
+        }
+      ]
+    },
+    "get_facilities": {
+      "error": false,
+      "message": "Data Fetched Successfully",
+      "data": [
+        {
+          "id": 1,
+          "name": "Bedrooms",
+          "type_of_parameter": "number",
+          "type_values": null,
+          "is_required": 1,
+          "image": "https://maroon-fox-767665.hostingersite.com/images/parameter/bedroom.png"
+        },
+        {
+          "id": 2,
+          "name": "Bathrooms",
+          "type_of_parameter": "number",
+          "type_values": null,
+          "is_required": 1,
+          "image": "https://maroon-fox-767665.hostingersite.com/images/parameter/bathroom.png"
+        },
+        {
+          "id": 3,
+          "name": "Swimming Pool",
+          "type_of_parameter": "checkbox",
+          "type_values": ["Yes", "No"],
+          "is_required": 0,
+          "image": "https://maroon-fox-767665.hostingersite.com/images/parameter/pool.png"
+        },
+        {
+          "id": 4,
+          "name": "Parking",
+          "type_of_parameter": "dropdown",
+          "type_values": ["1 Car", "2 Cars", "3+ Cars", "No Parking"],
+          "is_required": 0,
+          "image": "https://maroon-fox-767665.hostingersite.com/images/parameter/parking.png"
+        }
+      ]
+    },
+    "get_cities": {
+      "error": false,
+      "message": "Data Fetched Successfully",
+      "data": [
+        {
+          "City": "Cairo",
+          "Count": 150,
+          "image": "https://maroon-fox-767665.hostingersite.com/images/city/cairo.jpg"
+        },
+        {
+          "City": "Alexandria",
+          "Count": 85,
+          "image": "https://maroon-fox-767665.hostingersite.com/images/city/alexandria.jpg"
+        },
+        {
+          "City": "Hurghada",
+          "Count": 120,
+          "image": "https://maroon-fox-767665.hostingersite.com/images/city/hurghada.jpg"
+        }
+      ],
+      "total": 20
+    },
+    "get_properties": {
+      "error": false,
+      "message": "Data Fetched Successfully",
+      "data": [
+        {
+          "id": 1,
+          "slug_id": "luxury-apartment-cairo",
+          "title": "Luxury 3 Bedroom Apartment",
+          "price": 500000,
+          "title_image": "https://maroon-fox-767665.hostingersite.com/images/property/title/1.jpg",
+          "city": "Cairo",
+          "state": "Cairo",
+          "country": "Egypt",
+          "property_type": "sell",
+          "property_classification": 1,
+          "is_premium": true,
+          "latitude": 30.0444,
+          "longitude": 31.2357,
+          "category": {
+            "id": 1,
+            "category": "Apartment",
+            "image": "https://maroon-fox-767665.hostingersite.com/images/category/apartment.jpg",
+            "slug_id": "apartment"
+          },
+          "assign_facilities": [
+            {
+              "id": 1,
+              "property_id": 1,
+              "facility_id": 5,
+              "distance": 500,
+              "name": "Beach",
+              "image": "https://maroon-fox-767665.hostingersite.com/images/facility/beach.png"
+            },
+            {
+              "id": 2,
+              "property_id": 1,
+              "facility_id": 8,
+              "distance": 200,
+              "name": "Shopping Mall",
+              "image": "https://maroon-fox-767665.hostingersite.com/images/facility/mall.png"
+            }
+          ],
+          "parameters": [
+            {
+              "id": 1,
+              "name": "Bedrooms",
+              "type_of_parameter": "number",
+              "type_values": null,
+              "is_required": 1,
+              "image": "https://maroon-fox-767665.hostingersite.com/images/parameter/bedroom.png",
+              "value": "3"
+            },
+            {
+              "id": 2,
+              "name": "Bathrooms",
+              "type_of_parameter": "number",
+              "type_values": null,
+              "is_required": 1,
+              "image": "https://maroon-fox-767665.hostingersite.com/images/parameter/bathroom.png",
+              "value": "2"
+            },
+            {
+              "id": 3,
+              "name": "Swimming Pool",
+              "type_of_parameter": "checkbox",
+              "type_values": ["Yes", "No"],
+              "is_required": 0,
+              "image": "https://maroon-fox-767665.hostingersite.com/images/parameter/pool.png",
+              "value": "Yes"
+            }
+          ],
+          "favourite_count": 10,
+          "total_click": 150
+        }
+      ],
+      "total": 100
+    }
+  },
+  "filter_examples": {
+    "basic_filter": {
+      "url": "/api/get-property-list?property_type=1&category_id=1&min_price=100000&max_price=500000",
+      "description": "Filter by property type, category, and price range"
+    },
+    "bedrooms_bathrooms": {
+      "url": "/api/get-property-list?bedrooms=3&bathrooms=2",
+      "description": "Filter by exact number of bedrooms and bathrooms"
+    },
+    "location": {
+      "url": "/api/get-property-list?city=Cairo&state=Cairo&country=Egypt",
+      "description": "Filter by location (city, state, country)"
+    },
+    "location_radius": {
+      "url": "/api/get-property-list?latitude=30.0444&longitude=31.2357&radius=10",
+      "description": "Filter by location with radius (distance in km)"
+    },
+    "sorted": {
+      "url": "/api/get-property-list?most_viewed=1&limit=20",
+      "description": "Get most viewed properties"
+    },
+    "vacation_home": {
+      "url": "/api/get-property-list?property_classification=4&check_in_date=2025-01-15&check_out_date=2025-01-20",
+      "description": "Filter vacation homes by check-in/check-out dates"
+    },
+    "combined": {
+      "url": "/api/get-property-list?property_type=1&category_id=1&city=Cairo&bedrooms=3&bathrooms=2&min_price=200000&max_price=600000&most_viewed=1&offset=0&limit=20",
+      "description": "Complete filter example with all parameters"
+    }
+  },
+  "parameter_types": {
+    "textbox": "Text input field",
+    "textarea": "Multi-line text input",
+    "dropdown": "Select dropdown - use type_values as options",
+    "radiobutton": "Radio buttons - use type_values as options",
+    "checkbox": "Checkboxes - use type_values as options",
+    "file": "File upload",
+    "number": "Numeric input (used for bedrooms, bathrooms)"
+  },
+  "property_classifications": {
+    "1": "Sell/Rent",
+    "2": "Commercial",
+    "3": "New Project",
+    "4": "Vacation Homes",
+    "5": "Hotel Booking"
+  },
+  "property_types": {
+    "0": "Sell",
+    "1": "Rent"
+  },
+  "posted_since": {
+    "0": "Last Week",
+    "1": "Yesterday"
+  }
+}
+

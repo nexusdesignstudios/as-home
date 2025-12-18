@@ -61,7 +61,19 @@
 
                         <div class="form-group mb-3">
                             <label for="terms_conditions" class="form-label">{{ __('Terms & Conditions') }}</label>
-                            <textarea class="form-control" id="terms_conditions" name="terms_conditions" rows="10" required>{{ old('terms_conditions') }}</textarea>
+                            <div class="alert alert-info mb-2">
+                                <i class="bi bi-info-circle"></i> 
+                                <strong>{{ __('Unlimited Text Length') }}</strong> - {{ __('You can add large contracts with unlimited text length. Maximum supported: Up to 4GB of text content.') }}
+                            </div>
+                            <textarea class="form-control" id="terms_conditions" name="terms_conditions" rows="15" required style="min-height: 500px;" data-maxlength="0">{{ old('terms_conditions') }}</textarea>
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <span id="character-count-display">
+                                        <strong>{{ __('Current Length:') }}</strong> <span id="character-count">0</span> {{ __('characters') }} 
+                                        <span class="badge bg-success ms-2">{{ __('Unlimited') }}</span>
+                                    </span>
+                                </small>
+                            </div>
                         </div>
 
                         <div class="d-flex justify-content-end">
@@ -78,11 +90,27 @@
 @section('page-script')
 <script>
     $(document).ready(function() {
+        // Function to update character count
+        function updateCharacterCount() {
+            var editor = tinymce.get('terms_conditions');
+            if (editor) {
+                var content = editor.getContent({format: 'text'});
+                var charCount = content.length;
+                $('#character-count').text(charCount.toLocaleString());
+            } else {
+                // Fallback for plain textarea
+                var content = $('#terms_conditions').val();
+                var charCount = content.length;
+                $('#character-count').text(charCount.toLocaleString());
+            }
+        }
+
         // Initialize rich text editor if available
         if (typeof tinymce !== 'undefined') {
             tinymce.init({
                 selector: '#terms_conditions',
-                height: 400,
+                height: 600,
+                max_chars: 0, // No character limit (0 = unlimited)
                 plugins: [
                     'advlist autolink lists link image charmap print preview anchor',
                     'searchreplace visualblocks code fullscreen',
@@ -90,8 +118,31 @@
                 ],
                 toolbar: 'undo redo | formatselect | bold italic backcolor | \
                     alignleft aligncenter alignright alignjustify | \
-                    bullist numlist outdent indent | removeformat | help'
+                    bullist numlist outdent indent | removeformat | help',
+                // Remove any text length restrictions
+                setup: function(editor) {
+                    // Ensure no character limits
+                    editor.on('init', function() {
+                        editor.getBody().setAttribute('data-maxlength', '0');
+                        updateCharacterCount(); // Initial count
+                    });
+                    
+                    // Update character count on content change
+                    editor.on('keyup', function() {
+                        updateCharacterCount();
+                    });
+                    
+                    editor.on('change', function() {
+                        updateCharacterCount();
+                    });
+                }
             });
+        } else {
+            // Fallback: Update count for plain textarea
+            $('#terms_conditions').on('input keyup', function() {
+                updateCharacterCount();
+            });
+            updateCharacterCount(); // Initial count
         }
     });
 </script>

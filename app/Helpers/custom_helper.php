@@ -624,9 +624,7 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         }
 
         // Unset relationship to force accessor usage for correct ordering based on category
-        if (isset($row->relations['parameters'])) {
-            unset($row->relations['parameters']);
-        }
+        $row->unsetRelation('parameters');
         $tempRow['parameters'] = $row->parameters; // This will now use the accessor with category ordering
 
         $rows[] = $tempRow;

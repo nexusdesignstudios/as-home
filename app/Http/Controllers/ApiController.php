@@ -6956,9 +6956,7 @@ class ApiController extends Controller
                         $apartmentProperty->unit_type = $propertyTypeParam; // Store property type for frontend display
                         $apartmentProperty->assign_facilities = $property->assign_facilities;
                         // Unset relationship to force accessor usage for correct ordering
-                        if (isset($property->relations['parameters'])) {
-                            unset($property->relations['parameters']);
-                        }
+                        $property->unsetRelation('parameters');
                         $apartmentProperty->parameters = $property->parameters; // This will now use the accessor
                         $apartmentProperty->property_classification = $property->property_classification;
                         $apartmentProperty->rent_package = $property->rent_package;
@@ -6973,7 +6971,7 @@ class ApiController extends Controller
                     $property->property_type = $property->propery_type;
                     $property->assign_facilities = $property->assign_facilities;
                     // Unset relationship to force accessor usage for correct ordering
-                    unset($property->relations['parameters']);
+                    $property->unsetRelation('parameters');
                     $property->parameters = $property->parameters; // This will now use the accessor
                     $property->property_classification = $property->property_classification;
                     $property->rent_package = $property->rent_package;

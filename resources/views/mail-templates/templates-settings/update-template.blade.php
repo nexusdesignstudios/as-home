@@ -24,8 +24,9 @@
                             {!! Form::hidden('type', $data['type']) !!}
                             <div class="form-group">
                                 <label>{{ trans($data['title']) }} <span class="text-danger">*</span></label>
+                                <small class="text-muted d-block mb-2">{{ __('You can add large email templates with unlimited text length. The system supports sending emails with extensive content including contracts and detailed information.') }}</small>
                                 <div class="form-group col-md-12 col-sm-12">
-                                    <textarea class="tinymce_editor" name="data" class="form-control email-template col-md-7 col-xs-12">{{ $data['template'] }}</textarea>
+                                    <textarea class="tinymce_editor" name="data" class="form-control email-template col-md-7 col-xs-12" style="min-height: 500px;">{{ $data['template'] }}</textarea>
                                 </div>
                                 <div class="form-group col-sm-12 col-md-12">
                                     @foreach ($data['required_fields'] as $field)
