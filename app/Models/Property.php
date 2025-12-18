@@ -498,7 +498,12 @@ class Property extends Model
             // Get category parameter order if available
             $categoryParameterOrder = [];
             if ($this->category_id) {
+                // Load category if not already loaded, ensuring parameter_types is included
                 $category = $this->category;
+                if (!$category || !isset($category->parameter_types)) {
+                    // Reload category with parameter_types if not already loaded
+                    $category = Category::select('id', 'parameter_types')->find($this->category_id);
+                }
                 if ($category && !empty($category->parameter_types)) {
                     $categoryParameterOrder = explode(',', $category->parameter_types);
                     // Remove empty values and convert to integers

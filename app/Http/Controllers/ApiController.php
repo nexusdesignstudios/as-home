@@ -736,7 +736,7 @@ class ApiController extends Controller
         ];
 
         $property = Property::select($select)
-            ->with('customer', 'user', 'category:id,category,image,slug_id', 'assignfacilities.outdoorfacilities', 'parameters', 'favourite', 'interested_users', 'certificates', 'vacationApartments')
+            ->with('customer', 'user', 'category:id,category,image,slug_id,parameter_types', 'assignfacilities.outdoorfacilities', 'parameters', 'favourite', 'interested_users', 'certificates', 'vacationApartments')
             ->where(['status' => 1, 'request_status' => 'approved']);
 
         // If Property Classification is passed
@@ -1629,7 +1629,7 @@ class ApiController extends Controller
 
             $result = Property::with([
                 'customer',
-                'category:id,category,image',
+                'category:id,category,image,parameter_types',
                 'assignfacilities.outdoorfacilities',
                 'favourite',
                 'parameters',
@@ -3423,7 +3423,7 @@ class ApiController extends Controller
             $arr[] =  $p->property_id;
         }
 
-        $property_details = Property::whereIn('id', $arr)->with('category:id,category,image')->with('assignfacilities.outdoorfacilities')->with('parameters');
+        $property_details = Property::whereIn('id', $arr)->with('category:id,category,image,parameter_types')->with('assignfacilities.outdoorfacilities')->with('parameters');
         $result = $property_details->clone()->orderBy('id', 'ASC')->skip($offset)->take($limit)->get();
 
         $total = $property_details->clone()->count();
@@ -3525,7 +3525,7 @@ class ApiController extends Controller
         foreach ($favourite as $p) {
             $arr[] =  $p->property_id;
         }
-        $property_details = Property::whereIn('id', $arr)->with('category:id,category')->with('parameters');
+        $property_details = Property::whereIn('id', $arr)->with('category:id,category,parameter_types')->with('parameters');
         $result = $property_details->orderBy('id', 'ASC')->skip($offset)->take($limit)->get();
 
 
@@ -4424,7 +4424,7 @@ class ApiController extends Controller
         $user_interest = UserInterest::where('user_id', $current_user)->first();
         if (collect($user_interest)->isNotEmpty()) {
 
-            $property = Property::with('customer')->with('user')->with('category:id,category,image')->with('assignfacilities.outdoorfacilities')->with('favourite')->with('parameters')->with('interested_users')->where(['status' => 1, 'request_status' => 'approved']);
+            $property = Property::with('customer')->with('user')->with('category:id,category,image,parameter_types')->with('assignfacilities.outdoorfacilities')->with('favourite')->with('parameters')->with('interested_users')->where(['status' => 1, 'request_status' => 'approved']);
 
 
             $property_type = $request->property_type;
@@ -6893,7 +6893,7 @@ class ApiController extends Controller
 
             // Get properties list data
             $propertiesData = $propertyQuery->clone()
-                ->with('category:id,category,image,slug_id', 'vacationApartments')
+                ->with('category:id,category,image,slug_id,parameter_types', 'vacationApartments', 'assignParameter.parameter')
                 ->select('id', 'slug_id', 'propery_type', 'title_image', 'category_id', 'title', 'price', 'city', 'state', 'country', 'rentduration', 'added_by', 'is_premium', 'property_classification', 'rent_package', 'latitude', 'longitude', 'total_click')
                 ->withCount('favourite');
 
@@ -6955,7 +6955,11 @@ class ApiController extends Controller
                         }
                         $apartmentProperty->unit_type = $propertyTypeParam; // Store property type for frontend display
                         $apartmentProperty->assign_facilities = $property->assign_facilities;
-                        $apartmentProperty->parameters = $property->parameters;
+                        // Unset relationship to force accessor usage for correct ordering
+                        if (isset($property->relations['parameters'])) {
+                            unset($property->relations['parameters']);
+                        }
+                        $apartmentProperty->parameters = $property->parameters; // This will now use the accessor
                         $apartmentProperty->property_classification = $property->property_classification;
                         $apartmentProperty->rent_package = $property->rent_package;
                         unset($apartmentProperty->propery_type);
@@ -6968,7 +6972,9 @@ class ApiController extends Controller
                     $property->is_premium = $property->is_premium == 1 ? true : false;
                     $property->property_type = $property->propery_type;
                     $property->assign_facilities = $property->assign_facilities;
-                    $property->parameters = $property->parameters;
+                    // Unset relationship to force accessor usage for correct ordering
+                    unset($property->relations['parameters']);
+                    $property->parameters = $property->parameters; // This will now use the accessor
                     $property->property_classification = $property->property_classification;
                     $property->rent_package = $property->rent_package;
                     $property->is_apartment = false;
