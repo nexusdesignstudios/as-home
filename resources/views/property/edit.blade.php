@@ -688,7 +688,8 @@
                                     </a>
                                 </div>
                             @endif
-                            <input type="file" class="filepond" id="identity_proof" name="identity_proof" accept="image/jpg,image/png,image/jpeg">
+                            <input type="file" class="filepond" id="identity_proof" name="identity_proof" accept="*/*">
+                            <small class="text-muted d-block mt-1">{{ __('All file types are accepted') }}</small>
                         </div>
 
                         {{-- National ID/Passport --}}
@@ -707,7 +708,8 @@
                                     </a>
                                 </div>
                             @endif
-                            <input type="file" class="filepond" id="national_id_passport" name="national_id_passport" accept="image/jpg,image/png,image/jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                            <input type="file" class="filepond" id="national_id_passport" name="national_id_passport" accept="*/*">
+                            <small class="text-muted d-block mt-1">{{ __('All file types are accepted') }}</small>
                         </div>
 
                         {{-- Utilities Bills --}}
@@ -726,7 +728,8 @@
                                     </a>
                                 </div>
                             @endif
-                            <input type="file" class="filepond" id="utilities_bills" name="utilities_bills" accept="image/jpg,image/png,image/jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                            <input type="file" class="filepond" id="utilities_bills" name="utilities_bills" accept="*/*">
+                            <small class="text-muted d-block mt-1">{{ __('All file types are accepted') }}</small>
                         </div>
 
                         {{-- Power of Attorney --}}
@@ -745,7 +748,8 @@
                                     </a>
                                 </div>
                             @endif
-                            <input type="file" class="filepond" id="power_of_attorney" name="power_of_attorney" accept="image/jpg,image/png,image/jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                            <input type="file" class="filepond" id="power_of_attorney" name="power_of_attorney" accept="*/*">
+                            <small class="text-muted d-block mt-1">{{ __('All file types are accepted') }}</small>
                         </div>
                     </div>
                 </div>
@@ -1177,6 +1181,43 @@
 
             // Call on page load
             handlePropertyClassification();
+
+            // Initialize FilePond for document fields (accept all file types)
+            // Wait a bit to ensure global FilePond config has been applied, then override for document fields
+            setTimeout(function() {
+                FilePond.registerPlugin(FilePondPluginImagePreview, FilePondPluginFileValidateSize,
+                    FilePondPluginFileValidateType, FilePondPluginPdfPreview);
+                
+                // Configure FilePond for agreement documents - accept all file types
+                const documentFields = ['#identity_proof', '#national_id_passport', '#utilities_bills', '#power_of_attorney'];
+                
+                documentFields.forEach(function(fieldId) {
+                    var $field = $(fieldId);
+                    if ($field.length) {
+                        // Destroy existing FilePond instance if any (from global config)
+                        var pondInstance = FilePond.find($field[0]);
+                        if (pondInstance) {
+                            pondInstance.destroy();
+                        }
+                        
+                        // Initialize with all file types accepted
+                        FilePond.create($field[0], {
+                            credits: null,
+                            allowFileSizeValidation: true,
+                            maxFileSize: '10MB',
+                            labelMaxFileSizeExceeded: 'File is too large',
+                            labelMaxFileSize: 'Maximum file size is {filesize}',
+                            allowFileTypeValidation: false, // Disable file type validation to accept all types
+                            storeAsFile: true,
+                            allowPdfPreview: true,
+                            pdfPreviewHeight: 320,
+                            pdfComponentExtraParams: 'toolbar=0&navpanes=0&scrollbar=0&view=fitH',
+                            allowVideoPreview: true,
+                            allowAudioPreview: true
+                        });
+                    }
+                });
+            }, 100);
 
             // Call when classification changes
             $('#property_classification').on('change', function() {

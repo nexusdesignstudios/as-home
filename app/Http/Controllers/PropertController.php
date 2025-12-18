@@ -147,10 +147,10 @@ class PropertController extends Controller
                 'certificates.*.title' => 'required_with:certificates',
                 'certificates.*.description' => 'nullable|string',
                 'certificates.*.file' => 'required_with:certificates|file|max:5120|mimes:jpeg,png,jpg,pdf,doc,docx',
-                'identity_proof'    => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
-                'national_id_passport' => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
-                'utilities_bills'   => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
-                'power_of_attorney' => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
+                'identity_proof'    => 'nullable|file|max:10240', // Accept all file types, max 10MB
+                'national_id_passport' => 'nullable|file|max:10240', // Accept all file types, max 10MB
+                'utilities_bills'   => 'nullable|file|max:10240', // Accept all file types, max 10MB
+                'power_of_attorney' => 'nullable|file|max:10240', // Accept all file types, max 10MB
                 'fact_sheet' => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
                 'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
                     if (!empty($value)) {
