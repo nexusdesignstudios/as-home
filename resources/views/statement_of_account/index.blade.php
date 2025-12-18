@@ -53,7 +53,10 @@
                                 </button>
                             </div>
                             <button id="export-statement-btn" class="btn btn-success w-100" style="display: none;">
-                                <i class="bi bi-download"></i> Export
+                                <i class="bi bi-download"></i> Export Statement
+                            </button>
+                            <button id="export-tax-invoice-btn" class="btn btn-warning w-100 mt-2" style="display: none;">
+                                <i class="bi bi-file-pdf"></i> Export Tax Invoice PDF
                             </button>
                         </div>
                     </div>
@@ -180,6 +183,11 @@ $(document).ready(function() {
     // Export statement button
     $('#export-statement-btn').on('click', function() {
         exportStatement();
+    });
+
+    // Export tax invoice PDF button
+    $('#export-tax-invoice-btn').on('click', function() {
+        exportTaxInvoicePDF();
     });
 
     // Load properties on page load
@@ -837,6 +845,7 @@ function loadTaxInvoice() {
             currentStatementData = response;
             renderTaxInvoice(response);
             $('#export-statement-btn').show();
+            $('#export-tax-invoice-btn').show();
         },
         error: function(xhr) {
             console.error('Error loading tax invoice:', xhr);
@@ -1237,6 +1246,45 @@ function formatNumber(value) {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
     });
+}
+
+function exportTaxInvoicePDF() {
+    const propertyId = $('#property-select').val();
+    const dateFrom = $('#date-from-filter').val();
+    const dateTo = $('#date-to-filter').val();
+
+    if (!propertyId) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Select Property',
+            text: 'Please select a property first'
+        });
+        return;
+    }
+
+    // Show loading
+    Swal.fire({
+        title: 'Generating PDF',
+        text: 'Please wait while we generate the tax invoice PDF...',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+    // Build export URL with query parameters
+    const exportUrl = '{{ route("statement-of-account.tax-invoice.export") }}' + 
+        '?property_id=' + encodeURIComponent(propertyId) +
+        (dateFrom ? '&date_from=' + encodeURIComponent(dateFrom) : '') +
+        (dateTo ? '&date_to=' + encodeURIComponent(dateTo) : '');
+
+    // Open in new window to trigger download
+    window.open(exportUrl, '_blank');
+
+    // Close loading after a short delay
+    setTimeout(() => {
+        Swal.close();
+    }, 1000);
 }
 
 function exportStatement() {

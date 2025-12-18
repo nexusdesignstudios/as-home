@@ -227,7 +227,9 @@ class Property extends Model
 
     public function parameters()
     {
-        return $this->belongsToMany(parameter::class, 'assign_parameters', 'modal_id', 'parameter_id')->withPivot('value');
+        return $this->belongsToMany(parameter::class, 'assign_parameters', 'modal_id', 'parameter_id')
+            ->withPivot('value')
+            ->orderBy('parameters.id');
     }
     public function assignfacilities()
     {
@@ -489,31 +491,43 @@ class Property extends Model
 
     public function getParametersAttribute()
     {
-
         $parameterQueryData = $this->parameters()->get();
         if (isset($parameterQueryData) && !empty($parameterQueryData)) {
             $parameters = [];
             foreach ($parameterQueryData as $res) {
-                $res = (object)$res;
-                if (is_string($res['pivot']['value']) && is_array(json_decode($res['pivot']['value'], true))) {
-                    $value = json_decode($res['pivot']['value'], true);
-                } else {
-                    if ($res['type_of_parameter'] == "file") {
-                        if ($res['pivot']['value'] == "null") {
-                            $value = "";
-                        } else {
-                            $value = url('') . config('global.IMG_PATH') . config('global.PARAMETER_IMG_PATH') . '/' .  $res['pivot']['value'];
-                        }
+                // Get pivot value - the AssignParameters model has a getValueAttribute accessor
+                // that automatically decodes JSON, so we use the accessor
+                $pivotValue = $res->pivot->value;
+                
+                // Handle value based on type
+                if ($res->type_of_parameter == "file") {
+                    // For file type, get raw value (filename) to build URL
+                    $rawValue = $res->pivot->getRawOriginal('value');
+                    if ($rawValue == "null" || empty($rawValue)) {
+                        $value = "";
                     } else {
-                        if ($res['pivot']['value'] == "null") {
-                            $value = "";
-                        } else {
-                            $value = $res['pivot']['value'];
-                        }
+                        $value = url('') . config('global.IMG_PATH') . config('global.PARAMETER_IMG_PATH') . '/' . $rawValue;
+                    }
+                } else {
+                    // For non-file types, use the accessor value (already decoded if JSON)
+                    if ($pivotValue == "null" || $pivotValue === null || $pivotValue === '') {
+                        $value = "";
+                    } else {
+                        $value = $pivotValue;
                     }
                 }
 
-                if (collect($value)->isNotEmpty()) {
+                // Only add parameter if value is not empty (but allow 0 and "0" as valid values)
+                $isEmpty = false;
+                if (is_string($value)) {
+                    $isEmpty = trim($value) === '' || $value === 'null';
+                } elseif (is_array($value)) {
+                    $isEmpty = empty($value);
+                } else {
+                    $isEmpty = ($value === null || $value === '');
+                }
+
+                if (!$isEmpty || $value === 0 || $value === "0") {
                     $parameters[] = [
                         'id' => $res->id,
                         'name' => $res->name,
@@ -532,9 +546,16 @@ class Property extends Model
                 // Check if there's a "Property Type" parameter with value "hotel"
                 foreach ($parameters as $param) {
                     if (stripos($param['name'], 'Property Type') !== false || 
-                        stripos($param['name'], 'property type') !== false) {
-                        $propertyTypeValue = is_string($param['value']) ? strtolower(trim($param['value'])) : '';
-                        if (stripos($propertyTypeValue, 'hotel') !== false) {
+                        stripos($param['name'], 'property type') !== false ||
+                        stripos($param['name'], 'نوع العقار') !== false) {
+                        $propertyTypeValue = '';
+                        if (is_string($param['value'])) {
+                            $propertyTypeValue = strtolower(trim($param['value']));
+                        } elseif (is_array($param['value'])) {
+                            $propertyTypeValue = strtolower(trim(implode(' ', $param['value'])));
+                        }
+                        if (stripos($propertyTypeValue, 'hotel') !== false || 
+                            stripos($propertyTypeValue, 'فندق') !== false) {
                             $isCommercialHotel = true;
                             break;
                         }
@@ -545,20 +566,29 @@ class Property extends Model
             // If it's a commercial hotel property, order parameters according to the specified sequence
             if ($isCommercialHotel) {
                 // Define the order for hotel commercial properties
-                // Key patterns to match (case-insensitive, flexible)
+                // Key patterns to match (case-insensitive, flexible, supports Arabic and variations)
                 $hotelParameterOrder = [
-                    ['pattern' => '/total\s+area/i', 'order' => 1],
-                    ['pattern' => '/no\.?\s*available\s+rooms/i', 'order' => 2],
-                    ['pattern' => '/no\.?\s*restaurants/i', 'order' => 3],
-                    ['pattern' => '/no\.?\s*bars/i', 'order' => 4],
-                    ['pattern' => '/no\.?\s*swimming\s+pool/i', 'order' => 5],
-                    ['pattern' => '/spa\s*[&\s]*wellness\s+center/i', 'order' => 6],
-                    ['pattern' => '/^gym$/i', 'order' => 7],
-                    ['pattern' => '/no\.?\s*shops/i', 'order' => 8],
+                    // Order 1: Total Area
+                    ['pattern' => '/total\s+area|المساحة\s+الإجمالية|المساحة\s+الكاملة|total\s+space|area/i', 'order' => 1],
+                    // Order 2: Available Rooms
+                    ['pattern' => '/no\.?\s*available\s+rooms|number\s+of\s+available\s+rooms|available\s+rooms|عدد\s+الغرف\s+المتاحة|عدد\s+الغرف|rooms/i', 'order' => 2],
+                    // Order 3: Restaurants
+                    ['pattern' => '/no\.?\s*restaurants|number\s+of\s+restaurants|restaurants|عدد\s+المطاعم|مطاعم/i', 'order' => 3],
+                    // Order 4: Bars
+                    ['pattern' => '/no\.?\s*bars|number\s+of\s+bars|bars|عدد\s+الحانات|حانات/i', 'order' => 4],
+                    // Order 5: Swimming Pool
+                    ['pattern' => '/no\.?\s*swimming\s+pool|number\s+of\s+swimming\s+pools|swimming\s+pool|pools|عدد\s+المسابح|مسبح/i', 'order' => 5],
+                    // Order 6: Spa & Wellness
+                    ['pattern' => '/spa\s*[&\s]*wellness|spa|wellness\s+center|منتجع\s+صحي|سبا/i', 'order' => 6],
+                    // Order 7: Gym
+                    ['pattern' => '/^gym$|fitness\s+center|gymnasium|صالة\s+رياضية|جيم/i', 'order' => 7],
+                    // Order 8: Shops
+                    ['pattern' => '/no\.?\s*shops|number\s+of\s+shops|shops|stores|عدد\s+المحلات|محلات/i', 'order' => 8],
                 ];
 
                 // Helper function to get order for a parameter name
                 $getParameterOrder = function($paramName) use ($hotelParameterOrder) {
+                    $paramNameLower = strtolower(trim($paramName));
                     foreach ($hotelParameterOrder as $item) {
                         if (preg_match($item['pattern'], $paramName)) {
                             return $item['order'];
@@ -567,7 +597,7 @@ class Property extends Model
                     return null;
                 };
 
-                // Sort parameters: hotel-specific ones first in order, then others
+                // Sort parameters: hotel-specific ones first in order, then others alphabetically
                 usort($parameters, function ($a, $b) use ($getParameterOrder) {
                     $orderA = $getParameterOrder($a['name']);
                     $orderB = $getParameterOrder($b['name']);
@@ -584,9 +614,18 @@ class Property extends Model
                     if ($orderB !== null) {
                         return 1;
                     }
-                    // If neither is in the order list, maintain original order
-                    return 0;
+                    // If neither is in the order list, sort alphabetically by name
+                    return strcasecmp($a['name'], $b['name']);
                 });
+
+                // Log for debugging (can be removed in production)
+                if (config('app.debug')) {
+                    Log::debug('Commercial hotel parameters ordered', [
+                        'property_id' => $this->id,
+                        'parameter_count' => count($parameters),
+                        'parameter_names' => array_column($parameters, 'name'),
+                    ]);
+                }
             }
         }
         return $parameters ?? null;

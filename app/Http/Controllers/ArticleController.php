@@ -61,10 +61,6 @@ class ArticleController extends Controller
             ]);
 
             try {
-                $destinationPath = public_path('images') . config('global.ARTICLE_IMG_PATH');
-                if (!is_dir($destinationPath)) {
-                    mkdir($destinationPath, 0777, true);
-                }
                 $article = new Article();
                 $article->title = $request->title;
                 $article->slug_id = $request->slug ?? generateUniqueSlug($request->title,2);
@@ -72,10 +68,7 @@ class ArticleController extends Controller
                 $article->category_id = isset($request->category) ? $request->category : '';
 
                 if ($request->hasFile('image')) {
-                    $profile = $request->file('image');
-                    $imageName = microtime(true) . "." . $profile->getClientOriginalExtension();
-                    $profile->move($destinationPath, $imageName);
-                    $article->image = $imageName;
+                    $article->image = \store_image($request->file('image'), 'ARTICLE_IMG_PATH');
                 } else {
                     $article->image  = '';
                 }
@@ -181,10 +174,6 @@ class ArticleController extends Controller
             'image' => 'image|mimes:jpg,png,jpeg|max:2048',
         ]);
         try {
-            $destinationPath = public_path('images') . config('global.ARTICLE_IMG_PATH');
-            if (!is_dir($destinationPath)) {
-                mkdir($destinationPath, 0777, true);
-            }
             $updateArticle = Article::find($id);
             if ($request->hasFile('image')) {
                 \unlink_image($updateArticle->image);

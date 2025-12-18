@@ -608,5 +608,62 @@
                 slugElement.removeAttr('readonly', true).val("")
             }
         });
+
+        // Handle category delete
+        $(document).on('click', '.delete_btn', function(e) {
+            e.preventDefault();
+            const categoryId = $(this).data('id');
+            const categoryName = $(this).closest('tr').find('td:eq(1)').text().trim();
+
+            Swal.fire({
+                title: '{{ __("Are you sure?") }}',
+                text: `{{ __("You are about to delete category") }}: "${categoryName}". {{ __("This action cannot be undone!") }}`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: '{{ __("Yes, delete it!") }}',
+                cancelButtonText: '{{ __("Cancel") }}'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: '{{ url("categories") }}/' + categoryId,
+                        type: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                        },
+                        success: function(response) {
+                            if (response.error === false) {
+                                Swal.fire({
+                                    title: '{{ __("Deleted!") }}',
+                                    text: response.message,
+                                    icon: 'success',
+                                    confirmButtonText: '{{ __("OK") }}'
+                                }).then(() => {
+                                    $('#table_list').bootstrapTable('refresh');
+                                });
+                            } else {
+                                Swal.fire(
+                                    '{{ __("Error!") }}',
+                                    response.message,
+                                    'error'
+                                );
+                            }
+                        },
+                        error: function(xhr) {
+                            let errorMessage = '{{ __("Something went wrong!") }}';
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            }
+                            Swal.fire(
+                                '{{ __("Error!") }}',
+                                errorMessage,
+                                'error'
+                            );
+                        }
+                    });
+                }
+            });
+        });
     </script>
 @endsection

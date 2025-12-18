@@ -92,10 +92,10 @@ class StatementOfAccountController extends Controller
             $currencySymbol = system_setting('currency_symbol') ?? 'EGP';
 
             // Use reservations as parent data source (same as reservations tab)
-            // Get all confirmed, paid hotel reservations with proper eager loading
+            // Get all confirmed, paid or cash hotel reservations with proper eager loading
             $query = Reservation::where('reservable_type', 'App\\Models\\HotelRoom')
                 ->where('status', 'confirmed')
-                ->where('payment_status', 'paid')
+                ->whereIn('payment_status', ['paid', 'cash'])
                 ->with([
                     'customer:id,name,email,mobile',
                     'reservable:id,property_id,room_type_id',
@@ -1215,7 +1215,42 @@ class StatementOfAccountController extends Controller
                 $query->where('check_in_date', '<=', $dateTo);
             }
 
-            $reservations = $query->orderBy('check_in_date', 'ASC')->get();
+            $allReservations = $query->orderBy('check_in_date', 'ASC')->get();
+
+            // Filter for cash/flexible reservations only (exclude online payments)
+            // Tax invoices should only include cash/offline payments, not online/paymob payments
+            $flexibleReservations = $allReservations->filter(function ($reservation) {
+                $paymentMethod = strtolower($reservation->payment_method ?? 'cash');
+                
+                // If payment_method is explicitly 'cash', treat as flexible
+                if ($paymentMethod === 'cash') {
+                    return true;
+                }
+                
+                // Otherwise, check if it's online payment
+                $isOnlinePayment = (
+                    $paymentMethod === 'paymob' || 
+                    $paymentMethod === 'online' || 
+                    ($reservation->payment !== null && $paymentMethod !== 'cash')
+                );
+                
+                // Only include cash/offline payments (exclude online/paymob)
+                return !$isOnlinePayment;
+            });
+
+            // Use filtered reservations (cash/flexible only)
+            $reservations = $flexibleReservations;
+
+            // Log if any reservations were filtered out
+            $totalCount = $allReservations->count();
+            $flexibleCount = $flexibleReservations->count();
+            if ($totalCount > $flexibleCount) {
+                Log::info('Tax invoice: Filtered out online payments', [
+                    'total_reservations' => $totalCount,
+                    'flexible_reservations' => $flexibleCount,
+                    'filtered_out' => $totalCount - $flexibleCount
+                ]);
+            }
 
             // Get tax rates
             $serviceChargeRate = (float)(system_setting('hotel_service_charge_rate') ?? 10);
@@ -1331,6 +1366,361 @@ class StatementOfAccountController extends Controller
                 'commissions' => []
             ], 500);
         }
+    }
+
+    /**
+     * Export tax invoice as PDF (same as email PDF)
+     * Uses the same calculations and PDF template as MonthlyTaxInvoiceService
+     */
+    public function exportTaxInvoice(Request $request)
+    {
+        $propertyId = $request->property_id ?? null;
+        $ownerId = $request->owner_id ?? null;
+        $dateFrom = $request->date_from ?? null;
+        $dateTo = $request->date_to ?? null;
+
+        try {
+            // Get owner and property (same logic as getTaxInvoice)
+            if ($propertyId) {
+                $property = Property::with('customer')->find($propertyId);
+                if (!$property) {
+                    return redirect()->back()->with('error', 'Invalid property selected.');
+                }
+
+                $classification = $property->getRawOriginal('property_classification');
+                if ($classification != 5) {
+                    return redirect()->back()->with('error', 'Selected property is not a hotel.');
+                }
+                $owner = $property->customer;
+                if (!$owner) {
+                    return redirect()->back()->with('error', 'Property has no owner.');
+                }
+                $ownerId = $owner->id;
+            } else if ($ownerId) {
+                $owner = Customer::find($ownerId);
+                if (!$owner) {
+                    return redirect()->back()->with('error', 'Owner not found.');
+                }
+            } else {
+                return redirect()->back()->with('error', 'Please select a property or owner.');
+            }
+
+            // Get all properties for this owner (hotel properties only)
+            $properties = Property::where('property_classification', 5)
+                ->where('added_by', $ownerId)
+                ->get();
+
+            if ($properties->isEmpty()) {
+                return redirect()->back()->with('error', 'Owner has no hotel properties.');
+            }
+
+            // Get hotel room IDs for owner's properties
+            $propertyIds = $properties->pluck('id');
+            $hotelRoomIds = DB::table('hotel_rooms')->whereIn('property_id', $propertyIds)->pluck('id');
+
+            // Get all confirmed, paid or cash reservations
+            $query = Reservation::where('reservable_type', 'App\\Models\\HotelRoom')
+                ->whereIn('reservable_id', $hotelRoomIds)
+                ->whereIn('status', ['confirmed', 'approved'])
+                ->whereIn('payment_status', ['paid', 'cash'])
+                ->with(['customer', 'reservable.roomType', 'reservable.property', 'payment:id,reservation_id,status']);
+
+            // Filter by date range
+            if ($dateFrom) {
+                $query->where('check_in_date', '>=', $dateFrom);
+            }
+            if ($dateTo) {
+                $query->where('check_in_date', '<=', $dateTo);
+            }
+
+            $allReservations = $query->orderBy('check_in_date', 'ASC')->get();
+
+            // Filter for cash/flexible reservations only (exclude online payments)
+            $flexibleReservations = $allReservations->filter(function ($reservation) {
+                $paymentMethod = strtolower($reservation->payment_method ?? 'cash');
+                
+                if ($paymentMethod === 'cash') {
+                    return true;
+                }
+                
+                $isOnlinePayment = (
+                    $paymentMethod === 'paymob' || 
+                    $paymentMethod === 'online' || 
+                    ($reservation->payment !== null && $paymentMethod !== 'cash')
+                );
+                
+                return !$isOnlinePayment;
+            });
+
+            if ($flexibleReservations->isEmpty()) {
+                return redirect()->back()->with('error', 'No flexible reservations found for the selected period.');
+            }
+
+            // Calculate totals using SAME logic as MonthlyTaxInvoiceService
+            $totalRevenue = $flexibleReservations->sum('total_price'); // Room Sales (gross revenue)
+            
+            // Calculate total taxes as 22.36% of total revenue
+            $totalTaxRate = 22.36; // Total taxes percentage
+            $totalTaxesAmount = (float)$totalRevenue * ($totalTaxRate / 100.0);
+            
+            // Calculate revenue after taxes
+            $revenueAfterTaxes = $totalRevenue - $totalTaxesAmount;
+            
+            // Commission is 15% of REVENUE AFTER TAXES (not gross revenue)
+            $commissionRate = 15; // 15% commission for As-home from revenue after taxes
+            $commissionAmount = (float)$revenueAfterTaxes * ($commissionRate / 100.0);
+            
+            // Total amount due is the commission (15% of revenue after taxes)
+            $totalAmountDue = $commissionAmount;
+            
+            // For display purposes
+            $hotelRate = 85; // 85% for hotel (this is calculated on revenue after taxes for display)
+            $hotelAmount = $revenueAfterTaxes * ($hotelRate / 100);
+            $netAmount = $hotelAmount;
+            
+            // Individual tax breakdowns for display
+            $serviceChargeRate = 10.0;
+            $salesTaxRate = 14.0;
+            $cityTaxRate = 5.0;
+            $serviceChargeAmount = (float)$totalRevenue * ($serviceChargeRate / 100.0);
+            $salesTaxAmount = (float)$totalRevenue * ($salesTaxRate / 100.0);
+            $cityTaxAmount = (float)$totalRevenue * ($cityTaxRate / 100.0);
+
+            // Get currency symbol
+            $currencySymbol = system_setting('currency_symbol') ?? 'EGP';
+
+            // Determine month year from date range or use current month
+            $monthYear = null;
+            if ($dateFrom) {
+                $monthYear = \Carbon\Carbon::parse($dateFrom)->format('Y-m');
+            } else {
+                $monthYear = now()->format('Y-m');
+            }
+            $monthYearDisplay = \Carbon\Carbon::parse($monthYear . '-01')->format('F Y');
+
+            // Get property from first reservation
+            $property = null;
+            $firstReservation = $flexibleReservations->first();
+            if ($firstReservation) {
+                if ($firstReservation->reservable_type === 'App\\Models\\Property') {
+                    $property = $firstReservation->reservable;
+                } elseif ($firstReservation->reservable_type === 'App\\Models\\HotelRoom' && $firstReservation->reservable) {
+                    $property = $firstReservation->reservable->property;
+                }
+            }
+
+            // Generate reservation details HTML (same as email)
+            $reservationDetails = $this->generateReservationDetailsHtmlForPDF($flexibleReservations, $currencySymbol);
+            $propertySummary = $this->generatePropertySummaryHtmlForPDF($flexibleReservations, $currencySymbol);
+
+            // Build variables array (SAME as MonthlyTaxInvoiceService)
+            $appName = env("APP_NAME") ?? "eBroker";
+            $propertyName = $property ? ($property->title ?? 'Hotel') : 'Hotel';
+            
+            $variables = [
+                'app_name' => $appName,
+                'owner_name' => $owner->name,
+                'property_name' => $propertyName,
+                'month_year' => $monthYearDisplay,
+                'total_reservations' => $flexibleReservations->count(),
+                // Formatted values for email templates
+                'total_revenue' => number_format($totalRevenue, 2),
+                'room_sales' => number_format($totalRevenue, 2),
+                'currency_symbol' => $currencySymbol,
+                'service_charge_rate' => $serviceChargeRate,
+                'service_charge_amount' => number_format($serviceChargeAmount, 2),
+                'sales_tax_rate' => $salesTaxRate,
+                'sales_tax_amount' => number_format($salesTaxAmount, 2),
+                'city_tax_rate' => $cityTaxRate,
+                'city_tax_amount' => number_format($cityTaxAmount, 2),
+                'total_taxes_rate' => $totalTaxRate,
+                'total_taxes_amount' => number_format($totalTaxesAmount, 2),
+                'revenue_after_taxes' => number_format($revenueAfterTaxes, 2),
+                'commission_rate' => $commissionRate,
+                'commission_amount' => number_format($commissionAmount, 2),
+                'total_amount_due' => number_format($totalAmountDue, 2),
+                'hotel_rate' => $hotelRate,
+                'hotel_amount' => number_format($hotelAmount, 2),
+                'net_amount' => number_format($netAmount, 2),
+                // Raw numeric values for PDF template
+                'room_sales_raw' => $totalRevenue,
+                'commission_amount_raw' => $commissionAmount,
+                'total_amount_due_raw' => $totalAmountDue,
+                'hotel_amount_raw' => $hotelAmount,
+                'reservation_details' => $reservationDetails,
+                'property_summary' => $propertySummary,
+            ];
+
+            // Generate invoice number
+            $invoiceNumber = $owner->id . '-' . str_replace('-', '', $monthYear) . '-F';
+            $accommodationNumber = $owner->id ?? 'N/A';
+            $vatNumber = system_setting('company_vat_number') ?? system_setting('vat_number') ?? null;
+
+            $variables['invoice_number'] = $invoiceNumber;
+            $variables['accommodation_number'] = $accommodationNumber;
+            $variables['vat_number'] = $vatNumber;
+            
+            // Add property information
+            if ($property) {
+                $variables['property_name'] = $property->title ?? 'Hotel';
+                $propertyAddress = $property->address ?? ($property->client_address ?? '');
+                $variables['property_address'] = $propertyAddress;
+                $variables['property_vat'] = $property->hotel_vat ?? '';
+            } else {
+                $variables['property_name'] = 'Hotel';
+                $variables['property_address'] = '';
+                $variables['property_vat'] = '';
+            }
+            
+            $variables['payment_method_type'] = 'Flexible (Manual/Cash)';
+            $variables['invoice_type_label'] = 'Flexible Rate Reservations';
+            $variables['hotel_percentage'] = $hotelRate;
+            $variables['commission_percentage'] = $commissionRate;
+
+            // Generate bank account details HTML
+            $variables['bank_account_details'] = $this->generateBankAccountDetailsHtmlForPDF();
+
+            // Use the SAME PDF template as email (hotel_booking_tax_invoice_flexible)
+            $templateType = 'hotel_booking_tax_invoice_flexible';
+
+            // Generate PDF using TaxInvoiceService (same as email)
+            $taxInvoiceService = new \App\Services\PDF\TaxInvoiceService();
+            $pdf = $taxInvoiceService->generatePDF($owner, $variables, $monthYear, $templateType);
+
+            // Generate filename
+            $monthYearDisplayForFile = \Carbon\Carbon::parse($monthYear . '-01')->format('Y-m');
+            $filename = 'tax_invoice_' . $owner->id . '_' . $monthYearDisplayForFile . '_Flexible.pdf';
+
+            return $pdf->download($filename);
+
+        } catch (\Exception $e) {
+            Log::error('Error exporting tax invoice PDF: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return redirect()->back()->with('error', 'Failed to export tax invoice: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Generate HTML for reservation details (same format as email)
+     */
+    private function generateReservationDetailsHtmlForPDF($reservations, $currencySymbol = 'EGP')
+    {
+        $html = '<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">';
+        $html .= '<thead><tr style="background-color: #f8f9fa;">';
+        $html .= '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reservation ID</th>';
+        $html .= '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Property</th>';
+        $html .= '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Check-in</th>';
+        $html .= '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Check-out</th>';
+        $html .= '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Guests</th>';
+        $html .= '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Amount</th>';
+        $html .= '</tr></thead><tbody>';
+
+        foreach ($reservations as $reservation) {
+            $propertyName = $this->getPropertyNameForPDF($reservation);
+
+            $html .= '<tr>';
+            $html .= '<td style="border: 1px solid #ddd; padding: 8px;">#' . $reservation->id . '</td>';
+            $html .= '<td style="border: 1px solid #ddd; padding: 8px;">' . $propertyName . '</td>';
+            $html .= '<td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->check_in_date->format('d M Y') . '</td>';
+            $html .= '<td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->check_out_date->format('d M Y') . '</td>';
+            $html .= '<td style="border: 1px solid #ddd; padding: 8px;">' . $reservation->number_of_guests . '</td>';
+            $html .= '<td style="border: 1px solid #ddd; padding: 8px;">' . $currencySymbol . ' ' . number_format($reservation->total_price, 2) . '</td>';
+            $html .= '</tr>';
+        }
+
+        $html .= '</tbody></table>';
+        return $html;
+    }
+
+    /**
+     * Generate HTML for property summary (same format as email)
+     */
+    private function generatePropertySummaryHtmlForPDF($reservations, $currencySymbol = 'EGP')
+    {
+        $propertySummary = $reservations->groupBy(function($reservation) {
+            if ($reservation->reservable_type === 'App\\Models\\Property') {
+                return $reservation->reservable_id;
+            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom' && $reservation->reservable) {
+                return $reservation->reservable->property_id;
+            }
+            return null;
+        })->map(function ($reservations, $propertyId) {
+            $firstReservation = $reservations->first();
+            $propertyName = $this->getPropertyNameForPDF($firstReservation);
+            $totalRevenue = $reservations->sum('total_price');
+            $reservationCount = $reservations->count();
+
+            return [
+                'property_name' => $propertyName,
+                'reservations' => $reservationCount,
+                'revenue' => $totalRevenue
+            ];
+        })->filter();
+
+        $html = '<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">';
+        $html .= '<thead><tr style="background-color: #f8f9fa;">';
+        $html .= '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Property</th>';
+        $html .= '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Reservations</th>';
+        $html .= '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Revenue</th>';
+        $html .= '</tr></thead><tbody>';
+
+        foreach ($propertySummary as $summary) {
+            $html .= '<tr>';
+            $html .= '<td style="border: 1px solid #ddd; padding: 8px;">' . $summary['property_name'] . '</td>';
+            $html .= '<td style="border: 1px solid #ddd; padding: 8px;">' . $summary['reservations'] . '</td>';
+            $html .= '<td style="border: 1px solid #ddd; padding: 8px;">' . $currencySymbol . ' ' . number_format($summary['revenue'], 2) . '</td>';
+            $html .= '</tr>';
+        }
+
+        $html .= '</tbody></table>';
+        return $html;
+    }
+
+    /**
+     * Get property name from reservation
+     */
+    private function getPropertyNameForPDF($reservation)
+    {
+        if ($reservation->reservable_type === 'App\Models\Property') {
+            return $reservation->reservable->title ?? 'Property';
+        } elseif ($reservation->reservable_type === 'App\Models\HotelRoom') {
+            return ($reservation->reservable->property->title ?? 'Hotel') . ' - Room';
+        }
+
+        return 'Unknown Property';
+    }
+
+    /**
+     * Generate HTML for bank account details (same as email)
+     */
+    private function generateBankAccountDetailsHtmlForPDF()
+    {
+        $bankName = system_setting('bank_name') ?? 'National Bank of Egypt';
+        $accountNumber = system_setting('bank_account_number') ?? '3413131856116201017';
+        $routingNumber = system_setting('bank_routing_number') ?? '987654321';
+        $swiftCode = system_setting('bank_swift_code') ?? 'NBEGEGCX341';
+        $accountHolder = 'As Home for Asset Management';
+        $iban = system_setting('bank_iban') ?? 'EG100003034131318561162010170';
+        $branch = system_setting('bank_branch') ?? 'Hurghada Branch';
+        $bankAddress = system_setting('bank_address') ?? 'EL Kawthar Hurghada Branch';
+
+        $html = '<div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">';
+        $html .= '<h3 style="color: #495057; margin-bottom: 15px;">Bank Account Details for Commission Payment</h3>';
+        $html .= '<table style="width: 100%; border-collapse: collapse;">';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold; width: 30%;">Bank Name:</td><td style="padding: 8px;">' . $bankName . '</td></tr>';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold;">Branch:</td><td style="padding: 8px;">' . $branch . '</td></tr>';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold;">Bank Address:</td><td style="padding: 8px;">' . $bankAddress . '</td></tr>';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold;">Account Holder:</td><td style="padding: 8px;">' . $accountHolder . '</td></tr>';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold;">Account Number:</td><td style="padding: 8px;">' . $accountNumber . '</td></tr>';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold;">IBAN:</td><td style="padding: 8px;">' . $iban . '</td></tr>';
+        $html .= '<tr><td style="padding: 8px; font-weight: bold;">SWIFT Code:</td><td style="padding: 8px;">' . $swiftCode . '</td></tr>';
+        $html .= '</table>';
+        $html .= '</div>';
+
+        return $html;
     }
 
     /**

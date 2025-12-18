@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use App\Services\ResponseService;
 use App\Services\BootstrapTableService;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 
 class CategoryController extends Controller
@@ -225,6 +226,10 @@ class CategoryController extends Controller
             if (has_permissions('update', 'categories')) {
                 $operate = BootstrapTableService::editButton('', true, null, null, $row->id, null, $ids);
             }
+            if (has_permissions('delete', 'categories')) {
+                $deleteButton = '<button class="btn btn-sm btn-danger delete_btn" data-id="' . $row->id . '" title="' . __('Delete') . '" style="opacity: 1 !important; margin-left: 5px;"><i class="bi bi-trash"></i></button>';
+                $operate = ($operate ?? '') . $deleteButton;
+            }
             $tempRow['operate'] = $operate;
 
             $rows[] = $tempRow;
@@ -269,6 +274,51 @@ class CategoryController extends Controller
             ResponseService::successResponse("", $slug);
         } catch (Exception $e) {
             ResponseService::logErrorResponse($e, "Category Slug Generation Error", "Something Went Wrong");
+        }
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function destroy($id)
+    {
+        if (env('DEMO_MODE') && Auth::user()->email != "superadmin@gmail.com") {
+            return redirect()->back()->with('error', 'This is not allowed in the Demo Version');
+        }
+
+        if (!has_permissions('delete', 'categories')) {
+            ResponseService::errorResponse(PERMISSION_ERROR_MSG);
+        }
+
+        try {
+            $category = Category::find($id);
+            
+            if (!$category) {
+                ResponseService::errorResponse('Category not found');
+            }
+
+            // Check if category has associated properties
+            $propertyCount = $category->properties()->count();
+            if ($propertyCount > 0) {
+                ResponseService::errorResponse("Cannot delete category. It has {$propertyCount} associated property(ies). Please remove or reassign properties first.");
+            }
+
+            // Delete category image if exists
+            if ($category->image != '') {
+                unlink_image($category->image);
+            }
+
+            // Delete the category
+            if ($category->delete()) {
+                ResponseService::successResponse("Category Deleted Successfully");
+            } else {
+                ResponseService::errorResponse("Something Went Wrong");
+            }
+        } catch (Exception $e) {
+            ResponseService::logErrorResponse($e, "Category Deletion Error", "Something Went Wrong");
         }
     }
 }

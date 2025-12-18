@@ -278,6 +278,10 @@ Route::middleware(['language'])->group(function () {
             Route::post('generate-slug', [PropertController::class, 'generateAndCheckSlug'])->name('property.generate-slug');
             Route::delete('remove-threeD-image/{id}', [PropertController::class, 'removeThreeDImage'])->name('property.remove-threeD-image');
             Route::post('property-documents', [PropertController::class, 'removeDocument'])->name('property.remove-documents');
+            // Property document viewer route
+            Route::get('{propertyId}/document/{documentType}', [\App\Http\Controllers\PropertyDocumentController::class, 'viewDocument'])
+                ->name('property.document.view')
+                ->where(['propertyId' => '[0-9]+', 'documentType' => 'identity_proof|national-id|utilities-bills|power-of-attorney']);
         });
 
         Route::resource('property', PropertController::class);
@@ -324,6 +328,7 @@ Route::middleware(['language'])->group(function () {
         Route::get('statement-of-account/data', [\App\Http\Controllers\StatementOfAccountController::class, 'getStatementData'])->name('statement-of-account.data');
         Route::get('statement-of-account/owner-statement', [\App\Http\Controllers\StatementOfAccountController::class, 'getOwnerStatement'])->name('statement-of-account.owner-statement');
         Route::get('statement-of-account/tax-invoice', [\App\Http\Controllers\StatementOfAccountController::class, 'getTaxInvoice'])->name('statement-of-account.tax-invoice');
+Route::get('statement-of-account/tax-invoice/export', [\App\Http\Controllers\StatementOfAccountController::class, 'exportTaxInvoice'])->name('statement-of-account.tax-invoice.export');
         Route::post('statement-of-account/{reservationId}/update-field', [\App\Http\Controllers\StatementOfAccountController::class, 'updateField'])->name('statement-of-account.update-field');
         Route::post('statement-of-account/property/{propertyId}/update-credit', [\App\Http\Controllers\StatementOfAccountController::class, 'updatePropertyCredit'])->name('statement-of-account.update-property-credit');
         Route::post('statement-of-account/property/{propertyId}/manual-entry', [\App\Http\Controllers\StatementOfAccountController::class, 'saveManualEntry'])->name('statement-of-account.save-manual-entry');
@@ -582,3 +587,88 @@ Route::get('/test-tax-invoice-pdf', [TaxInvoiceController::class, 'testPdf'])->n
 Route::get('/invoices/download/{owner}/{month}/{type}', [InvoiceDownloadController::class, 'download'])
     ->name('invoices.download')
     ->middleware('signed');
+
+// Check property documents route
+Route::get('/check-property-documents', function() {
+    if (!has_permissions('read', 'property')) {
+        return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
+    }
+    
+    $properties = \App\Models\Property::select(
+        'id',
+        'title',
+        'identity_proof',
+        'national_id_passport',
+        'utilities_bills',
+        'power_of_attorney',
+        'added_by',
+        'property_classification',
+        'status',
+        'request_status'
+    )->get();
+
+    $totalProperties = $properties->count();
+    $propertiesWithDocuments = 0;
+    $propertiesWithAllDocuments = 0;
+
+    $documentStats = [
+        'identity_proof' => 0,
+        'national_id_passport' => 0,
+        'utilities_bills' => 0,
+        'power_of_attorney' => 0,
+    ];
+
+    $propertiesList = [];
+
+    foreach ($properties as $property) {
+        $hasAnyDocument = false;
+        $documentsCount = 0;
+        
+        $documents = [
+            'identity_proof' => !empty($property->getRawOriginal('identity_proof')),
+            'national_id_passport' => !empty($property->getRawOriginal('national_id_passport')),
+            'utilities_bills' => !empty($property->getRawOriginal('utilities_bills')),
+            'power_of_attorney' => !empty($property->getRawOriginal('power_of_attorney')),
+        ];
+        
+        foreach ($documents as $field => $hasDocument) {
+            if ($hasDocument) {
+                $hasAnyDocument = true;
+                $documentsCount++;
+                $documentStats[$field]++;
+            }
+        }
+        
+        if ($hasAnyDocument) {
+            $propertiesWithDocuments++;
+            
+            if ($documentsCount === 4) {
+                $propertiesWithAllDocuments++;
+            }
+            
+            $propertiesList[] = [
+                'id' => $property->id,
+                'title' => $property->title,
+                'owner_id' => $property->added_by,
+                'classification' => $property->property_classification,
+                'status' => $property->status,
+                'request_status' => $property->request_status,
+                'documents' => $documents,
+                'count' => $documentsCount,
+            ];
+        }
+    }
+
+    // Sort by document count (descending)
+    usort($propertiesList, function($a, $b) {
+        return $b['count'] - $a['count'];
+    });
+
+    return view('property.documents-check', [
+        'totalProperties' => $totalProperties,
+        'propertiesWithDocuments' => $propertiesWithDocuments,
+        'propertiesWithAllDocuments' => $propertiesWithAllDocuments,
+        'documentStats' => $documentStats,
+        'propertiesList' => $propertiesList,
+    ]);
+})->name('check-property-documents');

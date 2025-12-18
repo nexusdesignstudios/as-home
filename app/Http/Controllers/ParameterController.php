@@ -159,7 +159,8 @@ class ParameterController extends Controller
 
         $request->validate([
             'edit_name' => 'required',
-            'image' => 'mimes:svg'
+            'image' => 'mimes:svg',
+            'edit_options' => 'nullable|in:textbox,textarea,dropdown,radiobutton,checkbox,file,number'
         ]);
 
         if (!has_permissions('update', 'facility')) {
@@ -175,11 +176,19 @@ class ParameterController extends Controller
             $parameter = parameter::find($id);
             $parameter->name = ($request->edit_name) ? $request->edit_name : '';
             $parameter->is_required = (isset($request->edit_is_required) && !empty($request->edit_is_required)) ? 1 : 0;
-            // $parameter->type_of_parameter = (isset($request->edit_options)) ? $request->edit_options : '';
-            // $parameter->type_values = $opt_value;
+            
+            // Enable facility type change
+            if (isset($request->edit_options) && !empty($request->edit_options)) {
+                $parameter->type_of_parameter = $request->edit_options;
+                
+                // Handle type values if provided
+                if (isset($request->edit_opt) && !empty($request->edit_opt)) {
+                    $opt_value = json_encode($request->edit_opt, JSON_FORCE_OBJECT);
+                    $parameter->type_values = $opt_value;
+                }
+            }
+            
             if ($request->hasFile('image')) {
-
-
                 unlink_image($parameter->image);
                 $parameter->image = store_image($request->file('image'), 'PARAMETER_IMAGE_PATH');
             }

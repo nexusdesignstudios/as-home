@@ -161,6 +161,27 @@
                                 </div>
                             </div>
                         </div>
+
+                        {{-- Edit Type --}}
+                        <div class="row">
+                            <div class="col-md-12 col-12">
+                                <div class="form-group">
+                                    <label for="edit-options" class="form-label col-12">{{ __('Type') }}</label>
+                                    <select name="edit_options" id="edit-options" class="form-select form-control-sm">
+                                        <option value="">{{ __('Select Type') }}</option>
+                                        <option value="textbox">{{ __('Text Box') }}</option>
+                                        <option value="textarea">{{ __('Text Area') }}</option>
+                                        <option value="dropdown">{{ __('Dropdown') }}</option>
+                                        <option value="radiobutton">{{ __('Radio Button') }}</option>
+                                        <option value="checkbox">{{ __('Checkbox') }}</option>
+                                        <option value="file">{{ __('File') }}</option>
+                                        <option value="number">{{ __('Number') }}</option>
+                                    </select>
+                                    <small class="text-muted">{{ __('Leave empty to keep current type') }}</small>
+                                </div>
+                            </div>
+                        </div>
+
                         {{-- Edit Image --}}
                         <div class="row">
                             {{ Form::label('image', __('Image'), ['class' => 'col-sm-12 col-form-label']) }}
@@ -230,6 +251,7 @@
             'click .edit_btn': function(e, value, row, index) {
                 $("#edit_id").val(row.id);
                 $("#edit-name").val(row.name);
+                $("#edit-options").val(row.type_of_parameter || '');
                 $("#edit-image-preview").attr('src', row.image);
                 if(row.image != null){
                     $(".edit-image-preview-div").show();

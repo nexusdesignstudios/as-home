@@ -664,6 +664,101 @@
                 </div>
             </div>
         </div>
+
+        {{-- Agreement Documents Section --}}
+        <div class="col-md-12">
+            <div class="card">
+                <h3 class="card-header">{{ __('Agreement Documents') }}</h3>
+                <hr>
+                <div class="card-body">
+                    <div class="row">
+                        {{-- Identity Proof --}}
+                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
+                            {{ Form::label('identity_proof', __('Identity Proof'), ['class' => 'form-label']) }}
+                            @php
+                                $identityProofRaw = $list->getRawOriginal('identity_proof');
+                            @endphp
+                            @if(!empty($identityProofRaw))
+                                <div class="mb-2 d-flex gap-2">
+                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'identity_proof']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
+                                        <i class="bi bi-eye"></i> {{ __('View') }}
+                                    </a>
+                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'identity_proof', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
+                                        <i class="bi bi-download"></i> {{ __('Download') }}
+                                    </a>
+                                </div>
+                            @endif
+                            <input type="file" class="filepond" id="identity_proof" name="identity_proof" accept="image/jpg,image/png,image/jpeg">
+                        </div>
+
+                        {{-- National ID/Passport --}}
+                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
+                            {{ Form::label('national_id_passport', __('National ID/Passport'), ['class' => 'form-label']) }}
+                            @php
+                                $nationalIdRaw = $list->getRawOriginal('national_id_passport');
+                            @endphp
+                            @if(!empty($nationalIdRaw))
+                                <div class="mb-2 d-flex gap-2">
+                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'national-id']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
+                                        <i class="bi bi-eye"></i> {{ __('View') }}
+                                    </a>
+                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'national-id', 'download' => 1]) }}" class="btn btn-sm btn-success">
+                                        <i class="bi bi-download"></i> {{ __('Download') }}
+                                    </a>
+                                </div>
+                            @endif
+                            <input type="file" class="filepond" id="national_id_passport" name="national_id_passport" accept="image/jpg,image/png,image/jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                        </div>
+
+                        {{-- Utilities Bills --}}
+                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
+                            {{ Form::label('utilities_bills', __('Utilities Bills'), ['class' => 'form-label']) }}
+                            @php
+                                $utilitiesBillsRaw = $list->getRawOriginal('utilities_bills');
+                            @endphp
+                            @if(!empty($utilitiesBillsRaw))
+                                <div class="mb-2 d-flex gap-2">
+                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'utilities-bills']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
+                                        <i class="bi bi-eye"></i> {{ __('View') }}
+                                    </a>
+                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'utilities-bills', 'download' => 1]) }}" class="btn btn-sm btn-success">
+                                        <i class="bi bi-download"></i> {{ __('Download') }}
+                                    </a>
+                                </div>
+                            @endif
+                            <input type="file" class="filepond" id="utilities_bills" name="utilities_bills" accept="image/jpg,image/png,image/jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                        </div>
+
+                        {{-- Power of Attorney --}}
+                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
+                            {{ Form::label('power_of_attorney', __('Power of Attorney'), ['class' => 'form-label']) }}
+                            @php
+                                $poaRaw = $list->getRawOriginal('power_of_attorney');
+                            @endphp
+                            @if(!empty($poaRaw))
+                                <div class="mb-2 d-flex gap-2">
+                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'power-of-attorney']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
+                                        <i class="bi bi-eye"></i> {{ __('View') }}
+                                    </a>
+                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'power-of-attorney', 'download' => 1]) }}" class="btn btn-sm btn-success">
+                                        <i class="bi bi-download"></i> {{ __('Download') }}
+                                    </a>
+                                </div>
+                            @endif
+                            <input type="file" class="filepond" id="power_of_attorney" name="power_of_attorney" accept="image/jpg,image/png,image/jpeg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-12">
+            <div class="card">
+                <h3 class="card-header">{{ __('Accesibility') }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="col-md-12">
             <div class="card">
                 <h3 class="card-header">{{ __('Accesibility') }}</h3>

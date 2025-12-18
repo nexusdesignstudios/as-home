@@ -68,7 +68,8 @@
                             {{-- Image --}}
                             <div class="col-md-12 col-sm-12 form-group mandatory">
                                 {{ Form::label('image', __('Image'), ['class' => 'col-12 form-label']) }}
-                                <input accept="image/jpg,image/png,image/jpeg" name='image' type='file' class="form-control filepond" id="edit_image" required />
+                                <input accept="image/jpg,image/png,image/jpeg" name='image' type='file' class="form-control filepond" id="article_image" required />
+                                <small class="text-muted">{{ __('Upload an image for the article. Image will be previewed automatically.') }}</small>
                             </div>
                         </div>
                         {{-- Description --}}

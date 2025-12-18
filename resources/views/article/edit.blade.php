@@ -69,10 +69,16 @@
                             {{-- Image --}}
                             <div class="col-md-12 col-sm-12 form-group mandatory">
                                 {{ Form::label('image', __('Image'), ['class' => 'col-12 form-label']) }}
-                                <input accept="image/*" name='image' type='file' class="filepond" id="edit_image" />
-                                <div class="edit_article_img">
-                                    <img src="{{ $list->image }}" alt="" class="edit_img" height="300px" width="500px">
-                                </div>
+                                <input accept="image/jpg,image/png,image/jpeg" name='image' type='file' class="filepond" id="edit_image" />
+                                @if(!empty($list->image))
+                                    <div class="edit_article_img mt-3">
+                                        <p class="text-muted mb-2">{{ __('Current Image:') }}</p>
+                                        <img src="{{ $list->image }}" alt="{{ $list->title }}" class="edit_img img-thumbnail" style="max-height: 300px; max-width: 500px; object-fit: contain;">
+                                        <p class="text-muted mt-2"><small>{{ __('Upload a new image to replace the current one.') }}</small></p>
+                                    </div>
+                                @else
+                                    <small class="text-muted">{{ __('No image uploaded yet. Upload an image for the article.') }}</small>
+                                @endif
                             </div>
 
                             {{-- Description --}}
