@@ -74,6 +74,31 @@
                                         <option value={{ $parameter->id }}>{{ $parameter->name }} {{ $parameter->is_required == 1 ? "*" : ""}}</option>
                                     @endforeach
                                 </select>
+                                <small class="text-muted d-block mt-1">{{ __('Select facilities and they will appear below for ordering') }}</small>
+                            </div>
+
+                            {{-- Facilities Order Preview --}}
+                            <div class="col-md-12 col-sm-12 form-group">
+                                {{ Form::label('facilities_order', __('Facilities Order & Preview'), ['class' => 'form-label']) }}
+                                <small class="text-muted d-block mb-2">{{ __('Drag and drop to reorder facilities. This order will be saved when you create the category.') }}</small>
+                                
+                                <div id="create_par" class="d-flex flex-wrap gap-2 p-3 border rounded" style="min-height: 60px; background-color: #f8f9fa;">
+                                    <p class="text-muted m-0 w-100" id="no-facilities-message">{{ __('No facilities selected. Please select facilities from the dropdown above.') }}</p>
+                                </div>
+                                
+                                <input type="hidden" name="create_seq" id="create_seq">
+                                
+                                <div class="alert alert-info mt-2" id="facilities-preview-info" style="display: none;">
+                                    <i class="bi bi-info-circle"></i>
+                                    <strong>{{ __('Frontend Preview:') }}</strong> 
+                                    <div id="facilities-preview-text" class="mt-2"></div>
+                                </div>
+                                
+                                <div class="alert alert-success mt-2" id="facilities-order-info" style="display: none;">
+                                    <i class="bi bi-check-circle"></i>
+                                    <strong>{{ __('Order Saved:') }}</strong> 
+                                    <div id="facilities-order-text" class="mt-2"></div>
+                                </div>
                             </div>
 
                             {{-- Image --}}
@@ -269,15 +294,30 @@
                                     @endif
 
                                 </div>
-                                {{ Form::label('Sequence', __('Facilities Order'), ['class' => 'col-sm-12 col-form-label ']) }}
-                                <small class="text-muted d-block mb-2">{{ __('Drag and drop to reorder facilities') }}</small>
+                                 {{ Form::label('Sequence', __('Facilities Order & Preview'), ['class' => 'col-sm-12 col-form-label ']) }}
+                                 <small class="text-muted d-block mb-2">
+                                     <i class="bi bi-info-circle"></i> 
+                                     {{ __('Drag and drop to reorder facilities. This is how they will appear in the frontend.') }}
+                                 </small>
 
-                                <div class="col-sm-12 sequence">
-                                    <div id="par" class="d-flex flex-wrap gap-2 p-3 border rounded" style="min-height: 60px; background-color: #f8f9fa;">
-                                        <!-- Facilities will be displayed here -->
-                                    </div>
-                                    <input type="hidden" name="update_seq" id="update_seq">
-                                </div>
+                                 <div class="col-sm-12 sequence">
+                                     <div id="par" class="d-flex flex-wrap gap-2 p-3 border rounded" style="min-height: 60px; background-color: #f8f9fa;">
+                                         <p class="text-muted m-0 w-100" id="edit-no-facilities-message">{{ __('No facilities selected. Please select facilities from the dropdown above.') }}</p>
+                                     </div>
+                                     <input type="hidden" name="update_seq" id="update_seq">
+                                     
+                                     <div class="alert alert-info mt-2" id="edit-facilities-preview-info" style="display: none;">
+                                         <i class="bi bi-eye"></i>
+                                         <strong>{{ __('Frontend Preview:') }}</strong> 
+                                         <div id="edit-facilities-preview-text" class="mt-2"></div>
+                                     </div>
+                                     
+                                     <div class="alert alert-success mt-2" id="edit-facilities-order-info" style="display: none;">
+                                         <i class="bi bi-check-circle"></i>
+                                         <strong>{{ __('Order Saved:') }}</strong> 
+                                         <div id="edit-facilities-order-text" class="mt-2"></div>
+                                     </div>
+                                 </div>
                                 <div class="col-sm-12" style="margin-top: 7%">
 
                                     {{ Form::label('image', __('Image'), ['class' => 'col-sm-12 col-form-label']) }}
@@ -314,14 +354,19 @@
     <script src=https://bevacqua.github.io/dragula/dist/dragula.js></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dragula@3.7.3/dist/dragula.min.css">
     <style>
-        #par {
+        #par, #create_par {
             min-height: 60px;
         }
-        .seq {
+        .seq, .create-seq {
             transition: transform 0.2s ease;
+            cursor: grab;
         }
-        .seq:hover {
+        .seq:hover, .create-seq:hover {
             transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .seq:active, .create-seq:active {
+            cursor: grabbing;
         }
         .gu-mirror {
             opacity: 0.8;
@@ -329,6 +374,16 @@
         }
         .gu-transit {
             opacity: 0.2;
+        }
+        .create-seq .badge, .seq .badge {
+            display: flex;
+            align-items: center;
+            padding: 0.5em 0.75em;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+        .create-seq .badge i, .seq .badge i {
+            margin-right: 5px;
         }
     </style>
     <script>
@@ -338,6 +393,162 @@
             $('.add-category').hide();
             $('#select_parameter_type').chosen();
             $('#edit_parameter_type').chosen();
+
+            // Initialize dragula for create form
+            var createDragulaInstance = null;
+            function initCreateDragula() {
+                if (createDragulaInstance) {
+                    createDragulaInstance.destroy();
+                }
+                
+                var containers = [document.getElementById('create_par')];
+                createDragulaInstance = dragula(containers, {
+                    moves: function (el, source, handle, sibling) {
+                        return el.classList.contains('create-seq');
+                    }
+                }).on('drag', function(el) {
+                    el.style.opacity = '0.5';
+                }).on('dragend', function(el) {
+                    el.style.opacity = '1';
+                }).on('drop', function(el, target, source, sibling) {
+                    updateCreateSequence();
+                });
+            }
+
+            function updateCreateSequence() {
+                var sequence = [];
+                var existingIDs = {};
+                
+                $('#create_par .create-seq').each(function() {
+                    var id = $(this).attr('id');
+                    if (!existingIDs[id]) {
+                        existingIDs[id] = true;
+                        sequence.push(id);
+                    }
+                });
+                
+                $('#create_seq').val(sequence.join(','));
+                updateCreatePreview();
+            }
+
+            function updateCreatePreview() {
+                var sequence = $('#create_seq').val();
+                var previewText = '';
+                var orderText = '';
+                
+                if (sequence) {
+                    var ids = sequence.split(',');
+                    var names = [];
+                    var orderNumbers = [];
+                    
+                    ids.forEach(function(id, index) {
+                        if (id && id !== '' && id !== 'no') {
+                            var option = $('#select_parameter_type option[value="' + id + '"]');
+                            if (option.length) {
+                                var name = option.text().trim();
+                                names.push(name);
+                                orderNumbers.push((index + 1) + '. ' + name);
+                            }
+                        }
+                    });
+                    
+                    previewText = '<strong>' + names.join(' → ') + '</strong>';
+                    orderText = orderNumbers.join('<br>');
+                }
+                
+                if (previewText) {
+                    $('#facilities-preview-text').html(previewText);
+                    $('#facilities-preview-info').show();
+                    
+                    $('#facilities-order-text').html(orderText);
+                    $('#facilities-order-info').show();
+                } else {
+                    $('#facilities-preview-info').hide();
+                    $('#facilities-order-info').hide();
+                }
+            }
+            
+            // Function to update edit form preview - shows how facilities will appear in frontend
+            function updateEditPreview() {
+                var sequence = $('#update_seq').val();
+                var previewText = '';
+                var orderText = '';
+                
+                if (sequence) {
+                    var ids = sequence.split(',');
+                    var names = [];
+                    var orderNumbers = [];
+                    
+                    ids.forEach(function(id, index) {
+                        if (id && id !== '' && id !== 'no') {
+                            var option = $('#edit_parameter_type option[value="' + id + '"]');
+                            if (option.length) {
+                                var name = option.text().trim();
+                                names.push(name);
+                                orderNumbers.push((index + 1) + '. ' + name);
+                            }
+                        }
+                    });
+                    
+                    previewText = '<strong>' + names.join(' → ') + '</strong>';
+                    orderText = orderNumbers.join('<br>');
+                }
+                
+                if (previewText) {
+                    $('#edit-facilities-preview-text').html(previewText);
+                    $('#edit-facilities-preview-info').show();
+                    
+                    $('#edit-facilities-order-text').html(orderText);
+                    $('#edit-facilities-order-info').show();
+                    
+                    // Hide no facilities message
+                    $('#edit-no-facilities-message').hide();
+                } else {
+                    $('#edit-facilities-preview-info').hide();
+                    $('#edit-facilities-order-info').hide();
+                    $('#edit-no-facilities-message').show();
+                }
+            }
+
+            // Handle facilities selection in create form
+            $('#select_parameter_type').on('change', function() {
+                var selectedIds = $(this).val() || [];
+                
+                // Clear existing facilities
+                $('#create_par').empty();
+                $('#create_seq').val('');
+                
+                if (selectedIds.length === 0) {
+                    $('#create_par').html('<p class="text-muted m-0 w-100" id="no-facilities-message">{{ __('No facilities selected. Please select facilities from the dropdown above.') }}</p>');
+                    $('#facilities-preview-info').hide();
+                    if (createDragulaInstance) {
+                        createDragulaInstance.destroy();
+                        createDragulaInstance = null;
+                    }
+                    return;
+                }
+                
+                // Remove no facilities message
+                $('#no-facilities-message').remove();
+                
+                // Add selected facilities in selection order
+                selectedIds.forEach(function(id) {
+                    var option = $('#select_parameter_type option[value="' + id + '"]');
+                    var text = option.text().trim();
+                    
+                    $('#create_par').append(
+                        '<div class="create-seq mb-2" id="' + id + '" style="cursor: move; user-select: none;">' +
+                        '<span class="badge rounded-pill p-2" style="background:var(--bs-primary); display: inline-block; font-size: 0.9rem;">' +
+                        '<span style="margin-right: 5px;">☰</span>' + text + '</span></div>'
+                    );
+                });
+                
+                // Update sequence
+                updateCreateSequence();
+                
+                // Initialize dragula
+                initCreateDragula();
+            });
 
             // Select at least one classification by default
             if ($('input[name="property_classifications[]"]:checked').length === 0) {
@@ -359,6 +570,22 @@
                     alert('Please select at least one property classification.');
                     return false;
                 }
+                
+                // Ensure facilities are selected and ordered for create form
+                if ($(this).attr('action') && $(this).attr('action').includes('categories.store')) {
+                    var selectedFacilities = $('#select_parameter_type').val();
+                    if (!selectedFacilities || selectedFacilities.length === 0) {
+                        e.preventDefault();
+                        alert('Please select at least one facility.');
+                        return false;
+                    }
+                    
+                    // Ensure create_seq is set (use selection order if not set by drag-and-drop)
+                    if (!$('#create_seq').val() && selectedFacilities.length > 0) {
+                        $('#create_seq').val(selectedFacilities.join(','));
+                    }
+                }
+                
                 return true;
             });
         });
@@ -381,50 +608,77 @@
         $('#edit_parameter_type').on('change', function(e) {
                 e.preventDefault();
 
-                $('#edit_parameter_type option:not(:selected)').each(function() {
-                    $('#div_' + this.value).remove();
-                    var sequence = [];
-                    $('.seq').each(function() {
-
-
-                        sequence.push($(this).attr('id'));
-
-                    });
-                    $('#update_seq').val(sequence.toString());
+                var selectedIds = $(this).val() || [];
+                var currentSequence = $('#update_seq').val();
+                var existingOrder = currentSequence ? currentSequence.split(',') : [];
+                
+                // Get currently displayed facility IDs
+                var currentDisplayedIds = [];
+                $('#par .seq').each(function() {
+                    currentDisplayedIds.push($(this).attr('id'));
                 });
 
-                ids = $('#par > div').map((i, div) => div.id).get();
-
-
-                $('#par').html('');
-
-                $("#edit_parameter_type option:selected").each(function() {
-
-
-                    val_of_opt = this.value;
-                    text_of_opt = this.text;
-
-
-                    if (text_of_opt) {
-                        $('#par').append($(
-                            '<div class="seq mb-2" id=' + val_of_opt +
-                            ' style="cursor: move; user-select: none;">' +
-                            '<span class="badge rounded-pill p-2" style="background:var(--bs-primary); display: inline-block; font-size: 0.9rem;">' +
-                            '<span style="margin-right: 5px;">☰</span>' + text_of_opt + '</span></div>'
-                        ));
+                // Remove facilities that are no longer selected
+                $('#par .seq').each(function() {
+                    var id = $(this).attr('id');
+                    if ($.inArray(id, selectedIds) === -1) {
+                        $(this).remove();
                     }
-
                 });
 
-                var sequence = [];
-                $('.seq').each(function() {
-
-
-                    sequence.push($(this).attr('id'));
-
-
+                // Update existing order to only include selected facilities
+                var preservedOrder = existingOrder.filter(function(id) {
+                    return $.inArray(id, selectedIds) !== -1;
                 });
-                $('#update_seq').val(sequence.toString());
+
+                // Find new facilities (selected but not in current display)
+                var newFacilities = selectedIds.filter(function(id) {
+                    return $.inArray(id, currentDisplayedIds) === -1;
+                });
+
+                // Build the final order: preserved order first, then new facilities
+                var finalOrder = preservedOrder.slice(); // Copy preserved order
+                newFacilities.forEach(function(id) {
+                    if ($.inArray(id, finalOrder) === -1) {
+                        finalOrder.push(id);
+                    }
+                });
+
+                // If no preserved order exists, use selection order
+                if (preservedOrder.length === 0 && existingOrder.length === 0) {
+                    finalOrder = selectedIds.slice();
+                }
+
+                // Clear and rebuild in correct order
+                $('#par').empty();
+
+                finalOrder.forEach(function(id) {
+                    if ($.inArray(id, selectedIds) !== -1) {
+                        var option = $('#edit_parameter_type option[value="' + id + '"]');
+                        var text = option.text().trim();
+                        
+                        if (text) {
+                            $('#par').append($(
+                                '<div class="seq mb-2" id="' + id + '" style="cursor: move; user-select: none;">' +
+                                '<span class="badge rounded-pill p-2" style="background:var(--bs-primary); display: inline-block; font-size: 0.9rem;">' +
+                                '<span style="margin-right: 5px;">☰</span>' + text + '</span></div>'
+                            ));
+                        }
+                    }
+                });
+
+                // Update sequence
+                $('#update_seq').val(finalOrder.join(','));
+                
+                // Update preview
+                updateEditPreview();
+                
+                // Hide/show no facilities message
+                if (selectedIds.length > 0) {
+                    $('#edit-no-facilities-message').hide();
+                } else {
+                    $('#edit-no-facilities-message').show();
+                }
 
                 // Re-initialize dragula after facilities change
                 if (window.dragulaInstance) {
@@ -444,7 +698,7 @@
                     var sequence = [];
                     var existingIDs = {};
 
-                    $('.seq').each(function() {
+                    $('#par .seq').each(function() {
                         var id = $(this).attr('id');
 
                         if (!existingIDs[id]) {
@@ -454,6 +708,7 @@
                     });
 
                     $('#update_seq').val(sequence.join(','));
+                    updateEditPreview();
                 });
 
             }
@@ -486,9 +741,9 @@
                 $('#edit_image').attr('src', row.image);
                 $("#sequence").val(row.type);
 
-                var type = row.parameter_types;
+                var type = row.parameter_types || '';
 
-                var type_arr = type.split(',');
+                var type_arr = (type && type !== '') ? type.split(',') : [];
 
 
                 if (type != '') {
@@ -497,59 +752,74 @@
                     $('#edit_parameter_type').val('');
                 }
 
+                // Clear and rebuild in the saved order
                 $('#par').empty();
                 str = '';
 
-                val_arr = $("#edit_parameter_type").val();
+                val_arr = $("#edit_parameter_type").val() || [];
 
-                arr1 = [];
-                mapped_arr1 = [];
-
-                $("#edit_parameter_type :selected").each(function(key, value) {
-
-
-                    var arr = type_arr;
-
-                    var mapped_arr = type_arr.map(function(val) {
-                        return $.inArray(val, [val_arr]) ? val : "no";
+                // Use the saved order (type_arr) to maintain the correct sequence
+                // Only show facilities that are currently selected
+                if (type_arr && type_arr.length > 0) {
+                    // Build facilities in saved order, filtering to only selected ones
+                    type_arr.forEach(function(v) {
+                        if (v != '' && v != 'no' && $.inArray(v, val_arr) !== -1) {
+                            text_op = ($('#edit_parameter_type option[value="' + v + '"]').text());
+                            if (text_op) {
+                                $('#par').append($(
+                                    '<div class="seq mb-2" id="' + v + '" style="cursor: move; user-select: none;">' +
+                                    '<span class="badge rounded-pill p-2" style="background:var(--bs-primary); display: inline-block; font-size: 0.9rem;">' +
+                                    '<span style="margin-right: 5px;">☰</span>' + text_op + '</span></div>'
+                                ));
+                                str += v + ',';
+                            }
+                        }
                     });
-
-
-                    mapped_arr1.push(mapped_arr);
-                    arr1.push(value.text);
-
-
-                    str += this.value + ',';
-
-
-                });
-
-
-                $.each(mapped_arr1[0], function(k, v) {
-
-                    text_op = ($('#edit_parameter_type option[value="' + v + '"]').text());
-                    if (v != '') {
-                        $('#par').append($(
-                            '<div class="seq mb-2" id=' + v +
-                            ' style="cursor: move; user-select: none;">' +
-                            '<span class="badge rounded-pill p-2" style="background:var(--bs-primary); display: inline-block; font-size: 0.9rem;">' +
-                            '<span style="margin-right: 5px;">☰</span>' + text_op + '</span></div>'
-                        ));
-                    }
-
-                });
+                    
+                    // Add any newly selected facilities that weren't in the saved order (append at end)
+                    val_arr.forEach(function(v) {
+                        if ($.inArray(v, type_arr) === -1) {
+                            text_op = ($('#edit_parameter_type option[value="' + v + '"]').text());
+                            if (text_op) {
+                                $('#par').append($(
+                                    '<div class="seq mb-2" id="' + v + '" style="cursor: move; user-select: none;">' +
+                                    '<span class="badge rounded-pill p-2" style="background:var(--bs-primary); display: inline-block; font-size: 0.9rem;">' +
+                                    '<span style="margin-right: 5px;">☰</span>' + text_op + '</span></div>'
+                                ));
+                                str += v + ',';
+                            }
+                        }
+                    });
+                } else {
+                    // No saved order, use selection order
+                    $("#edit_parameter_type :selected").each(function(key, value) {
+                        text_op = ($('#edit_parameter_type option[value="' + this.value + '"]').text());
+                        if (text_op) {
+                            $('#par').append($(
+                                '<div class="seq mb-2" id="' + this.value + '" style="cursor: move; user-select: none;">' +
+                                '<span class="badge rounded-pill p-2" style="background:var(--bs-primary); display: inline-block; font-size: 0.9rem;">' +
+                                '<span style="margin-right: 5px;">☰</span>' + text_op + '</span></div>'
+                            ));
+                            str += this.value + ',';
+                        }
+                    });
+                }
 
                 $("#edit_parameter_type").val(str.split(',')).trigger('chosen:updated');
 
+                // Initialize sequence from displayed order
                 var sequence = [];
-                $('.seq').each(function() {
-
-
-                    sequence.push($(this).attr('id'));
-
+                $('#par .seq').each(function() {
+                    var id = $(this).attr('id');
+                    if (id && $.inArray(id, sequence) === -1) {
+                        sequence.push(id);
+                    }
                 });
 
-                $('#update_seq').val(sequence.toString());
+                $('#update_seq').val(sequence.join(','));
+                
+                // Update preview
+                updateEditPreview();
 
                 // Destroy existing dragula instance if it exists
                 if (window.dragulaInstance) {
@@ -571,7 +841,7 @@
                     var sequence = [];
                     var existingIDs = {};
 
-                    $('.seq').each(function() {
+                    $('#par .seq').each(function() {
                         var id = $(this).attr('id');
 
                         if (!existingIDs[id]) {
@@ -581,6 +851,7 @@
                     });
 
                     $('#update_seq').val(sequence.join(','));
+                    updateEditPreview();
                 });
 
 

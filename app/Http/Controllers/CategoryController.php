@@ -69,9 +69,19 @@ class CategoryController extends Controller
                     $slug = $slug . '-' . uniqid();
                 }
 
+                // Use ordered sequence if provided, otherwise use selection order
+                $parameterTypes = '';
+                if ($request->has('create_seq') && !empty($request->create_seq)) {
+                    // Use the ordered sequence from drag-and-drop
+                    $parameterTypes = $request->create_seq;
+                } elseif ($request->parameter_type) {
+                    // Fallback to selection order
+                    $parameterTypes = implode(',', $request->parameter_type);
+                }
+
                 $categoryData = [
                     'category' => ($request->category) ? $request->category : '',
-                    'parameter_types' => ($request->parameter_type) ? implode(',', $request->parameter_type) : '',
+                    'parameter_types' => $parameterTypes,
                     'property_classification' => $classification,
                     'slug_id' => $slug,
                     'meta_title' => $request->meta_title,
