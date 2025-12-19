@@ -52,8 +52,8 @@ class PropertyDocumentController extends Controller
                 abort(404, 'Document not found');
             }
 
-        // Clean filename - remove trailing dots
-        $fileName = rtrim($fileName, '.');
+        // Clean filename - remove trailing dots and spaces
+        $fileName = rtrim(trim($fileName), '.');
 
         // Get file path
         $configPaths = [
@@ -75,9 +75,17 @@ class PropertyDocumentController extends Controller
             'jpg' => 'image/jpeg',
             'jpeg' => 'image/jpeg',
             'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
             'pdf' => 'application/pdf',
             'doc' => 'application/msword',
             'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls' => 'application/vnd.ms-excel',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'txt' => 'text/plain',
+            'rtf' => 'application/rtf',
+            'zip' => 'application/zip',
+            'rar' => 'application/x-rar-compressed',
         ];
         
         Log::info('Property document view attempt', [
@@ -90,6 +98,8 @@ class PropertyDocumentController extends Controller
         
         // Strategy 1: Check if filename already has extension
         $fullPath = $basePath . '/' . $fileName;
+        $actualFileName = $fileName; // Track the actual filename with extension
+        
         if (File::exists($fullPath)) {
             try {
                 $mimeType = File::mimeType($fullPath);
@@ -97,10 +107,16 @@ class PropertyDocumentController extends Controller
                 $extension = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
                 $mimeType = $mimeTypes[$extension] ?? 'application/octet-stream';
             }
+            
+            // If filename doesn't have extension but file does, use the file's extension
+            if (!pathinfo($fileName, PATHINFO_EXTENSION) && pathinfo($fullPath, PATHINFO_EXTENSION)) {
+                $actualFileName = $fileName . '.' . pathinfo($fullPath, PATHINFO_EXTENSION);
+            }
+            
             $disposition = $download ? 'attachment' : 'inline';
             $headers = [
                 'Content-Type' => $mimeType,
-                'Content-Disposition' => $disposition . '; filename="' . basename($fileName) . '"',
+                'Content-Disposition' => $disposition . '; filename="' . basename($actualFileName) . '"',
             ];
             
             // Add headers for browser preview (especially for PDFs and images)
@@ -108,7 +124,7 @@ class PropertyDocumentController extends Controller
                 $headers['X-Content-Type-Options'] = 'nosniff';
                 // For PDFs, ensure browser can preview
                 if ($mimeType === 'application/pdf') {
-                    $headers['Content-Disposition'] = 'inline; filename="' . basename($fileName) . '"';
+                    $headers['Content-Disposition'] = 'inline; filename="' . basename($actualFileName) . '"';
                 }
             }
             
@@ -116,7 +132,7 @@ class PropertyDocumentController extends Controller
         }
 
         // Strategy 2: Try common extensions if file doesn't exist
-        $commonExtensions = ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'];
+        $commonExtensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'rtf', 'zip'];
         foreach ($commonExtensions as $ext) {
             $testPath = $basePath . '/' . $fileName . '.' . $ext;
             if (File::exists($testPath)) {
@@ -135,17 +151,28 @@ class PropertyDocumentController extends Controller
             }
         }
         
-        // Strategy 3: Search for files starting with the filename
+        // Strategy 3: Search for files starting with the filename (most reliable for files without extension in DB)
         if (is_dir($basePath)) {
+            // Try exact match first (filename might already have extension)
             $files = glob($basePath . '/' . $fileName . '.*');
+            if (empty($files)) {
+                // Try without trailing underscore or dots
+                $cleanFileName = rtrim($fileName, '._');
+                $files = glob($basePath . '/' . $cleanFileName . '.*');
+            }
+            
             if (!empty($files)) {
                 $foundFile = $files[0];
                 $extension = strtolower(pathinfo($foundFile, PATHINFO_EXTENSION));
                 $mimeType = $mimeTypes[$extension] ?? 'application/octet-stream';
+                
+                // Use the actual filename found on disk
+                $actualFileName = basename($foundFile);
+                
                 $disposition = $download ? 'attachment' : 'inline';
                 $headers = [
                     'Content-Type' => $mimeType,
-                    'Content-Disposition' => $disposition . '; filename="' . basename($foundFile) . '"',
+                    'Content-Disposition' => $disposition . '; filename="' . $actualFileName . '"',
                 ];
                 
                 if (!$download) {
@@ -235,17 +262,23 @@ class PropertyDocumentController extends Controller
                 // Try to list files in S3 directory and find matching file
                 try {
                     $s3Files = Storage::disk('s3')->files($s3BasePath);
+                    $cleanFileName = rtrim($fileName, '._');
+                    
                     foreach ($s3Files as $s3File) {
                         $s3FileName = basename($s3File);
-                        // Check if filename starts with our filename
-                        if (strpos($s3FileName, $fileName) === 0) {
+                        // Check if filename starts with our filename (with or without extension)
+                        if (strpos($s3FileName, $fileName) === 0 || strpos($s3FileName, $cleanFileName) === 0) {
                             $fileContent = Storage::disk('s3')->get($s3File);
                             $extension = strtolower(pathinfo($s3FileName, PATHINFO_EXTENSION));
                             $mimeType = $mimeTypes[$extension] ?? 'application/octet-stream';
+                            
+                            // Use the actual filename found on S3
+                            $actualFileName = $s3FileName;
+                            
                             $disposition = $download ? 'attachment' : 'inline';
                             $headers = [
                                 'Content-Type' => $mimeType,
-                                'Content-Disposition' => $disposition . '; filename="' . $s3FileName . '"',
+                                'Content-Disposition' => $disposition . '; filename="' . $actualFileName . '"',
                             ];
                             
                             if (!$download) {

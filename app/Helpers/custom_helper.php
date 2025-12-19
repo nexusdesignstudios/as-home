@@ -852,8 +852,41 @@ function store_image($file, $path, $subdir = null)
     }
 
     if ($file instanceof \Illuminate\Http\UploadedFile) {
+        // Get extension from original filename
         $extension = $file->getClientOriginalExtension();
-        $filename = microtime(true) . '.' . $extension;
+        
+        // If extension is empty, try to get it from MIME type
+        if (empty($extension)) {
+            $mimeType = $file->getClientMimeType();
+            $extensionMap = [
+                'image/jpeg' => 'jpg',
+                'image/png' => 'png',
+                'image/gif' => 'gif',
+                'image/webp' => 'webp',
+                'application/pdf' => 'pdf',
+                'application/msword' => 'doc',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                'application/vnd.ms-excel' => 'xls',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+                'text/plain' => 'txt',
+                'application/rtf' => 'rtf',
+                'application/zip' => 'zip',
+                'application/x-rar-compressed' => 'rar',
+                'application/x-zip-compressed' => 'zip',
+            ];
+            $extension = $extensionMap[$mimeType] ?? 'bin';
+        }
+        
+        // Ensure extension doesn't have leading or trailing dots
+        $extension = trim($extension, '.');
+        
+        // If extension is still empty after all attempts, default to 'bin'
+        if (empty($extension)) {
+            $extension = 'bin';
+        }
+        
+        // Generate filename with extension (ensure no trailing dots)
+        $filename = rtrim(microtime(true), '.') . '.' . $extension;
 
         if ($disk === 's3') {
             try {
