@@ -671,10 +671,13 @@
                 <h3 class="card-header">{{ __('Agreement Documents') }}</h3>
                 <hr>
                 <div class="card-body">
+                    <p class="text-muted mb-3">
+                        <i class="bi bi-info-circle"></i> {{ __('Upload document files (PDF, Word, images, etc.) for property agreements. All file types are accepted. Maximum file size: 10MB per document.') }}
+                    </p>
                     <div class="row">
                         {{-- Identity Proof --}}
                         <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
-                            {{ Form::label('identity_proof', __('Identity Proof'), ['class' => 'form-label']) }}
+                            {{ Form::label('identity_proof', __('Identity Proof Document'), ['class' => 'form-label']) }}
                             @php
                                 $identityProofRaw = $list->getRawOriginal('identity_proof');
                             @endphp
@@ -688,13 +691,12 @@
                                     </a>
                                 </div>
                             @endif
-                            <input type="file" class="filepond" id="identity_proof" name="identity_proof" accept="*/*">
-                            <small class="text-muted d-block mt-1">{{ __('All file types are accepted') }}</small>
+                            <input type="file" class="filepond-document" id="identity_proof" name="identity_proof" accept="*/*">
                         </div>
 
                         {{-- National ID/Passport --}}
                         <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
-                            {{ Form::label('national_id_passport', __('National ID/Passport'), ['class' => 'form-label']) }}
+                            {{ Form::label('national_id_passport', __('National ID/Passport Document'), ['class' => 'form-label']) }}
                             @php
                                 $nationalIdRaw = $list->getRawOriginal('national_id_passport');
                             @endphp
@@ -703,18 +705,17 @@
                                     <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'national-id']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
                                         <i class="bi bi-eye"></i> {{ __('View') }}
                                     </a>
-                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'national-id', 'download' => 1]) }}" class="btn btn-sm btn-success">
+                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'national-id', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
                                         <i class="bi bi-download"></i> {{ __('Download') }}
                                     </a>
                                 </div>
                             @endif
-                            <input type="file" class="filepond" id="national_id_passport" name="national_id_passport" accept="*/*">
-                            <small class="text-muted d-block mt-1">{{ __('All file types are accepted') }}</small>
+                            <input type="file" class="filepond-document" id="national_id_passport" name="national_id_passport" accept="*/*">
                         </div>
 
                         {{-- Utilities Bills --}}
                         <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
-                            {{ Form::label('utilities_bills', __('Utilities Bills'), ['class' => 'form-label']) }}
+                            {{ Form::label('utilities_bills', __('Utilities Bills Document'), ['class' => 'form-label']) }}
                             @php
                                 $utilitiesBillsRaw = $list->getRawOriginal('utilities_bills');
                             @endphp
@@ -723,18 +724,17 @@
                                     <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'utilities-bills']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
                                         <i class="bi bi-eye"></i> {{ __('View') }}
                                     </a>
-                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'utilities-bills', 'download' => 1]) }}" class="btn btn-sm btn-success">
+                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'utilities-bills', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
                                         <i class="bi bi-download"></i> {{ __('Download') }}
                                     </a>
                                 </div>
                             @endif
-                            <input type="file" class="filepond" id="utilities_bills" name="utilities_bills" accept="*/*">
-                            <small class="text-muted d-block mt-1">{{ __('All file types are accepted') }}</small>
+                            <input type="file" class="filepond-document" id="utilities_bills" name="utilities_bills" accept="*/*">
                         </div>
 
                         {{-- Power of Attorney --}}
                         <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
-                            {{ Form::label('power_of_attorney', __('Power of Attorney'), ['class' => 'form-label']) }}
+                            {{ Form::label('power_of_attorney', __('Power of Attorney Document'), ['class' => 'form-label']) }}
                             @php
                                 $poaRaw = $list->getRawOriginal('power_of_attorney');
                             @endphp
@@ -743,13 +743,12 @@
                                     <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'power-of-attorney']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
                                         <i class="bi bi-eye"></i> {{ __('View') }}
                                     </a>
-                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'power-of-attorney', 'download' => 1]) }}" class="btn btn-sm btn-success">
+                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'power-of-attorney', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
                                         <i class="bi bi-download"></i> {{ __('Download') }}
                                     </a>
                                 </div>
                             @endif
-                            <input type="file" class="filepond" id="power_of_attorney" name="power_of_attorney" accept="*/*">
-                            <small class="text-muted d-block mt-1">{{ __('All file types are accepted') }}</small>
+                            <input type="file" class="filepond-document" id="power_of_attorney" name="power_of_attorney" accept="*/*">
                         </div>
                     </div>
                 </div>
@@ -1183,41 +1182,51 @@
             handlePropertyClassification();
 
             // Initialize FilePond for document fields (accept all file types)
-            // Wait a bit to ensure global FilePond config has been applied, then override for document fields
+            // Wait a bit to ensure DOM is ready and global FilePond config has been applied
             setTimeout(function() {
-                FilePond.registerPlugin(FilePondPluginImagePreview, FilePondPluginFileValidateSize,
-                    FilePondPluginFileValidateType, FilePondPluginPdfPreview);
+                FilePond.registerPlugin(FilePondPluginFileValidateSize, FilePondPluginFileValidateType, FilePondPluginPdfPreview);
                 
                 // Configure FilePond for agreement documents - accept all file types
-                const documentFields = ['#identity_proof', '#national_id_passport', '#utilities_bills', '#power_of_attorney'];
-                
-                documentFields.forEach(function(fieldId) {
-                    var $field = $(fieldId);
-                    if ($field.length) {
-                        // Destroy existing FilePond instance if any (from global config)
-                        var pondInstance = FilePond.find($field[0]);
-                        if (pondInstance) {
-                            pondInstance.destroy();
-                        }
-                        
-                        // Initialize with all file types accepted
-                        FilePond.create($field[0], {
-                            credits: null,
-                            allowFileSizeValidation: true,
-                            maxFileSize: '10MB',
-                            labelMaxFileSizeExceeded: 'File is too large',
-                            labelMaxFileSize: 'Maximum file size is {filesize}',
-                            allowFileTypeValidation: false, // Disable file type validation to accept all types
-                            storeAsFile: true,
-                            allowPdfPreview: true,
-                            pdfPreviewHeight: 320,
-                            pdfComponentExtraParams: 'toolbar=0&navpanes=0&scrollbar=0&view=fitH',
-                            allowVideoPreview: true,
-                            allowAudioPreview: true
-                        });
+                // Use class selector to target all document fields
+                $('.filepond-document').each(function() {
+                    var fieldElement = this;
+                    
+                    // Destroy existing FilePond instance if any
+                    var pondInstance = FilePond.find(fieldElement);
+                    if (pondInstance) {
+                        pondInstance.destroy();
                     }
+                    
+                    // Initialize with all file types accepted - optimized for documents
+                    FilePond.create(fieldElement, {
+                        credits: null,
+                        allowFileSizeValidation: true,
+                        maxFileSize: '10MB',
+                        labelMaxFileSizeExceeded: '{{ __('File is too large. Maximum size is 10MB.') }}',
+                        labelMaxFileSize: '{{ __('Maximum file size is {filesize}') }}',
+                        allowFileTypeValidation: false, // Disable file type validation to accept all types
+                        storeAsFile: true,
+                        allowPdfPreview: true,
+                        pdfPreviewHeight: 320,
+                        pdfComponentExtraParams: 'toolbar=0&navpanes=0&scrollbar=0&view=fitH',
+                        labelIdle: '{{ __('Drag & Drop your document or <span class="filepond--label-action">Browse</span>') }}',
+                        labelFileTypeNotAllowed: '{{ __('File type not allowed') }}',
+                        labelFileProcessing: '{{ __('Uploading...') }}',
+                        labelFileProcessingComplete: '{{ __('Upload complete') }}',
+                        labelFileProcessingError: '{{ __('Error during upload') }}',
+                        labelFileRemoveError: '{{ __('Error during remove') }}',
+                        labelTapToCancel: '{{ __('Tap to cancel') }}',
+                        labelTapToRetry: '{{ __('Tap to retry') }}',
+                        labelTapToUndo: '{{ __('Tap to undo') }}',
+                        labelButtonRemoveItem: '{{ __('Remove') }}',
+                        labelButtonAbortItemLoad: '{{ __('Abort') }}',
+                        labelButtonRetryItemLoad: '{{ __('Retry') }}',
+                        labelButtonAbortItemProcessing: '{{ __('Cancel') }}',
+                        labelButtonUndoItemProcessing: '{{ __('Undo') }}',
+                        labelButtonProcessItem: '{{ __('Upload') }}'
+                    });
                 });
-            }, 100);
+            }, 200);
 
             // Call when classification changes
             $('#property_classification').on('change', function() {
