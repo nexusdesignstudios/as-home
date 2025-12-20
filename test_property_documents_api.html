@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Property Documents API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .test-results {
+            margin-top: 30px;
+        }
+        .document-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        .document-item h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .status.success {
+            background-color: #28a745;
+            color: white;
+        }
+        .status.error {
+            background-color: #dc3545;
+            color: white;
+        }
+        .status.not-found {
+            background-color: #ffc107;
+            color: #333;
+        }
+        .url {
+            color: #007bff;
+            word-break: break-all;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .actions {
+            margin-top: 10px;
+        }
+        .actions a {
+            display: inline-block;
+            padding: 8px 16px;
+            margin-right: 10px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .btn-view {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .btn-view:hover {
+            background-color: #138496;
+        }
+        .btn-download {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-download:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Property Agreement Documents API Test</h1>
+        
+        <div class="input-group">
+            <label for="propertyId">Property ID:</label>
+            <input type="number" id="propertyId" placeholder="Enter Property ID (e.g., 280)" value="280">
+        </div>
+        
+        <div class="input-group">
+            <label for="baseUrl">Base URL:</label>
+            <input type="text" id="baseUrl" placeholder="http://localhost:8000" value="http://localhost:8000">
+        </div>
+        
+        <button onclick="testAllDocuments()">Test All 5 Documents</button>
+        <button onclick="clearResults()">Clear Results</button>
+        
+        <div id="results" class="test-results"></div>
+    </div>
+
+    <script>
+        const documents = [
+            { name: 'Identity Proof', type: 'identity_proof' },
+            { name: 'National ID/Passport', type: 'national-id' },
+            { name: 'Utilities Bills', type: 'utilities-bills' },
+            { name: 'Power of Attorney', type: 'power-of-attorney' },
+            { name: 'Ownership Contract', type: 'ownership-contract' }
+        ];
+
+        async function testAllDocuments() {
+            const propertyId = document.getElementById('propertyId').value;
+            const baseUrl = document.getElementById('baseUrl').value;
+            const resultsDiv = document.getElementById('results');
+            
+            if (!propertyId) {
+                alert('Please enter a Property ID');
+                return;
+            }
+            
+            resultsDiv.innerHTML = '<h2>Testing Endpoints...</h2>';
+            
+            let resultsHTML = '<h2>Test Results</h2>';
+            
+            for (const doc of documents) {
+                const url = `${baseUrl}/property/${propertyId}/document/${doc.type}`;
+                const previewUrl = url;
+                const downloadUrl = `${url}?download=1`;
+                
+                try {
+                    const response = await fetch(url, { method: 'HEAD' });
+                    const status = response.status;
+                    
+                    let statusClass = 'error';
+                    let statusText = `Error: ${status}`;
+                    
+                    if (status === 200) {
+                        statusClass = 'success';
+                        statusText = '✅ Connected (200 OK)';
+                    } else if (status === 404) {
+                        statusClass = 'not-found';
+                        statusText = '⚠️ Not Found (404) - Document may not exist';
+                    }
+                    
+                    resultsHTML += `
+                        <div class="document-item">
+                            <h3>${doc.name}</h3>
+                            <span class="status ${statusClass}">${statusText}</span>
+                            <div class="url">URL: ${url}</div>
+                            <div class="actions">
+                                <a href="${previewUrl}" target="_blank" class="btn-view">View</a>
+                                <a href="${downloadUrl}" class="btn-download">Download</a>
+                            </div>
+                        </div>
+                    `;
+                } catch (error) {
+                    resultsHTML += `
+                        <div class="document-item">
+                            <h3>${doc.name}</h3>
+                            <span class="status error">❌ Connection Failed</span>
+                            <div class="url">URL: ${url}</div>
+                            <div style="color: #dc3545; margin-top: 5px;">Error: ${error.message}</div>
+                        </div>
+                    `;
+                }
+            }
+            
+            resultsDiv.innerHTML = resultsHTML;
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
+

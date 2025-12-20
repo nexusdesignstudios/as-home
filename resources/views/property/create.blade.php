@@ -536,9 +536,9 @@
                             <input type="file" class="filepond" id="documents" name="documents[]" multiple accept="application/pdf,application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document">
                         </div>
 
-                        {{-- Policy Data (hidden for hotel properties) --}}
+                        {{-- Policy Data / Ownership Contract (hidden for hotel properties) --}}
                         <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 policy-data-field">
-                            {{ Form::label('policy_data', __('Policy Data'), ['class' => 'form-label']) }}
+                            {{ Form::label('policy_data', __('Ownership Contract'), ['class' => 'form-label']) }}
                             <input type="file" class="filepond" id="policy_data" name="policy_data" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
                         </div>
 

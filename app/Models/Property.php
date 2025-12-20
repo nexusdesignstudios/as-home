@@ -45,8 +45,10 @@ class Property extends Model
         'policy_data',
         'identity_proof',
         'national_id_passport',
+        'alternative_id',
         'utilities_bills',
         'power_of_attorney',
+        'ownership_contract',
         'fact_sheet',
         'weekend_commission',
         'availability_type',
@@ -404,6 +406,26 @@ class Property extends Model
     public function setPowerOfAttorneyAttribute($value)
     {
         $this->attributes['power_of_attorney'] = $value;
+    }
+
+    public function getAlternativeIdAttribute($value)
+    {
+        return $value != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_ALTERNATIVE_ID_PATH') . $value : '';
+    }
+
+    public function setAlternativeIdAttribute($value)
+    {
+        $this->attributes['alternative_id'] = $value;
+    }
+
+    public function getOwnershipContractAttribute($value)
+    {
+        return $value != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_OWNERSHIP_CONTRACT_PATH') . $value : '';
+    }
+
+    public function setOwnershipContractAttribute($value)
+    {
+        $this->attributes['ownership_contract'] = $value;
     }
 
     public function getFactSheetAttribute($value)

@@ -642,14 +642,14 @@
                             </div>
                         </div>
 
-                        {{-- Policy Data (hidden for hotel properties) --}}
+                        {{-- Policy Data / Ownership Contract (hidden for hotel properties) --}}
                         <div class="col-md-6 form-group policy-data-field">
-                            {{ Form::label('policy_data', __('Policy Data'), ['class' => 'form-label col-12']) }}
+                            {{ Form::label('policy_data', __('Ownership Contract'), ['class' => 'form-label col-12']) }}
                             <input type="file" class="filepond" id="policy_data" name="policy_data" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
                             @if (!empty($list->policy_data))
                                 <div class="mt-2">
                                     <a href="{{ $list->policy_data }}" target="_blank" class="btn btn-sm btn-info">
-                                        <i class="bi bi-file-earmark"></i> {{ __('View Policy Document') }}
+                                        <i class="bi bi-file-earmark"></i> {{ __('View Ownership Contract') }}
                                     </a>
                                 </div>
                             @endif
@@ -713,6 +713,25 @@
                             <input type="file" class="filepond-document" id="national_id_passport" name="national_id_passport" accept="*/*">
                         </div>
 
+                        {{-- Alternative ID --}}
+                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
+                            {{ Form::label('alternative_id', __('Alternative ID Document'), ['class' => 'form-label']) }}
+                            @php
+                                $alternativeIdRaw = $list->getRawOriginal('alternative_id');
+                            @endphp
+                            @if(!empty($alternativeIdRaw))
+                                <div class="mb-2 d-flex gap-2">
+                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'alternative-id']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
+                                        <i class="bi bi-eye"></i> {{ __('View') }}
+                                    </a>
+                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'alternative-id', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
+                                        <i class="bi bi-download"></i> {{ __('Download') }}
+                                    </a>
+                                </div>
+                            @endif
+                            <input type="file" class="filepond-document" id="alternative_id" name="alternative_id" accept="*/*">
+                        </div>
+
                         {{-- Utilities Bills --}}
                         <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
                             {{ Form::label('utilities_bills', __('Utilities Bills Document'), ['class' => 'form-label']) }}
@@ -749,6 +768,25 @@
                                 </div>
                             @endif
                             <input type="file" class="filepond-document" id="power_of_attorney" name="power_of_attorney" accept="*/*">
+                        </div>
+
+                        {{-- Ownership Contract --}}
+                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
+                            {{ Form::label('ownership_contract', __('Ownership Contract Document'), ['class' => 'form-label']) }}
+                            @php
+                                $ownershipContractRaw = $list->getRawOriginal('ownership_contract');
+                            @endphp
+                            @if(!empty($ownershipContractRaw))
+                                <div class="mb-2 d-flex gap-2">
+                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'ownership-contract']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
+                                        <i class="bi bi-eye"></i> {{ __('View') }}
+                                    </a>
+                                    <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'ownership-contract', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
+                                        <i class="bi bi-download"></i> {{ __('Download') }}
+                                    </a>
+                                </div>
+                            @endif
+                            <input type="file" class="filepond-document" id="ownership_contract" name="ownership_contract" accept="*/*">
                         </div>
                     </div>
                 </div>

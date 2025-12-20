@@ -12,7 +12,7 @@ class PropertyDocumentController extends Controller
 {
     /**
      * View property document
-     * Handles viewing of agreement documents (identity_proof, national_id_passport, utilities_bills, power_of_attorney)
+     * Handles viewing of agreement documents (identity_proof, national_id_passport, utilities_bills, power_of_attorney, ownership_contract)
      */
     public function viewDocument(Request $request, $propertyId, $documentType)
     {
@@ -28,8 +28,10 @@ class PropertyDocumentController extends Controller
             $documentFields = [
                 'identity_proof' => 'identity_proof',
                 'national-id' => 'national_id_passport',
+                'alternative-id' => 'alternative_id',
                 'utilities-bills' => 'utilities_bills',
                 'power-of-attorney' => 'power_of_attorney',
+                'ownership-contract' => 'ownership_contract',
             ];
 
             if (!isset($documentFields[$documentType])) {
@@ -59,8 +61,10 @@ class PropertyDocumentController extends Controller
         $configPaths = [
             'identity_proof' => config('global.PROPERTY_IDENTITY_PROOF_PATH'),
             'national_id_passport' => config('global.PROPERTY_NATIONAL_ID_PATH'),
+            'alternative_id' => config('global.PROPERTY_ALTERNATIVE_ID_PATH'),
             'utilities_bills' => config('global.PROPERTY_UTILITIES_PATH'),
             'power_of_attorney' => config('global.PROPERTY_POA_PATH'),
+            'ownership_contract' => config('global.PROPERTY_OWNERSHIP_CONTRACT_PATH'),
         ];
 
         // Construct path properly - config paths start with /

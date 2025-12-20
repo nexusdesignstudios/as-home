@@ -149,8 +149,10 @@ class PropertController extends Controller
                 'certificates.*.file' => 'required_with:certificates|file|max:5120|mimes:jpeg,png,jpg,pdf,doc,docx',
                 'identity_proof'    => 'nullable|file|max:10240', // Accept all file types, max 10MB
                 'national_id_passport' => 'nullable|file|max:10240', // Accept all file types, max 10MB
+                'alternative_id' => 'nullable|file|max:10240', // Accept all file types, max 10MB
                 'utilities_bills'   => 'nullable|file|max:10240', // Accept all file types, max 10MB
                 'power_of_attorney' => 'nullable|file|max:10240', // Accept all file types, max 10MB
+                'ownership_contract' => 'nullable|file|max:10240', // Accept all file types, max 10MB
                 'fact_sheet' => 'nullable|mimes:jpg,jpeg,png,gif,pdf,doc,docx|max:5120',
                 'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
                     if (!empty($value)) {
@@ -259,6 +261,11 @@ class PropertController extends Controller
                     $saveProperty->national_id_passport = store_image($request->file('national_id_passport'), 'PROPERTY_NATIONAL_ID_PATH');
                 }
 
+                // Alternative ID
+                if ($request->hasFile('alternative_id')) {
+                    $saveProperty->alternative_id = store_image($request->file('alternative_id'), 'PROPERTY_ALTERNATIVE_ID_PATH');
+                }
+
                 // Utilities Bills
                 if ($request->hasFile('utilities_bills')) {
                     $saveProperty->utilities_bills = store_image($request->file('utilities_bills'), 'PROPERTY_UTILITIES_PATH');
@@ -267,6 +274,11 @@ class PropertController extends Controller
                 // Power of Attorney
                 if ($request->hasFile('power_of_attorney')) {
                     $saveProperty->power_of_attorney = store_image($request->file('power_of_attorney'), 'PROPERTY_POA_PATH');
+                }
+
+                // Ownership Contract
+                if ($request->hasFile('ownership_contract')) {
+                    $saveProperty->ownership_contract = store_image($request->file('ownership_contract'), 'PROPERTY_OWNERSHIP_CONTRACT_PATH');
                 }
 
                 // Fact Sheet (for hotels)
@@ -721,6 +733,11 @@ class PropertController extends Controller
                     $UpdateProperty->setAttribute('national_id_passport', \store_image($request->file('national_id_passport'), 'PROPERTY_NATIONAL_ID_PATH'));
                 }
 
+                if ($request->hasFile('alternative_id')) {
+                    \unlink_image($UpdateProperty->alternative_id);
+                    $UpdateProperty->setAttribute('alternative_id', \store_image($request->file('alternative_id'), 'PROPERTY_ALTERNATIVE_ID_PATH'));
+                }
+
                 if ($request->hasFile('utilities_bills')) {
                     \unlink_image($UpdateProperty->utilities_bills);
                     $UpdateProperty->setAttribute('utilities_bills', \store_image($request->file('utilities_bills'), 'PROPERTY_UTILITIES_PATH'));
@@ -729,6 +746,11 @@ class PropertController extends Controller
                 if ($request->hasFile('power_of_attorney')) {
                     \unlink_image($UpdateProperty->power_of_attorney);
                     $UpdateProperty->setAttribute('power_of_attorney', \store_image($request->file('power_of_attorney'), 'PROPERTY_POA_PATH'));
+                }
+
+                if ($request->hasFile('ownership_contract')) {
+                    \unlink_image($UpdateProperty->ownership_contract);
+                    $UpdateProperty->setAttribute('ownership_contract', \store_image($request->file('ownership_contract'), 'PROPERTY_OWNERSHIP_CONTRACT_PATH'));
                 }
 
                 // Fact Sheet (for hotels)

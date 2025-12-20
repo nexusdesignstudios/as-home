@@ -281,7 +281,7 @@ Route::middleware(['language'])->group(function () {
             // Property document viewer route
             Route::get('{propertyId}/document/{documentType}', [\App\Http\Controllers\PropertyDocumentController::class, 'viewDocument'])
                 ->name('property.document.view')
-                ->where(['propertyId' => '[0-9]+', 'documentType' => 'identity_proof|national-id|utilities-bills|power-of-attorney']);
+                ->where(['propertyId' => '[0-9]+', 'documentType' => 'identity_proof|national-id|alternative-id|utilities-bills|power-of-attorney|ownership-contract']);
         });
 
         Route::resource('property', PropertController::class);
