@@ -295,7 +295,8 @@ Route::middleware(['language'])->group(function () {
         Route::post('update-property-request-status', [PropertController::class, 'updateRequestStatus'])->name('update-property-request-status');
         
         // Property Edit Requests Routes
-        Route::get('property-edit-requests', [PropertController::class, 'getEditRequests'])->name('property-edit-requests.index');
+        Route::get('property-edit-requests', [PropertController::class, 'editRequestsIndex'])->name('property-edit-requests.index');
+        Route::get('property-edit-requests-api', [PropertController::class, 'getEditRequests'])->name('property-edit-requests.api');
         Route::get('property-edit-requests/{id}', [PropertController::class, 'getEditRequest'])->name('property-edit-requests.show');
         Route::post('property-edit-requests/update-status', [PropertController::class, 'updateEditRequestStatus'])->name('property-edit-requests.update-status');
 

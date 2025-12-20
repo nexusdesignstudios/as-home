@@ -1558,7 +1558,36 @@ class PropertController extends Controller
     }
 
     /**
-     * Get list of pending property edit requests.
+     * Display the property edit requests page.
+     *
+     * @param Request $request
+     * @return \Illuminate\View\View
+     */
+    public function editRequestsIndex(Request $request)
+    {
+        if (!has_permissions('read', 'property')) {
+            return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
+        }
+        
+        $status = $request->get('status', 'pending'); // pending, approved, rejected, all
+        
+        $query = \App\Models\PropertyEditRequest::with([
+            'property:id,title,slug_id',
+            'requestedBy:id,name,email',
+            'reviewedBy:id,name'
+        ]);
+        
+        if ($status !== 'all') {
+            $query->where('status', $status);
+        }
+        
+        $editRequests = $query->orderBy('created_at', 'desc')->get();
+        
+        return view('property.edit-requests', compact('editRequests', 'status'));
+    }
+
+    /**
+     * Get list of pending property edit requests (API/JSON).
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -1601,21 +1630,32 @@ class PropertController extends Controller
     public function getEditRequest($id)
     {
         if (!has_permissions('read', 'property')) {
-            ResponseService::errorResponse(PERMISSION_ERROR_MSG);
+            return response()->json([
+                'error' => true,
+                'message' => PERMISSION_ERROR_MSG
+            ], 403);
         }
         
         try {
             $editRequest = \App\Models\PropertyEditRequest::with([
-                'property',
+                'property:id,title,slug_id',
                 'requestedBy:id,name,email',
                 'reviewedBy:id,name'
             ])->findOrFail($id);
             
-            ResponseService::successResponse('Property edit request retrieved successfully', [
-                'edit_request' => $editRequest
+            return response()->json([
+                'error' => false,
+                'message' => 'Property edit request retrieved successfully',
+                'data' => [
+                    'edit_request' => $editRequest
+                ]
             ]);
         } catch (Exception $e) {
-            ResponseService::logErrorResponse($e, "Get Property Edit Request Error", "Something Went Wrong");
+            Log::error("Get Property Edit Request Error: " . $e->getMessage());
+            return response()->json([
+                'error' => true,
+                'message' => 'Something went wrong'
+            ], 500);
         }
     }
 
@@ -1634,11 +1674,17 @@ class PropertController extends Controller
         ]);
         
         if ($validator->fails()) {
-            ResponseService::validationError($validator->errors()->first());
+            return response()->json([
+                'error' => true,
+                'message' => $validator->errors()->first()
+            ], 422);
         }
         
         if (!has_permissions('update', 'property')) {
-            ResponseService::errorResponse(PERMISSION_ERROR_MSG);
+            return response()->json([
+                'error' => true,
+                'message' => PERMISSION_ERROR_MSG
+            ], 403);
         }
         
         try {
@@ -1647,7 +1693,10 @@ class PropertController extends Controller
             $editRequest = \App\Models\PropertyEditRequest::findOrFail($request->edit_request_id);
             
             if ($editRequest->status != 'pending') {
-                ResponseService::errorResponse('This edit request has already been processed.');
+                return response()->json([
+                    'error' => true,
+                    'message' => 'This edit request has already been processed.'
+                ], 400);
             }
             
             $editRequestService = new \App\Services\PropertyEditRequestService();
@@ -1660,9 +1709,13 @@ class PropertController extends Controller
                 
                 DB::commit();
                 
-                ResponseService::successResponse('Property edit request approved and changes applied successfully.', [
-                    'property_id' => $property->id,
-                    'edit_request_id' => $editRequest->id
+                return response()->json([
+                    'error' => false,
+                    'message' => 'Property edit request approved and changes applied successfully.',
+                    'data' => [
+                        'property_id' => $property->id,
+                        'edit_request_id' => $editRequest->id
+                    ]
                 ]);
             } else {
                 // Reject the edit request
@@ -1670,13 +1723,23 @@ class PropertController extends Controller
                 
                 DB::commit();
                 
-                ResponseService::successResponse('Property edit request rejected successfully.', [
-                    'edit_request_id' => $editRequest->id
+                return response()->json([
+                    'error' => false,
+                    'message' => 'Property edit request rejected successfully.',
+                    'data' => [
+                        'edit_request_id' => $editRequest->id
+                    ]
                 ]);
             }
         } catch (Exception $e) {
             DB::rollBack();
-            ResponseService::logErrorResponse($e, "Update Property Edit Request Status Error", "Something Went Wrong");
+            Log::error("Update Property Edit Request Status Error: " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'error' => true,
+                'message' => 'Something went wrong: ' . $e->getMessage()
+            ], 500);
         }
     }
 

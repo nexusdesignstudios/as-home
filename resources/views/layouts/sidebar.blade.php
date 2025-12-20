@@ -103,6 +103,9 @@
                             <li class="submenu-item">
                                 <a href="{{ route('property-terms.index') }}">{{ __('Terms & Conditions') }}</a>
                             </li>
+                            <li class="submenu-item">
+                                <a href="{{ route('property-edit-requests.index') }}">{{ __('Edit Requests') }}</a>
+                            </li>
                         </ul>
                     </li>
                 @endif
