@@ -2279,8 +2279,41 @@ class ApiController extends Controller
                         }
                     }
 
-                    // Save the property with all updates including Arabic fields and hotel_vat
-                    $property->save();
+                    // Check if edits need admin approval
+                    $autoApproveEdited = HelperService::getSettingData('auto_approve_edited_listings');
+                    $isOwnerEdit = $property->added_by != 0; // 0 means admin, non-zero means owner
+                    
+                    if ($autoApproveEdited == 0 && $isOwnerEdit) {
+                        // Save edits as pending request instead of applying directly
+                        // Get the current state of the property (with all modifications)
+                        $editedData = $property->getAttributes();
+                        
+                        // Remove timestamps and IDs from edited data
+                        unset($editedData['created_at'], $editedData['updated_at'], $editedData['id']);
+                        
+                        // Use PropertyEditRequestService to save the edit request
+                        $editRequestService = new \App\Services\PropertyEditRequestService();
+                        $editRequest = $editRequestService->saveEditRequest($property, $editedData, $current_user);
+                        
+                        // Reload property to get original data (don't save changes)
+                        $property->refresh();
+                        
+                        DB::commit();
+                        
+                        return response()->json([
+                            'error' => false,
+                            'message' => 'Property edit request submitted successfully. Changes will be applied after admin approval.',
+                            'data' => [
+                                'edit_request_id' => $editRequest->id,
+                                'status' => 'pending_approval',
+                                'property' => $property
+                            ]
+                        ]);
+                    } else {
+                        // Auto-approve enabled or admin edit - save directly
+                        // Save the property with all updates including Arabic fields and hotel_vat
+                        $property->save();
+                    }
                     $update_property = Property::with([
                         'customer',
                         'category:id,category,image',

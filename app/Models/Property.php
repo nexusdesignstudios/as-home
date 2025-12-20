@@ -1143,6 +1143,22 @@ class Property extends Model
     }
 
     /**
+     * Get the property edit requests for this property.
+     */
+    public function editRequests()
+    {
+        return $this->hasMany(PropertyEditRequest::class);
+    }
+
+    /**
+     * Get the pending edit request for this property.
+     */
+    public function pendingEditRequest()
+    {
+        return $this->hasOne(PropertyEditRequest::class)->where('status', 'pending');
+    }
+
+    /**
      * Get all reservations associated with this property (both direct and via hotel rooms).
      */
     public function allReservations()

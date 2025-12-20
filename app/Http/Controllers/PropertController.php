@@ -1557,6 +1557,129 @@ class PropertController extends Controller
         }
     }
 
+    /**
+     * Get list of pending property edit requests.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getEditRequests(Request $request)
+    {
+        if (!has_permissions('read', 'property')) {
+            ResponseService::errorResponse(PERMISSION_ERROR_MSG);
+        }
+        
+        try {
+            $status = $request->get('status', 'pending'); // pending, approved, rejected, all
+            
+            $query = \App\Models\PropertyEditRequest::with([
+                'property:id,title,slug_id',
+                'requestedBy:id,name,email',
+                'reviewedBy:id,name'
+            ]);
+            
+            if ($status !== 'all') {
+                $query->where('status', $status);
+            }
+            
+            $editRequests = $query->orderBy('created_at', 'desc')->get();
+            
+            ResponseService::successResponse('Property edit requests retrieved successfully', [
+                'edit_requests' => $editRequests
+            ]);
+        } catch (Exception $e) {
+            ResponseService::logErrorResponse($e, "Get Property Edit Requests Error", "Something Went Wrong");
+        }
+    }
+
+    /**
+     * Get a specific property edit request with details.
+     *
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getEditRequest($id)
+    {
+        if (!has_permissions('read', 'property')) {
+            ResponseService::errorResponse(PERMISSION_ERROR_MSG);
+        }
+        
+        try {
+            $editRequest = \App\Models\PropertyEditRequest::with([
+                'property',
+                'requestedBy:id,name,email',
+                'reviewedBy:id,name'
+            ])->findOrFail($id);
+            
+            ResponseService::successResponse('Property edit request retrieved successfully', [
+                'edit_request' => $editRequest
+            ]);
+        } catch (Exception $e) {
+            ResponseService::logErrorResponse($e, "Get Property Edit Request Error", "Something Went Wrong");
+        }
+    }
+
+    /**
+     * Update property edit request status (approve or reject).
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateEditRequestStatus(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'edit_request_id' => 'required|integer|exists:property_edit_requests,id',
+            'status' => 'required|in:approved,rejected',
+            'reject_reason' => 'required_if:status,rejected|max:300'
+        ]);
+        
+        if ($validator->fails()) {
+            ResponseService::validationError($validator->errors()->first());
+        }
+        
+        if (!has_permissions('update', 'property')) {
+            ResponseService::errorResponse(PERMISSION_ERROR_MSG);
+        }
+        
+        try {
+            DB::beginTransaction();
+            
+            $editRequest = \App\Models\PropertyEditRequest::findOrFail($request->edit_request_id);
+            
+            if ($editRequest->status != 'pending') {
+                ResponseService::errorResponse('This edit request has already been processed.');
+            }
+            
+            $editRequestService = new \App\Services\PropertyEditRequestService();
+            
+            $reviewedBy = Auth::id();
+            
+            if ($request->status == "approved") {
+                // Apply the edits to the property
+                $property = $editRequestService->applyEditRequest($editRequest, $reviewedBy);
+                
+                DB::commit();
+                
+                ResponseService::successResponse('Property edit request approved and changes applied successfully.', [
+                    'property_id' => $property->id,
+                    'edit_request_id' => $editRequest->id
+                ]);
+            } else {
+                // Reject the edit request
+                $editRequestService->rejectEditRequest($editRequest, $request->reject_reason, $reviewedBy);
+                
+                DB::commit();
+                
+                ResponseService::successResponse('Property edit request rejected successfully.', [
+                    'edit_request_id' => $editRequest->id
+                ]);
+            }
+        } catch (Exception $e) {
+            DB::rollBack();
+            ResponseService::logErrorResponse($e, "Update Property Edit Request Status Error", "Something Went Wrong");
+        }
+    }
+
     public function updateRequestStatus(Request $request)
     {
         $validator = Validator::make($request->all(), [
