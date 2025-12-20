@@ -31,21 +31,42 @@
                                class="btn btn-sm {{ $status == 'pending' ? 'btn-primary' : 'btn-outline-primary' }}">
                                 {{ __('Pending') }} 
                                 <span class="badge bg-light text-dark ms-1">
-                                    {{ \App\Models\PropertyEditRequest::where('status', 'pending')->count() }}
+                                    @php
+                                        try {
+                                            $pendingCount = \App\Models\PropertyEditRequest::where('status', 'pending')->count();
+                                        } catch (\Exception $e) {
+                                            $pendingCount = 0;
+                                        }
+                                    @endphp
+                                    {{ $pendingCount }}
                                 </span>
                             </a>
                             <a href="{{ route('property-edit-requests.index', ['status' => 'approved']) }}" 
                                class="btn btn-sm {{ $status == 'approved' ? 'btn-success' : 'btn-outline-success' }}">
                                 {{ __('Approved') }}
                                 <span class="badge bg-light text-dark ms-1">
-                                    {{ \App\Models\PropertyEditRequest::where('status', 'approved')->count() }}
+                                    @php
+                                        try {
+                                            $approvedCount = \App\Models\PropertyEditRequest::where('status', 'approved')->count();
+                                        } catch (\Exception $e) {
+                                            $approvedCount = 0;
+                                        }
+                                    @endphp
+                                    {{ $approvedCount }}
                                 </span>
                             </a>
                             <a href="{{ route('property-edit-requests.index', ['status' => 'rejected']) }}" 
                                class="btn btn-sm {{ $status == 'rejected' ? 'btn-danger' : 'btn-outline-danger' }}">
                                 {{ __('Rejected') }}
                                 <span class="badge bg-light text-dark ms-1">
-                                    {{ \App\Models\PropertyEditRequest::where('status', 'rejected')->count() }}
+                                    @php
+                                        try {
+                                            $rejectedCount = \App\Models\PropertyEditRequest::where('status', 'rejected')->count();
+                                        } catch (\Exception $e) {
+                                            $rejectedCount = 0;
+                                        }
+                                    @endphp
+                                    {{ $rejectedCount }}
                                 </span>
                             </a>
                             <a href="{{ route('property-edit-requests.index', ['status' => 'all']) }}" 
@@ -57,6 +78,19 @@
                 </div>
             </div>
             <div class="card-body">
+                @if(isset($error))
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> {{ $error }}
+                        @if(strpos($error, 'table does not exist') !== false)
+                            <br><br>
+                            <strong>To fix this:</strong>
+                            <ol>
+                                <li>Run the migration: <code>php artisan migrate</code></li>
+                                <li>Or manually create the table using the migration file: <code>database/migrations/2025_01_25_000000_create_property_edit_requests_table.php</code></li>
+                            </ol>
+                        @endif
+                    </div>
+                @endif
                 @if($editRequests->count() > 0)
                     <div class="table-responsive">
                         <table class="table table-striped table-hover">

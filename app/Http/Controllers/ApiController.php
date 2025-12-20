@@ -2279,12 +2279,12 @@ class ApiController extends Controller
                         }
                     }
 
-                    // Check if edits need admin approval
-                    $autoApproveEdited = HelperService::getSettingData('auto_approve_edited_listings');
-                    $isOwnerEdit = $property->added_by != 0; // 0 means admin, non-zero means owner
+                    // Check if this is an owner edit (not admin)
+                    // 0 means admin, non-zero means owner/customer
+                    $isOwnerEdit = $property->added_by != 0;
                     
-                    if ($autoApproveEdited == 0 && $isOwnerEdit) {
-                        // Save edits as pending request instead of applying directly
+                    if ($isOwnerEdit) {
+                        // Owner edits ALWAYS require admin approval - save as pending request
                         // Get the current state of the property (with all modifications)
                         $editedData = $property->getAttributes();
                         
@@ -2295,8 +2295,30 @@ class ApiController extends Controller
                         $editRequestService = new \App\Services\PropertyEditRequestService();
                         $editRequest = $editRequestService->saveEditRequest($property, $editedData, $current_user);
                         
-                        // Reload property to get original data (don't save changes)
+                        // Reload property to get original data (don't save changes to property)
                         $property->refresh();
+                        
+                        // Note: Gallery images, documents, and other related data changes
+                        // are NOT processed here because the property itself is not being updated.
+                        // These will be handled when the admin approves the edit request.
+                        
+                        // Return response indicating edit request was created
+                        $update_property = Property::with([
+                            'customer',
+                            'category:id,category,image',
+                            'assignfacilities.outdoorfacilities',
+                            'favourite',
+                            'parameters',
+                            'interested_users',
+                            'propertyImages',
+                            'propertiesDocuments',
+                            'hotelRooms.roomType',
+                            'addons_packages.addon_values.hotel_addon_field',
+                            'certificates',
+                            'vacationApartments'
+                        ])->where('id', $request->id)->get();
+                        
+                        $property_details = get_property_details($update_property, $current_user, true);
                         
                         DB::commit();
                         
@@ -2306,11 +2328,11 @@ class ApiController extends Controller
                             'data' => [
                                 'edit_request_id' => $editRequest->id,
                                 'status' => 'pending_approval',
-                                'property' => $property
+                                'property' => $property_details
                             ]
                         ]);
                     } else {
-                        // Auto-approve enabled or admin edit - save directly
+                        // Admin edit - save directly (no approval needed)
                         // Save the property with all updates including Arabic fields and hotel_vat
                         $property->save();
                     }

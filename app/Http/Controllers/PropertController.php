@@ -9,6 +9,7 @@ use App\Models\Customer;
 
 
 use App\Models\Property;
+use App\Models\PropertyEditRequest;
 use App\Models\CityImage;
 use App\Models\parameter;
 use App\Models\Usertokens;
@@ -27,6 +28,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use App\Services\BootstrapTableService;
 use App\Models\AssignedOutdoorFacilities;
 use Illuminate\Support\Facades\Validator;
@@ -1569,21 +1571,41 @@ class PropertController extends Controller
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
         
-        $status = $request->get('status', 'pending'); // pending, approved, rejected, all
-        
-        $query = \App\Models\PropertyEditRequest::with([
-            'property:id,title,slug_id',
-            'requestedBy:id,name,email',
-            'reviewedBy:id,name'
-        ]);
-        
-        if ($status !== 'all') {
-            $query->where('status', $status);
+        try {
+            $status = $request->get('status', 'pending'); // pending, approved, rejected, all
+            
+            // Check if table exists
+            if (!\Schema::hasTable('property_edit_requests')) {
+                return view('property.edit-requests', [
+                    'editRequests' => collect([]),
+                    'status' => $status,
+                    'error' => 'The property_edit_requests table does not exist. Please run the migration.'
+                ]);
+            }
+            
+            $query = PropertyEditRequest::with([
+                'property:id,title,slug_id',
+                'requestedBy:id,name,email',
+                'reviewedBy:id,name'
+            ]);
+            
+            if ($status !== 'all') {
+                $query->where('status', $status);
+            }
+            
+            $editRequests = $query->orderBy('created_at', 'desc')->get();
+            
+            return view('property.edit-requests', compact('editRequests', 'status'));
+        } catch (\Exception $e) {
+            Log::error('Error loading property edit requests: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return view('property.edit-requests', [
+                'editRequests' => collect([]),
+                'status' => $status,
+                'error' => 'Error loading edit requests: ' . $e->getMessage()
+            ]);
         }
-        
-        $editRequests = $query->orderBy('created_at', 'desc')->get();
-        
-        return view('property.edit-requests', compact('editRequests', 'status'));
     }
 
     /**
@@ -1601,7 +1623,7 @@ class PropertController extends Controller
         try {
             $status = $request->get('status', 'pending'); // pending, approved, rejected, all
             
-            $query = \App\Models\PropertyEditRequest::with([
+            $query = PropertyEditRequest::with([
                 'property:id,title,slug_id',
                 'requestedBy:id,name,email',
                 'reviewedBy:id,name'
@@ -1637,7 +1659,7 @@ class PropertController extends Controller
         }
         
         try {
-            $editRequest = \App\Models\PropertyEditRequest::with([
+            $editRequest = PropertyEditRequest::with([
                 'property:id,title,slug_id',
                 'requestedBy:id,name,email',
                 'reviewedBy:id,name'
@@ -1690,7 +1712,7 @@ class PropertController extends Controller
         try {
             DB::beginTransaction();
             
-            $editRequest = \App\Models\PropertyEditRequest::findOrFail($request->edit_request_id);
+            $editRequest = PropertyEditRequest::findOrFail($request->edit_request_id);
             
             if ($editRequest->status != 'pending') {
                 return response()->json([
