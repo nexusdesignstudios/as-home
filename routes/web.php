@@ -293,6 +293,11 @@ Route::middleware(['language'])->group(function () {
         Route::get('getFeaturedPropertyList', [PropertController::class, 'getFeaturedPropertyList']);
         Route::post('updateaccessability', [PropertController::class, 'updateaccessability'])->name('updateaccessability');
         Route::post('update-property-request-status', [PropertController::class, 'updateRequestStatus'])->name('update-property-request-status');
+        
+        // Property Edit Requests Routes
+        Route::get('property-edit-requests', [PropertController::class, 'getEditRequests'])->name('property-edit-requests.index');
+        Route::get('property-edit-requests/{id}', [PropertController::class, 'getEditRequest'])->name('property-edit-requests.show');
+        Route::post('property-edit-requests/update-status', [PropertController::class, 'updateEditRequestStatus'])->name('property-edit-requests.update-status');
 
         Route::get('updateFCMID', [UserController::class, 'updateFCMID']);
         /// END :: PROPERTY ROUTE
