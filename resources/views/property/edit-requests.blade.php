@@ -386,7 +386,7 @@
                     alert('{{ __('Edit request approved successfully!') }}');
                     location.reload();
                 } else {
-                    alert('{{ __('Error:") }} ' + (data.message || '{{ __('Something went wrong.') }}'));
+                    alert('{{ __('Error:') }} ' + (data.message || '{{ __('Something went wrong.') }}'));
                 }
             })
             .catch(error => {
@@ -422,11 +422,11 @@
             .then(response => response.json())
             .then(data => {
                 if (data.error === false) {
-                    alert('{{ __('Edit request rejected successfully!") }}');
+                    alert('{{ __('Edit request rejected successfully!') }}');
                     bootstrap.Modal.getInstance(document.getElementById('rejectReasonModal')).hide();
                     location.reload();
                 } else {
-                    alert('{{ __('Error:") }} ' + (data.message || '{{ __('Something went wrong.') }}'));
+                    alert('{{ __('Error:') }} ' + (data.message || '{{ __('Something went wrong.') }}'));
                 }
             })
             .catch(error => {
