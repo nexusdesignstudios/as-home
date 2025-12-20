@@ -15,295 +15,124 @@
     </div>
 @endsection
 
-@section('css')
-<style>
-    .edit-requests-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 2rem;
-        border-radius: 0.5rem 0.5rem 0 0;
-        margin: -1.5rem -1.5rem 1.5rem -1.5rem;
-    }
-    .filter-tabs {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-        margin-top: 1rem;
-    }
-    .filter-tab {
-        padding: 0.75rem 1.5rem;
-        border-radius: 0.5rem;
-        text-decoration: none;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        border: 2px solid transparent;
-    }
-    .filter-tab:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    .filter-tab.active {
-        border-color: currentColor;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-    .filter-tab.pending.active {
-        background: #ffc107;
-        color: #000;
-    }
-    .filter-tab.approved.active {
-        background: #28a745;
-        color: #fff;
-    }
-    .filter-tab.rejected.active {
-        background: #dc3545;
-        color: #fff;
-    }
-    .filter-tab.all.active {
-        background: #6c757d;
-        color: #fff;
-    }
-    .count-badge {
-        background: rgba(255,255,255,0.3);
-        padding: 0.25rem 0.75rem;
-        border-radius: 1rem;
-        font-weight: 600;
-        font-size: 0.875rem;
-    }
-    .filter-tab.active .count-badge {
-        background: rgba(0,0,0,0.2);
-    }
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        border-radius: 1rem;
-        margin: 2rem 0;
-    }
-    .empty-state-icon {
-        font-size: 4rem;
-        color: #6c757d;
-        margin-bottom: 1rem;
-    }
-    .empty-state h4 {
-        color: #495057;
-        margin-bottom: 0.5rem;
-    }
-    .empty-state p {
-        color: #6c757d;
-        margin: 0;
-    }
-    .table-enhanced {
-        border-collapse: separate;
-        border-spacing: 0;
-    }
-    .table-enhanced thead th {
-        background: #f8f9fa;
-        font-weight: 600;
-        text-transform: uppercase;
-        font-size: 0.75rem;
-        letter-spacing: 0.5px;
-        padding: 1rem;
-        border-bottom: 2px solid #dee2e6;
-    }
-    .table-enhanced tbody tr {
-        transition: all 0.2s ease;
-    }
-    .table-enhanced tbody tr:hover {
-        background: #f8f9fa;
-        transform: scale(1.01);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    .table-enhanced tbody td {
-        padding: 1rem;
-        vertical-align: middle;
-    }
-    .status-badge {
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
-        font-weight: 500;
-        display: inline-block;
-        font-size: 0.875rem;
-    }
-    .property-link {
-        color: #667eea;
-        font-weight: 500;
-        text-decoration: none;
-        transition: color 0.2s;
-    }
-    .property-link:hover {
-        color: #764ba2;
-        text-decoration: underline;
-    }
-    .action-btn {
-        padding: 0.5rem 1rem;
-        border-radius: 0.375rem;
-        font-weight: 500;
-        transition: all 0.2s;
-    }
-    .action-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-</style>
-@endsection
 
 @section('content')
     <section class="section">
-        <div class="card shadow-sm border-0">
-            <div class="edit-requests-header">
-                <div class="d-flex align-items-center justify-content-between">
-                    <div>
-                        <h4 class="mb-1">
-                            <i class="bi bi-file-earmark-text me-2"></i>
-                            {{ __('Property Edit Requests') }}
-                        </h4>
-                        <p class="mb-0 opacity-75">{{ __('Review and manage property edit requests from owners') }}</p>
+        <div class="card">
+            <div class="card-header">
+                <div class="row">
+                    <div class="col-12">
+                        <h5>{{ __('Property Edit Requests') }}</h5>
                     </div>
                 </div>
-                
-                <div class="filter-tabs mt-4">
-                    @php
-                        try {
-                            $pendingCount = \App\Models\PropertyEditRequest::where('status', 'pending')->count();
-                            $approvedCount = \App\Models\PropertyEditRequest::where('status', 'approved')->count();
-                            $rejectedCount = \App\Models\PropertyEditRequest::where('status', 'rejected')->count();
-                        } catch (\Exception $e) {
-                            $pendingCount = $approvedCount = $rejectedCount = 0;
-                        }
-                    @endphp
-                    
-                    <a href="{{ route('property-edit-requests.index', ['status' => 'pending']) }}" 
-                       class="filter-tab pending {{ $status == 'pending' ? 'active' : '' }}"
-                       style="background: {{ $status == 'pending' ? '#ffc107' : 'rgba(255,255,255,0.1)' }}; color: {{ $status == 'pending' ? '#000' : '#fff' }};">
-                        <i class="bi bi-clock-history"></i>
-                        <span>{{ __('Pending') }}</span>
-                        <span class="count-badge">{{ $pendingCount }}</span>
-                    </a>
-                    
-                    <a href="{{ route('property-edit-requests.index', ['status' => 'approved']) }}" 
-                       class="filter-tab approved {{ $status == 'approved' ? 'active' : '' }}"
-                       style="background: {{ $status == 'approved' ? '#28a745' : 'rgba(255,255,255,0.1)' }}; color: #fff;">
-                        <i class="bi bi-check-circle"></i>
-                        <span>{{ __('Approved') }}</span>
-                        <span class="count-badge">{{ $approvedCount }}</span>
-                    </a>
-                    
-                    <a href="{{ route('property-edit-requests.index', ['status' => 'rejected']) }}" 
-                       class="filter-tab rejected {{ $status == 'rejected' ? 'active' : '' }}"
-                       style="background: {{ $status == 'rejected' ? '#dc3545' : 'rgba(255,255,255,0.1)' }}; color: #fff;">
-                        <i class="bi bi-x-circle"></i>
-                        <span>{{ __('Rejected') }}</span>
-                        <span class="count-badge">{{ $rejectedCount }}</span>
-                    </a>
-                    
-                    <a href="{{ route('property-edit-requests.index', ['status' => 'all']) }}" 
-                       class="filter-tab all {{ $status == 'all' ? 'active' : '' }}"
-                       style="background: {{ $status == 'all' ? '#6c757d' : 'rgba(255,255,255,0.1)' }}; color: #fff;">
-                        <i class="bi bi-list-ul"></i>
-                        <span>{{ __('All') }}</span>
-                    </a>
-                </div>
-            </div>
-            
-            <div class="card-body">
-                @if(isset($error))
-                    <div class="alert alert-danger border-0 shadow-sm">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
-                            <div>
-                                <strong>{{ __('Error') }}</strong>
-                                <p class="mb-0">{{ $error }}</p>
-                                @if(strpos($error, 'table does not exist') !== false)
-                                    <hr>
-                                    <strong>{{ __('To fix this:') }}</strong>
-                                    <ol class="mb-0">
-                                        <li>{{ __('Run the migration:') }} <code>php artisan migrate</code></li>
-                                        <li>{{ __('Or manually create the table using the migration file') }}</li>
-                                    </ol>
-                                @endif
-                            </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="btn-group" role="group">
+                            <a href="{{ route('property-edit-requests.index', ['status' => 'pending']) }}" 
+                               class="btn btn-sm {{ $status == 'pending' ? 'btn-primary' : 'btn-outline-primary' }}">
+                                {{ __('Pending') }} 
+                                <span class="badge bg-light text-dark ms-1">
+                                    @php
+                                        try {
+                                            $pendingCount = \App\Models\PropertyEditRequest::where('status', 'pending')->count();
+                                        } catch (\Exception $e) {
+                                            $pendingCount = 0;
+                                        }
+                                    @endphp
+                                    {{ $pendingCount }}
+                                </span>
+                            </a>
+                            <a href="{{ route('property-edit-requests.index', ['status' => 'approved']) }}" 
+                               class="btn btn-sm {{ $status == 'approved' ? 'btn-success' : 'btn-outline-success' }}">
+                                {{ __('Approved') }}
+                                <span class="badge bg-light text-dark ms-1">
+                                    @php
+                                        try {
+                                            $approvedCount = \App\Models\PropertyEditRequest::where('status', 'approved')->count();
+                                        } catch (\Exception $e) {
+                                            $approvedCount = 0;
+                                        }
+                                    @endphp
+                                    {{ $approvedCount }}
+                                </span>
+                            </a>
+                            <a href="{{ route('property-edit-requests.index', ['status' => 'rejected']) }}" 
+                               class="btn btn-sm {{ $status == 'rejected' ? 'btn-danger' : 'btn-outline-danger' }}">
+                                {{ __('Rejected') }}
+                                <span class="badge bg-light text-dark ms-1">
+                                    @php
+                                        try {
+                                            $rejectedCount = \App\Models\PropertyEditRequest::where('status', 'rejected')->count();
+                                        } catch (\Exception $e) {
+                                            $rejectedCount = 0;
+                                        }
+                                    @endphp
+                                    {{ $rejectedCount }}
+                                </span>
+                            </a>
+                            <a href="{{ route('property-edit-requests.index', ['status' => 'all']) }}" 
+                               class="btn btn-sm {{ $status == 'all' ? 'btn-secondary' : 'btn-outline-secondary' }}">
+                                {{ __('All') }}
+                            </a>
                         </div>
                     </div>
+                </div>
+            </div>
+            <div class="card-body">
+                @if(isset($error))
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> {{ $error }}
+                        @if(strpos($error, 'table does not exist') !== false)
+                            <br><br>
+                            <strong>To fix this:</strong>
+                            <ol>
+                                <li>Run the migration: <code>php artisan migrate</code></li>
+                                <li>Or manually create the table using the migration file: <code>database/migrations/2025_01_25_000000_create_property_edit_requests_table.php</code></li>
+                            </ol>
+                        @endif
+                    </div>
                 @endif
-                
                 @if($editRequests->count() > 0)
                     <div class="table-responsive">
-                        <table class="table table-enhanced">
+                        <table class="table table-striped table-hover">
                             <thead>
                                 <tr>
-                                    <th style="width: 80px;">{{ __('ID') }}</th>
+                                    <th>{{ __('ID') }}</th>
                                     <th>{{ __('Property') }}</th>
                                     <th>{{ __('Owner') }}</th>
-                                    <th style="width: 180px;">{{ __('Requested At') }}</th>
-                                    <th style="width: 150px;">{{ __('Status') }}</th>
-                                    <th style="width: 150px;">{{ __('Changes') }}</th>
-                                    <th style="width: 120px;">{{ __('Actions') }}</th>
+                                    <th>{{ __('Requested At') }}</th>
+                                    <th>{{ __('Status') }}</th>
+                                    <th>{{ __('Changes') }}</th>
+                                    <th>{{ __('Actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($editRequests as $request)
                                     <tr>
+                                        <td>#{{ $request->id }}</td>
                                         <td>
-                                            <span class="badge bg-secondary">#{{ $request->id }}</span>
-                                        </td>
-                                        <td>
-                                            <a href="{{ route('property.edit', $request->property_id) }}" 
-                                               target="_blank" 
-                                               class="property-link">
-                                                <i class="bi bi-box-arrow-up-right me-1"></i>
+                                            <a href="{{ route('property.edit', $request->property_id) }}" target="_blank">
                                                 {{ $request->property->title ?? 'N/A' }}
                                             </a>
                                         </td>
                                         <td>
-                                            <div class="d-flex flex-column">
-                                                <strong>{{ $request->requestedBy->name ?? 'N/A' }}</strong>
-                                                <small class="text-muted">
-                                                    <i class="bi bi-envelope me-1"></i>
-                                                    {{ $request->requestedBy->email ?? '' }}
-                                                </small>
-                                            </div>
+                                            {{ $request->requestedBy->name ?? 'N/A' }}<br>
+                                            <small class="text-muted">{{ $request->requestedBy->email ?? '' }}</small>
                                         </td>
-                                        <td>
-                                            <div class="d-flex flex-column">
-                                                <span>{{ $request->created_at->format('M d, Y') }}</span>
-                                                <small class="text-muted">{{ $request->created_at->format('H:i') }}</small>
-                                            </div>
-                                        </td>
+                                        <td>{{ $request->created_at->format('Y-m-d H:i') }}</td>
                                         <td>
                                             @if($request->status == 'pending')
-                                                <span class="status-badge bg-warning text-dark">
-                                                    <i class="bi bi-clock-history me-1"></i>
-                                                    {{ __('Pending') }}
-                                                </span>
+                                                <span class="badge bg-warning">{{ __('Pending') }}</span>
                                             @elseif($request->status == 'approved')
-                                                <div class="d-flex flex-column">
-                                                    <span class="status-badge bg-success text-white mb-1">
-                                                        <i class="bi bi-check-circle me-1"></i>
-                                                        {{ __('Approved') }}
-                                                    </span>
-                                                    @if($request->reviewedBy)
-                                                        <small class="text-muted">
-                                                            <i class="bi bi-person me-1"></i>
-                                                            {{ $request->reviewedBy->name }}
-                                                        </small>
-                                                    @endif
-                                                </div>
+                                                <span class="badge bg-success">{{ __('Approved') }}</span>
+                                                @if($request->reviewedBy)
+                                                    <br><small class="text-muted">By: {{ $request->reviewedBy->name }}</small>
+                                                @endif
                                             @else
-                                                <div class="d-flex flex-column">
-                                                    <span class="status-badge bg-danger text-white mb-1">
-                                                        <i class="bi bi-x-circle me-1"></i>
-                                                        {{ __('Rejected') }}
-                                                    </span>
-                                                    @if($request->reviewedBy)
-                                                        <small class="text-muted">
-                                                            <i class="bi bi-person me-1"></i>
-                                                            {{ $request->reviewedBy->name }}
-                                                        </small>
-                                                    @endif
-                                                </div>
+                                                <span class="badge bg-danger">{{ __('Rejected') }}</span>
+                                                @if($request->reviewedBy)
+                                                    <br><small class="text-muted">By: {{ $request->reviewedBy->name }}</small>
+                                                @endif
                                             @endif
                                         </td>
                                         <td>
@@ -317,18 +146,20 @@
                                                     }
                                                 }
                                             @endphp
-                                            <span class="badge bg-info text-white">
-                                                <i class="bi bi-pencil-square me-1"></i>
-                                                {{ count($changes) }} {{ __('fields') }}
-                                            </span>
+                                            <span class="badge bg-info">{{ count($changes) }} {{ __('fields changed') }}</span>
                                         </td>
                                         <td>
-                                            <button type="button" 
-                                                    class="btn btn-sm action-btn {{ $request->status == 'pending' ? 'btn-success' : 'btn-info' }}" 
-                                                    onclick="viewEditRequest({{ $request->id }})">
-                                                <i class="bi bi-eye me-1"></i>
-                                                {{ __('View') }}
-                                            </button>
+                                            @if($request->status == 'pending')
+                                                <button type="button" class="btn btn-sm btn-success" 
+                                                        onclick="viewEditRequest({{ $request->id }})">
+                                                    <i class="bi bi-eye"></i> {{ __('View') }}
+                                                </button>
+                                            @else
+                                                <button type="button" class="btn btn-sm btn-info" 
+                                                        onclick="viewEditRequest({{ $request->id }})">
+                                                    <i class="bi bi-eye"></i> {{ __('View') }}
+                                                </button>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach
@@ -336,12 +167,8 @@
                         </table>
                     </div>
                 @else
-                    <div class="empty-state">
-                        <div class="empty-state-icon">
-                            <i class="bi bi-inbox"></i>
-                        </div>
-                        <h4>{{ __('No Edit Requests Found') }}</h4>
-                        <p>{{ __('There are no property edit requests matching your current filter.') }}</p>
+                    <div class="alert alert-info text-center">
+                        <i class="bi bi-info-circle"></i> {{ __('No edit requests found.') }}
                     </div>
                 @endif
             </div>
@@ -350,24 +177,20 @@
 
     <!-- View Edit Request Modal -->
     <div class="modal fade" id="viewEditRequestModal" tabindex="-1" aria-labelledby="viewEditRequestModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable">
-            <div class="modal-content border-0 shadow-lg">
-                <div class="modal-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                    <h5 class="modal-title d-flex align-items-center" id="viewEditRequestModalLabel">
-                        <i class="bi bi-file-earmark-text me-2"></i>
-                        {{ __('Property Edit Request Details') }}
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewEditRequestModalLabel">{{ __('Property Edit Request Details') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body p-4" id="editRequestDetails">
-                    <div class="text-center py-5">
-                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <div class="modal-body" id="editRequestDetails">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
                             <span class="visually-hidden">{{ __('Loading...') }}</span>
                         </div>
-                        <p class="mt-3 text-muted">{{ __('Loading request details...') }}</p>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-top" id="editRequestActions">
+                <div class="modal-footer" id="editRequestActions">
                     <!-- Actions will be loaded here -->
                 </div>
             </div>
@@ -377,48 +200,24 @@
     <!-- Reject Reason Modal -->
     <div class="modal fade" id="rejectReasonModal" tabindex="-1" aria-labelledby="rejectReasonModalLabel" aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-content border-0 shadow-lg">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title d-flex align-items-center" id="rejectReasonModalLabel">
-                        <i class="bi bi-x-circle me-2"></i>
-                        {{ __('Reject Edit Request') }}
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="rejectReasonModalLabel">{{ __('Reject Edit Request') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form id="rejectForm">
-                    <div class="modal-body p-4">
+                    <div class="modal-body">
                         <input type="hidden" id="rejectRequestId" name="edit_request_id">
                         <input type="hidden" name="status" value="rejected">
-                        <div class="alert alert-warning border-0 mb-4">
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            <strong>{{ __('Warning:') }}</strong> {{ __('This action cannot be undone. Please provide a clear reason for rejection.') }}
-                        </div>
                         <div class="mb-3">
-                            <label for="reject_reason" class="form-label fw-bold">
-                                {{ __('Rejection Reason') }} 
-                                <span class="text-danger">*</span>
-                            </label>
-                            <textarea class="form-control" 
-                                      id="reject_reason" 
-                                      name="reject_reason" 
-                                      rows="5" 
-                                      required 
-                                      placeholder="{{ __('Please provide a detailed reason for rejecting this edit request...') }}"
-                                      style="resize: vertical;"></textarea>
-                            <small class="form-text text-muted">
-                                {{ __('This reason will be visible to the property owner.') }}
-                            </small>
+                            <label for="reject_reason" class="form-label">{{ __('Rejection Reason') }} <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="reject_reason" name="reject_reason" rows="4" required 
+                                      placeholder="{{ __('Please provide a reason for rejecting this edit request...') }}"></textarea>
                         </div>
                     </div>
-                    <div class="modal-footer bg-light border-top">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            <i class="bi bi-x me-1"></i>
-                            {{ __('Cancel') }}
-                        </button>
-                        <button type="submit" class="btn btn-danger">
-                            <i class="bi bi-x-circle me-1"></i>
-                            {{ __('Reject Request') }}
-                        </button>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                        <button type="submit" class="btn btn-danger">{{ __('Reject Request') }}</button>
                     </div>
                 </form>
             </div>
@@ -455,13 +254,21 @@
             const edited = request.edited_data || {};
             const changes = [];
             
-            // Find all changes
+            // Find all changes - compare all fields
             const allKeys = new Set([...Object.keys(original), ...Object.keys(edited)]);
+            const ignoredKeys = ['id', 'created_at', 'updated_at', 'deleted_at'];
+            
             allKeys.forEach(key => {
-                if (key !== 'id' && key !== 'created_at' && key !== 'updated_at') {
+                if (!ignoredKeys.includes(key)) {
                     const origValue = original[key];
                     const editValue = edited[key];
-                    if (origValue != editValue) {
+                    
+                    // Compare values (handle null/undefined cases)
+                    const origStr = origValue === null || origValue === undefined ? '' : String(origValue);
+                    const editStr = editValue === null || editValue === undefined ? '' : String(editValue);
+                    
+                    // Check if values are different
+                    if (origStr !== editStr) {
                         changes.push({
                             field: key,
                             original: origValue,
@@ -471,97 +278,62 @@
                 }
             });
 
+            // Sort changes by field name for better readability
+            changes.sort((a, b) => a.field.localeCompare(b.field));
+
             let html = `
                 <div class="row mb-4">
                     <div class="col-md-6">
-                        <div class="card border-0 bg-light mb-3">
+                        <div class="card bg-light mb-3">
                             <div class="card-body">
-                                <h6 class="text-muted text-uppercase mb-3">
-                                    <i class="bi bi-info-circle me-2"></i>{{ __('Request Information') }}
-                                </h6>
-                                <div class="mb-2">
-                                    <strong><i class="bi bi-house me-2 text-primary"></i>{{ __('Property:') }}</strong>
-                                    <div class="mt-1">${request.property ? request.property.title : 'N/A'}</div>
-                                </div>
-                                <div class="mb-2">
-                                    <strong><i class="bi bi-person me-2 text-primary"></i>{{ __('Owner:') }}</strong>
-                                    <div class="mt-1">${request.requested_by ? request.requested_by.name : 'N/A'}</div>
-                                </div>
-                                <div class="mb-2">
-                                    <strong><i class="bi bi-calendar me-2 text-primary"></i>{{ __('Requested:') }}</strong>
-                                    <div class="mt-1">${new Date(request.created_at).toLocaleString()}</div>
-                                </div>
-                                <div>
-                                    <strong><i class="bi bi-tag me-2 text-primary"></i>{{ __('Status:') }}</strong>
-                                    <div class="mt-1">
-                                        <span class="badge bg-${request.status == 'pending' ? 'warning text-dark' : (request.status == 'approved' ? 'success' : 'danger')} px-3 py-2">
-                                            <i class="bi bi-${request.status == 'pending' ? 'clock-history' : (request.status == 'approved' ? 'check-circle' : 'x-circle')} me-1"></i>
-                                            ${request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                                        </span>
-                                    </div>
-                                </div>
+                                <h6 class="card-title">{{ __('Request Information') }}</h6>
+                                <p class="mb-1"><strong>{{ __('Property:') }}</strong> ${request.property ? request.property.title : 'N/A'}</p>
+                                <p class="mb-1"><strong>{{ __('Owner:') }}</strong> ${request.requested_by ? request.requested_by.name : 'N/A'}</p>
+                                <p class="mb-1"><strong>{{ __('Email:') }}</strong> ${request.requested_by ? request.requested_by.email : 'N/A'}</p>
+                                <p class="mb-1"><strong>{{ __('Requested:') }}</strong> ${new Date(request.created_at).toLocaleString()}</p>
+                                <p class="mb-0"><strong>{{ __('Status:') }}</strong> 
+                                    <span class="badge bg-${request.status == 'pending' ? 'warning' : (request.status == 'approved' ? 'success' : 'danger')}">
+                                        ${request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                                    </span>
+                                </p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card border-0 bg-light mb-3">
+                        <div class="card bg-light mb-3">
                             <div class="card-body">
-                                <h6 class="text-muted text-uppercase mb-3">
-                                    <i class="bi bi-clipboard-data me-2"></i>{{ __('Review Details') }}
-                                </h6>
-                                <div class="mb-2">
-                                    <strong><i class="bi bi-pencil-square me-2 text-info"></i>{{ __('Total Changes:') }}</strong>
-                                    <div class="mt-1">
-                                        <span class="badge bg-info px-3 py-2">${changes.length} {{ __('fields') }}</span>
-                                    </div>
-                                </div>
-                                ${request.reviewed_by ? `
-                                <div class="mb-2">
-                                    <strong><i class="bi bi-person-check me-2 text-success"></i>{{ __('Reviewed By:') }}</strong>
-                                    <div class="mt-1">${request.reviewed_by.name}</div>
-                                </div>
-                                ` : ''}
-                                ${request.reviewed_at ? `
-                                <div class="mb-2">
-                                    <strong><i class="bi bi-clock me-2 text-success"></i>{{ __('Reviewed At:') }}</strong>
-                                    <div class="mt-1">${new Date(request.reviewed_at).toLocaleString()}</div>
-                                </div>
-                                ` : ''}
-                                ${request.reject_reason ? `
-                                <div>
-                                    <strong><i class="bi bi-exclamation-triangle me-2 text-danger"></i>{{ __('Rejection Reason:') }}</strong>
-                                    <div class="alert alert-danger mt-2 mb-0">${request.reject_reason}</div>
-                                </div>
-                                ` : ''}
+                                <h6 class="card-title">{{ __('Review Information') }}</h6>
+                                <p class="mb-1"><strong>{{ __('Total Changes:') }}</strong> 
+                                    <span class="badge bg-info">${changes.length} {{ __('fields') }}</span>
+                                </p>
+                                ${request.reviewed_by ? `<p class="mb-1"><strong>{{ __('Reviewed By:') }}</strong> ${request.reviewed_by.name}</p>` : '<p class="mb-1 text-muted">{{ __('Not reviewed yet') }}</p>'}
+                                ${request.reviewed_at ? `<p class="mb-1"><strong>{{ __('Reviewed At:') }}</strong> ${new Date(request.reviewed_at).toLocaleString()}</p>` : ''}
+                                ${request.reject_reason ? `<div class="alert alert-danger mt-2 mb-0"><strong>{{ __('Rejection Reason:') }}</strong><br>${request.reject_reason}</div>` : ''}
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">
-                            <i class="bi bi-arrow-left-right me-2 text-primary"></i>
-                            {{ __('Changes Comparison') }}
-                        </h5>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th style="width: 25%; padding: 1rem;">
-                                            <i class="bi bi-list-ul me-2"></i>{{ __('Field') }}
-                                        </th>
-                                        <th style="width: 37.5%; padding: 1rem;" class="text-danger">
-                                            <i class="bi bi-x-circle me-2"></i>{{ __('Original Value') }}
-                                        </th>
-                                        <th style="width: 37.5%; padding: 1rem;" class="text-success">
-                                            <i class="bi bi-check-circle me-2"></i>{{ __('Edited Value') }}
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>{{ __('Summary:') }}</strong> ${changes.length} {{ __('field(s) have been modified. Review the changes below before approving or rejecting.') }}
+                </div>
+                
+                <h5 class="mb-3">{{ __('Detailed Changes Comparison') }}</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 25%;">{{ __('Field Name') }}</th>
+                                <th style="width: 37.5%;" class="text-danger">
+                                    <i class="bi bi-x-circle me-1"></i>{{ __('Original Value') }}
+                                </th>
+                                <th style="width: 37.5%;" class="text-success">
+                                    <i class="bi bi-check-circle me-1"></i>{{ __('New Value (Requested)') }}
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
             `;
 
             if (changes.length > 0) {
@@ -570,14 +342,15 @@
                     const editDisplay = formatValue(change.edited);
                     html += `
                         <tr>
-                            <td style="padding: 1rem; vertical-align: middle;">
-                                <strong class="text-dark">${formatFieldName(change.field)}</strong>
+                            <td>
+                                <strong>${formatFieldName(change.field)}</strong>
+                                <br><small class="text-muted">${change.field}</small>
                             </td>
-                            <td style="padding: 1rem; vertical-align: middle;" class="bg-light">
-                                <div class="text-danger">${origDisplay}</div>
+                            <td class="bg-light">
+                                <div class="text-danger fw-bold">${origDisplay}</div>
                             </td>
-                            <td style="padding: 1rem; vertical-align: middle;" class="bg-light">
-                                <div class="text-success">${editDisplay}</div>
+                            <td class="bg-light">
+                                <div class="text-success fw-bold">${editDisplay}</div>
                             </td>
                         </tr>
                     `;
@@ -585,19 +358,17 @@
             } else {
                 html += `
                     <tr>
-                        <td colspan="3" class="text-center py-5">
-                            <i class="bi bi-inbox fs-1 text-muted d-block mb-2"></i>
-                            <span class="text-muted">{{ __('No changes detected') }}</span>
+                        <td colspan="3" class="text-center py-4">
+                            <i class="bi bi-info-circle text-muted" style="font-size: 2rem;"></i>
+                            <p class="text-muted mt-2">{{ __('No changes detected in this request.') }}</p>
                         </td>
                     </tr>
                 `;
             }
 
             html += `
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                        </tbody>
+                    </table>
                 </div>
             `;
 
@@ -607,15 +378,15 @@
             let actionsHtml = '';
             if (request.status == 'pending') {
                 actionsHtml = `
-                    <button type="button" class="btn btn-success px-4" onclick="approveEditRequest(${request.id})">
-                        <i class="bi bi-check-circle me-2"></i>{{ __('Approve') }}
+                    <button type="button" class="btn btn-success" onclick="approveEditRequest(${request.id})">
+                        <i class="bi bi-check-circle"></i> {{ __('Approve') }}
                     </button>
-                    <button type="button" class="btn btn-danger px-4" onclick="showRejectModal(${request.id})">
-                        <i class="bi bi-x-circle me-2"></i>{{ __('Reject') }}
+                    <button type="button" class="btn btn-danger" onclick="showRejectModal(${request.id})">
+                        <i class="bi bi-x-circle"></i> {{ __('Reject') }}
                     </button>
                 `;
             }
-            actionsHtml += '<button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal"><i class="bi bi-x-lg me-2"></i>{{ __('Close') }}</button>';
+            actionsHtml += '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Close') }}</button>';
             document.getElementById('editRequestActions').innerHTML = actionsHtml;
         }
 
@@ -623,17 +394,29 @@
             if (value === null || value === undefined || value === '') {
                 return '<span class="badge bg-secondary">(empty)</span>';
             }
-            if (typeof value === 'object') {
-                return '<pre class="bg-light p-2 rounded" style="max-height: 150px; overflow-y: auto; font-size: 0.85rem;">' + JSON.stringify(value, null, 2) + '</pre>';
+            if (typeof value === 'object' && value !== null) {
+                // Handle arrays
+                if (Array.isArray(value)) {
+                    if (value.length === 0) {
+                        return '<span class="badge bg-secondary">(empty array)</span>';
+                    }
+                    return '<pre class="bg-white p-2 border rounded" style="max-height: 150px; overflow-y: auto; font-size: 0.85rem;">' + JSON.stringify(value, null, 2) + '</pre>';
+                }
+                // Handle objects
+                return '<pre class="bg-white p-2 border rounded" style="max-height: 150px; overflow-y: auto; font-size: 0.85rem;">' + JSON.stringify(value, null, 2) + '</pre>';
             }
             if (typeof value === 'boolean') {
                 return value ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-danger">No</span>';
             }
-            const strValue = String(value);
-            if (strValue.length > 150) {
-                return '<div class="text-truncate" style="max-width: 300px;" title="' + strValue.replace(/"/g, '&quot;') + '">' + strValue.substring(0, 150) + '...</div>';
+            if (typeof value === 'number') {
+                return '<code>' + value + '</code>';
             }
-            return '<div>' + strValue + '</div>';
+            const strValue = String(value);
+            // Truncate very long strings
+            if (strValue.length > 300) {
+                return '<div class="text-break">' + strValue.substring(0, 300) + '...</div><small class="text-muted">(truncated, ' + strValue.length + ' characters total)</small>';
+            }
+            return '<div class="text-break">' + strValue + '</div>';
         }
 
         function formatFieldName(field) {
