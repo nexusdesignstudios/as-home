@@ -467,8 +467,26 @@ class ReservationController extends Controller
                 // Send appropriate email based on property classification
                 $propertyClassification = $property->getRawOriginal('property_classification');
                 if ($propertyClassification == 4) {
-                    // Vacation home - send pending approval email
+                    // Vacation home - send pending approval email to customer
                     $this->reservationService->sendVacationHomePendingApprovalEmail($reservation);
+                    
+                    // If instant booking is disabled, notify property owner about the booking request
+                    if (!$property->instant_booking) {
+                        try {
+                            $this->sendVacationHomeBookingRequestToOwner($reservation);
+                            Log::info('Vacation home booking request notification sent to property owner', [
+                                'reservation_id' => $reservation->id,
+                                'property_id' => $property->id,
+                                'instant_booking' => $property->instant_booking
+                            ]);
+                        } catch (\Exception $e) {
+                            Log::error('Failed to send vacation home booking request notification to owner: ' . $e->getMessage(), [
+                                'reservation_id' => $reservation->id,
+                                'property_id' => $property->id,
+                                'trace' => $e->getTraceAsString()
+                            ]);
+                        }
+                    }
                 } elseif ($propertyClassification == 5) {
                     // Hotel booking - send flexible hotel booking confirmation email
                     $this->reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
@@ -2185,6 +2203,94 @@ The {app_name} Team';
             'tier_milestone' => $tierMilestone,
             'has_available_discount' => $discountPercentage > 0
         ];
+    }
+
+    /**
+     * Send vacation home booking request notification to property owner.
+     * This is sent when instant booking is disabled and a booking request is made.
+     *
+     * @param \App\Models\Reservation $reservation
+     * @return void
+     */
+    private function sendVacationHomeBookingRequestToOwner($reservation)
+    {
+        try {
+            $property = $reservation->property;
+            $propertyOwner = $property->customer;
+            $customer = $reservation->customer;
+
+            if (!$propertyOwner || !$propertyOwner->email) {
+                Log::warning('Cannot send vacation home booking request notification: property owner or email not found', [
+                    'reservation_id' => $reservation->id,
+                    'property_id' => $property->id
+                ]);
+                return;
+            }
+
+            // Get email template data
+            $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes('new_booking_notification');
+            $templateData = system_setting('new_booking_notification_mail_template');
+            $appName = env('APP_NAME') ?? 'As-home';
+
+            // Get property information
+            $propertyName = $property->title ?? 'Property';
+            $propertyAddress = $property->address ?? 'N/A';
+
+            // Get currency symbol
+            $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+            $variables = array(
+                'app_name' => $appName,
+                'property_owner_name' => $propertyOwner->name,
+                'customer_name' => $customer->name,
+                'customer_email' => $customer->email,
+                'customer_phone' => $customer->mobile ?? $customer->phone ?? 'N/A',
+                'property_name' => $propertyName,
+                'hotel_name' => $propertyName, // Alias for template compatibility
+                'property_address' => $propertyAddress,
+                'hotel_address' => $propertyAddress, // Alias for template compatibility
+                'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
+                'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
+                'number_of_guests' => $reservation->number_of_guests,
+                'total_price' => number_format($reservation->total_price, 2),
+                'total_amount' => number_format($reservation->total_price, 2), // Alias for template compatibility
+                'currency_symbol' => $currencySymbol,
+                'payment_status' => ucfirst($reservation->payment_status),
+                'special_requests' => $reservation->special_requests ?? 'None',
+                'reservation_id' => $reservation->id,
+                'booking_date' => now()->format('d M Y, h:i A'),
+                'booking_type' => 'vacation_home_booking_request',
+                'room_type' => 'Vacation Home', // For template compatibility
+                'room_number' => 'N/A' // For template compatibility
+            );
+
+            if (empty($templateData)) {
+                $templateData = 'New booking request received for your vacation home {property_name} from {customer_name} ({customer_email}). Amount: {total_price} {currency_symbol}. Check-in: {check_in_date}, Check-out: {check_out_date}. Number of Guests: {number_of_guests}. Special Requests: {special_requests}. Reservation ID: {reservation_id}. Please review and approve or reject this booking request in your dashboard.';
+            }
+
+            $emailTemplate = \App\Services\HelperService::replaceEmailVariables($templateData, $variables);
+
+            $data = array(
+                'email_template' => $emailTemplate,
+                'email' => $propertyOwner->email,
+                'title' => $emailTypeData['title'] ?? 'New Vacation Home Booking Request - Approval Required',
+            );
+
+            \App\Services\HelperService::sendMail($data);
+
+            Log::info('Vacation home booking request notification sent to property owner', [
+                'reservation_id' => $reservation->id,
+                'property_owner_email' => $propertyOwner->email,
+                'property_id' => $property->id,
+                'booking_type' => 'vacation_home_booking_request'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send vacation home booking request notification to property owner: ' . $e->getMessage(), [
+                'reservation_id' => $reservation->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
     }
 
     /**
