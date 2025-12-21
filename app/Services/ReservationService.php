@@ -883,7 +883,58 @@ Confirmation Date: {confirmation_date}
      * @param int|null $excludeReservationId Optional reservation ID to exclude from overlap check
      * @return bool
      */
-    public function areDatesAvailable($modelType, $modelId, $checkInDate, $checkOutDate, $excludeReservationId = null)
+    /**
+     * Count booked units for a specific apartment on given dates.
+     *
+     * @param int $propertyId
+     * @param int $apartmentId
+     * @param string $checkInDate
+     * @param string $checkOutDate
+     * @param int|null $excludeReservationId
+     * @return int
+     */
+    private function countBookedUnitsForApartment($propertyId, $apartmentId, $checkInDate, $checkOutDate, $excludeReservationId = null)
+    {
+        $checkIn = Carbon::parse($checkInDate)->startOfDay();
+        $checkOut = Carbon::parse($checkOutDate)->startOfDay();
+        
+        // Get all confirmed reservations for this property on overlapping dates
+        $reservations = Reservation::where('reservable_type', 'App\\Models\\Property')
+            ->where('reservable_id', $propertyId)
+            ->where('status', 'confirmed')
+            ->where(function($query) use ($checkIn, $checkOut) {
+                $query->where('check_in_date', '<', $checkOut)
+                      ->where('check_out_date', '>', $checkIn);
+            });
+        
+        if ($excludeReservationId) {
+            $reservations->where('id', '!=', $excludeReservationId);
+        }
+        
+        $reservations = $reservations->get();
+        
+        $totalBookedUnits = 0;
+        
+        // Parse special_requests to extract apartment_id and apartment_quantity
+        foreach ($reservations as $reservation) {
+            $specialRequests = $reservation->special_requests ?? '';
+            
+            // Look for "Apartment ID: X, Quantity: Y" pattern
+            if (preg_match('/Apartment ID:\s*(\d+).*?Quantity:\s*(\d+)/i', $specialRequests, $matches)) {
+                $reservationApartmentId = (int)$matches[1];
+                $reservationQuantity = (int)$matches[2];
+                
+                // Only count if it's for the same apartment
+                if ($reservationApartmentId == $apartmentId) {
+                    $totalBookedUnits += $reservationQuantity;
+                }
+            }
+        }
+        
+        return $totalBookedUnits;
+    }
+
+    public function areDatesAvailable($modelType, $modelId, $checkInDate, $checkOutDate, $excludeReservationId = null, $data = [])
     {
         try {
             // Parse the check-in and check-out dates with error handling
@@ -952,7 +1003,45 @@ Confirmation Date: {confirmation_date}
                         return false;
                     }
                 } else {
-                    // For properties, use the standard overlap check
+                    // For properties (vacation homes), check unit-level availability if apartment_id is provided
+                    // Check if this is a vacation home property with apartment_id in request context
+                    $apartmentId = $data['apartment_id'] ?? null;
+                    $requestedQuantity = $data['apartment_quantity'] ?? 1;
+                    
+                    if ($apartmentId && $modelType === 'App\\Models\\Property') {
+                        // Get the apartment to check its quantity
+                        $apartment = \App\Models\VacationApartment::find($apartmentId);
+                        
+                        if ($apartment && $apartment->property_id == $modelId) {
+                            $totalUnits = $apartment->quantity;
+                            
+                            // Count booked units for this apartment on these dates
+                            $bookedUnits = $this->countBookedUnitsForApartment(
+                                $modelId,
+                                $apartmentId,
+                                $checkInDate,
+                                $checkOutDate,
+                                $excludeReservationId
+                            );
+                            
+                            $availableUnits = $totalUnits - $bookedUnits;
+                            
+                            \Illuminate\Support\Facades\Log::info('Vacation home unit availability check', [
+                                'property_id' => $modelId,
+                                'apartment_id' => $apartmentId,
+                                'total_units' => $totalUnits,
+                                'booked_units' => $bookedUnits,
+                                'available_units' => $availableUnits,
+                                'requested_quantity' => $requestedQuantity,
+                                'can_book' => $availableUnits >= $requestedQuantity
+                            ]);
+                            
+                            // Allow booking if enough units are available
+                            return $availableUnits >= $requestedQuantity;
+                        }
+                    }
+                    
+                    // Fallback: For properties without apartment_id, use the standard overlap check
                     $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
                     if ($hasOverlap) {
                         return false;
