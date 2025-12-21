@@ -406,76 +406,110 @@ class ApiController extends Controller
     //* START :: get_categories   *//
     public function get_categories(Request $request)
     {
-        $offset = isset($request->offset) ? $request->offset : 0;
-        $limit = isset($request->limit) ? $request->limit : 10;
-        $latitude = $request->has('latitude') ? $request->latitude : null;
-        $longitude = $request->has('longitude') ? $request->longitude : null;
+        try {
+            // Parse offset and limit, handle empty strings
+            $offset = isset($request->offset) && $request->offset !== '' ? (int)$request->offset : 0;
+            $limit = isset($request->limit) && $request->limit !== '' ? (int)$request->limit : 10;
+            
+            // Handle empty strings for latitude/longitude
+            $latitude = $request->has('latitude') && $request->latitude !== '' ? $request->latitude : null;
+            $longitude = $request->has('longitude') && $request->longitude !== '' ? $request->longitude : null;
 
-        $categories = Category::select('id', 'category', 'image', 'parameter_types', 'meta_title', 'meta_description', 'meta_keywords', 'slug_id', 'property_classification')->where('status', '1');
+            $categories = Category::select('id', 'category', 'image', 'parameter_types', 'meta_title', 'meta_description', 'meta_keywords', 'slug_id', 'property_classification')->where('status', '1');
 
-        if ($request->has('has_property') && $request->has_property == true) {
-            $categories = $categories->clone()->whereHas('properties', function ($query) use ($latitude, $longitude) {
-                $query->where(['status' => 1, 'request_status' => 'approved'])->when($latitude && $longitude, function ($query) use ($latitude, $longitude) {
-                    $query->where('latitude', $latitude)->where('longitude', $longitude);
-                });
-            })->withCount([
-                'properties' => function ($query) use ($latitude, $longitude) {
-                    $query->where(['status' => 1, 'request_status' => 'approved'])->when($latitude && $longitude, function ($query) use ($latitude, $longitude) {
+            if ($request->has('has_property') && $request->has_property == true) {
+                $categories = $categories->clone()->whereHas('properties', function ($query) use ($latitude, $longitude) {
+                    $query->where(['status' => 1, 'request_status' => 'approved'])->when($latitude && $longitude && $latitude !== '' && $longitude !== '', function ($query) use ($latitude, $longitude) {
                         $query->where('latitude', $latitude)->where('longitude', $longitude);
                     });
-                }
-            ]);
-        }
-
-        if (isset($request->search) && !empty($request->search)) {
-            $search = $request->search;
-            $categories->where('category', 'LIKE', "%$search%");
-        }
-
-        if (isset($request->id) && !empty($request->id)) {
-            $id = $request->id;
-            $categories->where('id', $id);
-        }
-        if (isset($request->slug_id) && !empty($request->slug_id)) {
-            $id = $request->slug_id;
-            $categories->where('slug_id', $request->slug_id);
-        }
-
-        // Filter by property classification if provided
-        if (isset($request->property_classification) && !empty($request->property_classification)) {
-            $categories->where('property_classification', $request->property_classification);
-        }
-
-        $total = $categories->get()->count();
-        $result = $categories->orderBy('id', 'ASC')->skip($offset)->take($limit)->get();
-
-        $result->map(function ($result) {
-            $result['meta_image'] = $result->image;
-        });
-
-
-        if (!$result->isEmpty()) {
-            $response['error'] = false;
-            $response['message'] = "Data Fetch Successfully";
-            foreach ($result as $row) {
-                $parameterData = $row->parameters;
-                if (collect($parameterData)->isNotEmpty()) {
-                    $parameterData = $parameterData->map(function ($item) {
-                        unset($item->assigned_parameter);
-                        return $item;
-                    });
-                }
-                $row->parameter_types = $parameterData;
+                })->withCount([
+                    'properties' => function ($query) use ($latitude, $longitude) {
+                        $query->where(['status' => 1, 'request_status' => 'approved'])->when($latitude && $longitude && $latitude !== '' && $longitude !== '', function ($query) use ($latitude, $longitude) {
+                            $query->where('latitude', $latitude)->where('longitude', $longitude);
+                        });
+                    }
+                ]);
             }
 
-            $response['total'] = $total;
-            $response['data'] = $result;
-        } else {
-            $response['error'] = false;
-            $response['message'] = "No data found!";
-            $response['data'] = [];
+            if (isset($request->search) && !empty($request->search)) {
+                $search = $request->search;
+                $categories->where('category', 'LIKE', "%$search%");
+            }
+
+            if (isset($request->id) && !empty($request->id)) {
+                $id = $request->id;
+                $categories->where('id', $id);
+            }
+            if (isset($request->slug_id) && !empty($request->slug_id)) {
+                $id = $request->slug_id;
+                $categories->where('slug_id', $request->slug_id);
+            }
+
+            // Filter by property classification if provided
+            if (isset($request->property_classification) && !empty($request->property_classification)) {
+                $categories->where('property_classification', $request->property_classification);
+            }
+
+            $total = $categories->get()->count();
+            $result = $categories->orderBy('id', 'ASC')->skip($offset)->take($limit)->get();
+
+            // Fix: map should return the modified result
+            $result = $result->map(function ($item) {
+                $item['meta_image'] = $item->image;
+                return $item;
+            });
+
+            if (!$result->isEmpty()) {
+                $response['error'] = false;
+                $response['message'] = "Data Fetch Successfully";
+                foreach ($result as $row) {
+                    try {
+                        $parameterData = $row->parameters ?? collect([]);
+                        if (collect($parameterData)->isNotEmpty()) {
+                            $parameterData = $parameterData->map(function ($item) {
+                                if (isset($item->assigned_parameter)) {
+                                    unset($item->assigned_parameter);
+                                }
+                                return $item;
+                            });
+                        }
+                        $row->parameter_types = $parameterData;
+                    } catch (\Exception $e) {
+                        \Log::warning('Error processing parameters for category', [
+                            'category_id' => $row->id,
+                            'error' => $e->getMessage()
+                        ]);
+                        $row->parameter_types = collect([]);
+                    }
+                }
+
+                $response['total'] = $total;
+                $response['data'] = $result;
+            } else {
+                $response['error'] = false;
+                $response['message'] = "No data found!";
+                $response['data'] = [];
+                $response['total'] = 0;
+            }
+            return response()->json($response);
+        } catch (Exception $e) {
+            // Log the actual error with full details
+            \Log::error('get_categories failed', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'request_params' => $request->all()
+            ]);
+            
+            $response = array(
+                'error' => true,
+                'message' => 'Failed to fetch categories: ' . $e->getMessage(),
+                'data' => [],
+                'total' => 0
+            );
+            return response()->json($response, 500);
         }
-        return response()->json($response);
     }
     //* END :: get_slider   *//
 
@@ -5770,9 +5804,22 @@ class ApiController extends Controller
     public function homepageData(Request $request)
     {
         try {
-            $latitude = $request->has('latitude') ? $request->latitude : null;
-            $longitude = $request->has('longitude') ? $request->longitude : null;
-            $radius = $request->has('radius') ? $request->radius : null;
+            // Handle empty strings - convert to null
+            $latitude = $request->has('latitude') && $request->latitude !== '' ? $request->latitude : null;
+            $longitude = $request->has('longitude') && $request->longitude !== '' ? $request->longitude : null;
+            $radius = $request->has('radius') && $request->radius !== '' ? $request->radius : null;
+            
+            // Validate latitude/longitude are numeric if provided
+            if ($latitude !== null && (!is_numeric($latitude) || $latitude == 0)) {
+                $latitude = null;
+            }
+            if ($longitude !== null && (!is_numeric($longitude) || $longitude == 0)) {
+                $longitude = null;
+            }
+            if ($radius !== null && (!is_numeric($radius) || $radius <= 0)) {
+                $radius = null;
+            }
+            
             $homepageLocationDataAvailable = false;
 
             // Create reusable property mapper function
@@ -5916,7 +5963,19 @@ class ApiController extends Controller
             ];
             return ApiResponseService::successResponseReturn("Data fetched Successfully", $data);
         } catch (Exception $e) {
-            ApiResponseService::errorResponse("Something Went Wrong");
+            // Log the actual error with full details
+            \Log::error('homepageData failed', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'latitude' => $request->input('latitude'),
+                'longitude' => $request->input('longitude'),
+                'radius' => $request->input('radius')
+            ]);
+            
+            ApiResponseService::logErrorResponse($e, $e->getMessage(), 'Failed to fetch homepage data: ' . $e->getMessage());
+            ApiResponseService::errorResponse('Failed to fetch homepage data: ' . $e->getMessage());
         }
     }
 
