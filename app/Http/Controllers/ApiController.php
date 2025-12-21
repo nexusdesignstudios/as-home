@@ -1848,6 +1848,7 @@ class ApiController extends Controller
             $current_user = Auth::user()->id;
             $id = $request->id;
             $action_type = $request->action_type;
+            $response = []; // Initialize response array
             if ($request->slug_id) {
                 $property = Property::where('added_by', $current_user)->where('slug_id', $request->slug_id)->first();
                 if (!$property) {
@@ -3103,6 +3104,15 @@ class ApiController extends Controller
                 'message' => 'Update failed: ' . $e->getMessage() // Return actual error message for debugging
             );
             return response()->json($response, 500);
+        }
+
+        // Ensure response is always set before returning
+        if (!isset($response) || empty($response)) {
+            $response = [
+                'error' => true,
+                'message' => 'Unexpected error: Response not set',
+                'data' => null
+            ];
         }
 
         return response()->json($response);
