@@ -1848,7 +1848,7 @@ class ApiController extends Controller
             $current_user = Auth::user()->id;
             $id = $request->id;
             $action_type = $request->action_type;
-            $response = []; // Initialize response array
+            $response = null; // Will be set in the code paths below
             if ($request->slug_id) {
                 $property = Property::where('added_by', $current_user)->where('slug_id', $request->slug_id)->first();
                 if (!$property) {
@@ -2610,6 +2610,13 @@ class ApiController extends Controller
                         ? (int)$request->property_classification 
                         : ($property->property_classification ?? null);
                     
+                    \Log::info('Checking vacation apartments update', [
+                        'property_classification' => $propertyClassification,
+                        'is_owner_edit' => $isOwnerEdit ?? false,
+                        'action_type' => $action_type,
+                        'property_id' => $property->id ?? null
+                    ]);
+                    
                     if ($propertyClassification == 4) {
                         // Use input() to properly parse nested FormData arrays
                         $vacationApartments = $request->input('vacation_apartments');
@@ -3065,21 +3072,49 @@ class ApiController extends Controller
 
                     $current_user = Auth::user()->id;
                     $property_details = get_property_details($update_property, $current_user, true);
-                    $response['error'] = false;
-                    $response['message'] = 'Property Update Successfully';
-                    $response['data'] = $property_details;
+                    
+                    \Log::info('Setting success response after vacation apartments update', [
+                        'property_id' => $request->id,
+                        'action_type' => $action_type,
+                        'has_property_details' => !empty($property_details)
+                    ]);
+                    
+                    $response = [
+                        'error' => false,
+                        'message' => 'Property Update Successfully',
+                        'data' => $property_details
+                    ];
+                    
+                    \Log::info('Response set successfully', [
+                        'response_error' => $response['error'] ?? 'not_set',
+                        'response_message' => $response['message'] ?? 'not_set'
+                    ]);
                 } elseif ($action_type == 1) {
                     if ($property->delete()) {
-                        $response['error'] = false;
-                        $response['message'] =  'Delete Successfully';
+                        $response = [
+                            'error' => false,
+                            'message' => 'Delete Successfully'
+                        ];
                     } else {
-                        $response['error'] = true;
-                        $response['message'] = 'something wrong';
+                        $response = [
+                            'error' => true,
+                            'message' => 'something wrong'
+                        ];
                     }
+                } else {
+                    // action_type is neither 0 nor 1
+                    $response = [
+                        'error' => true,
+                        'message' => 'Invalid action_type. Must be 0 (update) or 1 (delete)',
+                        'data' => null
+                    ];
                 }
             } else {
-                $response['error'] = true;
-                $response['message'] = 'No Data Found';
+                $response = [
+                    'error' => true,
+                    'message' => 'No Data Found',
+                    'data' => null
+                ];
             }
             DB::commit();
         } catch (Exception $e) {
@@ -3107,10 +3142,16 @@ class ApiController extends Controller
         }
 
         // Ensure response is always set before returning
-        if (!isset($response) || empty($response)) {
+        if ($response === null || !isset($response['error'])) {
+            \Log::error('Response not properly set in update_post_property', [
+                'action_type' => $action_type ?? 'not_set',
+                'property_id' => $request->input('id'),
+                'response_value' => $response,
+                'trace' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5)
+            ]);
             $response = [
                 'error' => true,
-                'message' => 'Unexpected error: Response not set',
+                'message' => 'Unexpected error: Response not set properly',
                 'data' => null
             ];
         }
