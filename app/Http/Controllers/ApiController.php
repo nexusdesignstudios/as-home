@@ -6326,13 +6326,14 @@ class ApiController extends Controller
                     }
                 }
 
-                // Get admin user - try to find admin user, fallback to first user or default
+                // Get admin user - type = 0 means admin, fallback to first user or default
                 try {
-                    $user_data = User::where('role', 'admin')->first() ?? User::first();
+                    // Users table has 'type' column: 0 = Admin, 1 = Users
+                    $user_data = User::where('type', 0)->first() ?? User::first();
                     if ($user_data) {
                         $settingsData['admin_name'] = $user_data->name ?? 'Admin';
                         $settingsData['admin_image'] = !empty($user_data->profile) 
-                            ? url('/') . config('global.IMG_PATH') . config('global.CUSTOMER_PROFILE_PATH') . $user_data->profile
+                            ? url('/') . config('global.IMG_PATH') . config('global.ADMIN_PROFILE_IMG_PATH') . $user_data->profile
                             : url('/assets/images/faces/2.jpg');
                     } else {
                         $settingsData['admin_name'] = 'Admin';
