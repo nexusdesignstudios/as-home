@@ -2318,26 +2318,62 @@ class ApiController extends Controller
                     // 0 means admin, non-zero means owner/customer
                     $isOwnerEdit = $property->added_by != 0;
                     
-                    if ($isOwnerEdit) {
-                        // Owner edits ALWAYS require admin approval - save as pending request
+                    // Check auto-approve setting for edited listings
+                    $autoApproveEdited = HelperService::getSettingData('auto_approve_edited_listings') == 1;
+                    
+                    if ($isOwnerEdit && !$autoApproveEdited) {
+                        // Owner edits require admin approval when auto-approve is OFF - save as pending request
                         // Get the current state of the property (with all modifications)
                         $editedData = $property->getAttributes();
                         
                         // Remove timestamps and IDs from edited data
                         unset($editedData['created_at'], $editedData['updated_at'], $editedData['id']);
                         
+                        // Include vacation apartments in edited data if property is vacation home
+                        if ($propertyClassification == 4 && !empty($updatedVacationApartments)) {
+                            $editedData['vacation_apartments'] = $updatedVacationApartments;
+                            \Log::info('Including vacation apartments in edited_data', [
+                                'property_id' => $property->id,
+                                'apartments_count' => count($updatedVacationApartments),
+                                'quantities' => collect($updatedVacationApartments)->pluck('quantity', 'id')->toArray()
+                            ]);
+                        }
+                        
+                        // Get original property data (before modifications - we need to reload from DB)
+                        // But first, save current property state temporarily
+                        $tempPropertyData = $property->getAttributes();
+                        
+                        // Reload property from database to get original state
+                        $property->refresh();
+                        $originalData = $property->getAttributes();
+                        unset($originalData['created_at'], $originalData['updated_at'], $originalData['id']);
+                        
+                        // Restore the modified property data for the response
+                        foreach ($tempPropertyData as $key => $value) {
+                            $property->$key = $value;
+                        }
+                        
+                        // Include original vacation apartments in original data
+                        if ($propertyClassification == 4 && !empty($originalVacationApartments)) {
+                            $originalData['vacation_apartments'] = $originalVacationApartments;
+                            \Log::info('Including original vacation apartments in original_data', [
+                                'property_id' => $property->id,
+                                'apartments_count' => count($originalVacationApartments),
+                                'quantities' => collect($originalVacationApartments)->pluck('quantity', 'id')->toArray()
+                            ]);
+                        }
+                        
                         // Use PropertyEditRequestService to save the edit request
                         $editRequestService = new \App\Services\PropertyEditRequestService();
-                        $editRequest = $editRequestService->saveEditRequest($property, $editedData, $current_user);
+                        $editRequest = $editRequestService->saveEditRequest($property, $editedData, $current_user, $originalData);
                         
-                        // Reload property to get original data (don't save changes to property)
-                        $property->refresh();
-                        
-                        // Note: Gallery images, documents, and other related data changes
+                        // Note: Vacation apartments are saved directly (before this check)
+                        // Gallery images, documents, and other related data changes
                         // are NOT processed here because the property itself is not being updated.
                         // These will be handled when the admin approves the edit request.
                         
-                        // Return response indicating edit request was created
+                        // Reload property with updated vacation apartments to return fresh data
+                        // (Vacation apartments were already saved before the owner check)
                         $update_property = Property::with([
                             'customer',
                             'category:id,category,image',
@@ -2353,22 +2389,53 @@ class ApiController extends Controller
                             'vacationApartments'
                         ])->where('id', $request->id)->get();
                         
+                        // Verify vacation apartments were updated
+                        $vacationApartments = \App\Models\VacationApartment::where('property_id', $request->id)->get();
+                        \Log::info('Vacation apartments after owner edit (before response)', [
+                            'property_id' => $request->id,
+                            'apartments_count' => $vacationApartments->count(),
+                            'apartment_quantities' => $vacationApartments->pluck('quantity', 'id')->toArray()
+                        ]);
+                        
                         $property_details = get_property_details($update_property, $current_user, true);
+                        
+                        // Log vacation apartments in response
+                        if (isset($property_details) && is_array($property_details) && !empty($property_details)) {
+                            $firstProperty = $property_details[0] ?? null;
+                            if ($firstProperty && isset($firstProperty['vacation_apartments'])) {
+                                \Log::info('Vacation apartments in owner edit response', [
+                                    'property_id' => $request->id,
+                                    'apartments_count' => count($firstProperty['vacation_apartments'] ?? []),
+                                    'apartment_quantities' => collect($firstProperty['vacation_apartments'] ?? [])->pluck('quantity', 'id')->toArray()
+                                ]);
+                            }
+                        }
                         
                         DB::commit();
                         
+                        // Return property_details directly (same structure as admin edit) so frontend can use it
                         return response()->json([
                             'error' => false,
                             'message' => 'Property edit request submitted successfully. Changes will be applied after admin approval.',
-                            'data' => [
+                            'data' => $property_details,  // Return directly, not nested
+                            'edit_request' => [
                                 'edit_request_id' => $editRequest->id,
-                                'status' => 'pending_approval',
-                                'property' => $property_details
+                                'status' => 'pending_approval'
                             ]
                         ]);
                     } else {
-                        // Admin edit - save directly (no approval needed)
+                        // Admin edit OR owner edit with auto-approve enabled - save directly (no approval needed)
                         // Save the property with all updates including Arabic fields and hotel_vat
+                        
+                        // If auto-approve is enabled for owner edits, set request_status to approved
+                        if ($isOwnerEdit && $autoApproveEdited) {
+                            $property->request_status = 'approved';
+                            \Log::info('Owner edit auto-approved (bypassing edit request)', [
+                                'property_id' => $property->id,
+                                'auto_approve_setting' => true
+                            ]);
+                        }
+                        
                         $property->save();
                     }
                     $update_property = Property::with([
@@ -2473,10 +2540,35 @@ class ApiController extends Controller
                         ? (int)$request->property_classification 
                         : ($property->property_classification ?? null);
                     
+                    // Capture original vacation apartments BEFORE update (for edit request)
+                    $originalVacationApartments = [];
+                    if ($propertyClassification == 4) {
+                        $originalVacationApartments = \App\Models\VacationApartment::where('property_id', $property->id)
+                            ->get()
+                            ->map(function($apt) {
+                                return [
+                                    'id' => $apt->id,
+                                    'apartment_number' => $apt->apartment_number,
+                                    'quantity' => $apt->quantity,
+                                    'price_per_night' => $apt->price_per_night,
+                                    'discount_percentage' => $apt->discount_percentage,
+                                    'max_guests' => $apt->max_guests,
+                                    'bedrooms' => $apt->bedrooms,
+                                    'bathrooms' => $apt->bathrooms,
+                                    'status' => $apt->status,
+                                    'availability_type' => $apt->availability_type,
+                                    'available_dates' => $apt->available_dates,
+                                    'description' => $apt->description,
+                                ];
+                            })
+                            ->toArray();
+                    }
+                    
                     \Log::info('Checking vacation apartments update (before owner check)', [
                         'property_classification' => $propertyClassification,
                         'action_type' => $action_type,
-                        'property_id' => $property->id ?? null
+                        'property_id' => $property->id ?? null,
+                        'original_apartments_count' => count($originalVacationApartments)
                     ]);
                     
                     if ($propertyClassification == 4) {

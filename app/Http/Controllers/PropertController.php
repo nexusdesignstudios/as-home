@@ -559,13 +559,49 @@ class PropertController extends Controller
                 return [$item['id'] => $item['category']];
             });
             $category = Category::where('status', '1')->get();
-            $list = Property::with(['assignParameter' => function ($q) {
-                $q->with('parameter:id,name,type_of_parameter,type_values,is_required,image')->select('id', 'modal_type', 'modal_id', 'property_id', 'parameter_id', 'value');
-            }])->where('id', $id)->get()->first();
+            try {
+                $list = Property::with([
+                    'assignParameter' => function ($q) {
+                        $q->with('parameter:id,name,type_of_parameter,type_values,is_required,image')->select('id', 'modal_type', 'modal_id', 'property_id', 'parameter_id', 'value');
+                    },
+                    'vacationApartments' => function ($q) {
+                        // Only eager load if property is vacation home (classification 4)
+                        // This prevents errors if the property classification is not 4
+                    }
+                ])->where('id', $id)->get()->first();
+                
+                // Check if property exists
+                if (!$list) {
+                    return redirect()->route('property.index')->with('error', 'Property not found');
+                }
+            } catch (\Exception $e) {
+                Log::error('Error loading property for edit: ' . $e->getMessage(), [
+                    'property_id' => $id,
+                    'trace' => $e->getTraceAsString()
+                ]);
+                return redirect()->route('property.index')->with('error', 'Error loading property: ' . $e->getMessage());
+            }
 
             $categoryData = Category::find($list->category_id);
+            
+            // Check if category exists
+            if (!$categoryData) {
+                Log::error('Category not found for property', [
+                    'property_id' => $id,
+                    'category_id' => $list->category_id
+                ]);
+                return redirect()->route('property.index')->with('error', 'Category not found for this property');
+            }
 
-            $categoryParameterTypeIds = explode(',', $categoryData['parameter_types']);
+            // Check if parameter_types exists and is not empty
+            $categoryParameterTypeIds = [];
+            if (!empty($categoryData['parameter_types'])) {
+                $categoryParameterTypeIds = explode(',', $categoryData['parameter_types']);
+                // Filter out empty values
+                $categoryParameterTypeIds = array_filter($categoryParameterTypeIds, function($id) {
+                    return !empty(trim($id));
+                });
+            }
 
             $parameters = parameter::all();
             $edit_parameters = parameter::with(['assigned_parameter' => function ($q) use ($id) {

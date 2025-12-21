@@ -286,7 +286,7 @@ class Property extends Model
      */
     public function vacationApartments()
     {
-        return $this->hasMany(VacationApartment::class);
+        return $this->hasMany(VacationApartment::class, 'property_id', 'id');
     }
 
     /**
@@ -308,8 +308,14 @@ class Property extends Model
     public function getVacationApartmentsAttribute()
     {
         // Only return vacation apartments if this is a vacation home property
-        if ($this->getRawOriginal('property_classification') == 4) {
-            return $this->vacationApartments()->get();
+        try {
+            if ($this->getRawOriginal('property_classification') == 4) {
+                return $this->vacationApartments()->get();
+            }
+        } catch (\Exception $e) {
+            // Log error but don't break the page
+            \Log::warning('Error loading vacation apartments for property ' . $this->id . ': ' . $e->getMessage());
+            return collect([]); // Return empty collection instead of null to prevent errors
         }
 
         return null;

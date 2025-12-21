@@ -17,16 +17,17 @@ class PropertyEditRequestService
      * @param int $requestedBy
      * @return PropertyEditRequest
      */
-    public function saveEditRequest(Property $property, array $editedData, int $requestedBy)
+    public function saveEditRequest(Property $property, array $editedData, int $requestedBy, array $originalData = null)
     {
         try {
             DB::beginTransaction();
 
-            // Get original property data as snapshot
-            $originalData = $property->getAttributes();
-            
-            // Remove timestamps from original data
-            unset($originalData['created_at'], $originalData['updated_at']);
+            // Get original property data as snapshot (use provided or get from property)
+            if ($originalData === null) {
+                $originalData = $property->getAttributes();
+                // Remove timestamps from original data
+                unset($originalData['created_at'], $originalData['updated_at']);
+            }
 
             // Check if there's already a pending edit request for this property
             $existingRequest = PropertyEditRequest::where('property_id', $property->id)

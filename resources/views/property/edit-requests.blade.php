@@ -4,6 +4,52 @@
     {{ __('Property Edit Requests') }}
 @endsection
 
+@section('css')
+<style>
+    /* Page-specific styles - minimal, following the same pattern as other pages */
+    
+    /* Button group spacing */
+    .d-flex.gap-2 {
+        gap: 0.5rem !important;
+    }
+    
+    /* Ensure content doesn't overflow on any screen size */
+    #main-content {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .section {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .card {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* Table responsive for mobile */
+    @media (max-width: 768px) {
+        .table-responsive {
+            display: block;
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .d-flex.gap-2 {
+            flex-direction: column;
+            width: 100%;
+        }
+        
+        .d-flex.gap-2 .btn {
+            width: 100%;
+        }
+    }
+</style>
+@endsection
+
 @section('page-title')
     <div class="page-title">
         <div class="row">
@@ -27,7 +73,7 @@
                 </div>
                 <div class="row mt-3">
                     <div class="col-12">
-                        <div class="btn-group" role="group">
+                        <div class="d-flex flex-wrap gap-2" role="group">
                             <a href="{{ route('property-edit-requests.index', ['status' => 'pending']) }}" 
                                class="btn btn-sm {{ $status == 'pending' ? 'btn-primary' : 'btn-outline-primary' }}">
                                 {{ __('Pending') }} 
@@ -93,17 +139,17 @@
                     </div>
                 @endif
                 @if($editRequests->count() > 0)
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                    <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                        <table class="table table-striped table-hover" style="min-width: 800px; width: 100%;">
                             <thead>
                                 <tr>
-                                    <th>{{ __('ID') }}</th>
-                                    <th>{{ __('Property') }}</th>
-                                    <th>{{ __('Owner') }}</th>
-                                    <th>{{ __('Requested At') }}</th>
-                                    <th>{{ __('Status') }}</th>
-                                    <th>{{ __('Changes') }}</th>
-                                    <th>{{ __('Actions') }}</th>
+                                    <th style="min-width: 60px;">{{ __('ID') }}</th>
+                                    <th style="min-width: 200px;">{{ __('Property') }}</th>
+                                    <th style="min-width: 150px;">{{ __('Owner') }}</th>
+                                    <th style="min-width: 140px;">{{ __('Requested At') }}</th>
+                                    <th style="min-width: 100px;">{{ __('Status') }}</th>
+                                    <th style="min-width: 120px;">{{ __('Changes') }}</th>
+                                    <th style="min-width: 100px;">{{ __('Actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -254,9 +300,27 @@
             const edited = request.edited_data || {};
             const changes = [];
             
+            // Handle vacation apartments separately (special comparison)
+            if (edited.vacation_apartments || original.vacation_apartments) {
+                const origApartments = original.vacation_apartments || [];
+                const editApartments = edited.vacation_apartments || [];
+                
+                // Compare vacation apartments
+                const apartmentChanges = compareVacationApartments(origApartments, editApartments);
+                if (apartmentChanges.length > 0) {
+                    changes.push({
+                        field: 'vacation_apartments',
+                        original: origApartments,
+                        edited: editApartments,
+                        apartment_changes: apartmentChanges,
+                        is_vacation_apartments: true
+                    });
+                }
+            }
+            
             // Find all changes - compare all fields
             const allKeys = new Set([...Object.keys(original), ...Object.keys(edited)]);
-            const ignoredKeys = ['id', 'created_at', 'updated_at', 'deleted_at'];
+            const ignoredKeys = ['id', 'created_at', 'updated_at', 'deleted_at', 'vacation_apartments'];
             
             allKeys.forEach(key => {
                 if (!ignoredKeys.includes(key)) {
@@ -338,22 +402,54 @@
 
             if (changes.length > 0) {
                 changes.forEach(change => {
-                    const origDisplay = formatValue(change.original);
-                    const editDisplay = formatValue(change.edited);
-                    html += `
-                        <tr>
-                            <td>
-                                <strong>${formatFieldName(change.field)}</strong>
-                                <br><small class="text-muted">${change.field}</small>
-                            </td>
-                            <td class="bg-light">
-                                <div class="text-danger fw-bold">${origDisplay}</div>
-                            </td>
-                            <td class="bg-light">
-                                <div class="text-success fw-bold">${editDisplay}</div>
-                            </td>
-                        </tr>
-                    `;
+                    // Special handling for vacation apartments
+                    if (change.is_vacation_apartments && change.apartment_changes) {
+                        html += `
+                            <tr>
+                                <td colspan="3" class="bg-info text-white">
+                                    <strong><i class="bi bi-building"></i> Vacation Apartments Changes</strong>
+                                </td>
+                            </tr>
+                        `;
+                        
+                        change.apartment_changes.forEach(aptChange => {
+                            html += `
+                                <tr>
+                                    <td>
+                                        <strong>Apartment: ${aptChange.apartment_number || 'N/A'}</strong>
+                                        <br><small class="text-muted">ID: ${aptChange.apartment_id}</small>
+                                    </td>
+                                    <td class="bg-light">
+                                        <div class="text-danger fw-bold">
+                                            ${formatVacationApartmentValue(aptChange.original)}
+                                        </div>
+                                    </td>
+                                    <td class="bg-light">
+                                        <div class="text-success fw-bold">
+                                            ${formatVacationApartmentValue(aptChange.edited)}
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        const origDisplay = formatValue(change.original);
+                        const editDisplay = formatValue(change.edited);
+                        html += `
+                            <tr>
+                                <td>
+                                    <strong>${formatFieldName(change.field)}</strong>
+                                    <br><small class="text-muted">${change.field}</small>
+                                </td>
+                                <td class="bg-light">
+                                    <div class="text-danger fw-bold">${origDisplay}</div>
+                                </td>
+                                <td class="bg-light">
+                                    <div class="text-success fw-bold">${editDisplay}</div>
+                                </td>
+                            </tr>
+                        `;
+                    }
                 });
             } else {
                 html += `
@@ -421,6 +517,89 @@
 
         function formatFieldName(field) {
             return field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function compareVacationApartments(original, edited) {
+            const changes = [];
+            const origMap = new Map(original.map(apt => [apt.id, apt]));
+            const editMap = new Map(edited.map(apt => [apt.id, apt]));
+            
+            // Check for updated apartments
+            editMap.forEach((editApt, id) => {
+                const origApt = origMap.get(id);
+                if (!origApt) {
+                    // New apartment
+                    changes.push({
+                        apartment_id: id,
+                        apartment_number: editApt.apartment_number,
+                        type: 'new',
+                        original: null,
+                        edited: editApt
+                    });
+                } else {
+                    // Check for changes
+                    const fieldChanges = {};
+                    ['quantity', 'price_per_night', 'discount_percentage', 'max_guests', 'bedrooms', 'bathrooms', 'status', 'availability_type', 'description'].forEach(field => {
+                        if (origApt[field] !== editApt[field]) {
+                            fieldChanges[field] = {
+                                original: origApt[field],
+                                edited: editApt[field]
+                            };
+                        }
+                    });
+                    
+                    if (Object.keys(fieldChanges).length > 0) {
+                        changes.push({
+                            apartment_id: id,
+                            apartment_number: editApt.apartment_number,
+                            type: 'updated',
+                            original: origApt,
+                            edited: editApt,
+                            field_changes: fieldChanges
+                        });
+                    }
+                }
+            });
+            
+            // Check for deleted apartments
+            origMap.forEach((origApt, id) => {
+                if (!editMap.has(id)) {
+                    changes.push({
+                        apartment_id: id,
+                        apartment_number: origApt.apartment_number,
+                        type: 'deleted',
+                        original: origApt,
+                        edited: null
+                    });
+                }
+            });
+            
+            return changes;
+        }
+
+        function formatVacationApartmentValue(apartment) {
+            if (!apartment) {
+                return '<span class="badge bg-secondary">(deleted)</span>';
+            }
+            
+            let html = '<div class="small">';
+            if (apartment.quantity !== undefined) {
+                html += `<strong>Quantity:</strong> <code>${apartment.quantity}</code><br>`;
+            }
+            if (apartment.price_per_night !== undefined) {
+                html += `<strong>Price/Night:</strong> <code>${apartment.price_per_night}</code><br>`;
+            }
+            if (apartment.max_guests !== undefined) {
+                html += `<strong>Max Guests:</strong> <code>${apartment.max_guests}</code><br>`;
+            }
+            if (apartment.bedrooms !== undefined) {
+                html += `<strong>Bedrooms:</strong> <code>${apartment.bedrooms}</code><br>`;
+            }
+            if (apartment.bathrooms !== undefined) {
+                html += `<strong>Bathrooms:</strong> <code>${apartment.bathrooms}</code>`;
+            }
+            html += '</div>';
+            return html;
         }
 
         function approveEditRequest(requestId) {
