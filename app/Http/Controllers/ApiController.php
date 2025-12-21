@@ -2686,13 +2686,47 @@ class ApiController extends Controller
                                                 $vacationApartment->bathrooms = isset($apartment['bathrooms']) && $apartment['bathrooms'] !== '' ? (int)$apartment['bathrooms'] : $vacationApartment->bathrooms;
                                                 
                                                 // Parse quantity - ensure it's at least 1
+                                                $oldQuantity = $vacationApartment->quantity;
                                                 $quantity = isset($apartment['quantity']) ? (int)$apartment['quantity'] : $vacationApartment->quantity;
+                                                
+                                                \Log::info('Updating apartment quantity', [
+                                                    'apartment_id' => $apartmentId,
+                                                    'property_id' => $property->id,
+                                                    'old_quantity' => $oldQuantity,
+                                                    'new_quantity' => $quantity,
+                                                    'quantity_from_request' => $apartment['quantity'] ?? 'not_set',
+                                                    'quantity_type' => gettype($apartment['quantity'] ?? null)
+                                                ]);
+                                                
                                                 if ($quantity < 1) {
                                                     throw new \Exception("Apartment quantity must be at least 1 for apartment ID: {$apartmentId}");
                                                 }
+                                                
+                                                // Update quantity
                                                 $vacationApartment->quantity = $quantity;
                                                 
-                                                $vacationApartment->save();
+                                                // Save to database
+                                                $saved = $vacationApartment->save();
+                                                
+                                                // Verify the save was successful
+                                                $vacationApartment->refresh(); // Reload from database
+                                                
+                                                \Log::info('Apartment quantity update result', [
+                                                    'apartment_id' => $apartmentId,
+                                                    'save_result' => $saved,
+                                                    'quantity_after_save' => $vacationApartment->quantity,
+                                                    'quantity_expected' => $quantity,
+                                                    'save_successful' => ($vacationApartment->quantity == $quantity)
+                                                ]);
+                                                
+                                                if ($vacationApartment->quantity != $quantity) {
+                                                    \Log::error('Quantity was not saved correctly', [
+                                                        'apartment_id' => $apartmentId,
+                                                        'expected' => $quantity,
+                                                        'actual' => $vacationApartment->quantity
+                                                    ]);
+                                                    throw new \Exception("Failed to save quantity for apartment ID: {$apartmentId}. Expected: {$quantity}, Got: {$vacationApartment->quantity}");
+                                                }
                                                 
                                                 $processedApartmentIds[] = $apartmentId;
                                             } else {
@@ -3071,7 +3105,28 @@ class ApiController extends Controller
                     ])->where('id', $request->id)->get();
 
                     $current_user = Auth::user()->id;
+                    
+                    // Verify vacation apartments quantities before getting property details
+                    $vacationApartments = \App\Models\VacationApartment::where('property_id', $request->id)->get();
+                    \Log::info('Vacation apartments from database after update', [
+                        'property_id' => $request->id,
+                        'apartments_count' => $vacationApartments->count(),
+                        'apartment_quantities' => $vacationApartments->pluck('quantity', 'id')->toArray()
+                    ]);
+                    
                     $property_details = get_property_details($update_property, $current_user, true);
+                    
+                    // Verify vacation apartments quantities are correct in response
+                    if (isset($property_details) && is_array($property_details) && !empty($property_details)) {
+                        $propertyData = is_array($property_details[0] ?? null) ? $property_details[0] : $property_details;
+                        if (isset($propertyData['vacation_apartments'])) {
+                            \Log::info('Vacation apartments in response', [
+                                'property_id' => $request->id,
+                                'apartments_count' => count($propertyData['vacation_apartments'] ?? []),
+                                'apartment_quantities' => collect($propertyData['vacation_apartments'] ?? [])->pluck('quantity', 'id')->toArray()
+                            ]);
+                        }
+                    }
                     
                     \Log::info('Setting success response after vacation apartments update', [
                         'property_id' => $request->id,
