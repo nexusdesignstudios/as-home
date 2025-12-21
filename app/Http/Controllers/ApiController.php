@@ -2570,9 +2570,23 @@ class ApiController extends Controller
                     // END :: UPDATE HOTEL ROOMS
 
                     // START :: UPDATE VACATION APARTMENTS
-                    if (isset($request->property_classification) && $request->property_classification == 4) {
+                    // Parse property_classification to integer (FormData sends as string)
+                    $propertyClassification = isset($request->property_classification) 
+                        ? (int)$request->property_classification 
+                        : ($property->property_classification ?? null);
+                    
+                    if ($propertyClassification == 4) {
                         // Use input() to properly parse nested FormData arrays
                         $vacationApartments = $request->input('vacation_apartments');
+                        
+                        // Add debug logging
+                        \Log::info('Vacation apartments update started', [
+                            'property_id' => $property->id,
+                            'property_classification' => $propertyClassification,
+                            'vacation_apartments_received' => $vacationApartments !== null ? 'yes' : 'no',
+                            'vacation_apartments_is_array' => is_array($vacationApartments),
+                            'vacation_apartments_count' => is_array($vacationApartments) ? count($vacationApartments) : 0
+                        ]);
                         
                         // If vacation_apartments is explicitly set (even if empty array), process it
                         if ($vacationApartments !== null) {
@@ -2591,62 +2605,119 @@ class ApiController extends Controller
                                     'property_id' => $property->id
                                 ]);
 
-                                foreach ($vacationApartments as $index => $apartment) {
-                                    // Parse available_dates if it's a JSON string
-                                    $availableDates = $apartment['available_dates'] ?? null;
-                                    if (is_string($availableDates)) {
-                                        $availableDates = json_decode($availableDates, true);
-                                    }
-                                    
-                                    // Check if this is an existing apartment (has id and id exists for this property)
-                                    if (isset($apartment['id']) && !empty($apartment['id']) && $apartment['id'] !== null) {
-                                        $apartmentId = (int)$apartment['id'];
-                                        $vacationApartment = \App\Models\VacationApartment::find($apartmentId);
+                                try {
+                                    try {
+                                    foreach ($vacationApartments as $index => $apartment) {
+                                        // Parse available_dates if it's a JSON string
+                                        $availableDates = $apartment['available_dates'] ?? null;
+                                        if (is_string($availableDates)) {
+                                            $availableDates = json_decode($availableDates, true);
+                                            if (json_last_error() !== JSON_ERROR_NONE) {
+                                                \Log::warning('Failed to parse available_dates JSON', [
+                                                    'apartment_index' => $index,
+                                                    'available_dates_string' => $apartment['available_dates'] ?? null,
+                                                    'json_error' => json_last_error_msg()
+                                                ]);
+                                                $availableDates = [];
+                                            }
+                                        }
                                         
-                                        // Only update if the apartment exists and belongs to this property
-                                        if ($vacationApartment && $vacationApartment->property_id == $property->id) {
+                                        // Check if this is an existing apartment (has id and id exists for this property)
+                                        if (isset($apartment['id']) && !empty($apartment['id']) && $apartment['id'] !== null && $apartment['id'] !== '') {
+                                            $apartmentId = (int)$apartment['id'];
+                                            $vacationApartment = \App\Models\VacationApartment::find($apartmentId);
+                                            
+                                            // Only update if the apartment exists and belongs to this property
+                                            if ($vacationApartment && $vacationApartment->property_id == $property->id) {
+                                                if ($availableDates === null) {
+                                                    $availableDates = $vacationApartment->available_dates;
+                                                }
+
+                                                $vacationApartment->apartment_number = $apartment['apartment_number'] ?? $vacationApartment->apartment_number;
+                                                $vacationApartment->price_per_night = isset($apartment['price_per_night']) ? (float)$apartment['price_per_night'] : $vacationApartment->price_per_night;
+                                                $vacationApartment->discount_percentage = isset($apartment['discount_percentage']) ? (float)$apartment['discount_percentage'] : $vacationApartment->discount_percentage;
+                                                $vacationApartment->description = $apartment['description'] ?? $vacationApartment->description;
+                                                $vacationApartment->status = isset($apartment['status']) ? (bool)$apartment['status'] : $vacationApartment->status;
+                                                $vacationApartment->availability_type = isset($apartment['availability_type']) ? (int)$apartment['availability_type'] : $vacationApartment->getRawOriginal('availability_type');
+                                                $vacationApartment->available_dates = $availableDates;
+                                                $vacationApartment->max_guests = isset($apartment['max_guests']) && $apartment['max_guests'] !== '' ? (int)$apartment['max_guests'] : $vacationApartment->max_guests;
+                                                $vacationApartment->bedrooms = isset($apartment['bedrooms']) && $apartment['bedrooms'] !== '' ? (int)$apartment['bedrooms'] : $vacationApartment->bedrooms;
+                                                $vacationApartment->bathrooms = isset($apartment['bathrooms']) && $apartment['bathrooms'] !== '' ? (int)$apartment['bathrooms'] : $vacationApartment->bathrooms;
+                                                
+                                                // Parse quantity - ensure it's at least 1
+                                                $quantity = isset($apartment['quantity']) ? (int)$apartment['quantity'] : $vacationApartment->quantity;
+                                                if ($quantity < 1) {
+                                                    throw new \Exception("Apartment quantity must be at least 1 for apartment ID: {$apartmentId}");
+                                                }
+                                                $vacationApartment->quantity = $quantity;
+                                                
+                                                $vacationApartment->save();
+                                                
+                                                $processedApartmentIds[] = $apartmentId;
+                                            } else {
+                                                \Log::warning('Apartment not found or does not belong to property', [
+                                                    'apartment_id' => $apartmentId,
+                                                    'property_id' => $property->id,
+                                                    'apartment_exists' => $vacationApartment ? 'yes' : 'no',
+                                                    'apartment_property_id' => $vacationApartment ? $vacationApartment->property_id : null
+                                                ]);
+                                            }
+                                        } else {
+                                            // Create new apartment
                                             if ($availableDates === null) {
-                                                $availableDates = $vacationApartment->available_dates;
+                                                $availableDates = [];
                                             }
 
-                                            $vacationApartment->apartment_number = $apartment['apartment_number'] ?? $vacationApartment->apartment_number;
-                                            $vacationApartment->price_per_night = isset($apartment['price_per_night']) ? (float)$apartment['price_per_night'] : $vacationApartment->price_per_night;
-                                            $vacationApartment->discount_percentage = isset($apartment['discount_percentage']) ? (float)$apartment['discount_percentage'] : $vacationApartment->discount_percentage;
-                                            $vacationApartment->description = $apartment['description'] ?? $vacationApartment->description;
-                                            $vacationApartment->status = isset($apartment['status']) ? (bool)$apartment['status'] : $vacationApartment->status;
-                                            $vacationApartment->availability_type = isset($apartment['availability_type']) ? (int)$apartment['availability_type'] : $vacationApartment->getRawOriginal('availability_type');
-                                            $vacationApartment->available_dates = $availableDates;
-                                            $vacationApartment->max_guests = isset($apartment['max_guests']) ? (int)$apartment['max_guests'] : $vacationApartment->max_guests;
-                                            $vacationApartment->bedrooms = isset($apartment['bedrooms']) ? (int)$apartment['bedrooms'] : $vacationApartment->bedrooms;
-                                            $vacationApartment->bathrooms = isset($apartment['bathrooms']) ? (int)$apartment['bathrooms'] : $vacationApartment->bathrooms;
-                                            $vacationApartment->quantity = isset($apartment['quantity']) ? (int)$apartment['quantity'] : $vacationApartment->quantity;
-                                            $vacationApartment->save();
+                                            // Validate required fields for new apartment
+                                            if (empty($apartment['apartment_number'])) {
+                                                throw new \Exception("Apartment number is required for new apartment at index: {$index}");
+                                            }
                                             
-                                            $processedApartmentIds[] = $apartmentId;
-                                        }
-                                    } else {
-                                        // Create new apartment
-                                        if ($availableDates === null) {
-                                            $availableDates = [];
-                                        }
+                                            $quantity = isset($apartment['quantity']) ? (int)$apartment['quantity'] : 1;
+                                            if ($quantity < 1) {
+                                                throw new \Exception("Apartment quantity must be at least 1 for new apartment at index: {$index}");
+                                            }
 
-                                        $newApartment = \App\Models\VacationApartment::create([
-                                            'property_id' => $property->id,
-                                            'apartment_number' => $apartment['apartment_number'] ?? '',
-                                            'price_per_night' => (float)($apartment['price_per_night'] ?? 0),
-                                            'discount_percentage' => isset($apartment['discount_percentage']) ? (float)$apartment['discount_percentage'] : 0,
-                                            'availability_type' => isset($apartment['availability_type']) ? (int)$apartment['availability_type'] : 1,
-                                            'available_dates' => $availableDates,
-                                            'description' => $apartment['description'] ?? null,
-                                            'status' => isset($apartment['status']) ? (bool)$apartment['status'] : 1,
-                                            'max_guests' => isset($apartment['max_guests']) ? (int)$apartment['max_guests'] : 0,
-                                            'bedrooms' => isset($apartment['bedrooms']) ? (int)$apartment['bedrooms'] : 0,
-                                            'bathrooms' => isset($apartment['bathrooms']) ? (int)$apartment['bathrooms'] : 0,
-                                            'quantity' => isset($apartment['quantity']) ? (int)$apartment['quantity'] : 1,
-                                        ]);
-                                        
+                                            $newApartment = \App\Models\VacationApartment::create([
+                                                'property_id' => $property->id,
+                                                'apartment_number' => $apartment['apartment_number'] ?? '',
+                                                'price_per_night' => (float)($apartment['price_per_night'] ?? 0),
+                                                'discount_percentage' => isset($apartment['discount_percentage']) ? (float)$apartment['discount_percentage'] : 0,
+                                                'availability_type' => isset($apartment['availability_type']) ? (int)$apartment['availability_type'] : 1,
+                                                'available_dates' => $availableDates,
+                                                'description' => $apartment['description'] ?? null,
+                                                'status' => isset($apartment['status']) ? (bool)$apartment['status'] : 1,
+                                                'max_guests' => isset($apartment['max_guests']) && $apartment['max_guests'] !== '' ? (int)$apartment['max_guests'] : null,
+                                                'bedrooms' => isset($apartment['bedrooms']) && $apartment['bedrooms'] !== '' ? (int)$apartment['bedrooms'] : null,
+                                                'bathrooms' => isset($apartment['bathrooms']) && $apartment['bathrooms'] !== '' ? (int)$apartment['bathrooms'] : null,
+                                                'quantity' => $quantity,
+                                            ]);
+                                            
                                         $processedApartmentIds[] = $newApartment->id;
                                     }
+                                } catch (\Exception $apartmentEx) {
+                                    \Log::error('Error processing vacation apartment', [
+                                        'error' => $apartmentEx->getMessage(),
+                                        'file' => $apartmentEx->getFile(),
+                                        'line' => $apartmentEx->getLine(),
+                                        'trace' => $apartmentEx->getTraceAsString(),
+                                        'apartment_index' => $index ?? 'unknown',
+                                        'apartment_data' => $apartment ?? null,
+                                        'property_id' => $property->id
+                                    ]);
+                                    throw $apartmentEx; // Re-throw to be caught by outer catch
+                                }
+                            } catch (\Exception $apartmentEx) {
+                                    \Log::error('Error processing vacation apartment', [
+                                        'error' => $apartmentEx->getMessage(),
+                                        'file' => $apartmentEx->getFile(),
+                                        'line' => $apartmentEx->getLine(),
+                                        'trace' => $apartmentEx->getTraceAsString(),
+                                        'apartment_index' => $index ?? 'unknown',
+                                        'apartment_data' => $apartment ?? null,
+                                        'property_id' => $property->id
+                                    ]);
+                                    throw $apartmentEx; // Re-throw to be caught by outer catch
                                 }
                             }
                             
@@ -2990,9 +3061,24 @@ class ApiController extends Controller
             DB::commit();
         } catch (Exception $e) {
             DB::rollback();
+            
+            // Log the actual error with full details for debugging
+            \Log::error('Property update failed in update_post_property', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'property_id' => $request->input('id'),
+                'property_classification' => $request->input('property_classification'),
+                'user_id' => Auth::id(),
+                'vacation_apartments_count' => is_array($request->input('vacation_apartments')) 
+                    ? count($request->input('vacation_apartments')) 
+                    : 'not_array'
+            ]);
+            
             $response = array(
                 'error' => true,
-                'message' => 'Something Went Wrong'
+                'message' => 'Update failed: ' . $e->getMessage() // Return actual error message for debugging
             );
             return response()->json($response, 500);
         }
