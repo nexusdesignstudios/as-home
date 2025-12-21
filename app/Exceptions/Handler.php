@@ -51,6 +51,44 @@ class Handler extends ExceptionHandler
 
 
     /**
+     * Render an exception into an HTTP response.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Throwable  $exception
+     * @return \Symfony\Component\HttpFoundation\Response
+     *
+     * @throws \Throwable
+     */
+    public function render($request, Throwable $exception)
+    {
+        // For API requests, always return JSON with proper format
+        if ($request->is('api/*') || $request->expectsJson()) {
+            // Log the exception
+            \Log::error('Unhandled exception in API', [
+                'error' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+                'trace' => $exception->getTraceAsString(),
+                'url' => $request->fullUrl(),
+                'method' => $request->method()
+            ]);
+
+            // Return proper JSON format that frontend expects
+            $statusCode = method_exists($exception, 'getStatusCode') 
+                ? $exception->getStatusCode() 
+                : 500;
+
+            return response()->json([
+                'error' => true,
+                'message' => $exception->getMessage() ?: 'Server Error',
+                'data' => null
+            ], $statusCode);
+        }
+
+        return parent::render($request, $exception);
+    }
+
+    /**
      * Convert an authentication exception into a response.
      *
      * @param  \Illuminate\Http\Request  $request

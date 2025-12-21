@@ -2640,7 +2640,6 @@ class ApiController extends Controller
                                 ]);
 
                                 try {
-                                    try {
                                     foreach ($vacationApartments as $index => $apartment) {
                                         // Parse available_dates if it's a JSON string
                                         $availableDates = $apartment['available_dates'] ?? null;
@@ -2727,21 +2726,10 @@ class ApiController extends Controller
                                                 'quantity' => $quantity,
                                             ]);
                                             
-                                        $processedApartmentIds[] = $newApartment->id;
+                                            $processedApartmentIds[] = $newApartment->id;
+                                        }
                                     }
                                 } catch (\Exception $apartmentEx) {
-                                    \Log::error('Error processing vacation apartment', [
-                                        'error' => $apartmentEx->getMessage(),
-                                        'file' => $apartmentEx->getFile(),
-                                        'line' => $apartmentEx->getLine(),
-                                        'trace' => $apartmentEx->getTraceAsString(),
-                                        'apartment_index' => $index ?? 'unknown',
-                                        'apartment_data' => $apartment ?? null,
-                                        'property_id' => $property->id
-                                    ]);
-                                    throw $apartmentEx; // Re-throw to be caught by outer catch
-                                }
-                            } catch (\Exception $apartmentEx) {
                                     \Log::error('Error processing vacation apartment', [
                                         'error' => $apartmentEx->getMessage(),
                                         'file' => $apartmentEx->getFile(),
@@ -5975,7 +5963,13 @@ class ApiController extends Controller
             ]);
             
             ApiResponseService::logErrorResponse($e, $e->getMessage(), 'Failed to fetch homepage data: ' . $e->getMessage());
-            ApiResponseService::errorResponse('Failed to fetch homepage data: ' . $e->getMessage());
+            
+            // Return JSON response instead of using errorResponse() which calls exit()
+            return response()->json([
+                'error' => true,
+                'message' => 'Failed to fetch homepage data: ' . $e->getMessage(),
+                'data' => null
+            ], 500);
         }
     }
 
