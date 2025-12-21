@@ -5574,28 +5574,42 @@ class ApiController extends Controller
 
     public function getAddedProperties(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'property_type' => 'nullable|in:0,1,2,3',
-            'is_promoted' => 'nullable|in:1'
-        ]);
-        if ($validator->fails()) {
-            return response()->json([
-                'error' => true,
-                'message' => $validator->errors()->first(),
-            ]);
-        }
         try {
+            $validator = Validator::make($request->all(), [
+                'property_type' => 'nullable|in:0,1,2,3',
+                'is_promoted' => 'nullable|in:1',
+                'slug_id' => 'nullable|string',
+                'offset' => 'nullable|integer|min:0',
+                'limit' => 'nullable|integer|min:1|max:1000'
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => true,
+                    'message' => $validator->errors()->first(),
+                ], 422);
+            }
+            
             // Get Offset and Limit from payload request
-            $offset = isset($request->offset) ? $request->offset : 0;
-            $limit = isset($request->limit) ? $request->limit : 10;
+            $offset = isset($request->offset) && $request->offset !== '' ? (int)$request->offset : 0;
+            $limit = isset($request->limit) && $request->limit !== '' ? (int)$request->limit : 10;
 
             // Get Logged In User data
             $loggedInUserData = Auth::user();
+            if (!$loggedInUserData) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Unauthorized. Please login first.'
+                ], 401);
+            }
+            
             // Get Current Logged In User ID
             $loggedInUserID = $loggedInUserData->id;
 
             // when is_promoted is passed then show only property who has been featured (advertised)
-            if ($request->has('is_promoted') && $request->is_promoted == 1) {
+            // Handle empty string as false
+            $isPromoted = $request->has('is_promoted') && $request->is_promoted !== '' && $request->is_promoted != '0' && (int)$request->is_promoted == 1;
+            
+            if ($isPromoted) {
                 // Create Advertisement Query which has Property Data
                 $advertisementQuery = Advertisement::whereHas('property', function ($query) use ($loggedInUserID) {
                     $query->where(['post_type' => 1, 'added_by' => $loggedInUserID]);
@@ -5656,7 +5670,15 @@ class ApiController extends Controller
                     })
 
                     // Pass the Property Data with Category and Advertisement Relation Data
-                    ->with('category', 'advertisement', 'interested_users:id,property_id,customer_id', 'interested_users.customer:id,name,profile');
+                    ->with([
+                        'category', 
+                        'advertisement', 
+                        'interested_users:id,property_id,customer_id', 
+                        'interested_users.customer:id,name,profile',
+                        'vacationApartments' => function($query) {
+                            $query->orderBy('apartment_number');
+                        }
+                    ]);
 
                 // Get Total Views by Sum of total click of each property
                 $totalViews = $propertyQuery->sum('total_click');
@@ -5668,8 +5690,12 @@ class ApiController extends Controller
                 $propertyData = $propertyQuery->skip($offset)->take($limit)->orderBy('id', 'DESC')->get()->map(function ($property) use ($loggedInUserData) {
                     // Add lastest Reject reason when request status is rejected
                     $property->reject_reason = (object)array();
-                    if ($property->request_status == 'rejected') {
-                        $property->reject_reason = $property->reject_reason()->latest()->first();
+                    if ($property->request_status == 'rejected' && method_exists($property, 'reject_reason')) {
+                        try {
+                            $property->reject_reason = $property->reject_reason()->latest()->first();
+                        } catch (\Exception $e) {
+                            $property->reject_reason = (object)array();
+                        }
                     }
                     $property->is_premium = $property->is_premium == 1 ? true : false;
                     $property->property_type = $property->propery_type;
@@ -5678,16 +5704,23 @@ class ApiController extends Controller
                     $property->parameters = $property->parameters;
                     $property->assign_facilities = $property->assign_facilities;
                     $property->is_feature_available = $property->is_feature_available;
+                    
+                    // Include vacation apartments if property classification is 4
+                    if ($property->property_classification == 4) {
+                        $property->vacation_apartments = $property->vacationApartments ?? [];
+                    } else {
+                        $property->vacation_apartments = [];
+                    }
 
                     // Interested Users
-                    $interestedUsers = $property->interested_users;
+                    $interestedUsers = $property->interested_users ?? collect([]);
                     unset($property->interested_users);
                     $property->interested_users = $interestedUsers->map(function ($interestedUser) {
-                        unset($property->id);
-                        unset($property->property_id);
-                        unset($property->customer_id);
+                        if (!$interestedUser || !$interestedUser->customer) {
+                            return null;
+                        }
                         return $interestedUser->customer;
-                    });
+                    })->filter();
 
                     // Add User's Details
                     $property->customer_name = $loggedInUserData->name;
@@ -6204,11 +6237,22 @@ class ApiController extends Controller
                         }
                     } else if ($row->type == 'place_api_key') {
                         // Add Full URL to the specified type
-                        $publicKey = file_get_contents(base_path('public_key.pem')); // Load the public key
-                        $encryptedData = '';
-                        if (openssl_public_encrypt($row->data, $encryptedData, $publicKey)) {
-                            $settingsData[$row->type] = base64_encode($encryptedData);
+                        $publicKeyPath = base_path('public_key.pem');
+                        if (file_exists($publicKeyPath)) {
+                            try {
+                                $publicKey = file_get_contents($publicKeyPath);
+                                $encryptedData = '';
+                                if (openssl_public_encrypt($row->data, $encryptedData, $publicKey)) {
+                                    $settingsData[$row->type] = base64_encode($encryptedData);
+                                } else {
+                                    $settingsData[$row->type] = "";
+                                }
+                            } catch (\Exception $e) {
+                                \Log::warning('Failed to encrypt place_api_key', ['error' => $e->getMessage()]);
+                                $settingsData[$row->type] = "";
+                            }
                         } else {
+                            \Log::warning('public_key.pem file not found');
                             $settingsData[$row->type] = "";
                         }
                     } else if ($row->type == 'currency_code') {
@@ -6223,9 +6267,23 @@ class ApiController extends Controller
                     }
                 }
 
-                $user_data = User::find(1);
-                $settingsData['admin_name'] = $user_data->name;
-                $settingsData['admin_image'] = url('/assets/images/faces/2.jpg');
+                // Get admin user - try to find admin user, fallback to first user or default
+                try {
+                    $user_data = User::where('role', 'admin')->first() ?? User::first();
+                    if ($user_data) {
+                        $settingsData['admin_name'] = $user_data->name ?? 'Admin';
+                        $settingsData['admin_image'] = !empty($user_data->profile) 
+                            ? url('/') . config('global.IMG_PATH') . config('global.CUSTOMER_PROFILE_PATH') . $user_data->profile
+                            : url('/assets/images/faces/2.jpg');
+                    } else {
+                        $settingsData['admin_name'] = 'Admin';
+                        $settingsData['admin_image'] = url('/assets/images/faces/2.jpg');
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to get admin user', ['error' => $e->getMessage()]);
+                    $settingsData['admin_name'] = 'Admin';
+                    $settingsData['admin_image'] = url('/assets/images/faces/2.jpg');
+                }
                 $settingsData['demo_mode'] = env('DEMO_MODE');
                 $settingsData['img_placeholder'] = url('/assets/images/placeholder.svg');
 
