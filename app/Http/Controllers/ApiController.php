@@ -826,18 +826,29 @@ class ApiController extends Controller
                                     ->orWhere('parameters.name', 'LIKE', '%bed%');
                             })
                             ->where(function ($valueQuery) use ($bedroomsValue, $isStudio) {
+                                // Exclude null, empty, or whitespace-only values
+                                $valueQuery->whereNotNull('assign_parameters.value')
+                                    ->where('assign_parameters.value', '!=', '')
+                                    ->where('assign_parameters.value', '!=', 'null')
+                                    ->whereRaw('TRIM(assign_parameters.value) != ?', ['']);
+                                
                                 if ($isStudio) {
                                     // For Studio (0), match both "0" and "studio" (case-insensitive)
-                                    $valueQuery->where('assign_parameters.value', '0')
-                                        ->orWhereRaw('LOWER(assign_parameters.value) = ?', ['studio'])
-                                        ->orWhere('assign_parameters.value', 'Studio')
-                                        ->orWhere('assign_parameters.value', 'STUDIO');
+                                    // Only match explicit Studio values, exclude properties without bedrooms
+                                    $valueQuery->where(function ($studioQuery) {
+                                        $studioQuery->where('assign_parameters.value', '0')
+                                            ->orWhereRaw('LOWER(TRIM(assign_parameters.value)) = ?', ['studio'])
+                                            ->orWhere('assign_parameters.value', 'Studio')
+                                            ->orWhere('assign_parameters.value', 'STUDIO');
+                                    });
                                 } else {
                                     // For other values, exact match
-                                    $valueQuery->where('assign_parameters.value', $bedroomsValue)
-                                        ->orWhere('assign_parameters.value', '"' . $bedroomsValue . '"')
-                                        ->orWhereRaw('JSON_EXTRACT(assign_parameters.value, "$") = ?', [$bedroomsValue])
-                                        ->orWhereRaw('CAST(JSON_EXTRACT(assign_parameters.value, "$") AS CHAR) = ?', [$bedroomsValue]);
+                                    $valueQuery->where(function ($exactQuery) use ($bedroomsValue) {
+                                        $exactQuery->where('assign_parameters.value', $bedroomsValue)
+                                            ->orWhere('assign_parameters.value', '"' . $bedroomsValue . '"')
+                                            ->orWhereRaw('JSON_EXTRACT(assign_parameters.value, "$") = ?', [$bedroomsValue])
+                                            ->orWhereRaw('CAST(JSON_EXTRACT(assign_parameters.value, "$") AS CHAR) = ?', [$bedroomsValue]);
+                                    });
                                 }
                             });
                     });
@@ -7217,18 +7228,29 @@ class ApiController extends Controller
                                         ->orWhere('parameters.name', 'LIKE', '%bed%');
                                 })
                                 ->where(function ($valueQuery) use ($bedroomsValue, $isStudio) {
+                                    // Exclude null, empty, or whitespace-only values
+                                    $valueQuery->whereNotNull('assign_parameters.value')
+                                        ->where('assign_parameters.value', '!=', '')
+                                        ->where('assign_parameters.value', '!=', 'null')
+                                        ->whereRaw('TRIM(assign_parameters.value) != ?', ['']);
+                                    
                                     if ($isStudio) {
                                         // For Studio (0), match both "0" and "studio" (case-insensitive)
-                                        $valueQuery->where('assign_parameters.value', '0')
-                                            ->orWhereRaw('LOWER(assign_parameters.value) = ?', ['studio'])
-                                            ->orWhere('assign_parameters.value', 'Studio')
-                                            ->orWhere('assign_parameters.value', 'STUDIO');
+                                        // Only match explicit Studio values, exclude properties without bedrooms
+                                        $valueQuery->where(function ($studioQuery) {
+                                            $studioQuery->where('assign_parameters.value', '0')
+                                                ->orWhereRaw('LOWER(TRIM(assign_parameters.value)) = ?', ['studio'])
+                                                ->orWhere('assign_parameters.value', 'Studio')
+                                                ->orWhere('assign_parameters.value', 'STUDIO');
+                                        });
                                     } else {
                                         // For other values, exact match with JSON support
-                                        $valueQuery->where('assign_parameters.value', $bedroomsValue)
-                                            ->orWhere('assign_parameters.value', '"' . $bedroomsValue . '"')
-                                            ->orWhereRaw('JSON_EXTRACT(assign_parameters.value, "$") = ?', [$bedroomsValue])
-                                            ->orWhereRaw('CAST(JSON_EXTRACT(assign_parameters.value, "$") AS CHAR) = ?', [$bedroomsValue]);
+                                        $valueQuery->where(function ($exactQuery) use ($bedroomsValue) {
+                                            $exactQuery->where('assign_parameters.value', $bedroomsValue)
+                                                ->orWhere('assign_parameters.value', '"' . $bedroomsValue . '"')
+                                                ->orWhereRaw('JSON_EXTRACT(assign_parameters.value, "$") = ?', [$bedroomsValue])
+                                                ->orWhereRaw('CAST(JSON_EXTRACT(assign_parameters.value, "$") AS CHAR) = ?', [$bedroomsValue]);
+                                        });
                                     }
                                 });
                         });
