@@ -521,28 +521,6 @@ class HelperService
                             ],
                         )
                     );
-                            [
-                                'name' => 'total_price',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'total_amount',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'currency_symbol',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'payment_status',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'special_requests',
-                                'is_condition' => true,
-                            ],
-                        )
-                    );
                 case 'flexible_hotel_booking_approval':
                     return array(
                         'title' => 'Flexible Hotel Booking Confirmation',
