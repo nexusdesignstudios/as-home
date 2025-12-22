@@ -668,7 +668,8 @@ class ReservationController extends Controller
             $customerId = $user->id;
             $status = $request->status && trim($request->status) !== '' ? explode(',', $request->status) : null;
 
-            $query = Reservation::where('customer_id', $customerId);
+            $query = Reservation::where('customer_id', $customerId)
+                ->with(['reservable', 'property']);
 
             if ($status && !empty(array_filter($status))) {
                 $query->whereIn('status', array_filter($status));
@@ -676,8 +677,29 @@ class ReservationController extends Controller
 
             $reservations = $query->orderBy('created_at', 'desc')->get();
 
+            // Format reservations for frontend
+            $formattedReservations = $reservations->map(function ($reservation) {
+                // For vacation home reservations, load the apartment data
+                if ($reservation->reservable_type === 'App\Models\Property' && 
+                    $reservation->apartment_id) {
+                    // Load the vacation apartment if it exists
+                    $apartment = \App\Models\VacationApartment::find($reservation->apartment_id);
+                    if ($apartment) {
+                        $reservation->apartment = $apartment;
+                    }
+                }
+                
+                // Ensure property_classification is accessible
+                if ($reservation->reservable && $reservation->reservable instanceof \App\Models\Property) {
+                    // Add property_classification directly to reservation for easier access
+                    $reservation->property_classification = $reservation->reservable->property_classification;
+                }
+                
+                return $reservation;
+            });
+
             return ApiResponseService::successResponse('Reservations retrieved successfully', [
-                'reservations' => $reservations
+                'reservations' => $formattedReservations
             ]);
         } catch (Exception $e) {
             Log::error('Error in getCustomerReservations: ' . $e->getMessage(), [
