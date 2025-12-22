@@ -893,7 +893,7 @@ Confirmation Date: {confirmation_date}
      * @param int|null $excludeReservationId
      * @return int
      */
-    private function countBookedUnitsForApartment($propertyId, $apartmentId, $checkInDate, $checkOutDate, $excludeReservationId = null)
+    public function countBookedUnitsForApartment($propertyId, $apartmentId, $checkInDate, $checkOutDate, $excludeReservationId = null)
     {
         $checkIn = Carbon::parse($checkInDate)->startOfDay();
         $checkOut = Carbon::parse($checkOutDate)->startOfDay();

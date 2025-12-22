@@ -791,28 +791,94 @@ class ApiController extends Controller
         }
 
         // If bedrooms filter is passed - exact match on parameter value
+        // For regular properties: check parameters table
+        // For vacation homes (property_classification = 4): also check vacation_apartments table
         if ($request->has('bedrooms') && $request->bedrooms !== null && $request->bedrooms !== '') {
             $bedroomsValue = (string) $request->bedrooms;
-            $property = $property->whereHas('assignParameter', function ($query) use ($bedroomsValue) {
-                $query->whereHas('parameter', function ($paramQuery) {
-                    $paramQuery->where(function ($nameQuery) {
-                        $nameQuery->where('name', 'LIKE', '%bedroom%')
-                            ->orWhere('name', 'LIKE', '%bed%');
+            $bedroomsIntValue = (int) $bedroomsValue; // For vacation apartments comparison
+            
+            $property = $property->where(function ($query) use ($bedroomsValue, $bedroomsIntValue) {
+                // Check parameters table (for regular properties)
+                // Handle both plain string values and JSON-encoded values
+                // Also handle both morphMany (modal_id) and direct property_id relationships
+                $query->where(function ($subQuery) use ($bedroomsValue) {
+                    // Check directly via assign_parameters table
+                    // This handles both property_id matches AND modal_id matches (polymorphic)
+                    $subQuery->whereExists(function ($existsQuery) use ($bedroomsValue) {
+                        $existsQuery->select(DB::raw(1))
+                            ->from('assign_parameters')
+                            ->join('parameters', 'assign_parameters.parameter_id', '=', 'parameters.id')
+                            ->where(function ($linkQuery) {
+                                // Match by property_id OR by modal_id (polymorphic)
+                                $linkQuery->whereColumn('assign_parameters.property_id', 'propertys.id')
+                                    ->orWhere(function ($modalQuery) {
+                                        $modalQuery->whereColumn('assign_parameters.modal_id', 'propertys.id')
+                                            ->where(function ($typeQuery) {
+                                                $typeQuery->where('assign_parameters.modal_type', 'App\\Models\\Property')
+                                                    ->orWhere('assign_parameters.modal_type', 'property');
+                                            });
+                                    });
+                            })
+                            ->where(function ($nameQuery) {
+                                $nameQuery->where('parameters.name', 'LIKE', '%bedroom%')
+                                    ->orWhere('parameters.name', 'LIKE', '%bed%');
+                            })
+                            ->where('assign_parameters.value', $bedroomsValue);
                     });
-                })->whereRaw('value = ?', [$bedroomsValue]);
+                })
+                // OR check vacation_apartments table (for vacation homes)
+                ->orWhere(function ($vacationQuery) use ($bedroomsIntValue) {
+                    $vacationQuery->where('property_classification', 4)
+                        ->whereHas('vacationApartments', function ($aptQuery) use ($bedroomsIntValue) {
+                            $aptQuery->where('bedrooms', $bedroomsIntValue);
+                        });
+                });
             });
         }
 
         // If bathrooms filter is passed - exact match on parameter value
+        // For regular properties: check parameters table
+        // For vacation homes (property_classification = 4): also check vacation_apartments table
         if ($request->has('bathrooms') && $request->bathrooms !== null && $request->bathrooms !== '') {
             $bathroomsValue = (string) $request->bathrooms;
-            $property = $property->whereHas('assignParameter', function ($query) use ($bathroomsValue) {
-                $query->whereHas('parameter', function ($paramQuery) {
-                    $paramQuery->where(function ($nameQuery) {
-                        $nameQuery->where('name', 'LIKE', '%bathroom%')
-                            ->orWhere('name', 'LIKE', '%bath%');
+            $bathroomsIntValue = (int) $bathroomsValue; // For vacation apartments comparison
+            
+            $property = $property->where(function ($query) use ($bathroomsValue, $bathroomsIntValue) {
+                // Check parameters table (for regular properties)
+                // Handle both plain string values and JSON-encoded values
+                // Also handle both morphMany (modal_id) and direct property_id relationships
+                $query->where(function ($subQuery) use ($bathroomsValue) {
+                    // Check directly via assign_parameters table
+                    // This handles both property_id matches AND modal_id matches (polymorphic)
+                    $subQuery->whereExists(function ($existsQuery) use ($bathroomsValue) {
+                        $existsQuery->select(DB::raw(1))
+                            ->from('assign_parameters')
+                            ->join('parameters', 'assign_parameters.parameter_id', '=', 'parameters.id')
+                            ->where(function ($linkQuery) {
+                                // Match by property_id OR by modal_id (polymorphic)
+                                $linkQuery->whereColumn('assign_parameters.property_id', 'propertys.id')
+                                    ->orWhere(function ($modalQuery) {
+                                        $modalQuery->whereColumn('assign_parameters.modal_id', 'propertys.id')
+                                            ->where(function ($typeQuery) {
+                                                $typeQuery->where('assign_parameters.modal_type', 'App\\Models\\Property')
+                                                    ->orWhere('assign_parameters.modal_type', 'property');
+                                            });
+                                    });
+                            })
+                            ->where(function ($nameQuery) {
+                                $nameQuery->where('parameters.name', 'LIKE', '%bathroom%')
+                                    ->orWhere('parameters.name', 'LIKE', '%bath%');
+                            })
+                            ->where('assign_parameters.value', $bathroomsValue);
                     });
-                })->whereRaw('value = ?', [$bathroomsValue]);
+                })
+                // OR check vacation_apartments table (for vacation homes)
+                ->orWhere(function ($vacationQuery) use ($bathroomsIntValue) {
+                    $vacationQuery->where('property_classification', 4)
+                        ->whereHas('vacationApartments', function ($aptQuery) use ($bathroomsIntValue) {
+                            $aptQuery->where('bathrooms', $bathroomsIntValue);
+                        });
+                });
             });
         }
 
@@ -7099,28 +7165,106 @@ class ApiController extends Controller
             }
 
             // If bedrooms filter is passed - exact match on parameter value
+            // For regular properties: check parameters table
+            // For vacation homes (property_classification = 4): also check vacation_apartments table
             if ($request->has('bedrooms') && $request->bedrooms !== null && $request->bedrooms !== '') {
                 $bedroomsValue = (string) $request->bedrooms;
-                $propertyQuery = $propertyQuery->clone()->whereHas('assignParameter', function ($query) use ($bedroomsValue) {
-                    $query->whereHas('parameter', function ($paramQuery) {
-                        $paramQuery->where(function ($nameQuery) {
-                            $nameQuery->where('name', 'LIKE', '%bedroom%')
-                                ->orWhere('name', 'LIKE', '%bed%');
+                $bedroomsIntValue = (int) $bedroomsValue; // For vacation apartments comparison
+                
+                $propertyQuery = $propertyQuery->clone()->where(function ($query) use ($bedroomsValue, $bedroomsIntValue) {
+                    // Check parameters table (for regular properties)
+                    // Handle both plain string values and JSON-encoded values
+                    // Also handle both morphMany (modal_id) and direct property_id relationships
+                    $query->where(function ($subQuery) use ($bedroomsValue) {
+                        // Check directly via assign_parameters table
+                        // This handles both property_id matches AND modal_id matches (polymorphic)
+                        $subQuery->whereExists(function ($existsQuery) use ($bedroomsValue) {
+                            $existsQuery->select(DB::raw(1))
+                                ->from('assign_parameters')
+                                ->join('parameters', 'assign_parameters.parameter_id', '=', 'parameters.id')
+                                ->where(function ($linkQuery) {
+                                    // Match by property_id OR by modal_id (polymorphic)
+                                    // Handle both 'App\Models\Property' and 'property' (lowercase) modal types
+                                    $linkQuery->whereColumn('assign_parameters.property_id', 'propertys.id')
+                                        ->orWhere(function ($modalQuery) {
+                                            $modalQuery->whereColumn('assign_parameters.modal_id', 'propertys.id')
+                                                ->where(function ($typeQuery) {
+                                                    $typeQuery->where('assign_parameters.modal_type', 'App\\Models\\Property')
+                                                        ->orWhere('assign_parameters.modal_type', 'property');
+                                                });
+                                        });
+                                })
+                                ->where(function ($nameQuery) {
+                                    $nameQuery->where('parameters.name', 'LIKE', '%bedroom%')
+                                        ->orWhere('parameters.name', 'LIKE', '%bed%');
+                                })
+                                ->where(function ($valueQuery) use ($bedroomsValue) {
+                                    $valueQuery->where('assign_parameters.value', $bedroomsValue)
+                                        ->orWhere('assign_parameters.value', '"' . $bedroomsValue . '"')
+                                        ->orWhereRaw('JSON_EXTRACT(assign_parameters.value, "$") = ?', [$bedroomsValue])
+                                        ->orWhereRaw('CAST(JSON_EXTRACT(assign_parameters.value, "$") AS CHAR) = ?', [$bedroomsValue]);
+                                });
                         });
-                    })->whereRaw('value = ?', [$bedroomsValue]);
+                    })
+                    // OR check vacation_apartments table (for vacation homes)
+                    ->orWhere(function ($vacationQuery) use ($bedroomsIntValue) {
+                        $vacationQuery->where('property_classification', 4)
+                            ->whereHas('vacationApartments', function ($aptQuery) use ($bedroomsIntValue) {
+                                $aptQuery->where('bedrooms', $bedroomsIntValue);
+                            });
+                    });
                 });
             }
 
             // If bathrooms filter is passed - exact match on parameter value
+            // For regular properties: check parameters table
+            // For vacation homes (property_classification = 4): also check vacation_apartments table
             if ($request->has('bathrooms') && $request->bathrooms !== null && $request->bathrooms !== '') {
                 $bathroomsValue = (string) $request->bathrooms;
-                $propertyQuery = $propertyQuery->clone()->whereHas('assignParameter', function ($query) use ($bathroomsValue) {
-                    $query->whereHas('parameter', function ($paramQuery) {
-                        $paramQuery->where(function ($nameQuery) {
-                            $nameQuery->where('name', 'LIKE', '%bathroom%')
-                                ->orWhere('name', 'LIKE', '%bath%');
+                $bathroomsIntValue = (int) $bathroomsValue; // For vacation apartments comparison
+                
+                $propertyQuery = $propertyQuery->clone()->where(function ($query) use ($bathroomsValue, $bathroomsIntValue) {
+                    // Check parameters table (for regular properties)
+                    // Handle both plain string values and JSON-encoded values
+                    // Also handle both morphMany (modal_id) and direct property_id relationships
+                    $query->where(function ($subQuery) use ($bathroomsValue) {
+                        // Check directly via assign_parameters table
+                        // This handles both property_id matches AND modal_id matches (polymorphic)
+                        $subQuery->whereExists(function ($existsQuery) use ($bathroomsValue) {
+                            $existsQuery->select(DB::raw(1))
+                                ->from('assign_parameters')
+                                ->join('parameters', 'assign_parameters.parameter_id', '=', 'parameters.id')
+                                ->where(function ($linkQuery) {
+                                    // Match by property_id OR by modal_id (polymorphic)
+                                    // Handle both 'App\Models\Property' and 'property' (lowercase) modal types
+                                    $linkQuery->whereColumn('assign_parameters.property_id', 'propertys.id')
+                                        ->orWhere(function ($modalQuery) {
+                                            $modalQuery->whereColumn('assign_parameters.modal_id', 'propertys.id')
+                                                ->where(function ($typeQuery) {
+                                                    $typeQuery->where('assign_parameters.modal_type', 'App\\Models\\Property')
+                                                        ->orWhere('assign_parameters.modal_type', 'property');
+                                                });
+                                        });
+                                })
+                                ->where(function ($nameQuery) {
+                                    $nameQuery->where('parameters.name', 'LIKE', '%bathroom%')
+                                        ->orWhere('parameters.name', 'LIKE', '%bath%');
+                                })
+                                ->where(function ($valueQuery) use ($bathroomsValue) {
+                                    $valueQuery->where('assign_parameters.value', $bathroomsValue)
+                                        ->orWhere('assign_parameters.value', '"' . $bathroomsValue . '"')
+                                        ->orWhereRaw('JSON_EXTRACT(assign_parameters.value, "$") = ?', [$bathroomsValue])
+                                        ->orWhereRaw('CAST(JSON_EXTRACT(assign_parameters.value, "$") AS CHAR) = ?', [$bathroomsValue]);
+                                });
                         });
-                    })->whereRaw('value = ?', [$bathroomsValue]);
+                    })
+                    // OR check vacation_apartments table (for vacation homes)
+                    ->orWhere(function ($vacationQuery) use ($bathroomsIntValue) {
+                        $vacationQuery->where('property_classification', 4)
+                            ->whereHas('vacationApartments', function ($aptQuery) use ($bathroomsIntValue) {
+                                $aptQuery->where('bathrooms', $bathroomsIntValue);
+                            });
+                    });
                 });
             }
 

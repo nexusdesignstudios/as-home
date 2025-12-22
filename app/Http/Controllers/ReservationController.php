@@ -303,6 +303,9 @@ class ReservationController extends Controller
             'reservable_type' => 'required|in:property,hotel_room',
             'check_in_date' => 'required|date|after_or_equal:today',
             'check_out_date' => 'required|date|after:check_in_date',
+            // Vacation apartment specific (optional) — used for vacation homes
+            'apartment_id' => 'nullable|integer|exists:vacation_apartments,id',
+            'apartment_quantity' => 'nullable|integer|min:1',
         ]);
 
         // Custom validation for dates - use timezone-aware comparison
@@ -326,17 +329,52 @@ class ReservationController extends Controller
             ? 'App\\Models\\Property'
             : 'App\\Models\\HotelRoom';
 
-        // Check availability
+        // Prepare data array for apartment-specific availability checking
+        $data = [];
+        if ($request->apartment_id) {
+            $data['apartment_id'] = $request->apartment_id;
+            $data['apartment_quantity'] = $request->apartment_quantity ?? 1;
+        }
+
+        // Check availability with apartment data
         $isAvailable = $this->reservationService->areDatesAvailable(
             $modelType,
             $request->reservable_id,
             $request->check_in_date,
-            $request->check_out_date
+            $request->check_out_date,
+            null, // excludeReservationId
+            $data  // apartment data
         );
 
-        ApiResponseService::successResponse('Availability checked successfully', [
-            'is_available' => $isAvailable
-        ]);
+        // For vacation homes with apartments, get unit availability details
+        $responseData = ['is_available' => $isAvailable];
+        
+        if ($request->reservable_type === 'property' && $request->apartment_id) {
+            $apartment = \App\Models\VacationApartment::find($request->apartment_id);
+            if ($apartment && $apartment->property_id == $request->reservable_id) {
+                $totalUnits = $apartment->quantity;
+                
+                // Count booked units for this apartment on these dates
+                $bookedUnits = $this->reservationService->countBookedUnitsForApartment(
+                    $request->reservable_id,
+                    $request->apartment_id,
+                    $request->check_in_date,
+                    $request->check_out_date
+                );
+                
+                $availableUnits = $totalUnits - $bookedUnits;
+                $requestedQuantity = $request->apartment_quantity ?? 1;
+                
+                $responseData['apartment_id'] = $request->apartment_id;
+                $responseData['total_units'] = $totalUnits;
+                $responseData['booked_units'] = $bookedUnits;
+                $responseData['available_units'] = $availableUnits;
+                $responseData['can_book_quantity'] = $availableUnits;
+                $responseData['is_available'] = $availableUnits >= $requestedQuantity;
+            }
+        }
+
+        ApiResponseService::successResponse('Availability checked successfully', $responseData);
     }
 
     /**
@@ -404,18 +442,6 @@ class ReservationController extends Controller
                     ApiResponseService::errorResponse('Property not found');
                 }
 
-                // Check availability first
-                $isAvailable = $this->reservationService->areDatesAvailable(
-                    $modelType,
-                    $request->reservable_id,
-                    $request->check_in_date,
-                    $request->check_out_date
-                );
-
-                if (!$isAvailable) {
-                    ApiResponseService::errorResponse('Selected dates are not available for this property');
-                }
-
                 // Calculate total price
                 $checkIn = Carbon::parse($request->check_in_date);
                 $checkOut = Carbon::parse($request->check_out_date);
@@ -427,6 +453,51 @@ class ReservationController extends Controller
                 $apartmentQuantity = $request->apartment_quantity ?? 1;
 
                 $isVacationHome = $property->getRawOriginal('property_classification') == 4;
+                
+                // Prepare data array for apartment-specific availability checking
+                $data = [];
+                if ($isVacationHome && $selectedApartmentId) {
+                    $data['apartment_id'] = $selectedApartmentId;
+                    $data['apartment_quantity'] = $apartmentQuantity;
+                }
+
+                // Check availability with apartment data
+                $isAvailable = $this->reservationService->areDatesAvailable(
+                    $modelType,
+                    $request->reservable_id,
+                    $request->check_in_date,
+                    $request->check_out_date,
+                    null, // excludeReservationId
+                    $data  // apartment data
+                );
+
+                if (!$isAvailable) {
+                    // For vacation homes with apartments, provide more specific error message
+                    if ($isVacationHome && $selectedApartmentId) {
+                        $apartment = \App\Models\VacationApartment::where('id', $selectedApartmentId)
+                            ->where('property_id', $property->id)
+                            ->first();
+                        
+                        if ($apartment) {
+                            $totalUnits = $apartment->quantity;
+                            $bookedUnits = $this->reservationService->countBookedUnitsForApartment(
+                                $request->reservable_id,
+                                $selectedApartmentId,
+                                $request->check_in_date,
+                                $request->check_out_date
+                            );
+                            $availableUnits = $totalUnits - $bookedUnits;
+                            
+                            if ($availableUnits == 0) {
+                                ApiResponseService::errorResponse('All units are booked for the selected dates');
+                            } else {
+                                ApiResponseService::errorResponse("Only {$availableUnits} unit(s) available for the selected dates. You requested {$apartmentQuantity} unit(s).");
+                            }
+                        }
+                    }
+                    
+                    ApiResponseService::errorResponse('Selected dates are not available for this property');
+                }
                 if ($isVacationHome && $selectedApartmentId) {
                     $apartment = \App\Models\VacationApartment::where('id', $selectedApartmentId)
                         ->where('property_id', $property->id)
@@ -870,6 +941,9 @@ class ReservationController extends Controller
             'check_out_date' => 'required|date|after:check_in_date',
             'number_of_guests' => 'integer|min:1',
             'special_requests' => 'nullable|string',
+            // Vacation apartment specific (optional) — used for vacation homes
+            'apartment_id' => 'nullable|integer|exists:vacation_apartments,id',
+            'apartment_quantity' => 'nullable|integer|min:1',
             'payment' => 'required|array',
             'payment.amount' => 'required|numeric|min:1',
             'payment.email' => 'required|email',
@@ -929,15 +1003,52 @@ class ReservationController extends Controller
                     ApiResponseService::errorResponse('Property not found');
                 }
 
-                // Check availability first
+                // Prepare data array for apartment-specific availability checking
+                $selectedApartmentId = $request->apartment_id;
+                $apartmentQuantity = $request->apartment_quantity ?? 1;
+                $isVacationHome = $property->getRawOriginal('property_classification') == 4;
+                
+                $data = [];
+                if ($isVacationHome && $selectedApartmentId) {
+                    $data['apartment_id'] = $selectedApartmentId;
+                    $data['apartment_quantity'] = $apartmentQuantity;
+                }
+
+                // Check availability with apartment data
                 $isAvailable = $this->reservationService->areDatesAvailable(
                     $modelType,
                     $request->reservable_id,
                     $request->check_in_date,
-                    $request->check_out_date
+                    $request->check_out_date,
+                    null, // excludeReservationId
+                    $data  // apartment data
                 );
 
                 if (!$isAvailable) {
+                    // For vacation homes with apartments, provide more specific error message
+                    if ($isVacationHome && $selectedApartmentId) {
+                        $apartment = \App\Models\VacationApartment::where('id', $selectedApartmentId)
+                            ->where('property_id', $property->id)
+                            ->first();
+                        
+                        if ($apartment) {
+                            $totalUnits = $apartment->quantity;
+                            $bookedUnits = $this->reservationService->countBookedUnitsForApartment(
+                                $request->reservable_id,
+                                $selectedApartmentId,
+                                $request->check_in_date,
+                                $request->check_out_date
+                            );
+                            $availableUnits = $totalUnits - $bookedUnits;
+                            
+                            if ($availableUnits == 0) {
+                                ApiResponseService::errorResponse('All units are booked for the selected dates');
+                            } else {
+                                ApiResponseService::errorResponse("Only {$availableUnits} unit(s) available for the selected dates. You requested {$apartmentQuantity} unit(s).");
+                            }
+                        }
+                    }
+                    
                     ApiResponseService::errorResponse('Selected dates are not available for this property');
                 }
 
@@ -984,7 +1095,14 @@ class ReservationController extends Controller
                 $reservation = null;
                 $payment = null;
 
-                DB::transaction(function () use ($request, $modelType, $discountInfo, $transactionId, &$reservation, &$payment) {
+                // Prepare special_requests with apartment info if applicable
+                $specialRequests = $request->special_requests ?? '';
+                if ($isVacationHome && $selectedApartmentId) {
+                    $specialRequests = trim($specialRequests . ' ' .
+                        'Apartment ID: ' . $selectedApartmentId . ', Quantity: ' . max(1, (int)$apartmentQuantity));
+                }
+
+                DB::transaction(function () use ($request, $modelType, $discountInfo, $transactionId, &$reservation, &$payment, $specialRequests) {
                     // Create temporary reservation to hold the details
                     $reservation = Reservation::create([
                         'customer_id' => Auth::guard('sanctum')->user()->id,
@@ -998,7 +1116,7 @@ class ReservationController extends Controller
                         'original_amount' => $discountInfo['original_amount'] ?? $discountInfo['final_amount'],
                         'discount_percentage' => $discountInfo['discount_percentage'] ?? 0,
                         'discount_amount' => $discountInfo['discount_amount'] ?? 0,
-                        'special_requests' => $request->special_requests,
+                        'special_requests' => $specialRequests,
                         'status' => 'pending',
                         'payment_status' => 'unpaid',
                         'payment_method' => 'paymob',

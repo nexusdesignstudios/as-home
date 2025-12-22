@@ -1,7 +1,7 @@
 @extends('layouts.main')
 
 @section('title')
-    {{ __('Update Blog') }}
+    {{ __('Update Article') }}
 @endsection
 
 @section('page-title')
@@ -15,7 +15,7 @@
                 <nav aria-label="breadcrumb" class="breadcrumb-header float-start float-lg-end">
                     <ol class="breadcrumb">
                         <li class="breadcrumb-item">
-                            <a href="{{ route('article.index') }}" id="subURL">{{ __('View Blog') }}</a>
+                            <a href="{{ route('article.index') }}" id="subURL">{{ __('View Article') }}</a>
                         </li>
                         <li class="breadcrumb-item active" aria-current="page">
                             {{ __('Update') }}
@@ -33,7 +33,7 @@
             <div class="col-md-7 col-sm-12">
                 <div class="card article_form">
                     <div class="card-header add_article_header">
-                        {{ __('Update Blog') }}
+                        {{ __('Update Article') }}
                     </div>
                     <hr>
                     {!! Form::open([ 'route' => ['article.update', $id], 'data-parsley-validate', 'files' => true, 'method' => 'PATCH', ]) !!}
@@ -53,10 +53,17 @@
                                 <small class="text-danger text-sm">{{ __("Only Small English Characters, Numbers And Hypens Allowed") }}</small>
                             </div>
 
-                            {{-- Label Title --}}
+                            {{-- Category --}}
                             <div class="col-md-12 col-12 form-group mandatory">
-                                {{ Form::label('label_title', __('Label Title'), ['class' => 'form-label col-12 ']) }}
-                                {{ Form::text('label_title', $list->label_title ?? '', ['class' => 'form-control', 'placeholder' => __('Enter label title'), 'required' => true]) }}
+                                {{ Form::label('category', __('Category'), ['class' => 'form-label col-12 ']) }}
+                                <select name="category" class="form-select form-control-sm" data-parsley-minSelect='1' required>
+                                    <option value="0"> General </option>
+                                    @foreach ($category as $row)
+                                        <option value="{{ $row->id }}" data-parametertypes='{{ $row->parameter_types }}' {{ $row->id == $list->category_id ? 'selected' : '' }}>
+                                            {{ $row->category }}
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
 
                             {{-- Image --}}
@@ -70,7 +77,7 @@
                                         <p class="text-muted mt-2"><small>{{ __('Upload a new image to replace the current one.') }}</small></p>
                                     </div>
                                 @else
-                                    <small class="text-muted">{{ __('No image uploaded yet. Upload an image for the blog.') }}</small>
+                                    <small class="text-muted">{{ __('No image uploaded yet. Upload an image for the article.') }}</small>
                                 @endif
                             </div>
 
@@ -116,7 +123,7 @@
 
                 <div class="card edit_recent_articles">
                     <div class="card-header add_article_header">
-                        {{ __('Recent Blogs') }}
+                        {{ __('Recent Articles') }}
                     </div>
                     <hr>
                     <div class="card-body">
@@ -126,7 +133,7 @@
                                     <img class="article_img" src="{{ $row->image != '' ? $row->image : url('assets/images/bg/Login_BG.jpg') }}" alt="">
                                     <div class="article_details">
                                         <div class="article_category">
-                                            {{ $row->label_title ?? 'General' }}
+                                            {{ $row->category ? $row->category->category : 'General' }}
                                         </div>
                                         <div class="article_title">
                                             {{ $row->title }}
