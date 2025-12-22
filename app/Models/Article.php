@@ -8,16 +8,32 @@ use App\Traits\HasAppTimezone;
 class Article extends Model
 {
     use HasFactory, HasAppTimezone;
+    
+    protected $fillable = [
+        'title',
+        'slug_id',
+        'description',
+        'image',
+        'meta_title',
+        'meta_description',
+        'meta_keywords',
+        'category_id',
+        'label_title'
+    ];
+    
     protected $dates = ['created_at', 'updated_at', 'deleted_at'];
+    
     public function getImageAttribute($image)
     {
         // return false;
         return $image != '' ? url('') . config('global.IMG_PATH') . config('global.ARTICLE_IMG_PATH') . $image : '';
     }
+    
     public function category()
     {
         return $this->belongsTo(Category::class,'category_id');
     }
+    
     // public function getCreatedAtAttribute($value){
     //     return \Carbon\Carbon::parse($value)->diffForHumans();
     // }

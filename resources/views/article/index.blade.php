@@ -1,7 +1,7 @@
 @extends('layouts.main')
 
 @section('title')
-    {{ __('Article') }}
+    {{ __('Blog') }}
 @endsection
 
 @section('page-title')
@@ -19,7 +19,7 @@
                             d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8.5 4.5a.5.5 0 0 0-1 0v3h-3a.5.5 0 0 0 0 1h3v3a.5.5 0 0 0 1 0v-3h3a.5.5 0 0 0 0-1h-3v-3z">
                         </path>
                     </svg>
-                    {{ __('Add Article') }}
+                    {{ __('Add Blog') }}
                 </a>
             @endif
 		</div>
@@ -46,7 +46,7 @@
                                     <th scope="col" data-field="id" data-sortable="true">{{ __('ID') }}</th>
                                     <th scope="col" data-field="title" data-sortable="true">{{ __('Title') }}</th>
                                     <th scope="col" data-field="description" data-sortable="true">{{ __('Description') }}</th>
-                                    <th scope="col" data-field="category_title" data-sortable="false">{{ __('Category Title') }}</th>
+                                    <th scope="col" data-field="category_title" data-sortable="false">{{ __('Label Title') }}</th>
                                     <th scope="col" data-field="image" data-formatter="imageFormatter" data-sortable="false" data-align="center">{{ __('Image') }}</th>
                                     <th scope="col" data-field="meta_title" data-sortable="false" data-visible="false">{{ __('Meta Title') }}</th>
                                     <th scope="col" data-field="meta_description" data-sortable="false" data-visible="false">{{ __('Meta Description') }}</th>

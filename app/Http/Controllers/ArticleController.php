@@ -39,9 +39,8 @@ class ArticleController extends Controller
         if (!has_permissions('create', 'article')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
-        $category = Category::where('status', 1)->get();
-        $recent_articles = Article::with('category:id,category')->orderBy('id', 'DESC')->limit(5)->get();
-        return view('article.create', ['category' => $category, 'recent_articles' => $recent_articles]);
+        $recent_articles = Article::orderBy('id', 'DESC')->limit(5)->get();
+        return view('article.create', ['recent_articles' => $recent_articles]);
     }
 
     /**
@@ -65,7 +64,7 @@ class ArticleController extends Controller
                 $article->title = $request->title;
                 $article->slug_id = $request->slug ?? generateUniqueSlug($request->title,2);
                 $article->description = $request->description;
-                $article->category_id = isset($request->category) ? $request->category : '';
+                $article->label_title = $request->label_title;
 
                 if ($request->hasFile('image')) {
                     $article->image = \store_image($request->file('image'), 'ARTICLE_IMG_PATH');
@@ -100,17 +99,11 @@ class ArticleController extends Controller
         $order = request('order', 'DESC');
         $search = request('search');
 
-        $sql = Article::with('category')
-            ->when($search, function ($query) use ($search) {
+        $sql = Article::when($search, function ($query) use ($search) {
                 $query->where(function ($query) use ($search) {
                     $query->where('id', 'LIKE', "%$search%")
                         ->orWhere('title', 'LIKE', "%$search%")
-                        ->orWhereHas('category',function($query) use($search){
-                            $query->where('category','LIKE', "%$search%");
-                        });
-                    if (Str::contains(Str::lower($search), 'general')) {
-                        $query->orWhere('category_id', 0);
-                    }
+                        ->orWhere('label_title', 'LIKE', "%$search%");
                 });
             });
 
@@ -130,7 +123,7 @@ class ArticleController extends Controller
             $operate .= BootstrapTableService::deleteAjaxButton(route('article.destroy', $row->id));
 
             $tempRow = $row->toArray();
-            $tempRow['category_title'] = $row->category_id == 0 ? 'General' : $row->category->category;
+            $tempRow['category_title'] = $row->label_title ?? 'General';
             $tempRow['operate'] = $operate;
             $rows[] = $tempRow;
         }
@@ -151,10 +144,12 @@ class ArticleController extends Controller
         if (!has_permissions('update', 'article')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
-        $list = Article::where('id', $id)->first();
-        $category = Category::all();
-        $recent_articles = Article::with('category:id,category')->orderBy('id', 'DESC')->limit(6)->get();
-        return view('article.edit', compact('list', 'category', 'id', 'recent_articles'));
+        $list = Article::find($id);
+        if (!$list) {
+            return redirect()->route('article.index')->with('error', 'Blog not found');
+        }
+        $recent_articles = Article::orderBy('id', 'DESC')->limit(6)->get();
+        return view('article.edit', compact('list', 'id', 'recent_articles'));
     }
 
     /**
@@ -175,6 +170,9 @@ class ArticleController extends Controller
         ]);
         try {
             $updateArticle = Article::find($id);
+            if (!$updateArticle) {
+                return back()->with('error', 'Blog not found');
+            }
             if ($request->hasFile('image')) {
                 \unlink_image($updateArticle->image);
                 $updateArticle->image = \store_image($request->file('image'), 'ARTICLE_IMG_PATH');
@@ -185,7 +183,7 @@ class ArticleController extends Controller
             $updateArticle->meta_description = $request->edit_meta_description;
             $updateArticle->meta_keywords = $request->meta_keywords;
             $updateArticle->description = $request->description;
-            $updateArticle->category_id = isset($request->category) ? $request->category : '';
+            $updateArticle->label_title = $request->label_title;
             $updateArticle->update();
             return back()->with('success', 'Successfully Update');
         } catch (Exception $e) {

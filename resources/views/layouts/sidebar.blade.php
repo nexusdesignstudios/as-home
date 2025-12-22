@@ -273,12 +273,12 @@
                     </li>
                 @endif
 
-                {{-- Article --}}
+                {{-- Blog --}}
                 @if (has_permissions('read', 'article'))
                     <li class="sidebar-item">
                         <a href="{{ url('article') }}" class='sidebar-link'>
                             <i class="bi bi-vector-pen"></i>
-                            <span class="menu-item">{{ __('Article') }}</span>
+                            <span class="menu-item">{{ __('Blog') }}</span>
                         </a>
                     </li>
                 @endif

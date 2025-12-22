@@ -1,7 +1,7 @@
 @extends('layouts.main')
 
 @section('title')
-    {{ __('Add Article') }}
+    {{ __('Add Blog') }}
 @endsection
 
 @section('page-title')
@@ -14,7 +14,7 @@
                 <nav aria-label="breadcrumb" class="breadcrumb-header float-start float-lg-end">
                     <ol class="breadcrumb">
                         <li class="breadcrumb-item">
-                            <a href="{{ route('article.index') }}" id="subURL">{{ __('View Article') }}</a>
+                            <a href="{{ route('article.index') }}" id="subURL">{{ __('View Blog') }}</a>
                         </li>
                         <li class="breadcrumb-item active" aria-current="page">
                             {{ __('Add') }}
@@ -32,7 +32,7 @@
             <div class="col-md-7 col-sm-12">
                 <div class="card">
                     <div class="card-header add_article_header">
-                        {{ __('New Article') }}
+                        {{ __('New Blog') }}
                     </div>
                     <hr>
                     {!! Form::open(['route' => 'article.store', 'data-parsley-validate', 'files' => true]) !!}
@@ -51,25 +51,17 @@
                                 <small class="text-danger text-sm">{{ __("Only Small English Characters, Numbers And Hypens Allowed") }}</small>
                             </div>
 
-                            {{-- Category --}}
+                            {{-- Label Title --}}
                             <div class="col-md-12 col-12 form-group mandatory">
-                                {{ Form::label('category', __('Category'), ['class' => 'form-label col-12 ']) }}
-                                <select name="category" class="form-select form-control-sm" data-parsley-minSelect='1' required>
-                                    <option value="0"> General </option>
-                                    @foreach ($category as $row)
-                                        <option value="{{ $row->id }}"
-                                            data-parametertypes='{{ $row->parameter_types }}'>
-                                            {{ $row->category }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                {{ Form::label('label_title', __('Label Title'), ['class' => 'form-label col-12 ']) }}
+                                {{ Form::text('label_title', '', ['class' => 'form-control', 'placeholder' => __('Enter label title'), 'required' => true]) }}
                             </div>
 
                             {{-- Image --}}
                             <div class="col-md-12 col-sm-12 form-group mandatory">
                                 {{ Form::label('image', __('Image'), ['class' => 'col-12 form-label']) }}
                                 <input accept="image/jpg,image/png,image/jpeg" name='image' type='file' class="form-control filepond" id="article_image" required />
-                                <small class="text-muted">{{ __('Upload an image for the article. Image will be previewed automatically.') }}</small>
+                                <small class="text-muted">{{ __('Upload an image for the blog. Image will be previewed automatically.') }}</small>
                             </div>
                         </div>
                         {{-- Description --}}
@@ -115,7 +107,7 @@
 
                 <div class="card">
                     <div class="card-header add_article_header">
-                        {{ __('Recent Articles') }}
+                        {{ __('Recent Blogs') }}
                     </div>
                     <hr>
 
@@ -132,9 +124,9 @@
                                     {{-- Article Details --}}
                                     <div class="article_details">
 
-                                        {{-- Article Category --}}
+                                        {{-- Blog Category --}}
                                         <div class="article_category">
-                                            {{ $row->category ? $row->category->category : 'General' }}
+                                            {{ $row->label_title ?? 'General' }}
                                         </div>
 
                                         {{-- Article Title --}}
