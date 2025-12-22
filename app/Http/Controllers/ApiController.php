@@ -793,18 +793,20 @@ class ApiController extends Controller
         // If bedrooms filter is passed - exact match on parameter value
         // For regular properties: check parameters table
         // For vacation homes (property_classification = 4): also check vacation_apartments table
+        // Special handling: When "0" is sent (Studio), match both "0" and "studio" (case-insensitive)
         if ($request->has('bedrooms') && $request->bedrooms !== null && $request->bedrooms !== '') {
             $bedroomsValue = (string) $request->bedrooms;
             $bedroomsIntValue = (int) $bedroomsValue; // For vacation apartments comparison
+            $isStudio = ($bedroomsValue === '0'); // Check if filtering for Studio
             
-            $property = $property->where(function ($query) use ($bedroomsValue, $bedroomsIntValue) {
+            $property = $property->where(function ($query) use ($bedroomsValue, $bedroomsIntValue, $isStudio) {
                 // Check parameters table (for regular properties)
                 // Handle both plain string values and JSON-encoded values
                 // Also handle both morphMany (modal_id) and direct property_id relationships
-                $query->where(function ($subQuery) use ($bedroomsValue) {
+                $query->where(function ($subQuery) use ($bedroomsValue, $isStudio) {
                     // Check directly via assign_parameters table
                     // This handles both property_id matches AND modal_id matches (polymorphic)
-                    $subQuery->whereExists(function ($existsQuery) use ($bedroomsValue) {
+                    $subQuery->whereExists(function ($existsQuery) use ($bedroomsValue, $isStudio) {
                         $existsQuery->select(DB::raw(1))
                             ->from('assign_parameters')
                             ->join('parameters', 'assign_parameters.parameter_id', '=', 'parameters.id')
@@ -823,7 +825,21 @@ class ApiController extends Controller
                                 $nameQuery->where('parameters.name', 'LIKE', '%bedroom%')
                                     ->orWhere('parameters.name', 'LIKE', '%bed%');
                             })
-                            ->where('assign_parameters.value', $bedroomsValue);
+                            ->where(function ($valueQuery) use ($bedroomsValue, $isStudio) {
+                                if ($isStudio) {
+                                    // For Studio (0), match both "0" and "studio" (case-insensitive)
+                                    $valueQuery->where('assign_parameters.value', '0')
+                                        ->orWhereRaw('LOWER(assign_parameters.value) = ?', ['studio'])
+                                        ->orWhere('assign_parameters.value', 'Studio')
+                                        ->orWhere('assign_parameters.value', 'STUDIO');
+                                } else {
+                                    // For other values, exact match
+                                    $valueQuery->where('assign_parameters.value', $bedroomsValue)
+                                        ->orWhere('assign_parameters.value', '"' . $bedroomsValue . '"')
+                                        ->orWhereRaw('JSON_EXTRACT(assign_parameters.value, "$") = ?', [$bedroomsValue])
+                                        ->orWhereRaw('CAST(JSON_EXTRACT(assign_parameters.value, "$") AS CHAR) = ?', [$bedroomsValue]);
+                                }
+                            });
                     });
                 })
                 // OR check vacation_apartments table (for vacation homes)
@@ -7167,18 +7183,20 @@ class ApiController extends Controller
             // If bedrooms filter is passed - exact match on parameter value
             // For regular properties: check parameters table
             // For vacation homes (property_classification = 4): also check vacation_apartments table
+            // Special handling: When "0" is sent (Studio), match both "0" and "studio" (case-insensitive)
             if ($request->has('bedrooms') && $request->bedrooms !== null && $request->bedrooms !== '') {
                 $bedroomsValue = (string) $request->bedrooms;
                 $bedroomsIntValue = (int) $bedroomsValue; // For vacation apartments comparison
+                $isStudio = ($bedroomsValue === '0'); // Check if filtering for Studio
                 
-                $propertyQuery = $propertyQuery->clone()->where(function ($query) use ($bedroomsValue, $bedroomsIntValue) {
+                $propertyQuery = $propertyQuery->clone()->where(function ($query) use ($bedroomsValue, $bedroomsIntValue, $isStudio) {
                     // Check parameters table (for regular properties)
                     // Handle both plain string values and JSON-encoded values
                     // Also handle both morphMany (modal_id) and direct property_id relationships
-                    $query->where(function ($subQuery) use ($bedroomsValue) {
+                    $query->where(function ($subQuery) use ($bedroomsValue, $isStudio) {
                         // Check directly via assign_parameters table
                         // This handles both property_id matches AND modal_id matches (polymorphic)
-                        $subQuery->whereExists(function ($existsQuery) use ($bedroomsValue) {
+                        $subQuery->whereExists(function ($existsQuery) use ($bedroomsValue, $isStudio) {
                             $existsQuery->select(DB::raw(1))
                                 ->from('assign_parameters')
                                 ->join('parameters', 'assign_parameters.parameter_id', '=', 'parameters.id')
@@ -7198,11 +7216,20 @@ class ApiController extends Controller
                                     $nameQuery->where('parameters.name', 'LIKE', '%bedroom%')
                                         ->orWhere('parameters.name', 'LIKE', '%bed%');
                                 })
-                                ->where(function ($valueQuery) use ($bedroomsValue) {
-                                    $valueQuery->where('assign_parameters.value', $bedroomsValue)
-                                        ->orWhere('assign_parameters.value', '"' . $bedroomsValue . '"')
-                                        ->orWhereRaw('JSON_EXTRACT(assign_parameters.value, "$") = ?', [$bedroomsValue])
-                                        ->orWhereRaw('CAST(JSON_EXTRACT(assign_parameters.value, "$") AS CHAR) = ?', [$bedroomsValue]);
+                                ->where(function ($valueQuery) use ($bedroomsValue, $isStudio) {
+                                    if ($isStudio) {
+                                        // For Studio (0), match both "0" and "studio" (case-insensitive)
+                                        $valueQuery->where('assign_parameters.value', '0')
+                                            ->orWhereRaw('LOWER(assign_parameters.value) = ?', ['studio'])
+                                            ->orWhere('assign_parameters.value', 'Studio')
+                                            ->orWhere('assign_parameters.value', 'STUDIO');
+                                    } else {
+                                        // For other values, exact match with JSON support
+                                        $valueQuery->where('assign_parameters.value', $bedroomsValue)
+                                            ->orWhere('assign_parameters.value', '"' . $bedroomsValue . '"')
+                                            ->orWhereRaw('JSON_EXTRACT(assign_parameters.value, "$") = ?', [$bedroomsValue])
+                                            ->orWhereRaw('CAST(JSON_EXTRACT(assign_parameters.value, "$") AS CHAR) = ?', [$bedroomsValue]);
+                                    }
                                 });
                         });
                     })
