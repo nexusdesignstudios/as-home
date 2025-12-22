@@ -55,8 +55,8 @@
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 @else
-                    <div class="table-responsive">
-                        <table class="table table-striped" id="property-terms-table">
+                    <div class="table-responsive" style="max-height: none;">
+                        <table class="table table-striped" id="property-terms-table" style="table-layout: auto;">
                             <thead>
                                 <tr>
                                     <th>{{ __('ID') }}</th>
@@ -91,7 +91,11 @@
                                                     {{ __('Unknown') }}
                                             @endswitch
                                         </td>
-                                        <td>{{ \Illuminate\Support\Str::limit($term->terms_conditions, 100) }}</td>
+                                        <td>
+                                            <div class="terms-conditions-cell">
+                                                {!! $term->terms_conditions !!}
+                                            </div>
+                                        </td>
                                         <td>{{ $term->created_at->format('Y-m-d') }}</td>
                                         <td>
                                             <div class="d-flex">
@@ -123,9 +127,70 @@
 @endsection
 
 @section('page-script')
+<style>
+    .terms-conditions-cell {
+        max-width: 800px;
+        min-width: 400px;
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+        overflow: visible !important;
+        max-height: none !important;
+        height: auto !important;
+        padding: 15px;
+        line-height: 1.8;
+        font-size: 14px;
+        color: #333;
+    }
+    
+    .terms-conditions-cell * {
+        max-width: 100% !important;
+        overflow: visible !important;
+        max-height: none !important;
+        height: auto !important;
+    }
+    
+    .terms-conditions-cell p,
+    .terms-conditions-cell div,
+    .terms-conditions-cell span {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+    }
+    
+    #property-terms-table td {
+        vertical-align: top;
+    }
+    
+    #property-terms-table .terms-conditions-cell {
+        display: block;
+        max-height: none;
+        overflow: visible;
+    }
+    
+    #property-terms-table {
+        table-layout: auto;
+    }
+    
+    #property-terms-table th:nth-child(3),
+    #property-terms-table td:nth-child(3) {
+        width: 50%;
+        min-width: 400px;
+    }
+</style>
 <script>
     $(document).ready(function() {
-        $('#property-terms-table').DataTable();
+        $('#property-terms-table').DataTable({
+            "pageLength": 10,
+            "lengthMenu": [[5, 10, 25, 50, -1], [5, 10, 25, 50, "All"]],
+            "columnDefs": [
+                {
+                    "targets": [2], // Terms & Conditions column
+                    "orderable": false,
+                    "width": "50%"
+                }
+            ]
+        });
     });
 </script>
 @endsection
