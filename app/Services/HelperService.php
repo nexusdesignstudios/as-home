@@ -441,6 +441,99 @@ class HelperService
                                 'is_condition' => false,
                             ],
                             [
+                                'name' => 'special_requests',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'vacation_home_owner_booking_notification':
+                    return array(
+                        'title' => 'Vacation Home Owner Booking Notification',
+                        'type' => 'vacation_home_owner_booking_notification_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_owner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'customer_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'customer_email',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'customer_phone',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_address',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_in_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_out_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'number_of_guests',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_price',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'payment_status',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'special_requests',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'booking_date',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                            [
+                                'name' => 'total_price',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
                                 'name' => 'payment_status',
                                 'is_condition' => false,
                             ],
@@ -2171,6 +2264,11 @@ class HelperService
             [
                 'title' => 'Vacation Home Reservation Pending Approval',
                 'type' => 'vacation_home_pending_approval',
+                'category' => 'vacation_home',
+            ],
+            [
+                'title' => 'Vacation Home Owner Booking Notification',
+                'type' => 'vacation_home_owner_booking_notification',
                 'category' => 'vacation_home',
             ],
             [

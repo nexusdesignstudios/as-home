@@ -2368,8 +2368,8 @@ The {app_name} Team';
             }
 
             // Get email template data
-            $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes('new_booking_notification');
-            $templateData = system_setting('new_booking_notification_mail_template');
+            $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes('vacation_home_owner_booking_notification');
+            $templateData = system_setting('vacation_home_owner_booking_notification_mail_template');
             $appName = env('APP_NAME') ?? 'As-home';
 
             // Get property information
@@ -2405,7 +2405,77 @@ The {app_name} Team';
             );
 
             if (empty($templateData)) {
-                $templateData = 'New booking request received for your vacation home {property_name} from {customer_name} ({customer_email}). Amount: {total_price} {currency_symbol}. Check-in: {check_in_date}, Check-out: {check_out_date}. Number of Guests: {number_of_guests}. Special Requests: {special_requests}. Reservation ID: {reservation_id}. Please review and approve or reject this booking request in your dashboard.';
+                $templateData = 'Dear {property_owner_name},
+
+
+
+A new booking request has been received for your vacation home property.
+
+
+
+Booking Details:
+
+• Property: {property_name}
+
+• Address: {property_address}
+
+• Reservation ID: {reservation_id}
+
+
+
+Guest Information:
+
+• Name: {customer_name}
+
+• Email: {customer_email}
+
+• Phone: {customer_phone}
+
+
+
+Booking Period:
+
+• Check-in Date: {check_in_date}
+
+• Check-out Date: {check_out_date}
+
+• Number of Guests: {number_of_guests}
+
+
+
+Financial Details:
+
+• Total Amount: {currency_symbol}{total_amount}
+
+• Payment Status: {payment_status}
+
+
+
+Special Requests: {special_requests}
+
+
+
+Booking Date: {booking_date}
+
+
+
+⏳ Action Required: Please review and approve or reject this booking request in your dashboard.
+
+
+
+If you have any questions or need assistance, please don\'t hesitate to contact us at support@as-home-group.com or through your As-home account dashboard.
+
+
+
+Thank you for being part of As-home!
+
+
+
+Best regards,
+
+As-home Asset Management Team
+
+🌐 www.as-home-group.com';
             }
 
             $emailTemplate = \App\Services\HelperService::replaceEmailVariables($templateData, $variables);
@@ -2413,7 +2483,7 @@ The {app_name} Team';
             $data = array(
                 'email_template' => $emailTemplate,
                 'email' => $propertyOwner->email,
-                'title' => $emailTypeData['title'] ?? 'New Vacation Home Booking Request - Approval Required',
+                'title' => $emailTypeData['title'] ?? 'Vacation Home Owner Booking Notification',
             );
 
             \App\Services\HelperService::sendMail($data);
