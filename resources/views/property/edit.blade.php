@@ -724,173 +724,218 @@
         {{-- Agreement Documents Section --}}
         <div class="col-md-12">
             <div class="card">
-                <h3 class="card-header">{{ __('Agreement Documents') }}</h3>
-                <hr>
+                <div class="card-header bg-light">
+                    <h3 class="mb-0">{{ __('Agreement Documents') }}</h3>
+                </div>
                 <div class="card-body">
-                    <p class="text-muted mb-3">
-                        <i class="bi bi-info-circle"></i> {{ __('Upload document files (PDF, Word, images, etc.) for property agreements. All file types are accepted. Maximum file size: 10MB per document.') }}
-                    </p>
-                    <div class="row">
+                    <div class="alert alert-info mb-4">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>{{ __('Information:') }}</strong>
+                        {{ __('Upload document files (PDF, Word, images, etc.) for property agreements. All file types are accepted. Maximum file size: 10MB per document.') }}
+                    </div>
+                    <div class="row g-4">
                         {{-- Identity Proof --}}
-                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
-                            {{ Form::label('identity_proof', __('Identity Proof Document'), ['class' => 'form-label']) }}
-                            @php
-                                $identityProofRaw = $list->getRawOriginal('identity_proof');
-                            @endphp
-                            @if(!empty($identityProofRaw))
-                                <div class="mb-2">
-                                    <div class="d-flex gap-2 mb-2">
-                                        <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'identity_proof']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
-                                            <i class="bi bi-eye"></i> {{ __('View') }}
-                                        </a>
-                                        <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'identity_proof', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
-                                            <i class="bi bi-download"></i> {{ __('Download') }}
-                                        </a>
-                                    </div>
-                                    <div class="document-name-display">
-                                        <small class="text-muted d-block text-truncate" title="{{ $identityProofRaw }}">
-                                            <i class="bi bi-file-earmark-text me-1"></i>
-                                            <strong>{{ __('Identity Proof Document') }}</strong>
-                                        </small>
+                        <div class="col-sm-12 col-md-6 col-lg-4">
+                            <div class="card h-100 border">
+                                <div class="card-body">
+                                    <h6 class="card-title mb-3">
+                                        <i class="bi bi-file-earmark-text me-2"></i>
+                                        {{ __('Identity Proof Document') }}
+                                    </h6>
+                                    @php
+                                        $identityProofRaw = $list->getRawOriginal('identity_proof');
+                                    @endphp
+                                    @if(!empty($identityProofRaw))
+                                        <div class="mb-3 p-3 bg-light rounded">
+                                            <div class="d-flex gap-2 mb-2">
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'identity_proof']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
+                                                    <i class="bi bi-eye me-1"></i> {{ __('View') }}
+                                                </a>
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'identity_proof', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
+                                                    <i class="bi bi-download me-1"></i> {{ __('Download') }}
+                                                </a>
+                                            </div>
+                                            <small class="text-muted d-block text-truncate" title="{{ $identityProofRaw }}">
+                                                <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                                <strong>{{ __('Document Uploaded') }}</strong>
+                                            </small>
+                                        </div>
+                                    @endif
+                                    <div class="mt-2">
+                                        <input type="file" class="filepond-document" id="identity_proof" name="identity_proof" accept="*/*">
                                     </div>
                                 </div>
-                            @endif
-                            <input type="file" class="filepond-document" id="identity_proof" name="identity_proof" accept="*/*">
+                            </div>
                         </div>
 
                         {{-- National ID/Passport --}}
-                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
-                            {{ Form::label('national_id_passport', __('National ID/Passport Document'), ['class' => 'form-label']) }}
-                            @php
-                                $nationalIdRaw = $list->getRawOriginal('national_id_passport');
-                            @endphp
-                            @if(!empty($nationalIdRaw))
-                                <div class="mb-2">
-                                    <div class="d-flex gap-2 mb-2">
-                                        <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'national-id']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
-                                            <i class="bi bi-eye"></i> {{ __('View') }}
-                                        </a>
-                                        <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'national-id', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
-                                            <i class="bi bi-download"></i> {{ __('Download') }}
-                                        </a>
-                                    </div>
-                                    <div class="document-name-display">
-                                        <small class="text-muted d-block text-truncate" title="{{ $nationalIdRaw }}">
-                                            <i class="bi bi-file-earmark-text me-1"></i>
-                                            <strong>{{ __('National ID/Passport Document') }}</strong>
-                                        </small>
+                        <div class="col-sm-12 col-md-6 col-lg-4">
+                            <div class="card h-100 border">
+                                <div class="card-body">
+                                    <h6 class="card-title mb-3">
+                                        <i class="bi bi-file-earmark-text me-2"></i>
+                                        {{ __('National ID/Passport Document') }}
+                                    </h6>
+                                    @php
+                                        $nationalIdRaw = $list->getRawOriginal('national_id_passport');
+                                    @endphp
+                                    @if(!empty($nationalIdRaw))
+                                        <div class="mb-3 p-3 bg-light rounded">
+                                            <div class="d-flex gap-2 mb-2">
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'national-id']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
+                                                    <i class="bi bi-eye me-1"></i> {{ __('View') }}
+                                                </a>
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'national-id', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
+                                                    <i class="bi bi-download me-1"></i> {{ __('Download') }}
+                                                </a>
+                                            </div>
+                                            <small class="text-muted d-block text-truncate" title="{{ $nationalIdRaw }}">
+                                                <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                                <strong>{{ __('Document Uploaded') }}</strong>
+                                            </small>
+                                        </div>
+                                    @endif
+                                    <div class="mt-2">
+                                        <input type="file" class="filepond-document" id="national_id_passport" name="national_id_passport" accept="*/*">
                                     </div>
                                 </div>
-                            @endif
-                            <input type="file" class="filepond-document" id="national_id_passport" name="national_id_passport" accept="*/*">
+                            </div>
                         </div>
 
                         {{-- Alternative ID --}}
-                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
-                            {{ Form::label('alternative_id', __('Alternative ID Document'), ['class' => 'form-label']) }}
-                            @php
-                                $alternativeIdRaw = $list->getRawOriginal('alternative_id');
-                            @endphp
-                            @if(!empty($alternativeIdRaw))
-                                <div class="mb-2">
-                                    <div class="d-flex gap-2 mb-2">
-                                        <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'alternative-id']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
-                                            <i class="bi bi-eye"></i> {{ __('View') }}
-                                        </a>
-                                        <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'alternative-id', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
-                                            <i class="bi bi-download"></i> {{ __('Download') }}
-                                        </a>
-                                    </div>
-                                    <div class="document-name-display">
-                                        <small class="text-muted d-block text-truncate" title="{{ $alternativeIdRaw }}">
-                                            <i class="bi bi-file-earmark-text me-1"></i>
-                                            <strong>{{ __('Alternative ID Document') }}</strong>
-                                        </small>
+                        <div class="col-sm-12 col-md-6 col-lg-4">
+                            <div class="card h-100 border">
+                                <div class="card-body">
+                                    <h6 class="card-title mb-3">
+                                        <i class="bi bi-file-earmark-text me-2"></i>
+                                        {{ __('Alternative ID Document') }}
+                                    </h6>
+                                    @php
+                                        $alternativeIdRaw = $list->getRawOriginal('alternative_id');
+                                    @endphp
+                                    @if(!empty($alternativeIdRaw))
+                                        <div class="mb-3 p-3 bg-light rounded">
+                                            <div class="d-flex gap-2 mb-2">
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'alternative-id']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
+                                                    <i class="bi bi-eye me-1"></i> {{ __('View') }}
+                                                </a>
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'alternative-id', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
+                                                    <i class="bi bi-download me-1"></i> {{ __('Download') }}
+                                                </a>
+                                            </div>
+                                            <small class="text-muted d-block text-truncate" title="{{ $alternativeIdRaw }}">
+                                                <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                                <strong>{{ __('Document Uploaded') }}</strong>
+                                            </small>
+                                        </div>
+                                    @endif
+                                    <div class="mt-2">
+                                        <input type="file" class="filepond-document" id="alternative_id" name="alternative_id" accept="*/*">
                                     </div>
                                 </div>
-                            @endif
-                            <input type="file" class="filepond-document" id="alternative_id" name="alternative_id" accept="*/*">
+                            </div>
                         </div>
 
                         {{-- Utilities Bills --}}
-                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
-                            {{ Form::label('utilities_bills', __('Utilities Bills Document'), ['class' => 'form-label']) }}
-                            @php
-                                $utilitiesBillsRaw = $list->getRawOriginal('utilities_bills');
-                            @endphp
-                            @if(!empty($utilitiesBillsRaw))
-                                <div class="mb-2">
-                                    <div class="d-flex gap-2 mb-2">
-                                        <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'utilities-bills']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
-                                            <i class="bi bi-eye"></i> {{ __('View') }}
-                                        </a>
-                                        <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'utilities-bills', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
-                                            <i class="bi bi-download"></i> {{ __('Download') }}
-                                        </a>
-                                    </div>
-                                    <div class="document-name-display">
-                                        <small class="text-muted d-block text-truncate" title="{{ $utilitiesBillsRaw }}">
-                                            <i class="bi bi-file-earmark-text me-1"></i>
-                                            <strong>{{ __('Utilities Bills Document') }}</strong>
-                                        </small>
+                        <div class="col-sm-12 col-md-6 col-lg-4">
+                            <div class="card h-100 border">
+                                <div class="card-body">
+                                    <h6 class="card-title mb-3">
+                                        <i class="bi bi-file-earmark-text me-2"></i>
+                                        {{ __('Utilities Bills Document') }}
+                                    </h6>
+                                    @php
+                                        $utilitiesBillsRaw = $list->getRawOriginal('utilities_bills');
+                                    @endphp
+                                    @if(!empty($utilitiesBillsRaw))
+                                        <div class="mb-3 p-3 bg-light rounded">
+                                            <div class="d-flex gap-2 mb-2">
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'utilities-bills']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
+                                                    <i class="bi bi-eye me-1"></i> {{ __('View') }}
+                                                </a>
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'utilities-bills', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
+                                                    <i class="bi bi-download me-1"></i> {{ __('Download') }}
+                                                </a>
+                                            </div>
+                                            <small class="text-muted d-block text-truncate" title="{{ $utilitiesBillsRaw }}">
+                                                <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                                <strong>{{ __('Document Uploaded') }}</strong>
+                                            </small>
+                                        </div>
+                                    @endif
+                                    <div class="mt-2">
+                                        <input type="file" class="filepond-document" id="utilities_bills" name="utilities_bills" accept="*/*">
                                     </div>
                                 </div>
-                            @endif
-                            <input type="file" class="filepond-document" id="utilities_bills" name="utilities_bills" accept="*/*">
+                            </div>
                         </div>
 
                         {{-- Power of Attorney --}}
-                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
-                            {{ Form::label('power_of_attorney', __('Power of Attorney Document'), ['class' => 'form-label']) }}
-                            @php
-                                $poaRaw = $list->getRawOriginal('power_of_attorney');
-                            @endphp
-                            @if(!empty($poaRaw))
-                                <div class="mb-2">
-                                    <div class="d-flex gap-2 mb-2">
-                                        <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'power-of-attorney']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
-                                            <i class="bi bi-eye"></i> {{ __('View') }}
-                                        </a>
-                                        <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'power-of-attorney', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
-                                            <i class="bi bi-download"></i> {{ __('Download') }}
-                                        </a>
-                                    </div>
-                                    <div class="document-name-display">
-                                        <small class="text-muted d-block text-truncate" title="{{ $poaRaw }}">
-                                            <i class="bi bi-file-earmark-text me-1"></i>
-                                            <strong>{{ __('Power of Attorney Document') }}</strong>
-                                        </small>
+                        <div class="col-sm-12 col-md-6 col-lg-4">
+                            <div class="card h-100 border">
+                                <div class="card-body">
+                                    <h6 class="card-title mb-3">
+                                        <i class="bi bi-file-earmark-text me-2"></i>
+                                        {{ __('Power of Attorney Document') }}
+                                    </h6>
+                                    @php
+                                        $poaRaw = $list->getRawOriginal('power_of_attorney');
+                                    @endphp
+                                    @if(!empty($poaRaw))
+                                        <div class="mb-3 p-3 bg-light rounded">
+                                            <div class="d-flex gap-2 mb-2">
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'power-of-attorney']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
+                                                    <i class="bi bi-eye me-1"></i> {{ __('View') }}
+                                                </a>
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'power-of-attorney', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
+                                                    <i class="bi bi-download me-1"></i> {{ __('Download') }}
+                                                </a>
+                                            </div>
+                                            <small class="text-muted d-block text-truncate" title="{{ $poaRaw }}">
+                                                <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                                <strong>{{ __('Document Uploaded') }}</strong>
+                                            </small>
+                                        </div>
+                                    @endif
+                                    <div class="mt-2">
+                                        <input type="file" class="filepond-document" id="power_of_attorney" name="power_of_attorney" accept="*/*">
                                     </div>
                                 </div>
-                            @endif
-                            <input type="file" class="filepond-document" id="power_of_attorney" name="power_of_attorney" accept="*/*">
+                            </div>
                         </div>
 
                         {{-- Ownership Contract --}}
-                        <div class="col-sm-12 col-md-6 col-lg-4 col-xl-3 mb-3">
-                            {{ Form::label('ownership_contract', __('Ownership Contract Document'), ['class' => 'form-label']) }}
-                            @php
-                                $ownershipContractRaw = $list->getRawOriginal('ownership_contract');
-                            @endphp
-                            @if(!empty($ownershipContractRaw))
-                                <div class="mb-2">
-                                    <div class="d-flex gap-2 mb-2">
-                                        <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'ownership-contract']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
-                                            <i class="bi bi-eye"></i> {{ __('View') }}
-                                        </a>
-                                        <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'ownership-contract', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
-                                            <i class="bi bi-download"></i> {{ __('Download') }}
-                                        </a>
-                                    </div>
-                                    <div class="document-name-display">
-                                        <small class="text-muted d-block text-truncate" title="{{ $ownershipContractRaw }}">
-                                            <i class="bi bi-file-earmark-text me-1"></i>
-                                            <strong>{{ __('Ownership Contract Document') }}</strong>
-                                        </small>
+                        <div class="col-sm-12 col-md-6 col-lg-4">
+                            <div class="card h-100 border">
+                                <div class="card-body">
+                                    <h6 class="card-title mb-3">
+                                        <i class="bi bi-file-earmark-text me-2"></i>
+                                        {{ __('Ownership Contract Document') }}
+                                    </h6>
+                                    @php
+                                        $ownershipContractRaw = $list->getRawOriginal('ownership_contract');
+                                    @endphp
+                                    @if(!empty($ownershipContractRaw))
+                                        <div class="mb-3 p-3 bg-light rounded">
+                                            <div class="d-flex gap-2 mb-2">
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'ownership-contract']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
+                                                    <i class="bi bi-eye me-1"></i> {{ __('View') }}
+                                                </a>
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'ownership-contract', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
+                                                    <i class="bi bi-download me-1"></i> {{ __('Download') }}
+                                                </a>
+                                            </div>
+                                            <small class="text-muted d-block text-truncate" title="{{ $ownershipContractRaw }}">
+                                                <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                                <strong>{{ __('Document Uploaded') }}</strong>
+                                            </small>
+                                        </div>
+                                    @endif
+                                    <div class="mt-2">
+                                        <input type="file" class="filepond-document" id="ownership_contract" name="ownership_contract" accept="*/*">
                                     </div>
                                 </div>
-                            @endif
-                            <input type="file" class="filepond-document" id="ownership_contract" name="ownership_contract" accept="*/*">
+                            </div>
                         </div>
                     </div>
                 </div>
