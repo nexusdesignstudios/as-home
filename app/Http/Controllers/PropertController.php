@@ -656,6 +656,18 @@ class PropertController extends Controller
 
                 DB::beginTransaction();
                 $UpdateProperty = Property::with('assignparameter.parameter')->find($id);
+                
+                // Store original property data BEFORE any modifications
+                $originalPropertyData = $UpdateProperty->getAttributes();
+                unset($originalPropertyData['created_at'], $originalPropertyData['updated_at'], $originalPropertyData['id']);
+                
+                // Check if this is an owner edit (not admin)
+                // 0 means admin, non-zero means owner/customer
+                $isOwnerEdit = $UpdateProperty->added_by != 0;
+                
+                // Check auto-approve setting for edited listings
+                $autoApproveEdited = HelperService::getSettingData('auto_approve_edited_listings') == 1;
+                
                 $destinationPath = public_path('images') . config('global.PROPERTY_TITLE_IMG_PATH');
                 if (!is_dir($destinationPath)) {
                     mkdir($destinationPath, 0777, true);
@@ -797,6 +809,69 @@ class PropertController extends Controller
                     $UpdateProperty->setAttribute('fact_sheet', \store_image($request->file('fact_sheet'), 'PROPERTY_FACT_SHEET_PATH'));
                 }
 
+                // Get edited data AFTER all modifications but BEFORE saving
+                $editedData = $UpdateProperty->getAttributes();
+                unset($editedData['created_at'], $editedData['updated_at'], $editedData['id']);
+
+                // Handle vacation apartments for vacation homes (property_classification = 4)
+                $updatedVacationApartments = [];
+                $originalVacationApartments = [];
+                if (isset($request->property_classification) && $request->property_classification == 4) {
+                    // Get original vacation apartments
+                    $originalVacationApartments = \App\Models\VacationApartment::where('property_id', $UpdateProperty->id)
+                        ->get()
+                        ->map(function ($apt) {
+                            return $apt->getAttributes();
+                        })
+                        ->toArray();
+                    
+                    // Get updated vacation apartments from request (will be processed later)
+                    $vacationApartments = $request->input('vacation_apartments');
+                    if ($vacationApartments !== null && is_array($vacationApartments) && !empty($vacationApartments)) {
+                        $updatedVacationApartments = $vacationApartments;
+                    }
+                }
+
+                // Check if owner edit requires approval
+                if ($isOwnerEdit && !$autoApproveEdited) {
+                    // Owner edits require admin approval when auto-approve is OFF - save as pending request
+                    // Include vacation apartments in edited data if property is vacation home
+                    if (isset($request->property_classification) && $request->property_classification == 4 && !empty($updatedVacationApartments)) {
+                        $editedData['vacation_apartments'] = $updatedVacationApartments;
+                    }
+                    
+                    // Include original vacation apartments in original data
+                    if (isset($request->property_classification) && $request->property_classification == 4 && !empty($originalVacationApartments)) {
+                        $originalPropertyData['vacation_apartments'] = $originalVacationApartments;
+                    }
+                    
+                    // Use PropertyEditRequestService to save the edit request
+                    $editRequestService = new \App\Services\PropertyEditRequestService();
+                    $editRequest = $editRequestService->saveEditRequest(
+                        $UpdateProperty, 
+                        $editedData, 
+                        $UpdateProperty->added_by, 
+                        $originalPropertyData
+                    );
+                    
+                    // Set request_status to pending (property won't be saved yet, but we need to save related data)
+                    $UpdateProperty->request_status = 'pending';
+                    
+                    // Log the edit request creation
+                    Log::info('Property edit request created from admin panel', [
+                        'edit_request_id' => $editRequest->id,
+                        'property_id' => $UpdateProperty->id,
+                        'requested_by' => $UpdateProperty->added_by
+                    ]);
+                } else {
+                    // Admin edit OR owner edit with auto-approve enabled - save directly (no approval needed)
+                    // If auto-approve is enabled for owner edits, set request_status to approved
+                    if ($isOwnerEdit && $autoApproveEdited) {
+                        $UpdateProperty->request_status = 'approved';
+                    }
+                }
+
+                // Save the property (this will save even if edit request was created, but request_status will be pending)
                 $UpdateProperty->update();
                 AssignedOutdoorFacilities::where('property_id', $UpdateProperty->id)->delete();
                 $facility = OutdoorFacilities::all();
@@ -1099,7 +1174,13 @@ class PropertController extends Controller
                 // END :: UPDATE CERTIFICATES
 
                 DB::commit();
-                ResponseService::successRedirectResponse('Data Updated Successfully');
+                
+                // Show appropriate success message based on whether edit request was created
+                if ($isOwnerEdit && !$autoApproveEdited) {
+                    ResponseService::successRedirectResponse('Property edit request created successfully. Changes will be applied after admin approval.');
+                } else {
+                    ResponseService::successRedirectResponse('Data Updated Successfully');
+                }
             } catch (Exception $e) {
                 DB::rollBack();
                 ResponseService::logErrorRedirectResponse($e, "Update Property Issue");

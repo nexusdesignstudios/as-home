@@ -7524,8 +7524,11 @@ class ApiController extends Controller
                 });
             }
 
+            // Save base query for total count calculation (before ordering and pagination)
+            $baseQueryForCount = $propertyQuery->clone();
+
             // Get total properties
-            $totalProperties = $propertyQuery->clone()->count();
+            $totalProperties = $baseQueryForCount->count();
 
             // If Most Viewed Passed then show the property data with Order by on Total Click Descending
             if ($request->has('most_viewed') && $request->most_viewed == 1) {
@@ -7541,7 +7544,14 @@ class ApiController extends Controller
 
             // Get properties list data
             $propertiesData = $propertyQuery->clone()
-                ->with('category:id,category,image,slug_id,parameter_types', 'vacationApartments', 'assignParameter.parameter')
+                ->with([
+                    'category:id,category,image,slug_id,parameter_types', 
+                    'vacationApartments' => function($query) {
+                        // Only load active vacation apartments (status = 1)
+                        $query->where('status', 1);
+                    }, 
+                    'assignParameter.parameter'
+                ])
                 ->select('id', 'slug_id', 'propery_type', 'title_image', 'category_id', 'title', 'price', 'city', 'state', 'country', 'rentduration', 'added_by', 'is_premium', 'property_classification', 'rent_package', 'latitude', 'longitude', 'total_click')
                 ->withCount('favourite');
 
@@ -7550,7 +7560,7 @@ class ApiController extends Controller
                 if ($request->has('radius') && !empty($request->radius)) {
 
                     // Get the distance from the latitude and longitude
-                    $propertyQuery = $propertyQuery->clone()->selectRaw("
+                    $propertiesData = $propertiesData->selectRaw("
                             (6371 * acos(cos(radians($request->latitude))
                             * cos(radians(latitude))
                             * cos(radians(longitude) - radians($request->longitude))
@@ -7560,7 +7570,7 @@ class ApiController extends Controller
                         ->where('longitude', '!=', 0)
                         ->having('distance', '<', $request->radius);
                 } else {
-                    $propertyQuery = $propertyQuery->clone()->where('latitude', $request->latitude)->where('longitude', $request->longitude);
+                    $propertiesData = $propertiesData->where('latitude', $request->latitude)->where('longitude', $request->longitude);
                 }
             }
 
@@ -7636,9 +7646,15 @@ class ApiController extends Controller
             })->values()->filter();
 
             // Adjust total count - count vacation homes with apartments before expansion
-            $vacationHomesQuery = $propertyQuery->clone()
+            // Use the base query (before ordering/pagination) to count all vacation homes matching filters
+            $vacationHomesQuery = $baseQueryForCount->clone()
                 ->where('property_classification', 4)
-                ->with('vacationApartments')
+                ->with([
+                    'vacationApartments' => function($query) {
+                        // Only count active vacation apartments (status = 1)
+                        $query->where('status', 1);
+                    }
+                ])
                 ->get();
             
             $additionalListings = 0;
