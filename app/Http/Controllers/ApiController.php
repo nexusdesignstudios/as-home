@@ -10337,7 +10337,9 @@ Best regards,
             $property = Property::findOrFail($request->property_id);
             
             // Only allow reviews for hotels (5) and vacation homes (4)
-            if ($property->property_classification != 4 && $property->property_classification != 5) {
+            // Use getRawOriginal to get the actual integer value from database
+            $propertyClassification = $property->getRawOriginal('property_classification');
+            if ($propertyClassification != 4 && $propertyClassification != 5) {
                 return response()->json([
                     'error' => true,
                     'message' => 'Reviews are only available for hotels and vacation homes'
