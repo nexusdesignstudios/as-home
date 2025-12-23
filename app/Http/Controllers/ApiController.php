@@ -5905,6 +5905,9 @@ class ApiController extends Controller
                 'property_type' => 'nullable|in:0,1,2,3',
                 'is_promoted' => 'nullable|in:1',
                 'slug_id' => 'nullable|string',
+                'property_classification' => 'nullable|integer|in:1,2,3,4,5',
+                'search' => 'nullable|string',
+                'search_type' => 'nullable|in:property_name,reference_id',
                 'offset' => 'nullable|integer|min:0',
                 'limit' => 'nullable|integer|min:1|max:1000'
             ]);
@@ -5978,11 +5981,30 @@ class ApiController extends Controller
                     ->when($request->filled('property_type'), function ($query) use ($request) {
                         return $query->where('propery_type', $request->property_type);
                     })
+                    ->when($request->has('property_classification') && $request->property_classification !== '' && $request->property_classification !== null, function ($query) use ($request) {
+                        return $query->where('property_classification', (int)$request->property_classification);
+                    })
                     ->when($request->filled('id'), function ($query) use ($request) {
                         return $query->where('id', $request->id);
                     })
                     ->when($request->filled('slug_id'), function ($query) use ($request) {
                         return $query->where('slug_id', $request->slug_id);
+                    })
+                    ->when($request->filled('search') && $request->filled('search_type'), function ($query) use ($request) {
+                        $search = $request->search;
+                        $searchType = $request->search_type;
+                        
+                        if ($searchType === 'reference_id') {
+                            // Search by reference ID (property ID)
+                            return $query->where('id', 'LIKE', "%{$search}%");
+                        } else {
+                            // Search by property name
+                            return $query->where(function($q) use ($search) {
+                                $q->where('title', 'LIKE', "%{$search}%")
+                                  ->orWhere('title_ar', 'LIKE', "%{$search}%")
+                                  ->orWhere('address', 'LIKE', "%{$search}%");
+                            });
+                        }
                     })
                     ->when($request->filled('status'), function ($query) use ($request) {
                         // IF Status is passed and status has active (1) or deactive (0) or both

@@ -1763,6 +1763,18 @@ class ReservationController extends Controller
             $data['property_id'] = $reservation->property_id;
             $data['reservable_id'] = $reservation->reservable_id;
 
+            // Parse apartment_id and apartment_quantity from special_requests if not in database columns
+            // This handles old reservations created before the migration
+            if (empty($data['apartment_id']) && !empty($reservation->special_requests)) {
+                $specialRequests = $reservation->special_requests;
+                if (preg_match('/Apartment ID:\s*(\d+)/i', $specialRequests, $aptMatches)) {
+                    $data['apartment_id'] = (int)$aptMatches[1];
+                }
+                if (preg_match('/Quantity:\s*(\d+)/i', $specialRequests, $qtyMatches)) {
+                    $data['apartment_quantity'] = (int)$qtyMatches[1];
+                }
+            }
+
             // Add missing customer fields for frontend compatibility
             // These fields might exist in the database or need to be populated from relationships
             if ($reservation->customer) {
@@ -1781,11 +1793,21 @@ class ReservationController extends Controller
 
             // Always include the main property information from the direct property relationship
             if (isset($reservation->property)) {
+                $propertyClassification = $reservation->property->getRawOriginal('property_classification') ?? $reservation->property->property_classification;
+                
                 $data['property_info'] = [
                     'id' => $reservation->property->id,
                     'title' => $reservation->property->title,
                     'title_image' => $reservation->property->title_image,
-                    'property_classification' => $reservation->property->property_classification
+                    'property_classification' => $propertyClassification
+                ];
+                
+                // Also add property_classification directly to reservation for easier frontend access
+                $data['property_classification'] = $propertyClassification;
+                
+                // Add property_details for backward compatibility
+                $data['property_details'] = [
+                    'property_classification' => $propertyClassification
                 ];
 
                 // Add category information if available
@@ -1795,6 +1817,33 @@ class ReservationController extends Controller
                         'name' => $reservation->property->category->category,
                         'image' => $reservation->property->category->image
                     ];
+                }
+            }
+            
+            // Load reservable relationship for vacation homes to include property_classification
+            if ($reservation->reservable_type === 'App\\Models\\Property' && !$reservation->relationLoaded('reservable')) {
+                $reservation->load('reservable');
+            }
+            
+            // Add reservable property_classification if available
+            if ($reservation->reservable && $reservation->reservable instanceof \App\Models\Property) {
+                $reservableClassification = $reservation->reservable->getRawOriginal('property_classification') ?? $reservation->reservable->property_classification;
+                $data['reservable'] = [
+                    'id' => $reservation->reservable->id,
+                    'property_classification' => $reservableClassification
+                ];
+            }
+            
+            // Load apartment data if apartment_id exists
+            if (!empty($data['apartment_id'])) {
+                $apartment = \App\Models\VacationApartment::find($data['apartment_id']);
+                if ($apartment) {
+                    $data['apartment'] = [
+                        'id' => $apartment->id,
+                        'apartment_number' => $apartment->apartment_number,
+                        'quantity' => $apartment->quantity
+                    ];
+                    $data['apartment_number'] = $apartment->apartment_number;
                 }
             }
 
