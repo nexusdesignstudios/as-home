@@ -34,8 +34,19 @@
                                     class="bi bi-eye-fill"></i></a>
                         </div>
                         <div class="col-md-12 mt-3">
-                            <textarea id="tinymce_editor" name="data" class="form-control col-md-7 col-xs-12">{{ $data }}</textarea>
-
+                            <div class="alert alert-info mb-3">
+                                <i class="bi bi-info-circle"></i> 
+                                <strong>{{ __('Unlimited Text Length') }}</strong> - {{ __('You can add large contracts with unlimited text length. Maximum supported: Up to 4GB of text content.') }}
+                            </div>
+                            <textarea id="tinymce_editor" name="data" class="form-control col-md-7 col-xs-12" style="min-height: 500px;">{{ $data }}</textarea>
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <span id="character-count-display">
+                                        <strong>{{ __('Current Length:') }}</strong> <span id="character-count">0</span> {{ __('characters') }} 
+                                        <span class="badge bg-success ms-2">{{ __('Unlimited') }}</span>
+                                    </span>
+                                </small>
+                            </div>
                         </div>
 
                     </div>
@@ -52,4 +63,49 @@
             </form>
         </div>
     </section>
+@endsection
+
+@section('page-script')
+<script>
+    $(document).ready(function() {
+        // Function to update character count
+        function updateCharacterCount() {
+            var editor = tinymce.get('tinymce_editor');
+            if (editor) {
+                var content = editor.getContent({format: 'text'});
+                var charCount = content.length;
+                $('#character-count').text(charCount.toLocaleString());
+            } else {
+                // Fallback for plain textarea
+                var content = $('#tinymce_editor').val();
+                var charCount = content.length;
+                $('#character-count').text(charCount.toLocaleString());
+            }
+        }
+
+        // Wait for TinyMCE to initialize, then set up character count
+        setTimeout(function() {
+            var editor = tinymce.get('tinymce_editor');
+            if (editor) {
+                // Update count on content change
+                editor.on('keyup', function() {
+                    updateCharacterCount();
+                });
+                
+                editor.on('change', function() {
+                    updateCharacterCount();
+                });
+                
+                // Initial count
+                updateCharacterCount();
+            } else {
+                // Fallback: Update count for plain textarea
+                $('#tinymce_editor').on('input keyup', function() {
+                    updateCharacterCount();
+                });
+                updateCharacterCount(); // Initial count
+            }
+        }, 1000);
+    });
+</script>
 @endsection
