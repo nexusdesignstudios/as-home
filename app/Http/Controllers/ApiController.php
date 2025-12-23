@@ -800,6 +800,11 @@ class ApiController extends Controller
             $isStudio = ($bedroomsValue === '0'); // Check if filtering for Studio
             
             $property = $property->where(function ($query) use ($bedroomsValue, $bedroomsIntValue, $isStudio) {
+                // For Studio filter, exclude vacation homes (Studio is a property type, not for vacation homes)
+                if ($isStudio) {
+                    $query->where('property_classification', '!=', 4);
+                }
+                
                 // Check parameters table (for regular properties)
                 // Handle both plain string values and JSON-encoded values
                 // Also handle both morphMany (modal_id) and direct property_id relationships
@@ -854,11 +859,15 @@ class ApiController extends Controller
                     });
                 })
                 // OR check vacation_apartments table (for vacation homes)
-                ->orWhere(function ($vacationQuery) use ($bedroomsIntValue) {
-                    $vacationQuery->where('property_classification', 4)
-                        ->whereHas('vacationApartments', function ($aptQuery) use ($bedroomsIntValue) {
-                            $aptQuery->where('bedrooms', $bedroomsIntValue);
-                        });
+                // Note: Studio (0 bedrooms) is a property type, not applicable to vacation homes
+                // So we only check vacation apartments for non-Studio bedroom counts
+                ->orWhere(function ($vacationQuery) use ($bedroomsIntValue, $isStudio) {
+                    if (!$isStudio) {
+                        $vacationQuery->where('property_classification', 4)
+                            ->whereHas('vacationApartments', function ($aptQuery) use ($bedroomsIntValue) {
+                                $aptQuery->where('bedrooms', $bedroomsIntValue);
+                            });
+                    }
                 });
             });
         }
@@ -7201,6 +7210,11 @@ class ApiController extends Controller
                 $isStudio = ($bedroomsValue === '0'); // Check if filtering for Studio
                 
                 $propertyQuery = $propertyQuery->clone()->where(function ($query) use ($bedroomsValue, $bedroomsIntValue, $isStudio) {
+                    // For Studio filter, exclude vacation homes (Studio is a property type, not for vacation homes)
+                    if ($isStudio) {
+                        $query->where('property_classification', '!=', 4);
+                    }
+                    
                     // Check parameters table (for regular properties)
                     // Handle both plain string values and JSON-encoded values
                     // Also handle both morphMany (modal_id) and direct property_id relationships
@@ -7256,11 +7270,15 @@ class ApiController extends Controller
                         });
                     })
                     // OR check vacation_apartments table (for vacation homes)
-                    ->orWhere(function ($vacationQuery) use ($bedroomsIntValue) {
-                        $vacationQuery->where('property_classification', 4)
-                            ->whereHas('vacationApartments', function ($aptQuery) use ($bedroomsIntValue) {
-                                $aptQuery->where('bedrooms', $bedroomsIntValue);
-                            });
+                    // Note: Studio (0 bedrooms) is a property type, not applicable to vacation homes
+                    // So we only check vacation apartments for non-Studio bedroom counts
+                    ->orWhere(function ($vacationQuery) use ($bedroomsIntValue, $isStudio) {
+                        if (!$isStudio) {
+                            $vacationQuery->where('property_classification', 4)
+                                ->whereHas('vacationApartments', function ($aptQuery) use ($bedroomsIntValue) {
+                                    $aptQuery->where('bedrooms', $bedroomsIntValue);
+                                });
+                        }
                     });
                 });
             }
@@ -7583,11 +7601,24 @@ class ApiController extends Controller
             $expandedProperties = collect();
             foreach ($propertiesData as $property) {
                 // Check if this is a vacation home (classification 4) with apartments
-                if ($property->property_classification == 4 && 
-                    $property->vacationApartments && 
-                    $property->vacationApartments->count() > 0) {
+                // Use relationLoaded to check if relationship was eager loaded, otherwise use the accessor
+                $vacationApartments = null;
+                if ($property->relationLoaded('vacationApartments')) {
+                    $vacationApartments = $property->getRelation('vacationApartments');
+                } else {
+                    // Fallback to accessor if relationship wasn't loaded
+                    $vacationApartments = $property->vacationApartments;
+                }
+                
+                // Check property classification - might be string or int, use raw value
+                $classification = $property->getRawOriginal('property_classification') ?? $property->property_classification;
+                $isVacationHome = ($classification == 4 || $classification === 4 || (int)$classification === 4);
+                
+                if ($isVacationHome && 
+                    $vacationApartments && 
+                    $vacationApartments->count() > 0) {
                     // Create a separate listing item for each apartment
-                    foreach ($property->vacationApartments as $apartment) {
+                    foreach ($vacationApartments as $apartment) {
                         $apartmentProperty = clone $property;
                         // Keep original property ID and slug_id for navigation
                         $apartmentProperty->apartment_id = $apartment->id;

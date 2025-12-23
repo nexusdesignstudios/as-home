@@ -21,6 +21,9 @@ class Reservation extends Model
         'reservable_id',
         'reservable_type',
         'property_id',
+        // Multi-unit vacation homes only (nullable)
+        'apartment_id',
+        'apartment_quantity',
         'check_in_date',
         'check_out_date',
         'number_of_guests',

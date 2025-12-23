@@ -349,30 +349,41 @@ class ReservationController extends Controller
         // For vacation homes with apartments, get unit availability details
         $responseData = ['is_available' => $isAvailable];
         
+        // SAFETY: Only provide detailed availability for MULTI-UNIT vacation homes
         if ($request->reservable_type === 'property' && $request->apartment_id) {
             $apartment = \App\Models\VacationApartment::find($request->apartment_id);
             if ($apartment && $apartment->property_id == $request->reservable_id) {
-                $totalUnits = $apartment->quantity;
+                $property = Property::find($request->reservable_id);
+                $isVacationHome = $property && $property->getRawOriginal('property_classification') == 4;
                 
-                // Count booked units for this apartment on these dates
-                $bookedUnits = $this->reservationService->countBookedUnitsForApartment(
-                    $request->reservable_id,
-                    $request->apartment_id,
-                    $request->check_in_date,
-                    $request->check_out_date
-                );
-                
-                $availableUnits = $totalUnits - $bookedUnits;
-                $requestedQuantity = $request->apartment_quantity ?? 1;
-                
-                $responseData['apartment_id'] = $request->apartment_id;
-                $responseData['total_units'] = $totalUnits;
-                $responseData['booked_units'] = $bookedUnits;
-                $responseData['available_units'] = $availableUnits;
-                $responseData['can_book_quantity'] = $availableUnits;
-                $responseData['is_available'] = $availableUnits >= $requestedQuantity;
+                if ($isVacationHome) {
+                    $totalUnits = $apartment->quantity;
+                    
+                    // Only provide detailed availability for multi-unit (quantity > 1)
+                    if ($totalUnits > 1) {
+                        // Count booked units for this apartment on these dates
+                        $bookedUnits = $this->reservationService->countBookedUnitsForApartment(
+                            $request->reservable_id,
+                            $request->apartment_id,
+                            $request->check_in_date,
+                            $request->check_out_date
+                        );
+                        
+                        $availableUnits = $totalUnits - $bookedUnits;
+                        $requestedQuantity = $request->apartment_quantity ?? 1;
+                        
+                        $responseData['apartment_id'] = $request->apartment_id;
+                        $responseData['total_units'] = $totalUnits;
+                        $responseData['booked_units'] = $bookedUnits;
+                        $responseData['available_units'] = $availableUnits;
+                        $responseData['can_book_quantity'] = $availableUnits;
+                        $responseData['is_available'] = $availableUnits >= $requestedQuantity;
+                    }
+                    // For single-unit (quantity = 1), responseData remains as is_available boolean only
+                }
             }
         }
+        // For hotels, responseData remains as is_available boolean only - UNAFFECTED
 
         ApiResponseService::successResponse('Availability checked successfully', $responseData);
     }
@@ -526,11 +537,22 @@ class ReservationController extends Controller
                     'payment_status' => 'unpaid',
                 ];
 
-                // Attach apartment selection info into special_requests for traceability (no schema change)
+                // SAFETY: Only populate apartment_id and apartment_quantity for MULTI-UNIT vacation homes
                 if ($isVacationHome && $selectedApartmentId) {
+                    $apartment = \App\Models\VacationApartment::find($selectedApartmentId);
+                    
+                    // Only store in database columns if quantity > 1 (multi-unit)
+                    if ($apartment && $apartment->quantity > 1) {
+                        $reservationData['apartment_id'] = $selectedApartmentId;
+                        $reservationData['apartment_quantity'] = $apartmentQuantity;
+                    }
+                    
+                    // Always store in special_requests for backward compatibility
                     $reservationData['special_requests'] = trim(($request->special_requests ?? '') . ' ' .
                         'Apartment ID: ' . $selectedApartmentId . ', Quantity: ' . max(1, (int)$apartmentQuantity));
                 }
+                // For hotels and single-unit vacation homes, apartment_id and apartment_quantity remain NULL
+                // This ensures they're completely unaffected
 
                 // Create the reservation without sending emails (checkout without payment)
                 $reservation = $this->reservationService->createReservation($reservationData, true);
@@ -1119,14 +1141,28 @@ class ReservationController extends Controller
 
                 // Prepare special_requests with apartment info if applicable
                 $specialRequests = $request->special_requests ?? '';
+                $apartmentIdForReservation = null;
+                $apartmentQuantityForReservation = null;
+                
+                // SAFETY: Only populate apartment_id and apartment_quantity for MULTI-UNIT vacation homes
                 if ($isVacationHome && $selectedApartmentId) {
+                    $apartment = \App\Models\VacationApartment::find($selectedApartmentId);
+                    
+                    // Only store in database columns if quantity > 1 (multi-unit)
+                    if ($apartment && $apartment->quantity > 1) {
+                        $apartmentIdForReservation = $selectedApartmentId;
+                        $apartmentQuantityForReservation = $apartmentQuantity;
+                    }
+                    
+                    // Always store in special_requests for backward compatibility
                     $specialRequests = trim($specialRequests . ' ' .
                         'Apartment ID: ' . $selectedApartmentId . ', Quantity: ' . max(1, (int)$apartmentQuantity));
                 }
+                // For hotels and single-unit vacation homes, apartment_id and apartment_quantity remain NULL
 
-                DB::transaction(function () use ($request, $modelType, $discountInfo, $transactionId, &$reservation, &$payment, $specialRequests) {
+                DB::transaction(function () use ($request, $modelType, $discountInfo, $transactionId, &$reservation, &$payment, $specialRequests, $apartmentIdForReservation, $apartmentQuantityForReservation) {
                     // Create temporary reservation to hold the details
-                    $reservation = Reservation::create([
+                    $reservationData = [
                         'customer_id' => Auth::guard('sanctum')->user()->id,
                         'reservable_id' => $request->reservable_id,
                         'reservable_type' => $modelType,
@@ -1144,7 +1180,15 @@ class ReservationController extends Controller
                         'payment_method' => 'paymob',
                         'transaction_id' => $transactionId,
                         'review_url' => $request->review_url,
-                    ]);
+                    ];
+                    
+                    // Only add apartment fields for multi-unit vacation homes
+                    if ($apartmentIdForReservation !== null) {
+                        $reservationData['apartment_id'] = $apartmentIdForReservation;
+                        $reservationData['apartment_quantity'] = $apartmentQuantityForReservation;
+                    }
+                    
+                    $reservation = Reservation::create($reservationData);
 
                     // Create payment record
                     $payment = PaymobPayment::create([

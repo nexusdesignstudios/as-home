@@ -7,6 +7,7 @@ use App\Models\Property;
 use App\Models\HotelRoom;
 use App\Models\Reservation;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\Model;
 
 class ReservationService
@@ -911,27 +912,34 @@ Confirmation Date: {confirmation_date}
             $reservations->where('id', '!=', $excludeReservationId);
         }
         
-        $reservations = $reservations->get();
-        
-        $totalBookedUnits = 0;
-        
-        // Parse special_requests to extract apartment_id and apartment_quantity
-        foreach ($reservations as $reservation) {
-            $specialRequests = $reservation->special_requests ?? '';
+        // SAFETY: Check if apartment_id column exists (for backward compatibility)
+        if (Schema::hasColumn('reservations', 'apartment_id')) {
+            // Use direct column query (faster, more reliable) - only for multi-unit vacation homes
+            $reservations->where('apartment_id', $apartmentId);
+            $totalBookedUnits = $reservations->sum('apartment_quantity') ?? 0;
+            return (int)$totalBookedUnits;
+        } else {
+            // Fallback: Parse special_requests (existing logic for backward compatibility)
+            $reservations = $reservations->get();
+            $totalBookedUnits = 0;
             
-            // Look for "Apartment ID: X, Quantity: Y" pattern
-            if (preg_match('/Apartment ID:\s*(\d+).*?Quantity:\s*(\d+)/i', $specialRequests, $matches)) {
-                $reservationApartmentId = (int)$matches[1];
-                $reservationQuantity = (int)$matches[2];
+            foreach ($reservations as $reservation) {
+                $specialRequests = $reservation->special_requests ?? '';
                 
-                // Only count if it's for the same apartment
-                if ($reservationApartmentId == $apartmentId) {
-                    $totalBookedUnits += $reservationQuantity;
+                // Look for "Apartment ID: X, Quantity: Y" pattern
+                if (preg_match('/Apartment ID:\s*(\d+).*?Quantity:\s*(\d+)/i', $specialRequests, $matches)) {
+                    $reservationApartmentId = (int)$matches[1];
+                    $reservationQuantity = (int)$matches[2];
+                    
+                    // Only count if it's for the same apartment
+                    if ($reservationApartmentId == $apartmentId) {
+                        $totalBookedUnits += $reservationQuantity;
+                    }
                 }
             }
+            
+            return $totalBookedUnits;
         }
-        
-        return $totalBookedUnits;
     }
 
     public function areDatesAvailable($modelType, $modelId, $checkInDate, $checkOutDate, $excludeReservationId = null, $data = [])
@@ -1008,40 +1016,59 @@ Confirmation Date: {confirmation_date}
                     $apartmentId = $data['apartment_id'] ?? null;
                     $requestedQuantity = $data['apartment_quantity'] ?? 1;
                     
+                    // SAFETY CHECK: Only apply multi-unit logic if:
+                    // 1. apartment_id is provided
+                    // 2. It's a vacation home (property_classification = 4)
+                    // 3. The apartment has quantity > 1 (multi-unit)
                     if ($apartmentId && $modelType === 'App\\Models\\Property') {
                         // Get the apartment to check its quantity
                         $apartment = \App\Models\VacationApartment::find($apartmentId);
                         
                         if ($apartment && $apartment->property_id == $modelId) {
-                            $totalUnits = $apartment->quantity;
+                            // Check if property is vacation home
+                            $property = Property::find($modelId);
+                            $isVacationHome = $property && $property->getRawOriginal('property_classification') == 4;
                             
-                            // Count booked units for this apartment on these dates
-                            $bookedUnits = $this->countBookedUnitsForApartment(
-                                $modelId,
-                                $apartmentId,
-                                $checkInDate,
-                                $checkOutDate,
-                                $excludeReservationId
-                            );
-                            
-                            $availableUnits = $totalUnits - $bookedUnits;
-                            
-                            \Illuminate\Support\Facades\Log::info('Vacation home unit availability check', [
-                                'property_id' => $modelId,
-                                'apartment_id' => $apartmentId,
-                                'total_units' => $totalUnits,
-                                'booked_units' => $bookedUnits,
-                                'available_units' => $availableUnits,
-                                'requested_quantity' => $requestedQuantity,
-                                'can_book' => $availableUnits >= $requestedQuantity
-                            ]);
-                            
-                            // Allow booking if enough units are available
-                            return $availableUnits >= $requestedQuantity;
+                            if ($isVacationHome) {
+                                $totalUnits = $apartment->quantity;
+                                
+                                // SAFETY: Only use multi-unit logic if quantity > 1
+                                if ($totalUnits > 1) {
+                                    // MULTI-UNIT LOGIC: Count booked units
+                                    $bookedUnits = $this->countBookedUnitsForApartment(
+                                        $modelId,
+                                        $apartmentId,
+                                        $checkInDate,
+                                        $checkOutDate,
+                                        $excludeReservationId
+                                    );
+                                    
+                                    $availableUnits = $totalUnits - $bookedUnits;
+                                    
+                                    \Illuminate\Support\Facades\Log::info('Multi-unit vacation home availability check', [
+                                        'property_id' => $modelId,
+                                        'apartment_id' => $apartmentId,
+                                        'total_units' => $totalUnits,
+                                        'booked_units' => $bookedUnits,
+                                        'available_units' => $availableUnits,
+                                        'requested_quantity' => $requestedQuantity,
+                                        'can_book' => $availableUnits >= $requestedQuantity
+                                    ]);
+                                    
+                                    // Allow booking if enough units are available
+                                    return $availableUnits >= $requestedQuantity;
+                                } else {
+                                    // SINGLE-UNIT LOGIC: Use existing fallback (datesOverlap)
+                                    // This ensures single-unit vacation homes continue working as before
+                                    $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
+                                    return !$hasOverlap;
+                                }
+                            }
                         }
                     }
                     
-                    // Fallback: For properties without apartment_id, use the standard overlap check
+                    // FALLBACK: For all other properties (non-vacation homes, or vacation homes without apartment_id)
+                    // Use existing standard overlap check - NO CHANGES
                     $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
                     if ($hasOverlap) {
                         return false;

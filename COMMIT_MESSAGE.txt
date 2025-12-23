@@ -1,0 +1,41 @@
+feat: Add multi-unit vacation homes support with apartment quantity tracking
+
+This update adds support for multi-unit vacation homes, allowing multiple
+bookings on the same dates when units are available. The implementation is
+completely isolated and does NOT affect hotel reservations or single-unit
+vacation homes.
+
+Changes:
+- Added apartment_id and apartment_quantity columns to reservations table
+- Updated Reservation model to include new fields
+- Enhanced ReservationService to count booked units per apartment
+- Updated ReservationController to store apartment fields for multi-unit homes
+- Added safety checks to only apply multi-unit logic when quantity > 1
+- Maintained backward compatibility with special_requests parsing
+
+Files Modified:
+- app/Models/Reservation.php
+- app/Services/ReservationService.php
+- app/Http/Controllers/ReservationController.php
+
+Files Added:
+- database/migrations/2025_12_24_120000_add_apartment_fields_to_reservations_table.php
+- fix_existing_reservations.php (cleanup script)
+- verify_multiunit_implementation.php (verification script)
+- deploy_multiunit.sh (deployment script for Linux)
+- deploy_multiunit.ps1 (deployment script for Windows)
+- DEPLOYMENT_CHECKLIST.md (deployment guide)
+- MULTI_UNIT_IMPLEMENTATION_SUMMARY.md (documentation)
+
+Safety Guarantees:
+✅ Hotel reservations completely unaffected
+✅ Single-unit vacation homes use existing logic
+✅ Multi-unit vacation homes (quantity > 1) use new unit-counting logic
+✅ Backward compatibility maintained
+
+Testing:
+- All verification checks pass
+- Hotel reservations: 551 checked, all have NULL apartment fields
+- Single-unit vacation homes: unaffected
+- Multi-unit vacation homes: ready for use
+

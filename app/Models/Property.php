@@ -307,9 +307,15 @@ class Property extends Model
      */
     public function getVacationApartmentsAttribute()
     {
+        // If relationship is already loaded (eager loaded), return it directly
+        if ($this->relationLoaded('vacationApartments')) {
+            return $this->getRelation('vacationApartments');
+        }
+        
         // Only return vacation apartments if this is a vacation home property
         try {
-            if ($this->getRawOriginal('property_classification') == 4) {
+            $classification = $this->getRawOriginal('property_classification') ?? $this->property_classification;
+            if ($classification == 4) {
                 return $this->vacationApartments()->get();
             }
         } catch (\Exception $e) {
