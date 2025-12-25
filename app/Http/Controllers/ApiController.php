@@ -7172,9 +7172,32 @@ class ApiController extends Controller
                 'offset'                        => 'nullable|numeric',
                 'limit'                         => 'nullable|numeric',
                 'get_all_premium_properties'    => 'nullable|in:1',
-                'check_in_date'                 => 'nullable|date|after_or_equal:today',
-                'check_out_date'                => 'nullable|date|after:check_in_date',
+                'check_in_date'                 => 'nullable|date',
+                'check_out_date'                => 'nullable|date',
             ]);
+            
+            // Custom validation for dates if both are provided
+            if ($request->has('check_in_date') && $request->has('check_out_date') && 
+                !empty($request->check_in_date) && !empty($request->check_out_date)) {
+                try {
+                    $checkIn = \Carbon\Carbon::parse($request->check_in_date)->startOfDay();
+                    $checkOut = \Carbon\Carbon::parse($request->check_out_date)->startOfDay();
+                    $today = \Carbon\Carbon::today()->startOfDay();
+                    
+                    // Check if check-in is not in the past
+                    if ($checkIn->format('Y-m-d') < $today->format('Y-m-d')) {
+                        ApiResponseService::validationError('Check-in date cannot be in the past');
+                    }
+                    
+                    // Check if check-out is after check-in
+                    if ($checkOut->format('Y-m-d') <= $checkIn->format('Y-m-d')) {
+                        ApiResponseService::validationError('Check-out date must be after check-in date');
+                    }
+                } catch (\Exception $e) {
+                    ApiResponseService::validationError('Invalid date format');
+                }
+            }
+            
             if ($validator->fails()) {
                 ApiResponseService::validationError($validator->errors()->first());
             }
@@ -7465,11 +7488,15 @@ class ApiController extends Controller
                 $checkInDate = $request->check_in_date;
                 $checkOutDate = $request->check_out_date;
 
-                $propertyQuery = $propertyQuery->clone()->where(function ($query) use ($checkInDate, $checkOutDate) {
+                // Check if apartment_id column exists in reservations table (for backward compatibility)
+                $hasApartmentIdColumn = Schema::hasColumn('reservations', 'apartment_id');
+
+                $propertyQuery = $propertyQuery->clone()->where(function ($query) use ($checkInDate, $checkOutDate, $hasApartmentIdColumn) {
                     // Filter vacation homes (property_classification = 4)
-                    $query->where(function ($vacationQuery) use ($checkInDate, $checkOutDate) {
+                    $query->where(function ($vacationQuery) use ($checkInDate, $checkOutDate, $hasApartmentIdColumn) {
                         $vacationQuery->where('property_classification', 4)
                             ->where(function ($availabilityQuery) use ($checkInDate, $checkOutDate) {
+                                // Check if property has available_dates JSON that covers the search dates
                                 $availabilityQuery->whereRaw("JSON_VALID(available_dates)")
                                     ->whereRaw("
                                         EXISTS (
@@ -7487,6 +7514,114 @@ class ApiController extends Controller
                                             AND jt.to_date >= ?
                                         )
                                     ", [$checkInDate, $checkOutDate]);
+                            })
+                            // IMPORTANT: Also check that property has at least one apartment with available units
+                            // This ensures we check actual reservations, not just available_dates JSON
+                            ->whereHas('vacationApartments', function ($apartmentQuery) use ($checkInDate, $checkOutDate, $hasApartmentIdColumn) {
+                                // Check if apartment has available_dates that cover the search dates (if apartment has its own available_dates)
+                                // OR if property-level available_dates is sufficient (apartment inherits from property)
+                                $apartmentQuery->where(function ($aptQuery) use ($checkInDate, $checkOutDate) {
+                                    // Option 1: Apartment has its own available_dates JSON
+                                    $aptQuery->where(function ($hasOwnDates) use ($checkInDate, $checkOutDate) {
+                                        $hasOwnDates->whereRaw("JSON_VALID(available_dates)")
+                                            ->whereRaw("
+                                                EXISTS (
+                                                    SELECT 1
+                                                    FROM JSON_TABLE(
+                                                        available_dates,
+                                                        '$[*]' COLUMNS (
+                                                            from_date DATE PATH '$.from',
+                                                            to_date DATE PATH '$.to',
+                                                            type VARCHAR(20) PATH '$.type'
+                                                        )
+                                                    ) AS jt
+                                                    WHERE (jt.type IS NULL OR jt.type != 'reserved')
+                                                    AND jt.from_date <= ?
+                                                    AND jt.to_date >= ?
+                                                )
+                                            ", [$checkInDate, $checkOutDate]);
+                                    })
+                                    // Option 2: Apartment doesn't have own available_dates (inherits from property)
+                                    // In this case, we only check reservations
+                                    ->orWhereRaw("(available_dates IS NULL OR available_dates = '[]' OR JSON_VALID(available_dates) = 0)");
+                                })
+                                // Check that apartment has available units (not fully booked by reservations)
+                                // IMPORTANT: Checkout day is available, so use check_out_date > checkInDate (not >=)
+                                ->where(function ($availabilityCheck) use ($checkInDate, $checkOutDate, $hasApartmentIdColumn) {
+                                    if ($hasApartmentIdColumn) {
+                                        // MODERN APPROACH: Use apartment_id column if it exists (faster, more reliable)
+                                        $availabilityCheck->whereRaw("
+                                            (
+                                                COALESCE(quantity, 1) > COALESCE((
+                                                    SELECT SUM(COALESCE(apartment_quantity, 1))
+                                                    FROM reservations
+                                                    WHERE reservations.reservable_type = 'App\\\\Models\\\\Property'
+                                                    AND reservations.reservable_id = vacation_apartments.property_id
+                                                    AND reservations.status = 'confirmed'
+                                                    AND reservations.apartment_id = vacation_apartments.id
+                                                    AND (
+                                                        (reservations.check_in_date < ? AND reservations.check_out_date > ?)
+                                                        OR (reservations.check_in_date >= ? AND reservations.check_out_date <= ?)
+                                                    )
+                                                ), 0)
+                                            )
+                                        ", [
+                                            $checkOutDate, $checkInDate,  // First overlap: checkout > checkIn (checkout day available)
+                                            $checkInDate, $checkOutDate   // Second overlap: reservation within search dates
+                                        ]);
+                                    } else {
+                                        // FALLBACK APPROACH: Parse special_requests for backward compatibility
+                                        // Extract apartment_id and quantity from special_requests
+                                        // Pattern: "Apartment ID: X, Quantity: Y" or "Apartment ID: X Quantity: Y"
+                                        // This uses a more reliable extraction method that handles various formats
+                                        $availabilityCheck->whereRaw("
+                                            (
+                                                COALESCE(quantity, 1) > COALESCE((
+                                                    SELECT SUM(
+                                                        CASE 
+                                                            WHEN reservations.special_requests LIKE CONCAT('%Apartment ID:', vacation_apartments.id, '%') THEN
+                                                                GREATEST(
+                                                                    CAST(
+                                                                        SUBSTRING_INDEX(
+                                                                            SUBSTRING_INDEX(
+                                                                                SUBSTRING_INDEX(
+                                                                                    reservations.special_requests,
+                                                                                    CONCAT('Apartment ID:', vacation_apartments.id),
+                                                                                    -1
+                                                                                ),
+                                                                                'Quantity:',
+                                                                                -1
+                                                                            ),
+                                                                            ',',
+                                                                            1
+                                                                        )
+                                                                        AS UNSIGNED
+                                                                    ),
+                                                                    1
+                                                                )
+                                                            ELSE 1
+                                                        END
+                                                    )
+                                                    FROM reservations
+                                                    WHERE reservations.reservable_type = 'App\\\\Models\\\\Property'
+                                                    AND reservations.reservable_id = vacation_apartments.property_id
+                                                    AND reservations.status = 'confirmed'
+                                                    AND (
+                                                        reservations.special_requests LIKE CONCAT('%Apartment ID:', vacation_apartments.id, '%')
+                                                        OR (reservations.special_requests IS NULL AND reservations.reservable_id = vacation_apartments.property_id)
+                                                    )
+                                                    AND (
+                                                        (reservations.check_in_date < ? AND reservations.check_out_date > ?)
+                                                        OR (reservations.check_in_date >= ? AND reservations.check_out_date <= ?)
+                                                    )
+                                                ), 0)
+                                            )
+                                        ", [
+                                            $checkOutDate, $checkInDate,  // First overlap: checkout > checkIn (checkout day available)
+                                            $checkInDate, $checkOutDate   // Second overlap: reservation within search dates
+                                        ]);
+                                    }
+                                });
                             });
                     })
                         // OR filter hotels (property_classification = 5) with available rooms
