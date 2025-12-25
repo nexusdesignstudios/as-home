@@ -7180,11 +7180,17 @@ class ApiController extends Controller
             if ($request->has('check_in_date') && $request->has('check_out_date') && 
                 !empty($request->check_in_date) && !empty($request->check_out_date)) {
                 try {
-                    $checkIn = \Carbon\Carbon::parse($request->check_in_date)->startOfDay();
-                    $checkOut = \Carbon\Carbon::parse($request->check_out_date)->startOfDay();
-                    $today = \Carbon\Carbon::today()->startOfDay();
+                    // Get application timezone or use UTC as fallback
+                    $appTimezone = \App\Services\HelperService::getSettingData('timezone') ?? config('app.timezone', 'UTC');
                     
-                    // Check if check-in is not in the past
+                    // Parse dates as date-only values (no time component) in the application timezone
+                    // This ensures consistent comparison regardless of server timezone
+                    $checkIn = \Carbon\Carbon::createFromFormat('Y-m-d', $request->check_in_date, $appTimezone)->startOfDay();
+                    $checkOut = \Carbon\Carbon::createFromFormat('Y-m-d', $request->check_out_date, $appTimezone)->startOfDay();
+                    $today = \Carbon\Carbon::today($appTimezone)->startOfDay();
+                    
+                    // Check if check-in is not in the past (compare date strings to avoid timezone issues)
+                    // Use format comparison to ensure we're comparing dates only, not datetime
                     if ($checkIn->format('Y-m-d') < $today->format('Y-m-d')) {
                         ApiResponseService::validationError('Check-in date cannot be in the past');
                     }
@@ -7194,6 +7200,12 @@ class ApiController extends Controller
                         ApiResponseService::validationError('Check-out date must be after check-in date');
                     }
                 } catch (\Exception $e) {
+                    // Log the error for debugging
+                    \Illuminate\Support\Facades\Log::error('Date validation error in getPropertyList', [
+                        'check_in_date' => $request->check_in_date,
+                        'check_out_date' => $request->check_out_date,
+                        'error' => $e->getMessage()
+                    ]);
                     ApiResponseService::validationError('Invalid date format');
                 }
             }
