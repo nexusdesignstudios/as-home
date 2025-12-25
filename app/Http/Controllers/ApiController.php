@@ -7507,33 +7507,11 @@ class ApiController extends Controller
                     // Filter vacation homes (property_classification = 4)
                     $query->where(function ($vacationQuery) use ($checkInDate, $checkOutDate, $hasApartmentIdColumn) {
                         $vacationQuery->where('property_classification', 4)
-                            ->where(function ($availabilityQuery) use ($checkInDate, $checkOutDate) {
-                                // Check if property has available_dates JSON that covers the search dates
-                                $availabilityQuery->whereRaw("JSON_VALID(available_dates)")
-                                    ->whereRaw("
-                                        EXISTS (
-                                            SELECT 1
-                                            FROM JSON_TABLE(
-                                                available_dates,
-                                                '$[*]' COLUMNS (
-                                                    from_date DATE PATH '$.from',
-                                                    to_date DATE PATH '$.to',
-                                                    type VARCHAR(20) PATH '$.type'
-                                                )
-                                            ) AS jt
-                                            WHERE (jt.type IS NULL OR jt.type != 'reserved')
-                                            AND jt.from_date <= ?
-                                            AND jt.to_date >= ?
-                                        )
-                                    ", [$checkInDate, $checkOutDate]);
-                            })
-                            // IMPORTANT: Also check that property has at least one apartment with available units
-                            // This ensures we check actual reservations, not just available_dates JSON
+                            // IMPORTANT: Property must have at least one apartment
                             ->whereHas('vacationApartments', function ($apartmentQuery) use ($checkInDate, $checkOutDate, $hasApartmentIdColumn) {
-                                // Check if apartment has available_dates that cover the search dates (if apartment has its own available_dates)
-                                // OR if property-level available_dates is sufficient (apartment inherits from property)
+                                // Check availability at apartment level - more flexible approach
                                 $apartmentQuery->where(function ($aptQuery) use ($checkInDate, $checkOutDate) {
-                                    // Option 1: Apartment has its own available_dates JSON
+                                    // Option 1: Apartment has its own available_dates JSON that covers the search dates
                                     $aptQuery->where(function ($hasOwnDates) use ($checkInDate, $checkOutDate) {
                                         $hasOwnDates->whereRaw("JSON_VALID(available_dates)")
                                             ->whereRaw("
@@ -7553,15 +7531,43 @@ class ApiController extends Controller
                                                 )
                                             ", [$checkInDate, $checkOutDate]);
                                     })
-                                    // Option 2: Apartment doesn't have own available_dates (inherits from property)
-                                    // In this case, we only check reservations
-                                    ->orWhereRaw("(available_dates IS NULL OR available_dates = '[]' OR JSON_VALID(available_dates) = 0)");
+                                    // Option 2: Apartment doesn't have own available_dates - check property-level available_dates
+                                    ->orWhere(function ($inheritsFromProperty) use ($checkInDate, $checkOutDate) {
+                                        $inheritsFromProperty->whereRaw("(available_dates IS NULL OR available_dates = '[]' OR JSON_VALID(available_dates) = 0)")
+                                            ->whereHas('property', function ($propQuery) use ($checkInDate, $checkOutDate) {
+                                                // Property has available_dates that cover the search dates
+                                                $propQuery->whereRaw("JSON_VALID(available_dates)")
+                                                    ->whereRaw("
+                                                        EXISTS (
+                                                            SELECT 1
+                                                            FROM JSON_TABLE(
+                                                                available_dates,
+                                                                '$[*]' COLUMNS (
+                                                                    from_date DATE PATH '$.from',
+                                                                    to_date DATE PATH '$.to',
+                                                                    type VARCHAR(20) PATH '$.type'
+                                                                )
+                                                            ) AS jt
+                                                            WHERE (jt.type IS NULL OR jt.type != 'reserved')
+                                                            AND jt.from_date <= ?
+                                                            AND jt.to_date >= ?
+                                                        )
+                                                    ", [$checkInDate, $checkOutDate]);
+                                            });
+                                    })
+                                    // Option 3: Neither apartment nor property has available_dates - assume always available (unless reserved)
+                                    ->orWhere(function ($noDatesSet) {
+                                        $noDatesSet->whereRaw("(available_dates IS NULL OR available_dates = '[]' OR JSON_VALID(available_dates) = 0)")
+                                            ->whereDoesntHave('property', function ($propQuery) {
+                                                $propQuery->whereRaw("JSON_VALID(available_dates)");
+                                            });
+                                    });
                                 })
                                 // Check that apartment has available units (not fully booked by reservations)
                                 // IMPORTANT: Checkout day is available, so use check_out_date > checkInDate (not >=)
                                 ->where(function ($availabilityCheck) use ($checkInDate, $checkOutDate, $hasApartmentIdColumn) {
                                     if ($hasApartmentIdColumn) {
-                                        // MODERN APPROACH: Use apartment_id column if it exists (faster, more reliable)
+                                        // MODERN APPROACH: Use apartment_id column if it exists
                                         $availabilityCheck->whereRaw("
                                             (
                                                 COALESCE(quantity, 1) > COALESCE((
@@ -7583,9 +7589,6 @@ class ApiController extends Controller
                                         ]);
                                     } else {
                                         // FALLBACK APPROACH: Parse special_requests for backward compatibility
-                                        // Extract apartment_id and quantity from special_requests
-                                        // Pattern: "Apartment ID: X, Quantity: Y" or "Apartment ID: X Quantity: Y"
-                                        // This uses a more reliable extraction method that handles various formats
                                         $availabilityCheck->whereRaw("
                                             (
                                                 COALESCE(quantity, 1) > COALESCE((
