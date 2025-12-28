@@ -45,7 +45,6 @@
     </div>
 @endsection
 
-
 @section('content')
     <section class="section">
         <div class="card">
@@ -253,8 +252,9 @@
             </div>
         </div>
     </div>
+@endsection
 
-    @section('script')
+@section('script')
     <script>
         function viewEditRequest(requestId) {
             // Show modal
