@@ -13,22 +13,6 @@
         gap: 0.5rem !important;
     }
     
-    /* Ensure content doesn't overflow on any screen size */
-    #main-content {
-        width: 100%;
-        box-sizing: border-box;
-    }
-    
-    .section {
-        width: 100%;
-        box-sizing: border-box;
-    }
-    
-    .card {
-        width: 100%;
-        box-sizing: border-box;
-    }
-    
     /* Table responsive for mobile */
     @media (max-width: 768px) {
         .table-responsive {
@@ -347,33 +331,49 @@
                 }
             }
             
-            // Find all changes - compare all fields
-            const allKeys = new Set([...Object.keys(original), ...Object.keys(edited)]);
-            const ignoredKeys = ['id', 'created_at', 'updated_at', 'deleted_at', 'vacation_apartments'];
+            // Only compare fields that exist in edited data (these are the only fields that were changed)
+            // This prevents false positives from comparing fields that weren't modified
+            const editedKeys = Object.keys(edited);
+            const ignoredKeys = ['id', 'created_at', 'updated_at', 'deleted_at', 'vacation_apartments', 'request_status', 'status', 'added_by'];
             
-            allKeys.forEach(key => {
+            editedKeys.forEach(key => {
                 if (!ignoredKeys.includes(key)) {
                     const origValue = original[key];
                     const editValue = edited[key];
                     
+                    // Normalize values for comparison (handle null, undefined, empty string)
+                    const normalizeValue = (val) => {
+                        if (val === null || val === undefined || val === '') {
+                            return null; // Treat all empty values as null for comparison
+                        }
+                        // Convert numbers to strings for consistent comparison
+                        if (typeof val === 'number') {
+                            return String(val);
+                        }
+                        return val;
+                    };
+                    
+                    const normalizedOrig = normalizeValue(origValue);
+                    const normalizedEdit = normalizeValue(editValue);
+                    
                     // Deep comparison for objects and arrays
                     let valuesAreDifferent = false;
                     
-                    if (origValue === null || origValue === undefined) {
-                        valuesAreDifferent = (editValue !== null && editValue !== undefined);
-                    } else if (editValue === null || editValue === undefined) {
-                        valuesAreDifferent = true;
-                    } else if (typeof origValue === 'object' || typeof editValue === 'object') {
+                    if (normalizedOrig === null && normalizedEdit === null) {
+                        valuesAreDifferent = false; // Both empty, no change
+                    } else if (normalizedOrig === null || normalizedEdit === null) {
+                        valuesAreDifferent = normalizedOrig !== normalizedEdit; // One is empty, one is not
+                    } else if (typeof normalizedOrig === 'object' || typeof normalizedEdit === 'object') {
                         // For objects/arrays, use JSON stringify for comparison
                         try {
-                            valuesAreDifferent = JSON.stringify(origValue) !== JSON.stringify(editValue);
+                            valuesAreDifferent = JSON.stringify(normalizedOrig) !== JSON.stringify(normalizedEdit);
                         } catch (e) {
                             // Fallback to string comparison
-                            valuesAreDifferent = String(origValue) !== String(editValue);
+                            valuesAreDifferent = String(normalizedOrig) !== String(normalizedEdit);
                         }
                     } else {
                         // For primitives, use simple comparison
-                        valuesAreDifferent = origValue !== editValue;
+                        valuesAreDifferent = normalizedOrig !== normalizedEdit;
                     }
                     
                     if (valuesAreDifferent) {
