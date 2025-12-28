@@ -7649,11 +7649,13 @@ class ApiController extends Controller
                                             // Option 1: Rooms WITH available_dates that cover the search dates
                                             $availabilityQuery->whereRaw("JSON_VALID(available_dates)")
                                             ->where(function ($dateQuery) use ($checkInDate, $checkOutDate) {
-                                                // Handle available_days type (default)
+                                                // Handle availability_type = 1 (available_days) or NULL (defaults to available_days)
+                                                // For available_days: search date range must be completely within an available date range
                                                 $dateQuery->where(function ($availableDaysQuery) use ($checkInDate, $checkOutDate) {
                                                     $availableDaysQuery->where(function ($typeQuery) {
+                                                        // availability_type = 1 means available_days, NULL also means available_days (default)
                                                         $typeQuery->whereNull('availability_type')
-                                                            ->orWhere('availability_type', 'available_days');
+                                                            ->orWhere('availability_type', 1);
                                                     })
                                                         ->whereRaw("
                                                     EXISTS (
@@ -7672,9 +7674,10 @@ class ApiController extends Controller
                                                     )
                                                 ", [$checkInDate, $checkOutDate]);
                                                 })
-                                                    // Handle busy_days type
+                                                    // Handle availability_type = 2 (busy_days)
+                                                    // For busy_days: search date range must NOT overlap with any busy date range
                                                     ->orWhere(function ($busyDaysQuery) use ($checkInDate, $checkOutDate) {
-                                                        $busyDaysQuery->where('availability_type', 'busy_days')
+                                                        $busyDaysQuery->where('availability_type', 2)
                                                             ->whereRaw("
                                                         NOT EXISTS (
                                                             SELECT 1
