@@ -4,7 +4,6 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
-use App\Models\HotelRoom;
 
 return new class extends Migration
 {
@@ -15,22 +14,29 @@ return new class extends Migration
     {
         // Only migrate rooms with availability_type = 1 (available_days) or NULL
         // Skip busy_days (availability_type = 2) as per requirements
-        $hotelRooms = HotelRoom::where(function ($query) {
-            $query->whereNull('availability_type')
-                ->orWhere('availability_type', 1);
-        })
-        ->whereNotNull('available_dates')
-        ->where('available_dates', '!=', '')
-        ->where('available_dates', '!=', '[]')
-        ->whereRaw("JSON_VALID(available_dates) = 1")
-        ->get();
+        // Use DB::table to get raw JSON values (bypassing Laravel's JSON casting)
+        $hotelRooms = DB::table('hotel_rooms')
+            ->where(function ($query) {
+                $query->whereNull('availability_type')
+                    ->orWhere('availability_type', 1);
+            })
+            ->whereNotNull('available_dates')
+            ->where('available_dates', '!=', '')
+            ->where('available_dates', '!=', '[]')
+            ->whereRaw("JSON_VALID(available_dates) = 1")
+            ->get();
 
         $insertData = [];
 
         foreach ($hotelRooms as $room) {
-            $availableDates = json_decode($room->available_dates, true);
+            // Get raw JSON string from database
+            $availableDatesJson = $room->available_dates;
             
-            if (!is_array($availableDates) || empty($availableDates)) {
+            // Decode JSON string to array
+            $availableDates = json_decode($availableDatesJson, true);
+            
+            // If decoding failed or result is not an array or is empty, skip
+            if (json_last_error() !== JSON_ERROR_NONE || !is_array($availableDates) || empty($availableDates)) {
                 continue;
             }
 
@@ -52,7 +58,7 @@ return new class extends Migration
                     'to_date' => $dateRange['to'],
                     'price' => isset($dateRange['price']) && $dateRange['price'] !== '' ? (float)$dateRange['price'] : null,
                     'type' => $dateRange['type'] ?? 'open',
-                    'nonrefundable_percentage' => isset($dateRange['nonrefundable_percentage']) ? (float)$dateRange['nonrefundable_percentage'] : ($room->nonrefundable_percentage ?? null),
+                    'nonrefundable_percentage' => isset($dateRange['nonrefundable_percentage']) ? (float)$dateRange['nonrefundable_percentage'] : (isset($room->nonrefundable_percentage) ? (float)$room->nonrefundable_percentage : null),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
