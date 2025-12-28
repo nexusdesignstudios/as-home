@@ -7953,89 +7953,50 @@ class ApiController extends Controller
             $offset = $request->has('offset') && !empty($request->offset) ? (int)$request->offset : 0;
             $limit = $request->has('limit') && !empty($request->limit) ? (int)$request->limit : 10;
 
-            // Base query - only hotels (property_classification = 5)
-            $propertyQuery = Property::where('property_classification', 5)
+            // Query available_dates_hotel_rooms table directly to get property_ids
+            // This is more efficient and direct than going through hotel_rooms relationship
+            $checkInStr = $checkInDate->format('Y-m-d');
+            $checkOutStr = $checkOutDate->format('Y-m-d');
+            
+            \Log::info('Hotel Search - Querying available_dates_hotel_rooms:', [
+                'check_in' => $checkInStr,
+                'check_out' => $checkOutStr,
+                'condition' => "from_date <= $checkInStr AND to_date >= $checkOutStr"
+            ]);
+            
+            // Get property_ids from available_dates_hotel_rooms that match the date range
+            $availablePropertyIds = DB::table('available_dates_hotel_rooms')
+                ->where('from_date', '<=', $checkInStr)
+                ->where('to_date', '>=', $checkOutStr)
+                ->where(function ($query) {
+                    $query->where('type', '!=', 'reserved')
+                        ->orWhereNull('type');
+                })
+                ->distinct()
+                ->pluck('property_id')
+                ->toArray();
+            
+            \Log::info('Hotel Search - Found property_ids from available_dates:', $availablePropertyIds);
+            
+            if (empty($availablePropertyIds)) {
+                // No properties have available dates for this period
+                return response()->json([
+                    'error' => false,
+                    'total' => 0,
+                    'data' => [],
+                    'message' => 'No hotels available for the selected dates'
+                ]);
+            }
+            
+            // Now get properties that match the criteria
+            $propertyQuery = Property::whereIn('id', $availablePropertyIds)
+                ->where('property_classification', 5)
                 ->where('request_status', 'approved')
                 ->where('status', 1);
-
-            // Debug: Log base query count and test specific property
-            $baseCount = $propertyQuery->count();
-            \Log::info('Hotel Search Debug - Base hotels count: ' . $baseCount);
             
-            // Debug: Check specific property 357 if it exists
-            $testProperty = Property::where('id', 357)->first();
-            if ($testProperty) {
-                \Log::info('Hotel Search Debug - Property 357:', [
-                    'id' => $testProperty->id,
-                    'property_classification' => $testProperty->property_classification,
-                    'status' => $testProperty->status,
-                    'request_status' => $testProperty->request_status,
-                    'has_hotel_rooms' => $testProperty->hotelRooms()->count(),
-                    'active_hotel_rooms' => $testProperty->hotelRooms()->where('status', 1)->count(),
-                ]);
-                
-                // Check room 769 specifically
-                $testRoom = \App\Models\HotelRoom::where('id', 769)->first();
-                if ($testRoom) {
-                    \Log::info('Hotel Search Debug - Room 769:', [
-                        'id' => $testRoom->id,
-                        'property_id' => $testRoom->property_id,
-                        'status' => $testRoom->status,
-                        'has_available_dates' => $testRoom->availableDates()->count(),
-                        'available_dates' => $testRoom->availableDates()->get()->toArray(),
-                    ]);
-                }
-            }
-
-            // Filter hotels that have at least one room available for the date range
-            // Using the new available_dates_hotel_rooms table for simpler and more efficient querying
-            $propertyQuery->whereHas('hotelRooms', function ($roomQuery) use ($checkInDate, $checkOutDate) {
-                // Only check active rooms (status = 1)
-                $roomQuery->where('status', 1)
-                    // Check if room has available dates that cover the search date range
-                    ->whereHas('availableDates', function ($datesQuery) use ($checkInDate, $checkOutDate) {
-                        // The search date range must be completely within an available date range
-                        // Condition: available_from <= search_from AND available_to >= search_to
-                        $checkInStr = $checkInDate->format('Y-m-d');
-                        $checkOutStr = $checkOutDate->format('Y-m-d');
-                        
-                        \Log::info('Hotel Search - Date Filter:', [
-                            'check_in' => $checkInStr,
-                            'check_out' => $checkOutStr,
-                            'condition' => "from_date <= $checkInStr AND to_date >= $checkOutStr"
-                        ]);
-                        
-                        $datesQuery->where('from_date', '<=', $checkInStr)
-                            ->where('to_date', '>=', $checkOutStr)
-                            // Exclude reserved dates - include open, null, or any type except reserved
-                            ->where(function ($typeQuery) {
-                                $typeQuery->where('type', '!=', 'reserved')
-                                    ->orWhereNull('type');
-                            });
-                    })
-                    // Also check that room is not already reserved for these dates
-                    ->whereDoesntHave('reservations', function ($reservationQuery) use ($checkInDate, $checkOutDate) {
-                        $reservationQuery->where('status', 'confirmed')
-                            ->where(function ($dateOverlapQuery) use ($checkInDate, $checkOutDate) {
-                                $dateOverlapQuery->where(function ($query) use ($checkInDate, $checkOutDate) {
-                                    $query->where('check_in_date', '<=', $checkInDate->format('Y-m-d'))
-                                        ->where('check_out_date', '>', $checkInDate->format('Y-m-d'));
-                                })
-                                    ->orWhere(function ($query) use ($checkInDate, $checkOutDate) {
-                                        $query->where('check_in_date', '<', $checkOutDate->format('Y-m-d'))
-                                            ->where('check_out_date', '>=', $checkOutDate->format('Y-m-d'));
-                                    })
-                                    ->orWhere(function ($query) use ($checkInDate, $checkOutDate) {
-                                        $query->where('check_in_date', '>=', $checkInDate->format('Y-m-d'))
-                                            ->where('check_out_date', '<=', $checkOutDate->format('Y-m-d'));
-                                    });
-                            });
-                    });
-            });
-
-            // Debug: Log count after date filtering
-            $afterDateFilterCount = $propertyQuery->count();
-            \Log::info('Hotel Search Debug - After date filter count: ' . $afterDateFilterCount . ' | Check-in: ' . $checkInDate->format('Y-m-d') . ' | Check-out: ' . $checkOutDate->format('Y-m-d'));
+            // Debug: Log base query count
+            $baseCount = $propertyQuery->count();
+            \Log::info('Hotel Search Debug - Properties after filtering: ' . $baseCount);
 
             // Apply additional filters
             if ($request->has('category_id') && !empty($request->category_id)) {
