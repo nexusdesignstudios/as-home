@@ -7964,56 +7964,68 @@ class ApiController extends Controller
                 $roomQuery->where('status', 1)
                     ->where(function ($availabilityQuery) use ($checkInDate, $checkOutDate) {
                         // Option 1: Rooms WITH available_dates that cover the search dates
-                        $availabilityQuery->whereRaw("JSON_VALID(available_dates)")
-                            ->where(function ($dateQuery) use ($checkInDate, $checkOutDate) {
-                                // Handle availability_type = 1 (available_days) or NULL (defaults to available_days)
-                                // For available_days: search date range must be completely within an available date range
-                                $dateQuery->where(function ($availableDaysQuery) use ($checkInDate, $checkOutDate) {
-                                    $availableDaysQuery->where(function ($typeQuery) {
-                                        // availability_type = 1 means available_days, NULL also means available_days (default)
-                                        $typeQuery->whereNull('availability_type')
-                                            ->orWhere('availability_type', 1);
-                                    })
-                                        ->whereRaw("
-                                        EXISTS (
-                                            SELECT 1
-                                            FROM JSON_TABLE(
-                                                available_dates,
-                                                '$[*]' COLUMNS (
-                                                    from_date DATE PATH '$.from',
-                                                    to_date DATE PATH '$.to',
-                                                    type VARCHAR(20) PATH '$.type'
-                                                )
-                                            ) AS jt
-                                            WHERE (jt.type IS NULL OR jt.type != 'reserved')
-                                            AND jt.from_date <= ?
-                                            AND jt.to_date >= ?
-                                        )
-                                    ", [$checkInDate->format('Y-m-d'), $checkOutDate->format('Y-m-d')]);
-                                })
-                                    // Handle availability_type = 2 (busy_days)
-                                    // For busy_days: search date range must NOT overlap with any busy date range
-                                    ->orWhere(function ($busyDaysQuery) use ($checkInDate, $checkOutDate) {
-                                        $busyDaysQuery->where('availability_type', 2)
+                        $availabilityQuery->where(function ($hasDatesQuery) use ($checkInDate, $checkOutDate) {
+                            $hasDatesQuery->whereRaw("JSON_VALID(available_dates)")
+                                ->whereRaw("available_dates != '[]'")
+                                ->whereRaw("available_dates IS NOT NULL")
+                                ->where(function ($dateQuery) use ($checkInDate, $checkOutDate) {
+                                    // Handle availability_type = 1 (available_days) or NULL (defaults to available_days)
+                                    // For available_days: search date range must be completely within an available date range
+                                    // Condition: available_from <= search_from AND available_to >= search_to
+                                    $dateQuery->where(function ($availableDaysQuery) use ($checkInDate, $checkOutDate) {
+                                        $availableDaysQuery->where(function ($typeQuery) {
+                                            // availability_type = 1 means available_days, NULL also means available_days (default)
+                                            $typeQuery->whereNull('availability_type')
+                                                ->orWhere('availability_type', 1);
+                                        })
                                             ->whereRaw("
-                                            NOT EXISTS (
+                                            EXISTS (
                                                 SELECT 1
                                                 FROM JSON_TABLE(
                                                     available_dates,
                                                     '$[*]' COLUMNS (
                                                         from_date DATE PATH '$.from',
-                                                        to_date DATE PATH '$.to'
+                                                        to_date DATE PATH '$.to',
+                                                        type VARCHAR(20) PATH '$.type'
                                                     )
                                                 ) AS jt
-                                                WHERE jt.from_date <= ?
+                                                WHERE (jt.type IS NULL OR jt.type = '' OR jt.type != 'reserved')
+                                                AND jt.from_date <= ?
                                                 AND jt.to_date >= ?
                                             )
-                                        ", [$checkOutDate->format('Y-m-d'), $checkInDate->format('Y-m-d')]);
-                                    });
-                            })
+                                        ", [$checkInDate->format('Y-m-d'), $checkOutDate->format('Y-m-d')]);
+                                    })
+                                        // Handle availability_type = 2 (busy_days)
+                                        // For busy_days: room is available EXCEPT during busy periods
+                                        // Search date range must NOT overlap with any busy date range
+                                        // Overlap condition: busy_from <= search_to AND busy_to >= search_from
+                                        ->orWhere(function ($busyDaysQuery) use ($checkInDate, $checkOutDate) {
+                                            $busyDaysQuery->where('availability_type', 2)
+                                                ->whereRaw("
+                                                NOT EXISTS (
+                                                    SELECT 1
+                                                    FROM JSON_TABLE(
+                                                        available_dates,
+                                                        '$[*]' COLUMNS (
+                                                            from_date DATE PATH '$.from',
+                                                            to_date DATE PATH '$.to'
+                                                        )
+                                                    ) AS jt
+                                                    WHERE jt.from_date <= ?
+                                                    AND jt.to_date >= ?
+                                                )
+                                            ", [$checkOutDate->format('Y-m-d'), $checkInDate->format('Y-m-d')]);
+                                        });
+                                });
+                        })
                         // Option 2: Rooms WITHOUT available_dates (null/empty/invalid JSON) - treat as always available
                         ->orWhere(function ($noDatesQuery) {
-                            $noDatesQuery->whereRaw("(available_dates IS NULL OR available_dates = '' OR available_dates = '[]' OR JSON_VALID(available_dates) = 0)");
+                            $noDatesQuery->where(function ($query) {
+                                $query->whereNull('available_dates')
+                                    ->orWhere('available_dates', '')
+                                    ->orWhere('available_dates', '[]')
+                                    ->orWhereRaw("JSON_VALID(available_dates) = 0");
+                            });
                         });
                     })
                     // Also check that room is not already reserved for these dates
