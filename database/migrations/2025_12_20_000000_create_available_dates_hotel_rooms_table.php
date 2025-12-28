@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Drop table if it exists (from previous failed migration)
+        Schema::dropIfExists('available_dates_hotel_rooms');
+        
         Schema::create('available_dates_hotel_rooms', function (Blueprint $table) {
             $table->id();
             $table->foreignId('property_id')->constrained('propertys')->onDelete('cascade');
