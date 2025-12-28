@@ -281,7 +281,11 @@
             fetch(`{{ url('property-edit-requests') }}/${requestId}`)
                 .then(response => response.json())
                 .then(data => {
+                    console.log('Edit request data:', data);
                     if (data.error === false) {
+                        console.log('Edit request object:', data.data.edit_request);
+                        console.log('Original data:', data.data.edit_request.original_data);
+                        console.log('Edited data:', data.data.edit_request.edited_data);
                         displayEditRequest(data.data.edit_request);
                     } else {
                         document.getElementById('editRequestDetails').innerHTML = 
@@ -296,8 +300,33 @@
         }
 
         function displayEditRequest(request) {
-            const original = request.original_data || {};
-            const edited = request.edited_data || {};
+            console.log('displayEditRequest called with:', request);
+            
+            // Ensure original_data and edited_data are objects, not strings
+            let original = request.original_data || {};
+            let edited = request.edited_data || {};
+            
+            // If they're strings (JSON), parse them
+            if (typeof original === 'string') {
+                try {
+                    original = JSON.parse(original);
+                } catch (e) {
+                    console.error('Error parsing original_data:', e);
+                    original = {};
+                }
+            }
+            if (typeof edited === 'string') {
+                try {
+                    edited = JSON.parse(edited);
+                } catch (e) {
+                    console.error('Error parsing edited_data:', e);
+                    edited = {};
+                }
+            }
+            
+            console.log('Parsed original:', original);
+            console.log('Parsed edited:', edited);
+            
             const changes = [];
             
             // Handle vacation apartments separately (special comparison)
@@ -327,12 +356,27 @@
                     const origValue = original[key];
                     const editValue = edited[key];
                     
-                    // Compare values (handle null/undefined cases)
-                    const origStr = origValue === null || origValue === undefined ? '' : String(origValue);
-                    const editStr = editValue === null || editValue === undefined ? '' : String(editValue);
+                    // Deep comparison for objects and arrays
+                    let valuesAreDifferent = false;
                     
-                    // Check if values are different
-                    if (origStr !== editStr) {
+                    if (origValue === null || origValue === undefined) {
+                        valuesAreDifferent = (editValue !== null && editValue !== undefined);
+                    } else if (editValue === null || editValue === undefined) {
+                        valuesAreDifferent = true;
+                    } else if (typeof origValue === 'object' || typeof editValue === 'object') {
+                        // For objects/arrays, use JSON stringify for comparison
+                        try {
+                            valuesAreDifferent = JSON.stringify(origValue) !== JSON.stringify(editValue);
+                        } catch (e) {
+                            // Fallback to string comparison
+                            valuesAreDifferent = String(origValue) !== String(editValue);
+                        }
+                    } else {
+                        // For primitives, use simple comparison
+                        valuesAreDifferent = origValue !== editValue;
+                    }
+                    
+                    if (valuesAreDifferent) {
                         changes.push({
                             field: key,
                             original: origValue,
@@ -341,6 +385,9 @@
                     }
                 }
             });
+            
+            console.log('Total changes found:', changes.length);
+            console.log('Changes:', changes);
 
             // Sort changes by field name for better readability
             changes.sort((a, b) => a.field.localeCompare(b.field));
