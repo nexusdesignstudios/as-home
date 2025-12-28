@@ -208,4 +208,12 @@ class HotelRoom extends Model
     {
         return $this->morphMany(Reservation::class, 'reservable');
     }
+
+    /**
+     * Get the available dates for this room.
+     */
+    public function availableDates()
+    {
+        return $this->hasMany(AvailableDatesHotelRoom::class, 'hotel_room_id');
+    }
 }
