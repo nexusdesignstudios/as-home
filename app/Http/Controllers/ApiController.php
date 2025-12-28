@@ -7958,6 +7958,10 @@ class ApiController extends Controller
                 ->where('request_status', 'approved')
                 ->where('status', 1);
 
+            // Debug: Log base query count
+            $baseCount = $propertyQuery->count();
+            \Log::info('Hotel Search Debug - Base hotels count: ' . $baseCount);
+
             // Filter hotels that have at least one room available for the date range
             // Using the new available_dates_hotel_rooms table for simpler and more efficient querying
             $propertyQuery->whereHas('hotelRooms', function ($roomQuery) use ($checkInDate, $checkOutDate) {
@@ -7969,11 +7973,10 @@ class ApiController extends Controller
                         // Condition: available_from <= search_from AND available_to >= search_to
                         $datesQuery->where('from_date', '<=', $checkInDate->format('Y-m-d'))
                             ->where('to_date', '>=', $checkOutDate->format('Y-m-d'))
-                            // Exclude reserved dates
+                            // Exclude reserved dates - include open, null, or any type except reserved
                             ->where(function ($typeQuery) {
-                                $typeQuery->whereNull('type')
-                                    ->orWhere('type', '!=', 'reserved')
-                                    ->orWhere('type', 'open');
+                                $typeQuery->where('type', '!=', 'reserved')
+                                    ->orWhereNull('type');
                             });
                     })
                     // Also check that room is not already reserved for these dates
@@ -7995,6 +7998,10 @@ class ApiController extends Controller
                             });
                     });
             });
+
+            // Debug: Log count after date filtering
+            $afterDateFilterCount = $propertyQuery->count();
+            \Log::info('Hotel Search Debug - After date filter count: ' . $afterDateFilterCount . ' | Check-in: ' . $checkInDate->format('Y-m-d') . ' | Check-out: ' . $checkOutDate->format('Y-m-d'));
 
             // Apply additional filters
             if ($request->has('category_id') && !empty($request->category_id)) {
@@ -8029,6 +8036,11 @@ class ApiController extends Controller
 
             // Get total count
             $totalProperties = $propertyQuery->count();
+            
+            // Debug: Log final count and SQL query
+            \Log::info('Hotel Search Debug - Final count: ' . $totalProperties);
+            \Log::info('Hotel Search Debug - SQL: ' . $propertyQuery->toSql());
+            \Log::info('Hotel Search Debug - Bindings: ' . json_encode($propertyQuery->getBindings()));
 
             // Order by ID descending
             $propertyQuery->orderBy('id', 'DESC');
