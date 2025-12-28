@@ -7958,9 +7958,34 @@ class ApiController extends Controller
                 ->where('request_status', 'approved')
                 ->where('status', 1);
 
-            // Debug: Log base query count
+            // Debug: Log base query count and test specific property
             $baseCount = $propertyQuery->count();
             \Log::info('Hotel Search Debug - Base hotels count: ' . $baseCount);
+            
+            // Debug: Check specific property 357 if it exists
+            $testProperty = Property::where('id', 357)->first();
+            if ($testProperty) {
+                \Log::info('Hotel Search Debug - Property 357:', [
+                    'id' => $testProperty->id,
+                    'property_classification' => $testProperty->property_classification,
+                    'status' => $testProperty->status,
+                    'request_status' => $testProperty->request_status,
+                    'has_hotel_rooms' => $testProperty->hotelRooms()->count(),
+                    'active_hotel_rooms' => $testProperty->hotelRooms()->where('status', 1)->count(),
+                ]);
+                
+                // Check room 769 specifically
+                $testRoom = \App\Models\HotelRoom::where('id', 769)->first();
+                if ($testRoom) {
+                    \Log::info('Hotel Search Debug - Room 769:', [
+                        'id' => $testRoom->id,
+                        'property_id' => $testRoom->property_id,
+                        'status' => $testRoom->status,
+                        'has_available_dates' => $testRoom->availableDates()->count(),
+                        'available_dates' => $testRoom->availableDates()->get()->toArray(),
+                    ]);
+                }
+            }
 
             // Filter hotels that have at least one room available for the date range
             // Using the new available_dates_hotel_rooms table for simpler and more efficient querying
@@ -7971,8 +7996,17 @@ class ApiController extends Controller
                     ->whereHas('availableDates', function ($datesQuery) use ($checkInDate, $checkOutDate) {
                         // The search date range must be completely within an available date range
                         // Condition: available_from <= search_from AND available_to >= search_to
-                        $datesQuery->where('from_date', '<=', $checkInDate->format('Y-m-d'))
-                            ->where('to_date', '>=', $checkOutDate->format('Y-m-d'))
+                        $checkInStr = $checkInDate->format('Y-m-d');
+                        $checkOutStr = $checkOutDate->format('Y-m-d');
+                        
+                        \Log::info('Hotel Search - Date Filter:', [
+                            'check_in' => $checkInStr,
+                            'check_out' => $checkOutStr,
+                            'condition' => "from_date <= $checkInStr AND to_date >= $checkOutStr"
+                        ]);
+                        
+                        $datesQuery->where('from_date', '<=', $checkInStr)
+                            ->where('to_date', '>=', $checkOutStr)
                             // Exclude reserved dates - include open, null, or any type except reserved
                             ->where(function ($typeQuery) {
                                 $typeQuery->where('type', '!=', 'reserved')
@@ -8101,6 +8135,127 @@ class ApiController extends Controller
             return response()->json([
                 'error' => true,
                 'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Test endpoint to check hotel room availability for a given date range
+     * This helps debug availability queries
+     */
+    public function testHotelRoomAvailability(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'from_date' => 'required|date',
+                'to_date' => 'required|date',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Validation error',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $fromDate = $request->from_date;
+            $toDate = $request->to_date;
+
+            // Get all available dates that cover the search period
+            $availableDates = DB::table('available_dates_hotel_rooms')
+                ->where('from_date', '<=', $fromDate)
+                ->where('to_date', '>=', $toDate)
+                ->where(function ($query) {
+                    $query->where('type', '!=', 'reserved')
+                        ->orWhereNull('type');
+                })
+                ->get();
+
+            // Get hotel rooms with their properties
+            $roomIds = $availableDates->pluck('hotel_room_id')->unique();
+            
+            $rooms = HotelRoom::whereIn('id', $roomIds)
+                ->where('status', 1)
+                ->with([
+                    'property' => function($query) {
+                        $query->select('id', 'title', 'slug_id', 'property_classification', 'status', 'request_status', 'city', 'state', 'country');
+                    },
+                    'roomType' => function($query) {
+                        $query->select('id', 'name');
+                    },
+                    'availableDates' => function($query) use ($fromDate, $toDate) {
+                        $query->where('from_date', '<=', $fromDate)
+                            ->where('to_date', '>=', $toDate)
+                            ->where(function ($q) {
+                                $q->where('type', '!=', 'reserved')
+                                    ->orWhereNull('type');
+                            });
+                    }
+                ])
+                ->get();
+
+            // Filter to only include rooms from approved hotels
+            $filteredRooms = $rooms->filter(function($room) {
+                return $room->property && 
+                       $room->property->property_classification == 5 &&
+                       $room->property->status == 1 &&
+                       $room->property->request_status == 'approved';
+            });
+
+            // Format response
+            $result = [
+                'search_period' => [
+                    'from_date' => $fromDate,
+                    'to_date' => $toDate,
+                ],
+                'total_available_dates_records' => $availableDates->count(),
+                'total_rooms_found' => $filteredRooms->count(),
+                'rooms' => $filteredRooms->map(function($room) use ($fromDate, $toDate) {
+                    return [
+                        'room_id' => $room->id,
+                        'room_number' => $room->room_number,
+                        'price_per_night' => $room->price_per_night,
+                        'status' => $room->status,
+                        'property' => [
+                            'id' => $room->property->id,
+                            'title' => $room->property->title,
+                            'slug_id' => $room->property->slug_id,
+                            'property_classification' => $room->property->property_classification,
+                            'status' => $room->property->status,
+                            'request_status' => $room->property->request_status,
+                            'city' => $room->property->city,
+                            'state' => $room->property->state,
+                            'country' => $room->property->country,
+                        ],
+                        'room_type' => $room->roomType ? [
+                            'id' => $room->roomType->id,
+                            'name' => $room->roomType->name,
+                        ] : null,
+                        'matching_available_dates' => $room->availableDates->map(function($date) {
+                            return [
+                                'id' => $date->id,
+                                'from_date' => $date->from_date,
+                                'to_date' => $date->to_date,
+                                'price' => $date->price,
+                                'type' => $date->type,
+                                'nonrefundable_percentage' => $date->nonrefundable_percentage,
+                            ];
+                        }),
+                    ];
+                }),
+            ];
+
+            return response()->json([
+                'error' => false,
+                'message' => 'Test completed successfully',
+                'data' => $result
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'error' => true,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ], 500);
         }
     }
