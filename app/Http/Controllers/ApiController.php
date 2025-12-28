@@ -7894,6 +7894,245 @@ class ApiController extends Controller
     }
 
 
+    /**
+     * Search hotels with arrival and departure dates
+     * Filters hotels based on available_dates in hotel_rooms table
+     */
+    public function searchHotelsWithDates(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'offset' => 'nullable|numeric',
+                'limit' => 'nullable|numeric',
+                'check_in_date' => 'required|date',
+                'check_out_date' => 'required|date',
+                'category_id' => 'nullable|numeric',
+                'category_slug_id' => 'nullable|string',
+                'country' => 'nullable|string',
+                'state' => 'nullable|string',
+                'city' => 'nullable|string',
+                'min_price' => 'nullable|numeric',
+                'max_price' => 'nullable|numeric',
+                'latitude' => 'nullable|numeric',
+                'longitude' => 'nullable|numeric',
+                'radius' => 'nullable|numeric',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Validation error',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Get application timezone or use UTC as fallback
+            $appTimezone = \App\Services\HelperService::getSettingData('timezone') ?? config('app.timezone', 'UTC');
+            
+            // Parse dates
+            $checkInDate = \Carbon\Carbon::createFromFormat('Y-m-d', $request->check_in_date, $appTimezone)->startOfDay();
+            $checkOutDate = \Carbon\Carbon::createFromFormat('Y-m-d', $request->check_out_date, $appTimezone)->startOfDay();
+            $today = \Carbon\Carbon::today($appTimezone)->startOfDay();
+            
+            // Validate dates
+            if ($checkInDate->format('Y-m-d') < $today->format('Y-m-d')) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Check-in date cannot be in the past'
+                ], 422);
+            }
+            
+            if ($checkOutDate->format('Y-m-d') <= $checkInDate->format('Y-m-d')) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Check-out date must be after check-in date'
+                ], 422);
+            }
+
+            // Pagination
+            $offset = $request->has('offset') && !empty($request->offset) ? (int)$request->offset : 0;
+            $limit = $request->has('limit') && !empty($request->limit) ? (int)$request->limit : 10;
+
+            // Base query - only hotels (property_classification = 5)
+            $propertyQuery = Property::where('property_classification', 5)
+                ->where('request_status', 'approved')
+                ->where('status', 1);
+
+            // Filter hotels that have at least one room available for the date range
+            $propertyQuery->whereHas('hotelRooms', function ($roomQuery) use ($checkInDate, $checkOutDate) {
+                // Only check active rooms (status = 1)
+                $roomQuery->where('status', 1)
+                    ->where(function ($availabilityQuery) use ($checkInDate, $checkOutDate) {
+                        // Option 1: Rooms WITH available_dates that cover the search dates
+                        $availabilityQuery->whereRaw("JSON_VALID(available_dates)")
+                            ->where(function ($dateQuery) use ($checkInDate, $checkOutDate) {
+                                // Handle availability_type = 1 (available_days) or NULL (defaults to available_days)
+                                // For available_days: search date range must be completely within an available date range
+                                $dateQuery->where(function ($availableDaysQuery) use ($checkInDate, $checkOutDate) {
+                                    $availableDaysQuery->where(function ($typeQuery) {
+                                        // availability_type = 1 means available_days, NULL also means available_days (default)
+                                        $typeQuery->whereNull('availability_type')
+                                            ->orWhere('availability_type', 1);
+                                    })
+                                        ->whereRaw("
+                                        EXISTS (
+                                            SELECT 1
+                                            FROM JSON_TABLE(
+                                                available_dates,
+                                                '$[*]' COLUMNS (
+                                                    from_date DATE PATH '$.from',
+                                                    to_date DATE PATH '$.to',
+                                                    type VARCHAR(20) PATH '$.type'
+                                                )
+                                            ) AS jt
+                                            WHERE (jt.type IS NULL OR jt.type != 'reserved')
+                                            AND jt.from_date <= ?
+                                            AND jt.to_date >= ?
+                                        )
+                                    ", [$checkInDate->format('Y-m-d'), $checkOutDate->format('Y-m-d')]);
+                                })
+                                    // Handle availability_type = 2 (busy_days)
+                                    // For busy_days: search date range must NOT overlap with any busy date range
+                                    ->orWhere(function ($busyDaysQuery) use ($checkInDate, $checkOutDate) {
+                                        $busyDaysQuery->where('availability_type', 2)
+                                            ->whereRaw("
+                                            NOT EXISTS (
+                                                SELECT 1
+                                                FROM JSON_TABLE(
+                                                    available_dates,
+                                                    '$[*]' COLUMNS (
+                                                        from_date DATE PATH '$.from',
+                                                        to_date DATE PATH '$.to'
+                                                    )
+                                                ) AS jt
+                                                WHERE jt.from_date <= ?
+                                                AND jt.to_date >= ?
+                                            )
+                                        ", [$checkOutDate->format('Y-m-d'), $checkInDate->format('Y-m-d')]);
+                                    });
+                            })
+                        // Option 2: Rooms WITHOUT available_dates (null/empty/invalid JSON) - treat as always available
+                        ->orWhere(function ($noDatesQuery) {
+                            $noDatesQuery->whereRaw("(available_dates IS NULL OR available_dates = '' OR available_dates = '[]' OR JSON_VALID(available_dates) = 0)");
+                        });
+                    })
+                    // Also check that room is not already reserved for these dates
+                    ->whereDoesntHave('reservations', function ($reservationQuery) use ($checkInDate, $checkOutDate) {
+                        $reservationQuery->where('status', 'confirmed')
+                            ->where(function ($dateOverlapQuery) use ($checkInDate, $checkOutDate) {
+                                $dateOverlapQuery->where(function ($query) use ($checkInDate, $checkOutDate) {
+                                    $query->where('check_in_date', '<=', $checkInDate->format('Y-m-d'))
+                                        ->where('check_out_date', '>', $checkInDate->format('Y-m-d'));
+                                })
+                                    ->orWhere(function ($query) use ($checkInDate, $checkOutDate) {
+                                        $query->where('check_in_date', '<', $checkOutDate->format('Y-m-d'))
+                                            ->where('check_out_date', '>=', $checkOutDate->format('Y-m-d'));
+                                    })
+                                    ->orWhere(function ($query) use ($checkInDate, $checkOutDate) {
+                                        $query->where('check_in_date', '>=', $checkInDate->format('Y-m-d'))
+                                            ->where('check_out_date', '<=', $checkOutDate->format('Y-m-d'));
+                                    });
+                            });
+                    });
+            });
+
+            // Apply additional filters
+            if ($request->has('category_id') && !empty($request->category_id)) {
+                $propertyQuery->where('category_id', $request->category_id);
+            }
+
+            if ($request->has('category_slug_id') && !empty($request->category_slug_id)) {
+                $propertyQuery->whereHas('category', function ($query) use ($request) {
+                    $query->where('slug_id', $request->category_slug_id);
+                });
+            }
+
+            if ($request->has('country') && !empty($request->country)) {
+                $propertyQuery->where('country', $request->country);
+            }
+
+            if ($request->has('state') && !empty($request->state)) {
+                $propertyQuery->where('state', $request->state);
+            }
+
+            if ($request->has('city') && !empty($request->city)) {
+                $propertyQuery->where('city', $request->city);
+            }
+
+            if ($request->has('min_price') && !empty($request->min_price)) {
+                $propertyQuery->where('price', '>=', $request->min_price);
+            }
+
+            if ($request->has('max_price') && !empty($request->max_price)) {
+                $propertyQuery->where('price', '<=', $request->max_price);
+            }
+
+            // Get total count
+            $totalProperties = $propertyQuery->count();
+
+            // Order by ID descending
+            $propertyQuery->orderBy('id', 'DESC');
+
+            // Get properties with relationships
+            $propertiesData = $propertyQuery
+                ->with([
+                    'category:id,category,image,slug_id,parameter_types',
+                    'hotelRooms' => function($query) {
+                        $query->where('status', 1)
+                            ->with('roomType');
+                    },
+                    'assignParameter.parameter'
+                ])
+                ->select('id', 'slug_id', 'propery_type', 'title_image', 'category_id', 'title', 'price', 'city', 'state', 'country', 'rentduration', 'added_by', 'is_premium', 'property_classification', 'rent_package', 'latitude', 'longitude', 'total_click')
+                ->withCount('favourite');
+
+            // Latitude and Longitude
+            if ($request->has('latitude') && !empty($request->latitude) && $request->has('longitude') && !empty($request->longitude)) {
+                if ($request->has('radius') && !empty($request->radius)) {
+                    $propertiesData = $propertiesData->selectRaw("
+                            (6371 * acos(cos(radians($request->latitude))
+                            * cos(radians(latitude))
+                            * cos(radians(longitude) - radians($request->longitude))
+                            + sin(radians($request->latitude))
+                            * sin(radians(latitude)))) AS distance")
+                        ->where('latitude', '!=', 0)
+                        ->where('longitude', '!=', 0)
+                        ->having('distance', '<', $request->radius);
+                } else {
+                    $propertiesData = $propertiesData->where('latitude', $request->latitude)->where('longitude', $request->longitude);
+                }
+            }
+
+            $propertiesData = $propertiesData->skip($offset)
+                ->take($limit)
+                ->get();
+
+            // Format properties similar to getPropertyList
+            $formattedProperties = $propertiesData->map(function ($property) {
+                $property->promoted = $property->is_promoted;
+                $property->is_premium = $property->is_premium == 1 ? true : false;
+                $property->property_type = $property->propery_type;
+                $property->assign_facilities = $property->assign_facilities;
+                $property->is_apartment = false;
+                unset($property->propery_type);
+                return $property;
+            });
+
+            $response = array(
+                'error' => false,
+                'total' => $totalProperties,
+                'data' => $formattedProperties,
+                'message' => 'Data fetched Successfully'
+            );
+            return response()->json($response);
+        } catch (Exception $e) {
+            return response()->json([
+                'error' => true,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function getAgentVerificationFormFields(Request $request)
     {
         $data = VerifyCustomerForm::where('status', 'active')->with('form_fields_values:id,verify_customer_form_id,value')->select('id', 'name', 'field_type')->get();

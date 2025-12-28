@@ -26,6 +26,7 @@ Route::post('set_property_total_click', [ApiController::class, 'set_property_tot
 Route::get('get_nearby_properties', [ApiController::class, 'get_nearby_properties']);
 Route::get('compare-properties', [ApiController::class, 'compareProperties']);
 Route::get('get-cities-data', [ApiController::class, 'getCitiesData']);
+Route::get('search-hotels-with-dates', [ApiController::class, 'searchHotelsWithDates']);
 /*********************************************************************** */
 
 /** Users */
