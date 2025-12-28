@@ -10,6 +10,70 @@ use Illuminate\Support\Facades\Log;
 class PropertyEditRequestService
 {
     /**
+     * Get list of fields that users are allowed to edit (require approval).
+     *
+     * @return array
+     */
+    public static function getAllowedEditableFields()
+    {
+        return [
+            'title',
+            'title_ar',
+            'description',
+            'description_ar',
+            'area_description',
+            'area_description_ar',
+            'title_image',
+            'three_d_image',
+            'gallery_images',
+            'address',
+            'city',
+            'state',
+            'country',
+            'latitude',
+            'longitude',
+            'hotel_rooms', // Special handling for hotel room descriptions
+        ];
+    }
+
+    /**
+     * Filter edited data to only include allowed editable fields.
+     *
+     * @param array $editedData
+     * @param Property $property
+     * @return array
+     */
+    public static function filterAllowedFields(array $editedData, Property $property)
+    {
+        $allowedFields = self::getAllowedEditableFields();
+        $filteredData = [];
+        
+        foreach ($allowedFields as $field) {
+            if (array_key_exists($field, $editedData)) {
+                if ($field === 'hotel_rooms' && isset($editedData['hotel_rooms'])) {
+                    // Special handling for hotel rooms - only keep description field
+                    $filteredRooms = [];
+                    foreach ($editedData['hotel_rooms'] as $room) {
+                        if (isset($room['id'])) {
+                            $filteredRooms[] = [
+                                'id' => $room['id'],
+                                'description' => $room['description'] ?? null,
+                            ];
+                        }
+                    }
+                    if (!empty($filteredRooms)) {
+                        $filteredData['hotel_rooms'] = $filteredRooms;
+                    }
+                } else {
+                    $filteredData[$field] = $editedData[$field];
+                }
+            }
+        }
+        
+        return $filteredData;
+    }
+
+    /**
      * Save property edits as a pending edit request instead of applying directly.
      *
      * @param Property $property
@@ -96,7 +160,22 @@ class PropertyEditRequestService
             $property = $editRequest->property;
             $editedData = $editRequest->edited_data;
 
-            // Apply all edited fields to the property
+            // Special handling for hotel rooms - only update description
+            if (isset($editedData['hotel_rooms']) && $property->property_classification == 5) {
+                foreach ($editedData['hotel_rooms'] as $roomData) {
+                    if (isset($roomData['id']) && isset($roomData['description'])) {
+                        $hotelRoom = \App\Models\HotelRoom::find($roomData['id']);
+                        if ($hotelRoom && $hotelRoom->property_id == $property->id) {
+                            $hotelRoom->description = $roomData['description'];
+                            $hotelRoom->save();
+                        }
+                    }
+                }
+                // Remove hotel_rooms from editedData so it's not processed in the general loop
+                unset($editedData['hotel_rooms']);
+            }
+
+            // Apply all other edited fields to the property
             foreach ($editedData as $field => $value) {
                 // Skip certain fields that shouldn't be updated directly
                 if (in_array($field, ['id', 'created_at', 'updated_at', 'request_status', 'status'])) {
@@ -104,7 +183,7 @@ class PropertyEditRequestService
                 }
                 
                 // Handle JSON fields
-                if (in_array($field, ['available_dates', 'corresponding_day', 'agent_addons'])) {
+                if (in_array($field, ['available_dates', 'corresponding_day', 'agent_addons', 'gallery_images'])) {
                     $property->$field = is_array($value) ? $value : json_decode($value, true);
                 } else {
                     $property->$field = $value;

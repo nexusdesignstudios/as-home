@@ -1085,6 +1085,68 @@ class HelperService
                             ],
                         )
                     );
+                case 'list_property_sell_contract':
+                    return array(
+                        'title' => 'List Property Sell Contract',
+                        'type' => 'list_property_sell_contract_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_address',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'agreement_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'le_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'contract_date',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'list_property_rent_contract':
+                    return array(
+                        'title' => 'List Property Rent Contract',
+                        'type' => 'list_property_rent_contract_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'partner_address',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'agreement_year',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'le_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'contract_date',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
                 case 'basic_package_self_managed':
                     return array(
                         'title' => 'Basic Package Self Managed Contract',
@@ -2221,6 +2283,16 @@ class HelperService
             [
                 'title' => 'Selling or Renting All Cases Contract',
                 'type' => 'selling_or_renting_contract',
+                'category' => 'main',
+            ],
+            [
+                'title' => 'List Property Sell Contract',
+                'type' => 'list_property_sell_contract',
+                'category' => 'main',
+            ],
+            [
+                'title' => 'List Property Rent Contract',
+                'type' => 'list_property_rent_contract',
                 'category' => 'main',
             ],
             [

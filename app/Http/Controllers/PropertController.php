@@ -832,9 +832,46 @@ class PropertController extends Controller
                     }
                 }
 
+                // Handle hotel rooms for hotels (property_classification = 5) - get original descriptions
+                $originalHotelRooms = [];
+                $updatedHotelRooms = [];
+                if (isset($request->property_classification) && $request->property_classification == 5) {
+                    // Get original hotel rooms with descriptions
+                    $originalHotelRooms = \App\Models\HotelRoom::where('property_id', $UpdateProperty->id)
+                        ->get()
+                        ->map(function ($room) {
+                            return [
+                                'id' => $room->id,
+                                'description' => $room->description,
+                            ];
+                        })
+                        ->toArray();
+                    
+                    // Get updated hotel rooms from request (if provided)
+                    if ($request->has('hotel_rooms') && is_array($request->hotel_rooms)) {
+                        foreach ($request->hotel_rooms as $room) {
+                            if (isset($room['id']) && array_key_exists('description', $room)) {
+                                $updatedHotelRooms[] = [
+                                    'id' => $room['id'],
+                                    'description' => $room['description'] ?? null,
+                                ];
+                            }
+                        }
+                    }
+                    
+                    // Add hotel_rooms to editedData for filtering
+                    if (!empty($updatedHotelRooms)) {
+                        $editedData['hotel_rooms'] = $updatedHotelRooms;
+                    }
+                }
+
                 // Check if owner edit requires approval
                 if ($isOwnerEdit && !$autoApproveEdited) {
                     // Owner edits require admin approval when auto-approve is OFF - save as pending request
+                    
+                    // Filter to only include allowed editable fields
+                    $editedData = \App\Services\PropertyEditRequestService::filterAllowedFields($editedData, $UpdateProperty);
+                    
                     // Include vacation apartments in edited data if property is vacation home
                     if (isset($request->property_classification) && $request->property_classification == 4 && !empty($updatedVacationApartments)) {
                         $editedData['vacation_apartments'] = $updatedVacationApartments;
@@ -845,11 +882,16 @@ class PropertController extends Controller
                         $originalPropertyData['vacation_apartments'] = $originalVacationApartments;
                     }
                     
+                    // Include original hotel rooms in original data if property is hotel
+                    if (isset($request->property_classification) && $request->property_classification == 5 && !empty($originalHotelRooms)) {
+                        $originalPropertyData['hotel_rooms'] = $originalHotelRooms;
+                    }
+                    
                     // Use PropertyEditRequestService to save the edit request
                     $editRequestService = new \App\Services\PropertyEditRequestService();
                     $editRequest = $editRequestService->saveEditRequest(
                         $UpdateProperty, 
-                        $editedData, 
+                        $editedData,  // Only contains allowed fields now
                         $UpdateProperty->added_by, 
                         $originalPropertyData
                     );
@@ -1963,8 +2005,16 @@ class PropertController extends Controller
                             // Get customer data with management_type
                             $customerData = $propertyData->customer;
 
-                            // Always send the selling_or_renting_contract email first
-                            $this->sendContractEmail($propertyData, "selling_or_renting_contract");
+                            // Send the appropriate contract email based on property type
+                            // propery_type: 0 = Sell, 1 = Rent
+                            $propertyType = $propertyData->getRawOriginal('propery_type');
+                            if ($propertyType == 0) {
+                                // Send list property sell contract
+                                $this->sendContractEmail($propertyData, "list_property_sell_contract");
+                            } elseif ($propertyType == 1) {
+                                // Send list property rent contract
+                                $this->sendContractEmail($propertyData, "list_property_rent_contract");
+                            }
 
                             // Send additional contract emails based on conditions
                             // Check if customer management_type is "himself" and rent_package is "basic"
@@ -2119,9 +2169,9 @@ class PropertController extends Controller
             }
             $contractTemplate = HelperService::replaceEmailVariables($contractTemplateData, $variables);
 
-            // For selling_or_renting_contract, create email body with welcoming message
+            // For selling_or_renting_contract, list_property_sell_contract, and list_property_rent_contract, create email body with welcoming message
             // PDF will contain only the contract template (without welcoming message)
-            if ($contractType === 'selling_or_renting_contract') {
+            if (in_array($contractType, ['selling_or_renting_contract', 'list_property_sell_contract', 'list_property_rent_contract'])) {
                 // Email body content (shown in email only, not in PDF)
                 $emailBodyContent = '<div style="font-family: Arial, sans-serif; line-height: 1.8; color: #333; padding: 30px; max-width: 600px; margin: 0 auto;">';
                 $emailBodyContent .= '<p style="font-size: 16px; margin-bottom: 20px;">Dear {partner_name},</p>';
@@ -2143,9 +2193,9 @@ class PropertController extends Controller
                 $contractTemplate = $emailBodyContent;
             }
 
-            // Update title for selling_or_renting_contract
+            // Update title for contract types
             $emailTitle = $contractEmailTypeData['title'];
-            if ($contractType === 'selling_or_renting_contract') {
+            if (in_array($contractType, ['selling_or_renting_contract', 'list_property_sell_contract', 'list_property_rent_contract'])) {
                 $emailTitle = 'Your As-home Property Listing Contract';
             }
 
@@ -2155,10 +2205,10 @@ class PropertController extends Controller
                 'title' => $emailTitle,
             );
             
-            // For selling_or_renting_contract, pass separate PDF template (contract only, no welcoming message)
+            // For contract types, pass separate PDF template (contract only, no welcoming message)
             // This ensures the FULL contract template is included in the PDF attachment
             // The PDF will contain the complete contract content without any character limits
-            if ($contractType === 'selling_or_renting_contract' && isset($pdfTemplate)) {
+            if (in_array($contractType, ['selling_or_renting_contract', 'list_property_sell_contract', 'list_property_rent_contract']) && isset($pdfTemplate)) {
                 $contractData['pdf_template'] = $pdfTemplate;
             }
             

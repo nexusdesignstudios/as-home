@@ -432,6 +432,22 @@
                                 </tr>
                             `;
                         });
+                    } else if (change.field === 'hotel_rooms') {
+                        // Special handling for hotel rooms
+                        html += `
+                            <tr>
+                                <td>
+                                    <strong>${formatFieldName(change.field)}</strong>
+                                    <br><small class="text-muted">${change.field}</small>
+                                </td>
+                                <td class="bg-light">
+                                    <div class="text-danger fw-bold">${formatHotelRoomValue(change.original || [])}</div>
+                                </td>
+                                <td class="bg-light">
+                                    <div class="text-success fw-bold">${formatHotelRoomValue(change.edited || [])}</div>
+                                </td>
+                            </tr>
+                        `;
                     } else {
                         const origDisplay = formatValue(change.original);
                         const editDisplay = formatValue(change.edited);
@@ -517,6 +533,24 @@
 
         function formatFieldName(field) {
             return field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function formatHotelRoomValue(rooms) {
+            if (!Array.isArray(rooms) || rooms.length === 0) {
+                return '<span class="badge bg-secondary">(no rooms)</span>';
+            }
+            
+            let html = '<div class="small">';
+            rooms.forEach((room, index) => {
+                html += `<div class="mb-2 p-2 border rounded">
+                    <strong>Room ID: ${room.id || 'N/A'}</strong><br>
+                    <div class="mt-1">
+                        <strong>Description:</strong> ${room.description || '<span class="text-muted">(empty)</span>'}
+                    </div>
+                </div>`;
+            });
+            html += '</div>';
+            return html;
         }
 
         function compareVacationApartments(original, edited) {
