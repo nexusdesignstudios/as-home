@@ -22,9 +22,9 @@ return new class extends Migration
             $table->decimal('nonrefundable_percentage', 5, 2)->nullable();
             $table->timestamps();
             
-            // Indexes for better query performance
-            $table->index(['property_id', 'from_date', 'to_date']);
-            $table->index(['hotel_room_id', 'from_date', 'to_date']);
+            // Indexes for better query performance (using custom names to avoid MySQL 64 char limit)
+            $table->index(['property_id', 'from_date', 'to_date'], 'idx_avail_dates_prop_dates');
+            $table->index(['hotel_room_id', 'from_date', 'to_date'], 'idx_avail_dates_room_dates');
         });
     }
 
