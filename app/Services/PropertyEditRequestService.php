@@ -163,7 +163,7 @@ class PropertyEditRequestService
             // Special handling for hotel rooms - only update description
             if (isset($editedData['hotel_rooms']) && $property->property_classification == 5) {
                 foreach ($editedData['hotel_rooms'] as $roomData) {
-                    if (isset($roomData['id']) && isset($roomData['description'])) {
+                    if (isset($roomData['id']) && array_key_exists('description', $roomData)) {
                         $hotelRoom = \App\Models\HotelRoom::find($roomData['id']);
                         if ($hotelRoom && $hotelRoom->property_id == $property->id) {
                             $hotelRoom->description = $roomData['description'];

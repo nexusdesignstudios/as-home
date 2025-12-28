@@ -870,41 +870,75 @@ class PropertController extends Controller
                     // Owner edits require admin approval when auto-approve is OFF - save as pending request
                     
                     // Filter to only include allowed editable fields
-                    $editedData = \App\Services\PropertyEditRequestService::filterAllowedFields($editedData, $UpdateProperty);
+                    $filteredEditedData = \App\Services\PropertyEditRequestService::filterAllowedFields($editedData, $UpdateProperty);
                     
-                    // Include vacation apartments in edited data if property is vacation home
-                    if (isset($request->property_classification) && $request->property_classification == 4 && !empty($updatedVacationApartments)) {
-                        $editedData['vacation_apartments'] = $updatedVacationApartments;
-                    }
+                    // Note: vacation_apartments are NOT editable by users - only admin can modify them
+                    // They are NOT included in filteredEditedData and should not be tracked in edit requests
                     
-                    // Include original vacation apartments in original data
-                    if (isset($request->property_classification) && $request->property_classification == 4 && !empty($originalVacationApartments)) {
-                        $originalPropertyData['vacation_apartments'] = $originalVacationApartments;
-                    }
-                    
-                    // Include original hotel rooms in original data if property is hotel
+                    // Include original hotel rooms in original data if property is hotel (for comparison purposes only)
                     if (isset($request->property_classification) && $request->property_classification == 5 && !empty($originalHotelRooms)) {
                         $originalPropertyData['hotel_rooms'] = $originalHotelRooms;
                     }
                     
-                    // Use PropertyEditRequestService to save the edit request
-                    $editRequestService = new \App\Services\PropertyEditRequestService();
-                    $editRequest = $editRequestService->saveEditRequest(
-                        $UpdateProperty, 
-                        $editedData,  // Only contains allowed fields now
-                        $UpdateProperty->added_by, 
-                        $originalPropertyData
-                    );
+                    // Only create edit request if there are actual changes in allowed fields
+                    // Compare filtered edited data with original data to check for changes
+                    $hasChanges = false;
+                    foreach ($filteredEditedData as $field => $value) {
+                        // Skip hotel_rooms as it needs special comparison
+                        if ($field === 'hotel_rooms') {
+                            // Will be checked separately below
+                            continue;
+                        }
+                        $originalValue = $originalPropertyData[$field] ?? null;
+                        if ($originalValue != $value) {
+                            $hasChanges = true;
+                            break;
+                        }
+                    }
                     
-                    // Set request_status to pending (property won't be saved yet, but we need to save related data)
-                    $UpdateProperty->request_status = 'pending';
+                    // Also check hotel rooms for changes
+                    if (!$hasChanges && isset($filteredEditedData['hotel_rooms']) && isset($originalPropertyData['hotel_rooms'])) {
+                        $originalRoomsMap = [];
+                        foreach ($originalPropertyData['hotel_rooms'] as $room) {
+                            $originalRoomsMap[$room['id']] = $room['description'] ?? null;
+                        }
+                        foreach ($filteredEditedData['hotel_rooms'] as $room) {
+                            $roomId = $room['id'] ?? null;
+                            $roomDesc = $room['description'] ?? null;
+                            if (!isset($originalRoomsMap[$roomId]) || $originalRoomsMap[$roomId] != $roomDesc) {
+                                $hasChanges = true;
+                                break;
+                            }
+                        }
+                    }
                     
-                    // Log the edit request creation
-                    Log::info('Property edit request created from admin panel', [
-                        'edit_request_id' => $editRequest->id,
-                        'property_id' => $UpdateProperty->id,
-                        'requested_by' => $UpdateProperty->added_by
-                    ]);
+                    if ($hasChanges && !empty($filteredEditedData)) {
+                        // Use PropertyEditRequestService to save the edit request
+                        $editRequestService = new \App\Services\PropertyEditRequestService();
+                        $editRequest = $editRequestService->saveEditRequest(
+                            $UpdateProperty, 
+                            $filteredEditedData,  // Only contains allowed fields now
+                            $UpdateProperty->added_by, 
+                            $originalPropertyData
+                        );
+                        
+                        // Set request_status to pending (property won't be saved yet, but we need to save related data)
+                        $UpdateProperty->request_status = 'pending';
+                        
+                        // Log the edit request creation
+                        Log::info('Property edit request created from admin panel', [
+                            'edit_request_id' => $editRequest->id,
+                            'property_id' => $UpdateProperty->id,
+                            'requested_by' => $UpdateProperty->added_by,
+                            'fields_changed' => array_keys($filteredEditedData)
+                        ]);
+                    } else {
+                        // No changes in allowed fields, save directly (don't create edit request)
+                        Log::info('Property edit skipped - no changes in allowed fields', [
+                            'property_id' => $UpdateProperty->id,
+                            'requested_by' => $UpdateProperty->added_by
+                        ]);
+                    }
                 } else {
                     // Admin edit OR owner edit with auto-approve enabled - save directly (no approval needed)
                     // If auto-approve is enabled for owner edits, set request_status to approved
@@ -914,7 +948,7 @@ class PropertController extends Controller
                 }
 
                 // Save the property (this will save even if edit request was created, but request_status will be pending)
-                $UpdateProperty->update();
+                $UpdateProperty->save();
                 AssignedOutdoorFacilities::where('property_id', $UpdateProperty->id)->delete();
                 $facility = OutdoorFacilities::all();
                 foreach ($facility as $key => $value) {
@@ -1754,14 +1788,23 @@ class PropertController extends Controller
             
             $editRequests = $query->orderBy('created_at', 'desc')->get();
             
+            // Log for debugging
+            Log::info('Property edit requests loaded', [
+                'status' => $status,
+                'count' => $editRequests->count(),
+                'request_ids' => $editRequests->pluck('id')->toArray()
+            ]);
+            
             return view('property.edit-requests', compact('editRequests', 'status'));
         } catch (\Exception $e) {
             Log::error('Error loading property edit requests: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
             ]);
             return view('property.edit-requests', [
                 'editRequests' => collect([]),
-                'status' => $status,
+                'status' => $request->get('status', 'pending'),
                 'error' => 'Error loading edit requests: ' . $e->getMessage()
             ]);
         }
