@@ -888,10 +888,16 @@ class ApiController extends Controller
                 'note' => 'This fix ensures vacation homes with only vacation_apartments data are matched correctly'
             ]);
             
-            $property = $property->where(function ($query) use ($bedroomsValue, $bedroomsIntValue, $isStudio, $isVacationHomes) {
+            // Get property_type early to use in bedroom filter query if needed
+            $propertyType = $request->has('property_type') && ($request->property_type !== null && $request->property_type !== '') ? $request->property_type : null;
+            
+            $property = $property->where(function ($query) use ($bedroomsValue, $bedroomsIntValue, $isStudio, $isVacationHomes, $propertyType) {
                 if ($isVacationHomes) {
                     // For vacation homes, check vacation_apartments FIRST
                     // This ensures properties with only vacation_apartments data are matched
+                    // CRITICAL: whereHas creates a subquery that checks the relationship
+                    // The property_type filter applied later will still work because it's on the main query
+                    // However, we need to ensure the query structure is correct
                     $query->whereHas('vacationApartments', function ($aptQuery) use ($bedroomsIntValue, $isStudio) {
                         $aptQuery->where('status', 1);
                         
@@ -1252,6 +1258,22 @@ class ApiController extends Controller
             $property = $property->withCount('favourite')->orderBy('favourite_count', 'DESC');
         }
 
+        // CRITICAL: Log the query BEFORE counting to see what filters are applied
+        if ($request->has('bedrooms') && $request->bedrooms !== null && $request->bedrooms !== '') {
+            $bedroomsValue = (string) $request->bedrooms;
+            $propertyClassification = $request->has('property_classification') ? $request->property_classification : null;
+            $propertyType = $request->has('property_type') ? $request->property_type : null;
+            
+            \Log::info('🔍 Bedroom Filter - Query BEFORE count', [
+                'bedrooms' => $bedroomsValue,
+                'property_classification' => $propertyClassification,
+                'property_type' => $propertyType,
+                'sql_query' => $property->toSql(),
+                'sql_bindings' => $property->getBindings(),
+                'note' => 'This shows the complete query with all filters applied, including property_type'
+            ]);
+        }
+        
         $total = $property->count();
         
                 // Log bedroom filter query results for all bedroom values (not just Studio)
@@ -1339,15 +1361,40 @@ class ApiController extends Controller
                         ]);
                     } else {
                         // Log for non-Studio bedroom filters
+                        // Also check if property_type filter might be affecting results
+                        $propertyType = $request->has('property_type') ? $request->property_type : null;
+                        $propertyClassification = $request->has('property_classification') ? $request->property_classification : null;
+                        
+                        // Count vacation apartments with matching bedrooms AND property_type
+                        $vacationAptsWithPropertyType = 0;
+                        if ($propertyClassification == 4 || $propertyClassification == '4') {
+                            $vacationAptsQuery = DB::table('vacation_apartments')
+                                ->join('propertys', 'vacation_apartments.property_id', '=', 'propertys.id')
+                                ->where('propertys.property_classification', 4)
+                                ->where('propertys.status', 1)
+                                ->where('propertys.request_status', 'approved')
+                                ->where('vacation_apartments.status', 1)
+                                ->where('vacation_apartments.bedrooms', $bedroomsIntValue);
+                            
+                            if ($propertyType !== null && ($propertyType !== '' || $propertyType == 0)) {
+                                $vacationAptsQuery->where('propertys.propery_type', $propertyType);
+                            }
+                            
+                            $vacationAptsWithPropertyType = $vacationAptsQuery->distinct('propertys.id')->count('propertys.id');
+                        }
+                        
                         \Log::info('🔍 Bedroom Filter Query Results (Non-Studio)', [
                             'total_count' => $total,
                             'offset' => $offset,
                             'limit' => $limit,
                             'bedrooms_value' => $bedroomsValue,
                             'bedrooms_int_value' => $bedroomsIntValue,
+                            'property_type' => $propertyType,
+                            'property_classification' => $propertyClassification,
                             'assign_parameters_count' => $assignParamsCount,
                             'vacation_apartments_count' => $vacationAptsCount,
-                            'note' => 'Properties should match if assign_parameters.value = "' . $bedroomsValue . '" OR vacation_apartments.bedrooms = ' . $bedroomsIntValue,
+                            'vacation_apartments_with_property_type' => $vacationAptsWithPropertyType,
+                            'note' => 'Properties should match if assign_parameters.value = "' . $bedroomsValue . '" OR vacation_apartments.bedrooms = ' . $bedroomsIntValue . '. If property_type is set, vacation apartments must also match property_type.',
                             'sql_query' => $property->toSql(),
                             'sql_bindings' => $property->getBindings()
                         ]);
@@ -1356,11 +1403,28 @@ class ApiController extends Controller
         
         $result = $property->orderBy('id', 'DESC')->skip($offset)->take($limit)->get();
         
-                // Log Studio filter results after query execution
+                // Log bedroom filter results after query execution for ALL bedroom values
                 if ($request->has('bedrooms') && $request->bedrooms !== null && $request->bedrooms !== '') {
                     $bedroomsValue = (string) $request->bedrooms;
                     $bedroomsValueLower = strtolower(trim($bedroomsValue));
                     $isStudio = ($bedroomsValue === '0' || $bedroomsValueLower === 'studio');
+                    $bedroomsIntValue = (int) $bedroomsValue;
+                    $propertyClassification = $request->has('property_classification') ? $request->property_classification : null;
+                    $propertyType = $request->has('property_type') ? $request->property_type : null;
+                    
+                    // Log results for all bedroom filters (not just Studio)
+                    \Log::info('🔍 Bedroom Filter - Query Results', [
+                        'bedrooms_value' => $bedroomsValue,
+                        'bedrooms_int_value' => $bedroomsIntValue,
+                        'isStudio' => $isStudio,
+                        'property_classification' => $propertyClassification,
+                        'property_type' => $propertyType,
+                        'total_count' => $total,
+                        'returned_count' => $result->count(),
+                        'returned_property_ids' => $result->pluck('id')->toArray(),
+                        'returned_property_titles' => $result->pluck('title')->toArray(),
+                        'note' => 'If returned_count is 0 but total_count > 0, there might be a pagination or query issue'
+                    ]);
                     
                     if ($isStudio) {
                         $resultIds = $result->pluck('id')->toArray();
