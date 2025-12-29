@@ -808,6 +808,19 @@ class ApiController extends Controller
                 $bedroomsIntValue = 0;
             }
             
+            // Comprehensive debug logging for Studio filter
+            if ($isStudio) {
+                \Log::info('🔍 Studio Bedrooms Filter Debug (Backend)', [
+                    'raw_bedrooms' => $request->bedrooms,
+                    'bedroomsValue' => $bedroomsValue,
+                    'bedroomsIntValue' => $bedroomsIntValue,
+                    'bedroomsValueLower' => $bedroomsValueLower,
+                    'isStudio' => $isStudio,
+                    'property_classification' => $request->property_classification ?? 'not_set',
+                    'request_all' => $request->only(['bedrooms', 'property_classification', 'property_type', 'category_id'])
+                ]);
+            }
+            
             $property = $property->where(function ($query) use ($bedroomsValue, $bedroomsIntValue, $isStudio) {
                 // Check parameters table (for regular properties)
                 // Handle both plain string values and JSON-encoded values
@@ -844,11 +857,22 @@ class ApiController extends Controller
                                 if ($isStudio) {
                                     // For Studio (0), match both "0" and "studio" (case-insensitive)
                                     // Only match explicit Studio values, exclude properties without bedrooms
+                                    // Also handle JSON-encoded values like non-Studio query does
                                     $valueQuery->where(function ($studioQuery) {
                                         $studioQuery->where('assign_parameters.value', '0')
                                             ->orWhereRaw('LOWER(TRIM(assign_parameters.value)) = ?', ['studio'])
                                             ->orWhere('assign_parameters.value', 'Studio')
-                                            ->orWhere('assign_parameters.value', 'STUDIO');
+                                            ->orWhere('assign_parameters.value', 'STUDIO')
+                                            // Add JSON-encoded value checks (like non-Studio query does)
+                                            ->orWhere('assign_parameters.value', '"0"')
+                                            ->orWhere('assign_parameters.value', '"Studio"')
+                                            ->orWhere('assign_parameters.value', '"studio"')
+                                            ->orWhere('assign_parameters.value', '"STUDIO"')
+                                            ->orWhereRaw('JSON_EXTRACT(assign_parameters.value, "$") = ?', ['0'])
+                                            ->orWhereRaw('JSON_EXTRACT(assign_parameters.value, "$") = ?', ['Studio'])
+                                            ->orWhereRaw('LOWER(TRIM(JSON_EXTRACT(assign_parameters.value, "$"))) = ?', ['studio'])
+                                            ->orWhereRaw('CAST(JSON_EXTRACT(assign_parameters.value, "$") AS CHAR) = ?', ['0'])
+                                            ->orWhereRaw('CAST(JSON_EXTRACT(assign_parameters.value, "$") AS CHAR) = ?', ['Studio']);
                                     });
                                 } else {
                                     // For other values, exact match
@@ -1105,7 +1129,42 @@ class ApiController extends Controller
         }
 
         $total = $property->count();
+        
+        // Log Studio filter query results if bedrooms filter was applied
+        if ($request->has('bedrooms') && $request->bedrooms !== null && $request->bedrooms !== '') {
+            $bedroomsValue = (string) $request->bedrooms;
+            $bedroomsValueLower = strtolower(trim($bedroomsValue));
+            $isStudio = ($bedroomsValue === '0' || $bedroomsValueLower === 'studio');
+            
+            if ($isStudio) {
+                \Log::info('🔍 Studio Filter Query Results', [
+                    'total_count' => $total,
+                    'offset' => $offset,
+                    'limit' => $limit,
+                    'bedrooms_value' => $bedroomsValue,
+                    'sql_query' => $property->toSql(),
+                    'sql_bindings' => $property->getBindings()
+                ]);
+            }
+        }
+        
         $result = $property->orderBy('id', 'DESC')->skip($offset)->take($limit)->get();
+        
+        // Log Studio filter results after query execution
+        if ($request->has('bedrooms') && $request->bedrooms !== null && $request->bedrooms !== '') {
+            $bedroomsValue = (string) $request->bedrooms;
+            $bedroomsValueLower = strtolower(trim($bedroomsValue));
+            $isStudio = ($bedroomsValue === '0' || $bedroomsValueLower === 'studio');
+            
+            if ($isStudio) {
+                $resultIds = $result->pluck('id')->toArray();
+                \Log::info('🔍 Studio Filter Results After Query', [
+                    'result_count' => $result->count(),
+                    'property_ids' => $resultIds,
+                    'property_titles' => $result->pluck('title')->toArray()
+                ]);
+            }
+        }
 
         if (!$result->isEmpty()) {
             $property_details  = get_property_details($result, $current_user);
