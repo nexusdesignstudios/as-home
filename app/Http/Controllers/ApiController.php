@@ -810,6 +810,43 @@ class ApiController extends Controller
             
             // Comprehensive debug logging for Studio filter
             if ($isStudio) {
+                // Count vacation apartments with 0 bedrooms before applying filter
+                $vacationStudioCount = Property::where('property_classification', 4)
+                    ->where(['status' => 1, 'request_status' => 'approved'])
+                    ->whereHas('vacationApartments', function ($aptQuery) {
+                        $aptQuery->where('status', 1)->where('bedrooms', 0);
+                    })
+                    ->count();
+                
+                // Count properties with Studio in assign_parameters
+                $assignParamsStudioCount = Property::where(['status' => 1, 'request_status' => 'approved'])
+                    ->whereExists(function ($existsQuery) {
+                        $existsQuery->select(DB::raw(1))
+                            ->from('assign_parameters')
+                            ->join('parameters', 'assign_parameters.parameter_id', '=', 'parameters.id')
+                            ->where(function ($linkQuery) {
+                                $linkQuery->whereColumn('assign_parameters.property_id', 'propertys.id')
+                                    ->orWhere(function ($modalQuery) {
+                                        $modalQuery->whereColumn('assign_parameters.modal_id', 'propertys.id')
+                                            ->where(function ($typeQuery) {
+                                                $typeQuery->where('assign_parameters.modal_type', 'App\\Models\\Property')
+                                                    ->orWhere('assign_parameters.modal_type', 'property');
+                                            });
+                                    });
+                            })
+                            ->where(function ($nameQuery) {
+                                $nameQuery->where('parameters.name', 'LIKE', '%bedroom%')
+                                    ->orWhere('parameters.name', 'LIKE', '%bed%');
+                            })
+                            ->where(function ($valueQuery) {
+                                $valueQuery->where('assign_parameters.value', '0')
+                                    ->orWhereRaw('LOWER(TRIM(assign_parameters.value)) = ?', ['studio'])
+                                    ->orWhere('assign_parameters.value', 'Studio')
+                                    ->orWhere('assign_parameters.value', 'STUDIO');
+                            });
+                    })
+                    ->count();
+                
                 \Log::info('🔍 Studio Bedrooms Filter Debug (Backend)', [
                     'raw_bedrooms' => $request->bedrooms,
                     'bedroomsValue' => $bedroomsValue,
@@ -817,6 +854,9 @@ class ApiController extends Controller
                     'bedroomsValueLower' => $bedroomsValueLower,
                     'isStudio' => $isStudio,
                     'property_classification' => $request->property_classification ?? 'not_set',
+                    'vacation_apartments_studio_count' => $vacationStudioCount,
+                    'assign_parameters_studio_count' => $assignParamsStudioCount,
+                    'note' => 'vacation_apartments_studio_count shows properties with ONLY vacation_apartments data (no assign_parameters)',
                     'request_all' => $request->only(['bedrooms', 'property_classification', 'property_type', 'category_id'])
                 ]);
             }
@@ -888,6 +928,7 @@ class ApiController extends Controller
                 })
                 // OR check vacation_apartments table (for vacation homes)
                 // Now also check for Studio (0 bedrooms) in vacation apartments
+                // This works independently - properties with ONLY vacation_apartments data (no assign_parameters) will match here
                 ->orWhere(function ($vacationQuery) use ($bedroomsIntValue, $isStudio) {
                     $vacationQuery->where('property_classification', 4)
                         ->whereHas('vacationApartments', function ($aptQuery) use ($bedroomsIntValue, $isStudio) {
@@ -896,6 +937,7 @@ class ApiController extends Controller
                             
                             if ($isStudio) {
                                 // For Studio, match apartments with 0 bedrooms
+                                // This matches properties where vacation_apartments.bedrooms = 0
                                 $aptQuery->where('bedrooms', 0);
                             } else {
                                 // For other bedroom counts, exact match
@@ -1130,41 +1172,112 @@ class ApiController extends Controller
 
         $total = $property->count();
         
-        // Log Studio filter query results if bedrooms filter was applied
-        if ($request->has('bedrooms') && $request->bedrooms !== null && $request->bedrooms !== '') {
-            $bedroomsValue = (string) $request->bedrooms;
-            $bedroomsValueLower = strtolower(trim($bedroomsValue));
-            $isStudio = ($bedroomsValue === '0' || $bedroomsValueLower === 'studio');
-            
-            if ($isStudio) {
-                \Log::info('🔍 Studio Filter Query Results', [
-                    'total_count' => $total,
-                    'offset' => $offset,
-                    'limit' => $limit,
-                    'bedrooms_value' => $bedroomsValue,
-                    'sql_query' => $property->toSql(),
-                    'sql_bindings' => $property->getBindings()
-                ]);
-            }
-        }
+                // Log Studio filter query results if bedrooms filter was applied
+                if ($request->has('bedrooms') && $request->bedrooms !== null && $request->bedrooms !== '') {
+                    $bedroomsValue = (string) $request->bedrooms;
+                    $bedroomsValueLower = strtolower(trim($bedroomsValue));
+                    $isStudio = ($bedroomsValue === '0' || $bedroomsValueLower === 'studio');
+                    
+                    if ($isStudio) {
+                        // Check how many vacation apartments with Studio exist
+                        $vacationAptsWithStudio = DB::table('vacation_apartments')
+                            ->join('propertys', 'vacation_apartments.property_id', '=', 'propertys.id')
+                            ->where('propertys.property_classification', 4)
+                            ->where('propertys.status', 1)
+                            ->where('propertys.request_status', 'approved')
+                            ->where('vacation_apartments.status', 1)
+                            ->where('vacation_apartments.bedrooms', 0)
+                            ->select('propertys.id', 'propertys.title', 'vacation_apartments.apartment_number', 'vacation_apartments.bedrooms')
+                            ->get();
+                        
+                        \Log::info('🔍 Studio Filter Query Results', [
+                            'total_count' => $total,
+                            'offset' => $offset,
+                            'limit' => $limit,
+                            'bedrooms_value' => $bedroomsValue,
+                            'vacation_apartments_with_studio' => $vacationAptsWithStudio->count(),
+                            'vacation_apartments_details' => $vacationAptsWithStudio->map(function ($apt) {
+                                return [
+                                    'property_id' => $apt->id,
+                                    'property_title' => $apt->title,
+                                    'apartment_number' => $apt->apartment_number,
+                                    'bedrooms' => $apt->bedrooms
+                                ];
+                            })->toArray(),
+                            'sql_query' => $property->toSql(),
+                            'sql_bindings' => $property->getBindings()
+                        ]);
+                    }
+                }
         
         $result = $property->orderBy('id', 'DESC')->skip($offset)->take($limit)->get();
         
-        // Log Studio filter results after query execution
-        if ($request->has('bedrooms') && $request->bedrooms !== null && $request->bedrooms !== '') {
-            $bedroomsValue = (string) $request->bedrooms;
-            $bedroomsValueLower = strtolower(trim($bedroomsValue));
-            $isStudio = ($bedroomsValue === '0' || $bedroomsValueLower === 'studio');
-            
-            if ($isStudio) {
-                $resultIds = $result->pluck('id')->toArray();
-                \Log::info('🔍 Studio Filter Results After Query', [
-                    'result_count' => $result->count(),
-                    'property_ids' => $resultIds,
-                    'property_titles' => $result->pluck('title')->toArray()
-                ]);
-            }
-        }
+                // Log Studio filter results after query execution
+                if ($request->has('bedrooms') && $request->bedrooms !== null && $request->bedrooms !== '') {
+                    $bedroomsValue = (string) $request->bedrooms;
+                    $bedroomsValueLower = strtolower(trim($bedroomsValue));
+                    $isStudio = ($bedroomsValue === '0' || $bedroomsValueLower === 'studio');
+                    
+                    if ($isStudio) {
+                        $resultIds = $result->pluck('id')->toArray();
+                        $resultTitles = $result->pluck('title')->toArray();
+                        
+                        // Check which properties matched via vacation_apartments vs assign_parameters
+                        $matchedViaVacation = [];
+                        $matchedViaAssignParams = [];
+                        
+                        foreach ($result as $prop) {
+                            // Check if property has vacation_apartments with Studio
+                            $hasVacationStudio = DB::table('vacation_apartments')
+                                ->where('property_id', $prop->id)
+                                ->where('status', 1)
+                                ->where('bedrooms', 0)
+                                ->exists();
+                            
+                            // Check if property has assign_parameters with Studio
+                            $hasAssignParamsStudio = DB::table('assign_parameters')
+                                ->join('parameters', 'assign_parameters.parameter_id', '=', 'parameters.id')
+                                ->where(function ($query) use ($prop) {
+                                    $query->where('assign_parameters.property_id', $prop->id)
+                                        ->orWhere(function ($q) use ($prop) {
+                                            $q->where('assign_parameters.modal_id', $prop->id)
+                                                ->where(function ($typeQuery) {
+                                                    $typeQuery->where('assign_parameters.modal_type', 'App\\Models\\Property')
+                                                        ->orWhere('assign_parameters.modal_type', 'property');
+                                                });
+                                        });
+                                })
+                                ->where(function ($nameQuery) {
+                                    $nameQuery->where('parameters.name', 'LIKE', '%bedroom%')
+                                        ->orWhere('parameters.name', 'LIKE', '%bed%');
+                                })
+                                ->where(function ($valueQuery) {
+                                    $valueQuery->where('assign_parameters.value', '0')
+                                        ->orWhereRaw('LOWER(TRIM(assign_parameters.value)) = ?', ['studio'])
+                                        ->orWhere('assign_parameters.value', 'Studio')
+                                        ->orWhere('assign_parameters.value', 'STUDIO');
+                                })
+                                ->exists();
+                            
+                            if ($hasVacationStudio) {
+                                $matchedViaVacation[] = $prop->id;
+                            }
+                            if ($hasAssignParamsStudio) {
+                                $matchedViaAssignParams[] = $prop->id;
+                            }
+                        }
+                        
+                        \Log::info('🔍 Studio Filter Results After Query', [
+                            'result_count' => $result->count(),
+                            'total_count' => $total,
+                            'property_ids' => $resultIds,
+                            'property_titles' => $resultTitles,
+                            'matched_via_vacation_apartments' => $matchedViaVacation,
+                            'matched_via_assign_parameters' => $matchedViaAssignParams,
+                            'note' => 'Properties can match via both methods, but vacation_apartments is for properties with NO assign_parameters data'
+                        ]);
+                    }
+                }
 
         if (!$result->isEmpty()) {
             $property_details  = get_property_details($result, $current_user);

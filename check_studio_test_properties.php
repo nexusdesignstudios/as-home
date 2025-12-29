@@ -19,15 +19,65 @@ echo "========================================\n";
 echo "Studio Test Properties Database Check\n";
 echo "========================================\n\n";
 
-// Find the 3 test properties
+// Find the 3 test properties - search flexibly
 $testPropertyTitles = [
     'Test 01-20-12-2025 - 101',
     'Test 01-20-12-2025 - 202',
     'Test 01-20-12-2025 - 303'
 ];
 
+// Try exact match first
 $testProperties = Property::whereIn('title', $testPropertyTitles)
     ->get(['id', 'title', 'property_classification', 'status', 'request_status']);
+
+// If not found, try partial match
+if ($testProperties->isEmpty()) {
+    echo "Exact match not found, trying partial match...\n";
+    $testProperties = Property::where(function ($query) {
+        $query->where('title', 'LIKE', '%Test 01-20-12-2025%')
+            ->orWhere('title', 'LIKE', '%Test 01-20-12%')
+            ->orWhere('title', 'LIKE', '%101%')
+            ->orWhere('title', 'LIKE', '%202%')
+            ->orWhere('title', 'LIKE', '%303%');
+    })
+    ->where('title', 'LIKE', '%Test%')
+    ->get(['id', 'title', 'property_classification', 'status', 'request_status'])
+    ->take(10); // Limit to 10 to avoid too many results
+}
+
+// If still not found, get all properties with Studio bedrooms
+if ($testProperties->isEmpty()) {
+    echo "Test properties not found by title. Searching for all properties with Studio bedrooms...\n\n";
+    $testProperties = Property::whereIn('propery_type', [0, 1])
+        ->where(['status' => 1, 'request_status' => 'approved'])
+        ->whereExists(function ($existsQuery) {
+            $existsQuery->select(DB::raw(1))
+                ->from('assign_parameters')
+                ->join('parameters', 'assign_parameters.parameter_id', '=', 'parameters.id')
+                ->where(function ($linkQuery) {
+                    $linkQuery->whereColumn('assign_parameters.property_id', 'propertys.id')
+                        ->orWhere(function ($modalQuery) {
+                            $modalQuery->whereColumn('assign_parameters.modal_id', 'propertys.id')
+                                ->where(function ($typeQuery) {
+                                    $typeQuery->where('assign_parameters.modal_type', 'App\\Models\\Property')
+                                        ->orWhere('assign_parameters.modal_type', 'property');
+                                });
+                        });
+                })
+                ->where(function ($nameQuery) {
+                    $nameQuery->where('parameters.name', 'LIKE', '%bedroom%')
+                        ->orWhere('parameters.name', 'LIKE', '%bed%');
+                })
+                ->where(function ($valueQuery) {
+                    $valueQuery->where('assign_parameters.value', '0')
+                        ->orWhereRaw('LOWER(TRIM(assign_parameters.value)) = ?', ['studio'])
+                        ->orWhere('assign_parameters.value', 'Studio')
+                        ->orWhere('assign_parameters.value', 'STUDIO');
+                });
+        })
+        ->get(['id', 'title', 'property_classification', 'status', 'request_status'])
+        ->take(10); // Limit to 10
+}
 
 echo "Found " . $testProperties->count() . " test properties:\n\n";
 
@@ -118,6 +168,11 @@ foreach ($testProperties as $property) {
                 echo "  - Apartment ID: {$apt->id}, Number: {$apt->apartment_number}\n";
                 echo "    Bedrooms: {$apt->bedrooms} (type: " . gettype($apt->bedrooms) . ")\n";
                 echo "    Is Studio (0): " . ($apt->bedrooms == 0 ? "✅ YES" : "❌ NO") . "\n";
+                
+                // Check if apartment number matches 101, 202, or 303
+                if (in_array($apt->apartment_number, ['101', '202', '303'])) {
+                    echo "    ⭐ MATCHES TEST APARTMENT NUMBER: {$apt->apartment_number}\n";
+                }
             }
         }
         echo "\n";
