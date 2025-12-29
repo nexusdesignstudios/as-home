@@ -800,11 +800,6 @@ class ApiController extends Controller
             $isStudio = ($bedroomsValue === '0'); // Check if filtering for Studio
             
             $property = $property->where(function ($query) use ($bedroomsValue, $bedroomsIntValue, $isStudio) {
-                // For Studio filter, exclude vacation homes (Studio is a property type, not for vacation homes)
-                if ($isStudio) {
-                    $query->where('property_classification', '!=', 4);
-                }
-                
                 // Check parameters table (for regular properties)
                 // Handle both plain string values and JSON-encoded values
                 // Also handle both morphMany (modal_id) and direct property_id relationships
@@ -859,15 +854,18 @@ class ApiController extends Controller
                     });
                 })
                 // OR check vacation_apartments table (for vacation homes)
-                // Note: Studio (0 bedrooms) is a property type, not applicable to vacation homes
-                // So we only check vacation apartments for non-Studio bedroom counts
+                // Now also check for Studio (0 bedrooms) in vacation apartments
                 ->orWhere(function ($vacationQuery) use ($bedroomsIntValue, $isStudio) {
-                    if (!$isStudio) {
-                        $vacationQuery->where('property_classification', 4)
-                            ->whereHas('vacationApartments', function ($aptQuery) use ($bedroomsIntValue) {
+                    $vacationQuery->where('property_classification', 4)
+                        ->whereHas('vacationApartments', function ($aptQuery) use ($bedroomsIntValue, $isStudio) {
+                            if ($isStudio) {
+                                // For Studio, match apartments with 0 bedrooms
+                                $aptQuery->where('bedrooms', 0);
+                            } else {
+                                // For other bedroom counts, exact match
                                 $aptQuery->where('bedrooms', $bedroomsIntValue);
-                            });
-                    }
+                            }
+                        });
                 });
             });
         }
@@ -1043,7 +1041,14 @@ class ApiController extends Controller
 
         // If City is passed
         if ($request->has('city') && !empty($request->city)) {
-            $property = $property->where('city', $request->city);
+            // Check if cityVariations array is provided (for normalized city names with multiple spellings)
+            if ($request->has('cityVariations') && is_array($request->cityVariations) && count($request->cityVariations) > 0) {
+                // Search for properties matching any of the city name variations
+                $property = $property->whereIn('city', $request->cityVariations);
+            } else {
+                // Single city name (backward compatible)
+                $property = $property->where('city', $request->city);
+            }
         }
 
         // If promoted is passed then get the properties according to advertisement's data except the advertisement's slider data
@@ -8230,7 +8235,14 @@ class ApiController extends Controller
             }
 
             if ($request->has('city') && !empty($request->city)) {
-                $propertyQuery->where('city', $request->city);
+                // Check if cityVariations array is provided (for normalized city names with multiple spellings)
+                if ($request->has('cityVariations') && is_array($request->cityVariations) && count($request->cityVariations) > 0) {
+                    // Search for properties matching any of the city name variations
+                    $propertyQuery->whereIn('city', $request->cityVariations);
+                } else {
+                    // Single city name (backward compatible)
+                    $propertyQuery->where('city', $request->city);
+                }
             }
 
             if ($request->has('min_price') && !empty($request->min_price)) {
