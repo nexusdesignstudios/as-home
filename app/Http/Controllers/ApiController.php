@@ -7978,54 +7978,8 @@ class ApiController extends Controller
             
             \Log::info('Hotel Search - Found property_ids from available_dates:', $availablePropertyIds);
             
-            // #region agent log
-            // Check if these properties actually have available rooms (not reserved)
-            $propertiesWithAvailableRooms = [];
-            foreach ($availablePropertyIds as $propertyId) {
-                $hasAvailableRoom = \App\Models\Property::where('id', $propertyId)
-                    ->whereHas('hotelRooms', function ($roomQuery) use ($checkInDate, $checkOutDate) {
-                        $roomQuery->where('status', 1)
-                            ->whereDoesntHave('reservations', function ($reservationQuery) use ($checkInDate, $checkOutDate) {
-                                $reservationQuery->where('status', 'confirmed')
-                                    ->where(function ($dateOverlapQuery) use ($checkInDate, $checkOutDate) {
-                                        $dateOverlapQuery->where(function ($query) use ($checkInDate, $checkOutDate) {
-                                            $query->where('check_in_date', '<=', $checkInDate)
-                                                ->where('check_out_date', '>', $checkInDate);
-                                        })
-                                        ->orWhere(function ($query) use ($checkInDate, $checkOutDate) {
-                                            $query->where('check_in_date', '<', $checkOutDate)
-                                                ->where('check_out_date', '>=', $checkOutDate);
-                                        })
-                                        ->orWhere(function ($query) use ($checkInDate, $checkOutDate) {
-                                            $query->where('check_in_date', '>=', $checkInDate)
-                                                ->where('check_out_date', '<=', $checkOutDate);
-                                        });
-                                    });
-                            });
-                    })
-                    ->exists();
-                
-                if ($hasAvailableRoom) {
-                    $propertiesWithAvailableRooms[] = $propertyId;
-                }
-                
-                \Log::info('Hotel Search - Property availability check', [
-                    'property_id' => $propertyId,
-                    'has_available_room' => $hasAvailableRoom,
-                    'check_in' => $checkInDate->format('Y-m-d'),
-                    'check_out' => $checkOutDate->format('Y-m-d')
-                ]);
-            }
-            
-            \Log::info('Hotel Search - Properties with actually available rooms (after reservation check):', $propertiesWithAvailableRooms);
-            // #endregion
-            
-            // Use properties with actually available rooms (after reservation check) instead of just configured dates
-            $finalPropertyIds = !empty($propertiesWithAvailableRooms) ? $propertiesWithAvailableRooms : [];
-            
-            if (empty($finalPropertyIds)) {
-                // No properties have available rooms for this period (after checking reservations)
-                \Log::info('Hotel Search - No properties with available rooms after reservation check');
+            if (empty($availablePropertyIds)) {
+                // No properties have available dates for this period
                 return response()->json([
                     'error' => false,
                     'total' => 0,
@@ -8034,14 +7988,83 @@ class ApiController extends Controller
                 ]);
             }
             
-            // #region agent log
-            \Log::info('Hotel Search - Using property_ids (with reservation check):', $finalPropertyIds);
-            // #endregion
-            
-            $propertyQuery = Property::whereIn('id', $finalPropertyIds)
+            // Now get properties that match the criteria
+            $propertyQuery = Property::whereIn('id', $availablePropertyIds)
                 ->where('property_classification', 5)
                 ->where('request_status', 'approved')
                 ->where('status', 1);
+            
+            // Filter properties to ensure they have at least one available room (not reserved)
+            $propertyQuery = $propertyQuery->whereHas('hotelRooms', function ($roomQuery) use ($checkInDate, $checkOutDate, $checkInStr, $checkOutStr) {
+                $roomQuery->where('status', 1) // Only active rooms
+                    ->where(function ($availabilityQuery) use ($checkInStr, $checkOutStr) {
+                        // Room has available dates covering the search range
+                        $availabilityQuery->whereRaw("JSON_VALID(available_dates)")
+                            ->where(function ($dateQuery) use ($checkInStr, $checkOutStr) {
+                                // Handle availability_type = 1 (available_days) or NULL
+                                $dateQuery->where(function ($typeQuery) {
+                                    $typeQuery->whereNull('availability_type')
+                                        ->orWhere('availability_type', 1);
+                                })
+                                ->whereRaw("
+                                    EXISTS (
+                                        SELECT 1
+                                        FROM JSON_TABLE(
+                                            available_dates,
+                                            '$[*]' COLUMNS (
+                                                from_date DATE PATH '$.from',
+                                                to_date DATE PATH '$.to',
+                                                type VARCHAR(20) PATH '$.type'
+                                            )
+                                        ) AS jt
+                                        WHERE (jt.type IS NULL OR jt.type != 'reserved')
+                                        AND jt.from_date <= ?
+                                        AND jt.to_date >= ?
+                                    )
+                                ", [$checkInStr, $checkOutStr]);
+                            })
+                            // Handle availability_type = 2 (busy_days)
+                            ->orWhere(function ($busyDaysQuery) use ($checkInStr, $checkOutStr) {
+                                $busyDaysQuery->where('availability_type', 2)
+                                    ->whereRaw("
+                                        NOT EXISTS (
+                                            SELECT 1
+                                            FROM JSON_TABLE(
+                                                available_dates,
+                                                '$[*]' COLUMNS (
+                                                    from_date DATE PATH '$.from',
+                                                    to_date DATE PATH '$.to'
+                                                )
+                                            ) AS jt
+                                            WHERE jt.from_date <= ?
+                                            AND jt.to_date >= ?
+                                        )
+                                    ", [$checkOutStr, $checkInStr]);
+                            });
+                    })
+                    // OR room has no available_dates (treat as always available)
+                    ->orWhere(function ($noDatesQuery) {
+                        $noDatesQuery->whereRaw("(available_dates IS NULL OR available_dates = '' OR available_dates = '[]' OR JSON_VALID(available_dates) = 0)");
+                    })
+                    // Room is not reserved for these dates
+                    ->whereDoesntHave('reservations', function ($reservationQuery) use ($checkInDate, $checkOutDate) {
+                        $reservationQuery->where('status', 'confirmed')
+                            ->where(function ($dateOverlapQuery) use ($checkInDate, $checkOutDate) {
+                                $dateOverlapQuery->where(function ($query) use ($checkInDate, $checkOutDate) {
+                                    $query->where('check_in_date', '<=', $checkInDate)
+                                        ->where('check_out_date', '>', $checkInDate);
+                                })
+                                ->orWhere(function ($query) use ($checkInDate, $checkOutDate) {
+                                    $query->where('check_in_date', '<', $checkOutDate)
+                                        ->where('check_out_date', '>=', $checkOutDate);
+                                })
+                                ->orWhere(function ($query) use ($checkInDate, $checkOutDate) {
+                                    $query->where('check_in_date', '>=', $checkInDate)
+                                        ->where('check_out_date', '<=', $checkOutDate);
+                                });
+                            });
+                    });
+            });
             
             // Debug: Log base query count
             $baseCount = $propertyQuery->count();
