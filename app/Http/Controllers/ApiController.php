@@ -947,56 +947,51 @@ class ApiController extends Controller
 
         // If Category Id is Passed
         // Special handling for hotels: if property_classification is 5 and category_id is provided,
-        // it might be a hotel apartment type ID (star rating) instead of a category_id
+        // treat category_id as hotel_apartment_type_id (star rating) for filtering
         if ($request->has('category_id') && !empty($request->category_id)) {
             $categoryId = $request->category_id;
             $propertyClassification = $request->has('property_classification') ? $request->property_classification : null;
             
             // Check if this is a hotel (property_classification = 5)
-            // For hotels, category_id might actually be a hotel_apartment_type_id (star rating)
+            // For hotels, category_id represents star rating (1-5)
+            // Hotels display star rating in their category name (e.g., "4 Star Hotel", "2 Star Hotel")
+            // So we need to filter by category name containing the star rating pattern
             if ($propertyClassification == 5) {
-                // Try to find hotel apartment type by ID first
-                $hotelApartmentType = \App\Models\HotelApartmentType::find($categoryId);
-                
-                // If not found by ID, try to find by name pattern (e.g., "1 star", "2 star", etc.)
-                // This handles cases where star ratings are stored as names in hotel_apartment_types
-                if (!$hotelApartmentType) {
-                    // Check if category_id is a number (1-5) representing star rating
-                    if (is_numeric($categoryId) && $categoryId >= 1 && $categoryId <= 5) {
-                        // Try to find hotel apartment type by name containing the star rating
-                        $starPatterns = [
-                            $categoryId . ' star',
-                            $categoryId . ' Star',
-                            'star ' . $categoryId,
-                            'Star ' . $categoryId,
-                            $categoryId . 'نجمة',
-                            'نجمة ' . $categoryId
-                        ];
-                        
-                        $hotelApartmentType = \App\Models\HotelApartmentType::where(function($query) use ($starPatterns) {
-                            foreach ($starPatterns as $pattern) {
-                                $query->orWhere('name', 'LIKE', '%' . $pattern . '%');
-                            }
-                        })->first();
-                    }
-                }
-                
-                if ($hotelApartmentType) {
-                    // Found hotel apartment type - filter by hotel_apartment_type_id
-                    $property = $property->where('hotel_apartment_type_id', $hotelApartmentType->id);
-                    \Log::info('Hotel star rating filter applied', [
+                // Validate that category_id is a valid star rating (1-5)
+                if (is_numeric($categoryId) && $categoryId >= 1 && $categoryId <= 5) {
+                    // For hotels, filter by category name containing the star rating
+                    // This matches what's displayed in hotel cards (ele?.category?.category)
+                    $starPatterns = [
+                        $categoryId . ' star',
+                        $categoryId . ' Star',
+                        $categoryId . ' stars',
+                        $categoryId . ' Stars',
+                        'star ' . $categoryId,
+                        'Star ' . $categoryId,
+                        'stars ' . $categoryId,
+                        'Stars ' . $categoryId,
+                        $categoryId . 'نجمة',
+                        'نجمة ' . $categoryId
+                    ];
+                    
+                    $property = $property->whereHas('category', function($catQuery) use ($starPatterns) {
+                        foreach ($starPatterns as $pattern) {
+                            $catQuery->orWhere('category', 'LIKE', '%' . $pattern . '%');
+                        }
+                    });
+                    
+                    \Log::info('Hotel star rating filter applied (by category name)', [
                         'category_id' => $categoryId,
-                        'hotel_apartment_type_id' => $hotelApartmentType->id,
-                        'hotel_apartment_type_name' => $hotelApartmentType->name
+                        'property_classification' => $propertyClassification,
+                        'star_rating' => $categoryId,
+                        'note' => 'Filtering hotels by category name containing star rating pattern (e.g., "4 Star Hotel")'
                     ]);
                 } else {
-                    // If not found, try direct ID match (in case the ID directly corresponds to star rating)
-                    // This handles cases where hotel_apartment_type_id = 1 means 1 star, etc.
-                    $property = $property->where('hotel_apartment_type_id', $categoryId);
-                    \Log::info('Hotel star rating filter applied (direct ID match)', [
+                    // Invalid star rating - log warning but don't filter
+                    \Log::warning('Invalid hotel star rating filter', [
                         'category_id' => $categoryId,
-                        'hotel_apartment_type_id' => $categoryId,
-                        'note' => 'Using category_id directly as hotel_apartment_type_id'
+                        'property_classification' => $propertyClassification,
+                        'note' => 'category_id must be 1-5 for hotel star rating filtering'
                     ]);
                 }
             } else {
