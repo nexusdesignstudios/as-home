@@ -93,6 +93,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::get('get_favourite_property', [ApiController::class, 'get_favourite_property']);
     Route::get('get_property_inquiry', [ApiController::class, 'get_property_inquiry']);
     Route::get('get-added-properties', [ApiController::class, 'getAddedProperties']);
+    Route::get('check-pending-edit-request/{propertyId}', [ApiController::class, 'checkPendingEditRequest']);
     /*********************************************************************** */
 
     /** Users */

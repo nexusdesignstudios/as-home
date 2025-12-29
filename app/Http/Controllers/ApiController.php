@@ -2416,6 +2416,19 @@ class ApiController extends Controller
                         }
                     }
 
+                    // Check for pending edit request first
+                    $pendingRequest = \App\Models\PropertyEditRequest::where('property_id', $property->id)
+                        ->where('status', 'pending')
+                        ->first();
+                    
+                    if ($pendingRequest) {
+                        DB::rollBack();
+                        return response()->json([
+                            'error' => true,
+                            'message' => 'This property has a pending edit request. Please wait for approval before making additional changes.',
+                        ], 400);
+                    }
+
                     // Check if this is an owner edit (not admin)
                     // 0 means admin, non-zero means owner/customer
                     $isOwnerEdit = $property->added_by != 0;
@@ -2423,7 +2436,26 @@ class ApiController extends Controller
                     // Check auto-approve setting for edited listings
                     $autoApproveEdited = HelperService::getSettingData('auto_approve_edited_listings') == 1;
                     
-                    if ($isOwnerEdit && !$autoApproveEdited) {
+                    // Define approval-required fields
+                    $approvalRequiredFields = [
+                        'title', 'title_ar',
+                        'description', 'description_ar',
+                        'area_description', 'area_description_ar',
+                        'title_image', 'gallery_images', 'three_d_image', 'og_images',
+                        'address', 'latitude', 'longitude', 'state', 'city', 'country',
+                        'hotel_rooms' // Only description field within rooms
+                    ];
+                    
+                    // Check if approval-required fields have changed
+                    $hasApprovalRequiredChanges = $this->hasApprovalRequiredChanges(
+                        $property, 
+                        $request, 
+                        $approvalRequiredFields,
+                        $propertyClassification
+                    );
+                    
+                    // Only require approval if approval-required fields changed
+                    if ($isOwnerEdit && !$autoApproveEdited && $hasApprovalRequiredChanges) {
                         // Owner edits require admin approval when auto-approve is OFF - save as pending request
                         // Get the current state of the property (with all modifications)
                         $editedData = $property->getAttributes();
@@ -11817,6 +11849,127 @@ Best regards,
                     'approval_status' => $reservation->approval_status ?? 'pending'
                 ]
             ]);
+        } catch (Exception $e) {
+            DB::rollBack();
+            ResponseService::logErrorResponse($e, "Payment Form Submission Error", "Something Went Wrong");
+        }
+    }
+
+    /**
+     * Check if property has pending edit request
+     *
+     * @param int $propertyId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function checkPendingEditRequest($propertyId)
+    {
+        try {
+            $pendingRequest = \App\Models\PropertyEditRequest::where('property_id', $propertyId)
+                ->where('status', 'pending')
+                ->first();
+            
+            return response()->json([
+                'error' => false,
+                'data' => [
+                    'has_pending_request' => $pendingRequest ? true : false,
+                    'message' => $pendingRequest 
+                        ? 'This property has a pending edit request. Please wait for approval before making additional changes.'
+                        : 'No pending edit request found.',
+                    'edit_request' => $pendingRequest ? [
+                        'id' => $pendingRequest->id,
+                        'status' => $pendingRequest->status,
+                        'created_at' => $pendingRequest->created_at,
+                    ] : null
+                ]
+            ]);
+        } catch (Exception $e) {
+            ResponseService::logErrorResponse($e, "Check Pending Edit Request Error", "Something Went Wrong");
+        }
+    }
+
+    /**
+     * Check if approval-required fields have changed
+     *
+     * @param Property $property
+     * @param Request $request
+     * @param array $approvalRequiredFields
+     * @param int $propertyClassification
+     * @return bool
+     */
+    private function hasApprovalRequiredChanges($property, $request, $approvalRequiredFields, $propertyClassification)
+    {
+        // Check title fields
+        if ($request->has('title') && $request->title != $property->title) {
+            return true;
+        }
+        if ($request->has('title_ar') && $request->title_ar != $property->title_ar) {
+            return true;
+        }
+
+        // Check description fields
+        if ($request->has('description') && $request->description != $property->description) {
+            return true;
+        }
+        if ($request->has('description_ar') && $request->description_ar != $property->description_ar) {
+            return true;
+        }
+
+        // Check area description fields
+        if ($request->has('area_description') && $request->area_description != $property->area_description) {
+            return true;
+        }
+        if ($request->has('area_description_ar') && $request->area_description_ar != $property->area_description_ar) {
+            return true;
+        }
+
+        // Check images (if new files uploaded)
+        if ($request->hasFile('title_image') || 
+            $request->hasFile('gallery_images') || 
+            $request->hasFile('three_d_image') ||
+            $request->hasFile('meta_image')) {
+            return true;
+        }
+
+        // Check address/location fields
+        if ($request->has('address') && $request->address != $property->address) {
+            return true;
+        }
+        if ($request->has('latitude') && $request->latitude != $property->latitude) {
+            return true;
+        }
+        if ($request->has('longitude') && $request->longitude != $property->longitude) {
+            return true;
+        }
+        if ($request->has('city') && $request->city != $property->city) {
+            return true;
+        }
+        if ($request->has('state') && $request->state != $property->state) {
+            return true;
+        }
+        if ($request->has('country') && $request->country != $property->country) {
+            return true;
+        }
+
+        // Check hotel room descriptions (only description field)
+        if ($propertyClassification == 5 && $request->has('hotel_rooms') && is_array($request->hotel_rooms)) {
+            $originalRooms = \App\Models\HotelRoom::where('property_id', $property->id)->get();
+            
+            foreach ($request->hotel_rooms as $room) {
+                if (isset($room['id']) && isset($room['description'])) {
+                    $originalRoom = $originalRooms->find($room['id']);
+                    if ($originalRoom && $originalRoom->description != $room['description']) {
+                        return true;
+                    }
+                } else if (isset($room['description']) && !empty($room['description'])) {
+                    // New room with description
+                    return true;
+                }
+            }
+        }
+
+        return false;
+                ]
+            ]);
 
         } catch (Exception $e) {
             DB::rollback();
@@ -11827,6 +11980,121 @@ Best regards,
                 'message' => 'Failed to submit payment form: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Check if property has pending edit request
+     *
+     * @param int $propertyId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function checkPendingEditRequest($propertyId)
+    {
+        try {
+            $pendingRequest = \App\Models\PropertyEditRequest::where('property_id', $propertyId)
+                ->where('status', 'pending')
+                ->first();
+            
+            return response()->json([
+                'error' => false,
+                'data' => [
+                    'has_pending_request' => $pendingRequest ? true : false,
+                    'message' => $pendingRequest 
+                        ? 'This property has a pending edit request. Please wait for approval before making additional changes.'
+                        : 'No pending edit request found.',
+                    'edit_request' => $pendingRequest ? [
+                        'id' => $pendingRequest->id,
+                        'status' => $pendingRequest->status,
+                        'created_at' => $pendingRequest->created_at,
+                    ] : null
+                ]
+            ]);
+        } catch (Exception $e) {
+            ResponseService::logErrorResponse($e, "Check Pending Edit Request Error", "Something Went Wrong");
+        }
+    }
+
+    /**
+     * Check if approval-required fields have changed
+     *
+     * @param Property $property
+     * @param Request $request
+     * @param array $approvalRequiredFields
+     * @param int $propertyClassification
+     * @return bool
+     */
+    private function hasApprovalRequiredChanges($property, $request, $approvalRequiredFields, $propertyClassification)
+    {
+        // Check title fields
+        if ($request->has('title') && $request->title != $property->title) {
+            return true;
+        }
+        if ($request->has('title_ar') && $request->title_ar != $property->title_ar) {
+            return true;
+        }
+
+        // Check description fields
+        if ($request->has('description') && $request->description != $property->description) {
+            return true;
+        }
+        if ($request->has('description_ar') && $request->description_ar != $property->description_ar) {
+            return true;
+        }
+
+        // Check area description fields
+        if ($request->has('area_description') && $request->area_description != $property->area_description) {
+            return true;
+        }
+        if ($request->has('area_description_ar') && $request->area_description_ar != $property->area_description_ar) {
+            return true;
+        }
+
+        // Check images (if new files uploaded)
+        if ($request->hasFile('title_image') || 
+            $request->hasFile('gallery_images') || 
+            $request->hasFile('three_d_image') ||
+            $request->hasFile('meta_image')) {
+            return true;
+        }
+
+        // Check address/location fields
+        if ($request->has('address') && $request->address != $property->address) {
+            return true;
+        }
+        if ($request->has('latitude') && $request->latitude != $property->latitude) {
+            return true;
+        }
+        if ($request->has('longitude') && $request->longitude != $property->longitude) {
+            return true;
+        }
+        if ($request->has('city') && $request->city != $property->city) {
+            return true;
+        }
+        if ($request->has('state') && $request->state != $property->state) {
+            return true;
+        }
+        if ($request->has('country') && $request->country != $property->country) {
+            return true;
+        }
+
+        // Check hotel room descriptions (only description field)
+        if ($propertyClassification == 5 && $request->has('hotel_rooms') && is_array($request->hotel_rooms)) {
+            $originalRooms = \App\Models\HotelRoom::where('property_id', $property->id)->get();
+            
+            foreach ($request->hotel_rooms as $room) {
+                if (isset($room['id']) && isset($room['description'])) {
+                    $originalRoom = $originalRooms->find($room['id']);
+                    if ($originalRoom && $originalRoom->description != $room['description']) {
+                        return true;
+                    }
+                } else if (isset($room['description']) && !empty($room['description'])) {
+                    // New room with description
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
 
