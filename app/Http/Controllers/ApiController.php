@@ -946,8 +946,31 @@ class ApiController extends Controller
         }
 
         // If Category Id is Passed
+        // Special handling for hotels: if property_classification is 5 and category_id is provided,
+        // it might be a hotel apartment type ID (star rating) instead of a category_id
         if ($request->has('category_id') && !empty($request->category_id)) {
-            $property = $property->where('category_id', $request->category_id);
+            $categoryId = $request->category_id;
+            $propertyClassification = $request->has('property_classification') ? $request->property_classification : null;
+            
+            // Check if this is a hotel (property_classification = 5)
+            // For hotels, category_id might actually be a hotel_apartment_type_id (star rating)
+            if ($propertyClassification == 5) {
+                // Check if the category_id corresponds to a valid hotel apartment type
+                // If it does, filter by hotel_apartment_type_id instead
+                $hotelApartmentType = \App\Models\HotelApartmentType::find($categoryId);
+                
+                if ($hotelApartmentType) {
+                    // category_id is actually a hotel_apartment_type_id, filter by that
+                    $property = $property->where('hotel_apartment_type_id', $categoryId);
+                } else {
+                    // If not found as hotel apartment type, still try category_id (for backward compatibility)
+                    // But hotels typically don't use category_id, so this might return no results
+                    $property = $property->where('category_id', $categoryId);
+                }
+            } else {
+                // For non-hotel properties, use category_id normally
+                $property = $property->where('category_id', $categoryId);
+            }
         }
 
         // If Rent Package is Passed
@@ -955,7 +978,7 @@ class ApiController extends Controller
             $property = $property->where('rent_package', $request->rent_package);
         }
 
-        // If Hotel Apartment Type ID is Passed
+        // If Hotel Apartment Type ID is Passed (explicit parameter)
         if ($request->has('hotel_apartment_type_id') && !empty($request->hotel_apartment_type_id)) {
             $property = $property->where('hotel_apartment_type_id', $request->hotel_apartment_type_id);
         }
@@ -2183,9 +2206,10 @@ class ApiController extends Controller
                     $property->meta_keywords = $request->meta_keywords ?? null;
                     $property->is_premium = !empty($request->is_premium) && $request->is_premium == "true" ? 1 : 0;
 
-                    if (HelperService::getSettingData('auto_approve_edited_listings') == 0) {
-                        $property->request_status = 'pending';
-                    }
+                    // Note: request_status is handled later by selective approval logic (line 2430+)
+                    // - If auto-approve ON → Set to 'approved' (line 2613-2615)
+                    // - If auto-approve OFF and approval-required fields changed → Create edit request (line 2504)
+                    // - If auto-approve OFF and only non-approval fields changed → Set to 'approved' (line 2580-2581)
 
                     if ($request->hasFile('title_image')) {
                         $imageName = microtime(true) . "." . $request->file('title_image')->getClientOriginalExtension();
@@ -2397,23 +2421,12 @@ class ApiController extends Controller
                         }
                     }
 
-                    if ($request->id) {
-                        $prop_id = $request->id;
-                        AssignedOutdoorFacilities::where('property_id', $request->id)->delete();
-                    } else {
+                    // Store facilities data for later processing (after approval check)
+                    $facilitiesData = $request->facilities ?? null;
+                    $prop_id = $request->id ?? null;
+                    if (!$prop_id && $request->slug_id) {
                         $prop = Property::where('slug_id', $request->slug_id)->first();
-                        $prop_id = $prop->id;
-                        AssignedOutdoorFacilities::where('property_id', $prop->id)->delete();
-                    }
-                    // AssignedOutdoorFacilities::where('property_id', $request->id)->delete();
-                    if ($request->facilities) {
-                        foreach ($request->facilities as $key => $value) {
-                            $facilities = new AssignedOutdoorFacilities();
-                            $facilities->facility_id = $value['facility_id'];
-                            $facilities->property_id = $prop_id;
-                            $facilities->distance = $value['distance'];
-                            $facilities->save();
-                        }
+                        $prop_id = $prop ? $prop->id : null;
                     }
 
                     // Check for pending edit request first
@@ -2436,26 +2449,30 @@ class ApiController extends Controller
                     // Check auto-approve setting for edited listings
                     $autoApproveEdited = HelperService::getSettingData('auto_approve_edited_listings') == 1;
                     
-                    // Define approval-required fields
-                    $approvalRequiredFields = [
-                        'title', 'title_ar',
-                        'description', 'description_ar',
-                        'area_description', 'area_description_ar',
-                        'title_image', 'gallery_images', 'three_d_image', 'og_images',
-                        'address', 'latitude', 'longitude', 'state', 'city', 'country',
-                        'hotel_rooms' // Only description field within rooms
-                    ];
-                    
-                    // Check if approval-required fields have changed
-                    $hasApprovalRequiredChanges = $this->hasApprovalRequiredChanges(
-                        $property, 
-                        $request, 
-                        $approvalRequiredFields,
-                        $propertyClassification
-                    );
-                    
-                    // Only require approval if approval-required fields changed
-                    if ($isOwnerEdit && !$autoApproveEdited && $hasApprovalRequiredChanges) {
+                    // If auto-approve is ON, bypass all approval checks and save directly
+                    // If auto-approve is OFF, use selective approval (only approval-required fields need approval)
+                    if ($isOwnerEdit && !$autoApproveEdited) {
+                        // Auto-approve is OFF - check if approval-required fields have changed
+                        // Define approval-required fields
+                        $approvalRequiredFields = [
+                            'title', 'title_ar',
+                            'description', 'description_ar',
+                            'area_description', 'area_description_ar',
+                            'title_image', 'gallery_images', 'three_d_image', 'og_images',
+                            'address', 'latitude', 'longitude', 'state', 'city', 'country',
+                            'hotel_rooms' // Only description field within rooms
+                        ];
+                        
+                        // Check if approval-required fields have changed
+                        $hasApprovalRequiredChanges = $this->hasApprovalRequiredChanges(
+                            $property, 
+                            $request, 
+                            $approvalRequiredFields,
+                            $propertyClassification
+                        );
+                        
+                        // Only require approval if approval-required fields changed
+                        if ($hasApprovalRequiredChanges) {
                         // Owner edits require admin approval when auto-approve is OFF - save as pending request
                         // Get the current state of the property (with all modifications)
                         $editedData = $property->getAttributes();
@@ -2494,6 +2511,15 @@ class ApiController extends Controller
                                 'property_id' => $property->id,
                                 'apartments_count' => count($originalVacationApartments),
                                 'quantities' => collect($originalVacationApartments)->pluck('quantity', 'id')->toArray()
+                            ]);
+                        }
+                        
+                        // Include facilities in edited data if provided (so they're applied when approved)
+                        if ($facilitiesData && is_array($facilitiesData)) {
+                            $editedData['facilities'] = $facilitiesData;
+                            \Log::info('Including facilities in edited_data for approval', [
+                                'property_id' => $property->id,
+                                'facilities_count' => count($facilitiesData)
                             ]);
                         }
                         
@@ -2557,12 +2583,67 @@ class ApiController extends Controller
                                 'status' => 'pending_approval'
                             ]
                         ]);
+                        } else {
+                            // Auto-approve is OFF but only non-approval fields changed - save directly
+                            // Save facilities immediately since they don't require approval
+                            if ($facilitiesData && is_array($facilitiesData) && $prop_id) {
+                                AssignedOutdoorFacilities::where('property_id', $prop_id)->delete();
+                                foreach ($facilitiesData as $key => $value) {
+                                    $facilities = new AssignedOutdoorFacilities();
+                                    $facilities->facility_id = $value['facility_id'];
+                                    $facilities->property_id = $prop_id;
+                                    $facilities->distance = $value['distance'];
+                                    $facilities->save();
+                                }
+                                \Log::info('Facilities saved directly (no approval required)', [
+                                    'property_id' => $prop_id,
+                                    'facilities_count' => count($facilitiesData)
+                                ]);
+                            }
+                            // Ensure property status is approved when saving directly (non-approval fields only)
+                            if ($property->request_status !== 'approved') {
+                                $property->request_status = 'approved';
+                            }
+                            $property->save();
+                            \Log::info('Property saved directly (only non-approval fields changed)', [
+                                'property_id' => $property->id,
+                                'request_status' => 'approved'
+                            ]);
+                        }
                     } else {
                         // Admin edit OR owner edit with auto-approve enabled - save directly (no approval needed)
+                        // When auto-approve is ON, ALL edits bypass approval regardless of which fields changed
                         // Save the property with all updates including Arabic fields and hotel_vat
                         
-                        // If auto-approve is enabled for owner edits, set request_status to approved
-                        if ($isOwnerEdit && $autoApproveEdited) {
+                        // Save facilities immediately since no approval is needed
+                        if ($facilitiesData && is_array($facilitiesData) && $prop_id) {
+                            AssignedOutdoorFacilities::where('property_id', $prop_id)->delete();
+                            foreach ($facilitiesData as $key => $value) {
+                                $facilities = new AssignedOutdoorFacilities();
+                                $facilities->facility_id = $value['facility_id'];
+                                $facilities->property_id = $prop_id;
+                                $facilities->distance = $value['distance'];
+                                $facilities->save();
+                            }
+                            \Log::info('Facilities saved directly (auto-approve ON or admin edit)', [
+                                'property_id' => $prop_id,
+                                'facilities_count' => count($facilitiesData),
+                                'auto_approve' => $autoApproveEdited,
+                                'is_admin' => !$isOwnerEdit
+                            ]);
+                        }
+                        
+                        // Set request_status to approved for:
+                        // 1. Admin edits (always approved)
+                        // 2. Owner edits with auto-approve ON (bypass approval)
+                        if (!$isOwnerEdit) {
+                            // Admin edit - always approved
+                            $property->request_status = 'approved';
+                            \Log::info('Admin edit - property approved', [
+                                'property_id' => $property->id
+                            ]);
+                        } else if ($autoApproveEdited) {
+                            // Owner edit with auto-approve ON - bypass approval
                             $property->request_status = 'approved';
                             \Log::info('Owner edit auto-approved (bypassing edit request)', [
                                 'property_id' => $property->id,
