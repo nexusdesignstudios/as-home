@@ -797,7 +797,16 @@ class ApiController extends Controller
         if ($request->has('bedrooms') && $request->bedrooms !== null && $request->bedrooms !== '') {
             $bedroomsValue = (string) $request->bedrooms;
             $bedroomsIntValue = (int) $bedroomsValue; // For vacation apartments comparison
-            $isStudio = ($bedroomsValue === '0'); // Check if filtering for Studio
+            
+            // Check if filtering for Studio - handle both "0" and "Studio" (case-insensitive)
+            $bedroomsValueLower = strtolower(trim($bedroomsValue));
+            $isStudio = ($bedroomsValue === '0' || $bedroomsValueLower === 'studio');
+            
+            // If Studio was passed as string, normalize to "0" for consistency
+            if ($isStudio && $bedroomsValueLower === 'studio') {
+                $bedroomsValue = '0';
+                $bedroomsIntValue = 0;
+            }
             
             $property = $property->where(function ($query) use ($bedroomsValue, $bedroomsIntValue, $isStudio) {
                 // Check parameters table (for regular properties)
