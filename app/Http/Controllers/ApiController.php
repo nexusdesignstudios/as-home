@@ -778,6 +778,15 @@ class ApiController extends Controller
             $property = $property->where('property_classification', $request->property_classification);
         }
 
+        // CRITICAL FIX: Apply property_type filter BEFORE bedroom filter for vacation homes
+        // This ensures whereHas subqueries respect the property_type constraint
+        $property_type = $request->property_type;  //0 : Sell 1:Rent
+        if (isset($property_type) && (!empty($property_type) || $property_type == 0)) {
+            // Convert to integer for consistent comparison (handles both string "0"/"1" and integer 0/1)
+            $property_type_int = (int) $property_type;
+            $property = $property->where('propery_type', $property_type_int);
+        }
+
         $max_price = isset($request->max_price) ? $request->max_price : Property::max('price');
         $min_price = isset($request->min_price) ? $request->min_price : 0;
         $totalClicks = 0;
@@ -1087,11 +1096,9 @@ class ApiController extends Controller
             $property = $property->whereBetween('price', [$min_price, $max_price]);
         }
 
-        $property_type = $request->property_type;  //0 : Sell 1:Rent
-        // If Property Type Passed
-        if (isset($property_type) && (!empty($property_type) || $property_type == 0)) {
-            $property = $property->where('propery_type', $property_type);
-        }
+        // NOTE: property_type filter is now applied BEFORE bedroom filter (see above)
+        // This ensures whereHas subqueries for vacation homes respect the property_type constraint
+        // The duplicate check below is removed to avoid applying the filter twice
 
         // If Posted Since 0 or 1 is passed
         if ($request->has('posted_since') && !empty($request->posted_since)) {
