@@ -867,6 +867,9 @@ class ApiController extends Controller
                 ->orWhere(function ($vacationQuery) use ($bedroomsIntValue, $isStudio) {
                     $vacationQuery->where('property_classification', 4)
                         ->whereHas('vacationApartments', function ($aptQuery) use ($bedroomsIntValue, $isStudio) {
+                            // Only check active apartments (status = 1)
+                            $aptQuery->where('status', 1);
+                            
                             if ($isStudio) {
                                 // For Studio, match apartments with 0 bedrooms
                                 $aptQuery->where('bedrooms', 0);
@@ -1548,6 +1551,40 @@ class ApiController extends Controller
                 $saveProperty->power_of_attorney = $poaName;
             }
 
+            // Alternative ID
+            if ($request->hasFile('alternative_id')) {
+                $destinationPath = public_path('images') . config('global.PROPERTY_ALTERNATIVE_ID_PATH');
+                if (!is_dir($destinationPath)) {
+                    mkdir($destinationPath, 0777, true);
+                }
+                $file = $request->file('alternative_id');
+                $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
+                $alternativeIdName = handleFileUpload($request, 'alternative_id', $destinationPath, $fileName);
+                $saveProperty->alternative_id = $alternativeIdName;
+            }
+
+            // Ownership Contract (handle both ownership_contract and policy_data)
+            if ($request->hasFile('ownership_contract')) {
+                $destinationPath = public_path('images') . config('global.PROPERTY_OWNERSHIP_CONTRACT_PATH');
+                if (!is_dir($destinationPath)) {
+                    mkdir($destinationPath, 0777, true);
+                }
+                $file = $request->file('ownership_contract');
+                $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
+                $ownershipContractName = handleFileUpload($request, 'ownership_contract', $destinationPath, $fileName);
+                $saveProperty->ownership_contract = $ownershipContractName;
+            } elseif ($request->hasFile('policy_data')) {
+                // Fallback: if ownership_contract not provided, use policy_data
+                $destinationPath = public_path('images') . config('global.PROPERTY_OWNERSHIP_CONTRACT_PATH');
+                if (!is_dir($destinationPath)) {
+                    mkdir($destinationPath, 0777, true);
+                }
+                $file = $request->file('policy_data');
+                $fileName = microtime(true) . "." . $file->getClientOriginalExtension();
+                $ownershipContractName = handleFileUpload($request, 'policy_data', $destinationPath, $fileName);
+                $saveProperty->ownership_contract = $ownershipContractName;
+            }
+
             // Fact Sheet (for hotels)
             if ($request->hasFile('fact_sheet')) {
                 $destinationPath = public_path('images') . config('global.PROPERTY_FACT_SHEET_PATH');
@@ -1909,8 +1946,10 @@ class ApiController extends Controller
             'weekend_commission'    => 'nullable|numeric|min:0|max:100',
             'identity_proof'        => 'nullable|file|max:10240', // Accept all file types, max 10MB
             'national_id_passport'  => 'nullable|file|max:10240', // Accept all file types, max 10MB
+            'alternative_id'        => 'nullable|file|max:10240', // Accept all file types, max 10MB
             'utilities_bills'       => 'nullable|file|max:10240', // Accept all file types, max 10MB
             'power_of_attorney'     => 'nullable|file|max:10240', // Accept all file types, max 10MB
+            'ownership_contract'    => 'nullable|file|max:10240', // Accept all file types, max 10MB
             'property_classification' => 'nullable|integer|between:1,5',
             'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
             'available_dates'   => 'nullable|json|required_if:property_classification,4',
@@ -2372,6 +2411,19 @@ class ApiController extends Controller
                         }
                     }
 
+                    // Handle alternative_id file
+                    if ($request->hasFile('alternative_id')) {
+                        $destinationPath = public_path('images') . config('global.PROPERTY_ALTERNATIVE_ID_PATH');
+                        if (!is_dir($destinationPath)) {
+                            mkdir($destinationPath, 0777, true);
+                        }
+                        $fileName = microtime(true) . "." . $request->file('alternative_id')->getClientOriginalExtension();
+                        $alternativeIdName = handleFileUpload($request, 'alternative_id', $destinationPath, $fileName, $property->getRawOriginal('alternative_id'));
+                        if ($alternativeIdName) {
+                            $property->alternative_id = $alternativeIdName;
+                        }
+                    }
+
                     // Handle utilities_bills file
                     if ($request->hasFile('utilities_bills')) {
                         $destinationPath = public_path('images') . config('global.PROPERTY_UTILITIES_PATH');
@@ -2395,6 +2447,30 @@ class ApiController extends Controller
                         $poaName = handleFileUpload($request, 'power_of_attorney', $destinationPath, $fileName, $property->getRawOriginal('power_of_attorney'));
                         if ($poaName) {
                             $property->power_of_attorney = $poaName;
+                        }
+                    }
+
+                    // Handle ownership_contract file (handle both ownership_contract and policy_data)
+                    if ($request->hasFile('ownership_contract')) {
+                        $destinationPath = public_path('images') . config('global.PROPERTY_OWNERSHIP_CONTRACT_PATH');
+                        if (!is_dir($destinationPath)) {
+                            mkdir($destinationPath, 0777, true);
+                        }
+                        $fileName = microtime(true) . "." . $request->file('ownership_contract')->getClientOriginalExtension();
+                        $ownershipContractName = handleFileUpload($request, 'ownership_contract', $destinationPath, $fileName, $property->getRawOriginal('ownership_contract'));
+                        if ($ownershipContractName) {
+                            $property->ownership_contract = $ownershipContractName;
+                        }
+                    } elseif ($request->hasFile('policy_data')) {
+                        // Fallback: if ownership_contract not provided, use policy_data
+                        $destinationPath = public_path('images') . config('global.PROPERTY_OWNERSHIP_CONTRACT_PATH');
+                        if (!is_dir($destinationPath)) {
+                            mkdir($destinationPath, 0777, true);
+                        }
+                        $fileName = microtime(true) . "." . $request->file('policy_data')->getClientOriginalExtension();
+                        $ownershipContractName = handleFileUpload($request, 'policy_data', $destinationPath, $fileName, $property->getRawOriginal('ownership_contract'));
+                        if ($ownershipContractName) {
+                            $property->ownership_contract = $ownershipContractName;
                         }
                     }
 

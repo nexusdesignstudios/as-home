@@ -451,6 +451,15 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
         $tempRow['post_created'] = $row->created_at ? $row->created_at->diffForHumans() : '';
         $tempRow['gallery'] = $row->gallery;
         
+        // Add agreement documents (using accessors which return full URLs)
+        $tempRow['national_id_passport'] = $row->national_id_passport;
+        $tempRow['alternative_id'] = $row->alternative_id;
+        $tempRow['ownership_contract'] = $row->ownership_contract;
+        $tempRow['utilities_bills'] = $row->utilities_bills;
+        $tempRow['power_of_attorney'] = $row->power_of_attorney;
+        // Also include policy_data for backward compatibility
+        $tempRow['policy_data'] = $row->policy_data;
+        
         // Ensure documents are properly loaded and formatted
         // Use the relationship if available, otherwise use the accessor
         if ($row->relationLoaded('propertiesDocuments')) {

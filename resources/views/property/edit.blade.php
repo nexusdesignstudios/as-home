@@ -55,6 +55,50 @@
         color: #6c757d;
         text-align: center;
     }
+    
+    /* Document Preview Modal Styles */
+    .document-preview-modal .modal-dialog {
+        max-width: 90%;
+        height: 90vh;
+    }
+
+    .document-preview-modal .modal-content {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .document-preview-modal .modal-body {
+        flex: 1;
+        overflow: auto;
+        padding: 0;
+    }
+
+    .document-preview-iframe {
+        width: 100%;
+        height: 100%;
+        min-height: 600px;
+        border: none;
+    }
+
+    .document-preview-image {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 0 auto;
+    }
+
+    .document-preview-unsupported {
+        padding: 2rem;
+        text-align: center;
+        color: #6c757d;
+    }
+
+    .document-preview-unsupported i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        color: #dee2e6;
+    }
 </style>
 @endsection
 
@@ -748,8 +792,15 @@
                                     @if(!empty($identityProofRaw))
                                         <div class="mb-3 p-3 bg-light rounded">
                                             <div class="d-flex gap-2 mb-2">
-                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'identity_proof']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
-                                                    <i class="bi bi-eye me-1"></i> {{ __('View') }}
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-primary flex-fill document-preview-btn" 
+                                                        data-document-url="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'identity_proof']) }}"
+                                                        data-document-name="{{ __('Identity Proof Document') }}"
+                                                        data-document-download="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'identity_proof', 'download' => 1]) }}">
+                                                    <i class="bi bi-eye me-1"></i> {{ __('Preview') }}
+                                                </button>
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'identity_proof']) }}" target="_blank" class="btn btn-sm btn-info">
+                                                    <i class="bi bi-box-arrow-up-right me-1"></i> {{ __('View') }}
                                                 </a>
                                                 <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'identity_proof', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
                                                     <i class="bi bi-download me-1"></i> {{ __('Download') }}
@@ -782,8 +833,15 @@
                                     @if(!empty($nationalIdRaw))
                                         <div class="mb-3 p-3 bg-light rounded">
                                             <div class="d-flex gap-2 mb-2">
-                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'national-id']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
-                                                    <i class="bi bi-eye me-1"></i> {{ __('View') }}
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-primary flex-fill document-preview-btn" 
+                                                        data-document-url="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'national-id']) }}"
+                                                        data-document-name="{{ __('National ID/Passport Document') }}"
+                                                        data-document-download="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'national-id', 'download' => 1]) }}">
+                                                    <i class="bi bi-eye me-1"></i> {{ __('Preview') }}
+                                                </button>
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'national-id']) }}" target="_blank" class="btn btn-sm btn-info">
+                                                    <i class="bi bi-box-arrow-up-right me-1"></i> {{ __('View') }}
                                                 </a>
                                                 <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'national-id', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
                                                     <i class="bi bi-download me-1"></i> {{ __('Download') }}
@@ -816,8 +874,15 @@
                                     @if(!empty($alternativeIdRaw))
                                         <div class="mb-3 p-3 bg-light rounded">
                                             <div class="d-flex gap-2 mb-2">
-                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'alternative-id']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
-                                                    <i class="bi bi-eye me-1"></i> {{ __('View') }}
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-primary flex-fill document-preview-btn" 
+                                                        data-document-url="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'alternative-id']) }}"
+                                                        data-document-name="{{ __('Alternative ID Document') }}"
+                                                        data-document-download="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'alternative-id', 'download' => 1]) }}">
+                                                    <i class="bi bi-eye me-1"></i> {{ __('Preview') }}
+                                                </button>
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'alternative-id']) }}" target="_blank" class="btn btn-sm btn-info">
+                                                    <i class="bi bi-box-arrow-up-right me-1"></i> {{ __('View') }}
                                                 </a>
                                                 <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'alternative-id', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
                                                     <i class="bi bi-download me-1"></i> {{ __('Download') }}
@@ -850,8 +915,15 @@
                                     @if(!empty($utilitiesBillsRaw))
                                         <div class="mb-3 p-3 bg-light rounded">
                                             <div class="d-flex gap-2 mb-2">
-                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'utilities-bills']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
-                                                    <i class="bi bi-eye me-1"></i> {{ __('View') }}
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-primary flex-fill document-preview-btn" 
+                                                        data-document-url="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'utilities-bills']) }}"
+                                                        data-document-name="{{ __('Utilities Bills Document') }}"
+                                                        data-document-download="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'utilities-bills', 'download' => 1]) }}">
+                                                    <i class="bi bi-eye me-1"></i> {{ __('Preview') }}
+                                                </button>
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'utilities-bills']) }}" target="_blank" class="btn btn-sm btn-info">
+                                                    <i class="bi bi-box-arrow-up-right me-1"></i> {{ __('View') }}
                                                 </a>
                                                 <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'utilities-bills', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
                                                     <i class="bi bi-download me-1"></i> {{ __('Download') }}
@@ -884,8 +956,15 @@
                                     @if(!empty($poaRaw))
                                         <div class="mb-3 p-3 bg-light rounded">
                                             <div class="d-flex gap-2 mb-2">
-                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'power-of-attorney']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
-                                                    <i class="bi bi-eye me-1"></i> {{ __('View') }}
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-primary flex-fill document-preview-btn" 
+                                                        data-document-url="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'power-of-attorney']) }}"
+                                                        data-document-name="{{ __('Power of Attorney Document') }}"
+                                                        data-document-download="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'power-of-attorney', 'download' => 1]) }}">
+                                                    <i class="bi bi-eye me-1"></i> {{ __('Preview') }}
+                                                </button>
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'power-of-attorney']) }}" target="_blank" class="btn btn-sm btn-info">
+                                                    <i class="bi bi-box-arrow-up-right me-1"></i> {{ __('View') }}
                                                 </a>
                                                 <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'power-of-attorney', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
                                                     <i class="bi bi-download me-1"></i> {{ __('Download') }}
@@ -918,8 +997,15 @@
                                     @if(!empty($ownershipContractRaw))
                                         <div class="mb-3 p-3 bg-light rounded">
                                             <div class="d-flex gap-2 mb-2">
-                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'ownership-contract']) }}" target="_blank" class="btn btn-sm btn-info flex-fill">
-                                                    <i class="bi bi-eye me-1"></i> {{ __('View') }}
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-primary flex-fill document-preview-btn" 
+                                                        data-document-url="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'ownership-contract']) }}"
+                                                        data-document-name="{{ __('Ownership Contract Document') }}"
+                                                        data-document-download="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'ownership-contract', 'download' => 1]) }}">
+                                                    <i class="bi bi-eye me-1"></i> {{ __('Preview') }}
+                                                </button>
+                                                <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'ownership-contract']) }}" target="_blank" class="btn btn-sm btn-info">
+                                                    <i class="bi bi-box-arrow-up-right me-1"></i> {{ __('View') }}
                                                 </a>
                                                 <a href="{{ route('property.document.view', ['propertyId' => $list->id, 'documentType' => 'ownership-contract', 'download' => 1]) }}" target="_blank" class="btn btn-sm btn-success">
                                                     <i class="bi bi-download me-1"></i> {{ __('Download') }}
@@ -1606,5 +1692,140 @@
                 }
             });
         });
+
+        // Document Preview Functionality
+        $(document).ready(function() {
+            // Handle document preview button clicks
+            $('.document-preview-btn').on('click', function() {
+                const documentUrl = $(this).data('document-url');
+                const documentName = $(this).data('document-name');
+                const downloadUrl = $(this).data('document-download');
+                
+                // Set modal title
+                $('#documentPreviewTitle').text(documentName);
+                
+                // Set download and view links
+                $('#documentPreviewDownload').attr('href', downloadUrl);
+                $('#documentPreviewView').attr('href', documentUrl);
+                
+                // Get file extension to determine preview method
+                // Extract extension from URL (handle query parameters)
+                const urlParts = documentUrl.split('?')[0].split('.');
+                const fileExtension = urlParts.length > 1 ? urlParts[urlParts.length - 1].toLowerCase() : '';
+                const previewBody = $('#documentPreviewBody');
+                
+                // Clear previous content
+                previewBody.html('<div class="text-center p-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-3">Loading document...</p></div>');
+                
+                // Show modal
+                const previewModal = new bootstrap.Modal(document.getElementById('documentPreviewModal'));
+                previewModal.show();
+                
+                // Determine preview method based on file type
+                // Try to detect file type from Content-Type header if extension is not available
+                if (fileExtension) {
+                    // We have an extension, use it
+                    if (['pdf'].includes(fileExtension)) {
+                        // PDF Preview
+                        previewBody.html('<iframe src="' + documentUrl + '" class="document-preview-iframe"></iframe>');
+                    } else if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExtension)) {
+                        // Image Preview
+                        previewBody.html('<img src="' + documentUrl + '" class="document-preview-image" alt="' + documentName + '" onerror="this.parentElement.innerHTML=\'<div class=\\\'document-preview-unsupported\\\'><i class=\\\'bi bi-file-earmark\\\'></i><p>Unable to load image. Please download to view.</p></div>\'">');
+                    } else if (['txt', 'csv'].includes(fileExtension)) {
+                        // Text file - try to load as text
+                        fetch(documentUrl)
+                            .then(response => response.text())
+                            .then(text => {
+                                previewBody.html('<pre class="p-3" style="white-space: pre-wrap; word-wrap: break-word;">' + escapeHtml(text) + '</pre>');
+                            })
+                            .catch(error => {
+                                previewBody.html('<div class="document-preview-unsupported"><i class="bi bi-file-earmark"></i><p>Unable to preview this file type. Please download to view.</p></div>');
+                            });
+                    } else {
+                        // Unsupported file type (Word, Excel, etc.)
+                        previewBody.html('<div class="document-preview-unsupported"><i class="bi bi-file-earmark"></i><p>Preview not available for this file type.</p><p class="text-muted">Please use "Download" or "Open in New Tab" to view this document.</p></div>');
+                    }
+                } else {
+                    // No extension in URL - try to detect from Content-Type header
+                    // Most documents are PDFs, so try PDF first
+                    fetch(documentUrl, { method: 'HEAD' })
+                        .then(response => {
+                            const contentType = response.headers.get('content-type') || '';
+                            if (contentType.includes('application/pdf')) {
+                                previewBody.html('<iframe src="' + documentUrl + '" class="document-preview-iframe"></iframe>');
+                            } else if (contentType.startsWith('image/')) {
+                                previewBody.html('<img src="' + documentUrl + '" class="document-preview-image" alt="' + documentName + '" onerror="this.parentElement.innerHTML=\'<div class=\\\'document-preview-unsupported\\\'><i class=\\\'bi bi-file-earmark\\\'></i><p>Unable to load image. Please download to view.</p></div>\'">');
+                            } else if (contentType.includes('text/')) {
+                                fetch(documentUrl)
+                                    .then(response => response.text())
+                                    .then(text => {
+                                        previewBody.html('<pre class="p-3" style="white-space: pre-wrap; word-wrap: break-word;">' + escapeHtml(text) + '</pre>');
+                                    })
+                                    .catch(error => {
+                                        previewBody.html('<div class="document-preview-unsupported"><i class="bi bi-file-earmark"></i><p>Unable to preview this file type. Please download to view.</p></div>');
+                                    });
+                            } else {
+                                // Default: try PDF (most common document type)
+                                previewBody.html('<iframe src="' + documentUrl + '" class="document-preview-iframe" onerror="this.parentElement.innerHTML=\'<div class=\\\'document-preview-unsupported\\\'><i class=\\\'bi bi-file-earmark\\\'></i><p>Preview not available for this file type.</p><p class=\\\'text-muted\\\'>Please use \\\"Download\\\" or \\\"Open in New Tab\\\" to view this document.</p></div>\'"></iframe>');
+                            }
+                        })
+                        .catch(error => {
+                            // If HEAD request fails, try PDF as default (most common)
+                            previewBody.html('<iframe src="' + documentUrl + '" class="document-preview-iframe" onerror="this.parentElement.innerHTML=\'<div class=\\\'document-preview-unsupported\\\'><i class=\\\'bi bi-file-earmark\\\'></i><p>Preview not available for this file type.</p><p class=\\\'text-muted\\\'>Please use \\\"Download\\\" or \\\"Open in New Tab\\\" to view this document.</p></div>\'"></iframe>');
+                        });
+                }
+            });
+            
+            // Helper function to escape HTML
+            function escapeHtml(text) {
+                const map = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                };
+                return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+            }
+            
+            // Clean up modal when closed
+            $('#documentPreviewModal').on('hidden.bs.modal', function () {
+                $('#documentPreviewBody').html('');
+            });
+        });
     </script>
+
+    <!-- Document Preview Modal -->
+    <div class="modal fade document-preview-modal" id="documentPreviewModal" tabindex="-1" aria-labelledby="documentPreviewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="documentPreviewModalLabel">
+                        <i class="bi bi-file-earmark-text me-2"></i>
+                        <span id="documentPreviewTitle">{{ __('Document Preview') }}</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="documentPreviewBody">
+                    <div class="text-center p-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">{{ __('Loading...') }}</span>
+                        </div>
+                        <p class="mt-3">{{ __('Loading document...') }}</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="#" id="documentPreviewDownload" class="btn btn-success" target="_blank">
+                        <i class="bi bi-download me-1"></i> {{ __('Download') }}
+                    </a>
+                    <a href="#" id="documentPreviewView" class="btn btn-info" target="_blank">
+                        <i class="bi bi-box-arrow-up-right me-1"></i> {{ __('Open in New Tab') }}
+                    </a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        {{ __('Close') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
