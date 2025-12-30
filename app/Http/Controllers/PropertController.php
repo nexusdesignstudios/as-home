@@ -2075,14 +2075,14 @@ class PropertController extends Controller
                                 $this->sendContractEmail($propertyData, "basic_package_self_managed");
                             }
 
-                            // Check if customer management_type is "himself" and rent_package is "basic" for renting properties
+                            // Check if rent_package is "basic" for renting properties
                             if (
-                                isset($customerData->management_type) && $customerData->management_type == 'himself' &&
-                                isset($propertyData->rent_package) && $propertyData->rent_package == 'basic' && ($propertyData->getRawOriginal('property_classification') == 1  ||  $propertyData->getRawOriginal('property_classification') == 2) &&
+                                isset($propertyData->rent_package) && $propertyData->rent_package == 'basic' &&
+                                ($propertyData->getRawOriginal('property_classification') == 1  ||  $propertyData->getRawOriginal('property_classification') == 2) &&
                                 $propertyData->getRawOriginal('propery_type') == 1
                             ) {
-                                // Send additional basic package renting self managed contract
-                                $this->sendContractEmail($propertyData, "basic_package_renting_self_managed");
+                                // Send additional basic package renting contract
+                                $this->sendContractEmail($propertyData, "basic_package_renting");
                             }
 
                             // Check if rent_package is "premium" for renting properties

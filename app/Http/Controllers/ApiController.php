@@ -2288,6 +2288,45 @@ class ApiController extends Controller
             $property_details = get_property_details($result);
 
             DB::commit();
+            
+            // Send contract emails after property creation
+            try {
+                // Reload property with customer relationship for email sending
+                $propertyData = Property::where('id', $saveProperty->id)
+                    ->select('id', 'title', 'request_status', 'added_by', 'city', 'state', 'country', 'rent_package', 'propery_type', 'property_classification')
+                    ->with('customer:id,name,email,management_type,address')
+                    ->first();
+                
+                if ($propertyData && !empty($propertyData->customer->email)) {
+                    $propertyType = $propertyData->getRawOriginal('propery_type');
+                    
+                    // Case 1: Sell Property (propery_type == 0)
+                    if ($propertyType == 0) {
+                        $this->sendContractEmail($propertyData, "list_property_sell_contract");
+                    }
+                    // Case 2 & 3: Rent Property (propery_type == 1)
+                    elseif ($propertyType == 1) {
+                        // Check if rent_package is set
+                        if (isset($propertyData->rent_package) && !empty($propertyData->rent_package)) {
+                            // Case 2: Rent with Basic Package
+                            if ($propertyData->rent_package == 'basic') {
+                                $this->sendContractEmail($propertyData, "basic_package_renting");
+                            }
+                            // Case 3: Rent with Premium Package
+                            elseif ($propertyData->rent_package == 'premium') {
+                                $this->sendContractEmail($propertyData, "premium_package_renting");
+                            }
+                        }
+                    }
+                }
+            } catch (Exception $e) {
+                // Log error but don't fail the property creation
+                Log::error("Failed to send contract email after property creation: " . $e->getMessage(), [
+                    'property_id' => $saveProperty->id ?? null,
+                    'trace' => $e->getTraceAsString()
+                ]);
+            }
+            
             $response['error'] = false;
             $response['message'] = 'Property Post Successfully';
             $response['data'] = $property_details;
@@ -2303,6 +2342,96 @@ class ApiController extends Controller
             return response()->json($response, 500);
         }
         return response()->json($response);
+    }
+
+    /**
+     * Send contract email to property owner
+     * 
+     * @param \App\Models\Property $propertyData
+     * @param string $contractType
+     * @return void
+     */
+    private function sendContractEmail($propertyData, $contractType)
+    {
+        try {
+            // Get Data of email type
+            $contractEmailTypeData = HelperService::getEmailTemplatesTypes($contractType);
+
+            // Email Template
+            $contractTemplateData = system_setting($contractEmailTypeData['type']);
+            $appName = env("APP_NAME") ?? "eBroker";
+
+            // Get current date for contract
+            $currentDate = now();
+            $agreementYear = $currentDate->format('d F Y');
+            $contractDate = $currentDate->format('F d, Y');
+
+            // Generate LE ID (you can modify this logic as needed)
+            $leId = 'LE-' . $propertyData->id; // This can be made dynamic if needed
+
+            $variables = array(
+                'app_name' => $appName,
+                'partner_name' => $propertyData->customer->name,
+                'partner_address' => $propertyData->customer->address ?? 'Address not provided',
+                'agreement_year' => $agreementYear,
+                'le_id' => $leId,
+                'contract_date' => $contractDate,
+            );
+
+            if (empty($contractTemplateData)) {
+                $contractTemplateData = "Your Partner Agreement with {app_name}";
+            }
+            $contractTemplate = HelperService::replaceEmailVariables($contractTemplateData, $variables);
+
+            // For selling_or_renting_contract, list_property_sell_contract, and list_property_rent_contract, create email body with welcoming message
+            // PDF will contain only the contract template (without welcoming message)
+            if (in_array($contractType, ['selling_or_renting_contract', 'list_property_sell_contract', 'list_property_rent_contract', 'basic_package_renting', 'premium_package_renting'])) {
+                // Email body content (shown in email only, not in PDF)
+                $emailBodyContent = '<div style="font-family: Arial, sans-serif; line-height: 1.8; color: #333; padding: 30px; max-width: 600px; margin: 0 auto;">';
+                $emailBodyContent .= '<p style="font-size: 16px; margin-bottom: 20px;">Dear {partner_name},</p>';
+                $emailBodyContent .= '<p style="font-size: 16px; margin-bottom: 20px;">Thank you for choosing {app_name} to list your property.</p>';
+                $emailBodyContent .= '<p style="font-size: 16px; margin-bottom: 20px;">Please find the {app_name} Property Listing Contract attached as a PDF.</p>';
+                $emailBodyContent .= '<p style="font-size: 16px; margin-bottom: 20px;">Kindly review the document at your convenience. If you have any questions or need clarification, we are always happy to assist.</p>';
+                $emailBodyContent .= '<p style="font-size: 16px; margin-bottom: 10px;">Warm regards,</p>';
+                $emailBodyContent .= '<p style="font-size: 16px; margin-bottom: 5px; font-weight: bold;">{app_name} Team</p>';
+                $emailBodyContent .= '<p style="font-size: 14px; margin-bottom: 0;"><a href="https://www.ashome-eg.com" style="color: #007bff; text-decoration: none;">www.ashome-eg.com</a></p>';
+                $emailBodyContent .= '</div>';
+                
+                // Replace variables in email body
+                $emailBodyContent = HelperService::replaceEmailVariables($emailBodyContent, $variables);
+                
+                // Store original contract template for PDF (without welcoming message)
+                $pdfTemplate = $contractTemplate;
+                
+                // Use email body content for email display
+                $contractTemplate = $emailBodyContent;
+            }
+
+            // Update title for contract types
+            $emailTitle = $contractEmailTypeData['title'];
+            if (in_array($contractType, ['selling_or_renting_contract', 'list_property_sell_contract', 'list_property_rent_contract'])) {
+                $emailTitle = 'Your As-home Property Listing Contract';
+            }
+
+            $contractData = array(
+                'email_template' => $contractTemplate,
+                'email' => $propertyData->customer->email,
+                'title' => $emailTitle,
+            );
+            
+            // For contract types, pass separate PDF template (contract only, no welcoming message)
+            // This ensures the FULL contract template is included in the PDF attachment
+            // The PDF will contain the complete contract content without any character limits
+            if (in_array($contractType, ['selling_or_renting_contract', 'list_property_sell_contract', 'list_property_rent_contract', 'basic_package_renting', 'premium_package_renting']) && isset($pdfTemplate)) {
+                $contractData['pdf_template'] = $pdfTemplate;
+            }
+            
+            // Send email with PDF attachment containing the full contract
+            // The PDF generation is configured to handle unlimited content length
+            HelperService::sendMail($contractData);
+        } catch (Exception $e) {
+            Log::error("Something Went Wrong in Contract Email Sending for type {$contractType}: " . $e->getMessage());
+        }
     }
 
     //* END :: post_property   *//

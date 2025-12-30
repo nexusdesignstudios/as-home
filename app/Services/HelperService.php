@@ -1178,10 +1178,10 @@ class HelperService
                             ],
                         )
                     );
-                case 'basic_package_renting_self_managed':
+                case 'basic_package_renting':
                     return array(
-                        'title' => 'Basic Package Renting Self Managed Contract',
-                        'type' => 'basic_package_renting_self_managed_mail_template',
+                        'title' => 'Basic Package Renting Contract',
+                        'type' => 'basic_package_renting_mail_template',
                         'required_fields' => array(
                             [
                                 'name' => 'app_name',
@@ -2301,8 +2301,8 @@ class HelperService
                 'category' => 'main',
             ],
             [
-                'title' => 'Basic Package Renting Self Managed Contract',
-                'type' => 'basic_package_renting_self_managed',
+                'title' => 'Basic Package Renting Contract',
+                'type' => 'basic_package_renting',
                 'category' => 'main',
             ],
             [
