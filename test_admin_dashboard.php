@@ -1,99 +1,70 @@
 <?php
 
-// Test admin dashboard property list issue - comprehensive
-require_once __DIR__ . '/vendor/autoload.php';
+require __DIR__.'/vendor/autoload.php';
 
-$app = require_once __DIR__ . '/bootstrap/app.php';
+use Illuminate\Foundation\Application;
+use Illuminate\Http\Request;
+use App\Http\Controllers\PropertController;
+
+// Bootstrap Laravel
+$app = require_once __DIR__.'/bootstrap/app.php';
 $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
-$request = Illuminate\Http\Request::capture();
-$kernel->handle($request);
 
-echo "=== Comprehensive Admin Dashboard Property List Test ===\n";
+// Create a request for testing
+$request = Request::create('/getPropertyList', 'GET', [
+    'sort' => 'id',
+    'order' => 'desc',
+    'offset' => 0,
+    'limit' => 10,
+    'search' => '',
+    'status' => '',
+    'category' => '',
+    'property_type' => '',
+    'property_classification' => '',
+    'property_added_by' => '',
+    'property_accessibility' => '',
+    'customerID' => ''
+]);
 
-// Check if user is authenticated
-echo "Auth check: " . (Auth::check() ? "✅ Authenticated" : "❌ Not authenticated") . "\n";
+// Handle the request through the kernel
+$response = $kernel->handle($request);
 
-if (Auth::check()) {
-    $user = Auth::user();
-    echo "User ID: " . $user->id . "\n";
-    echo "User email: " . $user->email . "\n";
-    echo "User type: " . $user->type . "\n";
-    echo "User status: " . $user->status . "\n";
-    echo "User permissions: " . ($user->permissions ?? "null") . "\n";
+// Create PropertController instance
+$controller = new PropertController();
+
+// Test the getPropertyList method directly
+echo "=== Testing Admin Dashboard getPropertyList ===\n";
+echo "Request parameters:\n";
+print_r($request->all());
+
+try {
+    $result = $controller->getPropertyList($request);
     
-    // Check CheckLogin middleware requirements
-    echo "\n=== CheckLogin Middleware Check ===\n";
-    if ($user->status != 0) {
-        echo "✅ User status is not 0 - CheckLogin middleware would pass\n";
-    } else {
-        echo "❌ User status is 0 - CheckLogin middleware would fail\n";
-    }
+    echo "\n=== Response ===\n";
     
-    // Test has_permissions function
-    echo "\n=== Testing permissions ===\n";
-    echo "has_permissions('read', 'property'): " . (has_permissions('read', 'property') ? "✅ YES" : "❌ NO") . "\n";
-    
-    if (has_permissions('read', 'property')) {
-        echo "✅ User has permission to read properties\n";
+    // Check if it's a JSON response
+    if (method_exists($result, 'getData')) {
+        $data = $result->getData();
+        echo "Total records: " . ($data->total ?? 'unknown') . "\n";
+        echo "Rows count: " . (isset($data->rows) ? count($data->rows) : '0') . "\n";
         
-        // Test the getPropertyList method directly
-        echo "\n=== Testing getPropertyList Method ===\n";
-        $controller = new \App\Http\Controllers\PropertController();
-        
-        // Create a mock request
-        $request = new \Illuminate\Http\Request();
-        $request->merge([
-            'offset' => 0,
-            'limit' => 10,
-            'sort' => 'id',
-            'order' => 'desc',
-            'search' => '',
-            'status' => '',
-            'category' => '',
-            'property_type' => '',
-            'property_classification' => '',
-            'property_added_by' => '',
-            'property_accessibility' => '',
-            'customerID' => ''
-        ]);
-        
-        try {
-            $response = $controller->getPropertyList($request);
-            $data = $response->getData();
-            
-            echo "Total properties: " . ($data->total ?? 'unknown') . "\n";
-            echo "Properties in response: " . (isset($data->rows) ? count($data->rows) : 0) . "\n";
-            
-            if (isset($data->rows) && count($data->rows) > 0) {
-                echo "✅ Properties found in database\n";
-                echo "First property ID: " . $data->rows[0]->id . "\n";
-                echo "First property title: " . $data->rows[0]->title . "\n";
-            } else {
-                echo "❌ No properties found in database\n";
+        if (isset($data->rows) && count($data->rows) > 0) {
+            echo "\nFirst few properties:\n";
+            foreach (array_slice($data->rows, 0, 3) as $property) {
+                echo "- ID: {$property->id}, Title: {$property->title}, Classification: " . ($property->property_classification ?? 'null') . "\n";
             }
-            
-        } catch (Exception $e) {
-            echo "❌ Error calling getPropertyList: " . $e->getMessage() . "\n";
+        } else {
+            echo "No properties found!\n";
         }
         
+        echo "\nFull response:\n";
+        print_r($data);
     } else {
-        echo "❌ User does NOT have permission to read properties\n";
-        echo "This would redirect with error: You are not authorize to operate on the module \n";
+        echo "Unexpected response type:\n";
+        var_dump($result);
     }
     
-    // Check total property count in database
-    echo "\n=== Database Property Count ===\n";
-    $totalProperties = \App\Models\Property::count();
-    echo "Total properties in database: " . $totalProperties . "\n";
-    
-    $activeProperties = \App\Models\Property::where('status', 1)->count();
-    echo "Active properties: " . $activeProperties . "\n";
-    
-} else {
-    echo "\n❌ User is not authenticated - this is why you're seeing issues!\n";
-    echo "The admin dashboard requires authentication to access property data.\n";
-    echo "\nTo fix this, you need to:\n";
-    echo "1. Log in to the admin dashboard first\n";
-    echo "2. Make sure your user has the proper permissions\n";
-    echo "3. Ensure your user status is not 0 (CheckLogin middleware requirement)\n";
+} catch (\Exception $e) {
+    echo "ERROR: " . $e->getMessage() . "\n";
+    echo "Stack trace:\n" . $e->getTraceAsString() . "\n";
 }
