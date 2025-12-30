@@ -1177,11 +1177,15 @@ class ApiController extends Controller
         if ($request->has('city') && !empty($request->city)) {
             // Check if cityVariations array is provided (for normalized city names with multiple spellings)
             if ($request->has('cityVariations') && is_array($request->cityVariations) && count($request->cityVariations) > 0) {
-                // Search for properties matching any of the city name variations
-                $property = $property->whereIn('city', $request->cityVariations);
+                // Search for properties matching any of the city name variations (case-insensitive)
+                $property = $property->where(function($query) use ($request) {
+                    foreach ($request->cityVariations as $variation) {
+                        $query->orWhereRaw('LOWER(city) = LOWER(?)', [$variation]);
+                    }
+                });
             } else {
-                // Single city name (backward compatible)
-                $property = $property->where('city', $request->city);
+                // Single city name (case-insensitive to handle hurghada vs Hurghada)
+                $property = $property->whereRaw('LOWER(city) = LOWER(?)', [$request->city]);
             }
         }
 
@@ -1189,8 +1193,8 @@ class ApiController extends Controller
         if ($request->has('isFreeTextSearch') && $request->isFreeTextSearch === true && $request->has('searchQuery')) {
             $searchQuery = $request->searchQuery;
             
-            // First, try to find exact city matches
-            $exactMatches = $property->where('city', 'LIKE', '%' . $searchQuery . '%')->pluck('city')->unique();
+            // First, try to find exact city matches (case-insensitive)
+            $exactMatches = $property->whereRaw('LOWER(city) LIKE LOWER(?)', ['%' . $searchQuery . '%'])->pluck('city')->unique();
             
             if ($exactMatches->isEmpty()) {
                 // If no exact matches, find nearby cities using coordinates
@@ -1200,8 +1204,8 @@ class ApiController extends Controller
                     // Search in nearby cities
                     $property = $property->whereIn('city', $nearbyCities);
                 } else {
-                    // If no nearby cities found, search in all cities (broader search)
-                    $property = $property->where('city', 'LIKE', '%' . $searchQuery . '%');
+                    // If no nearby cities found, search in all cities (broader search, case-insensitive)
+                    $property = $property->whereRaw('LOWER(city) LIKE LOWER(?)', ['%' . $searchQuery . '%']);
                 }
             } else {
                 // Use exact matches found
@@ -8722,11 +8726,15 @@ class ApiController extends Controller
             if ($request->has('city') && !empty($request->city)) {
                 // Check if cityVariations array is provided (for normalized city names with multiple spellings)
                 if ($request->has('cityVariations') && is_array($request->cityVariations) && count($request->cityVariations) > 0) {
-                    // Search for properties matching any of the city name variations
-                    $propertyQuery->whereIn('city', $request->cityVariations);
+                    // Search for properties matching any of the city name variations (case-insensitive)
+                    $propertyQuery->where(function($query) use ($request) {
+                        foreach ($request->cityVariations as $variation) {
+                            $query->orWhereRaw('LOWER(city) = LOWER(?)', [$variation]);
+                        }
+                    });
                 } else {
-                    // Single city name (backward compatible)
-                    $propertyQuery->where('city', $request->city);
+                    // Single city name (case-insensitive to handle hurghada vs Hurghada)
+                    $propertyQuery->whereRaw('LOWER(city) = LOWER(?)', [$request->city]);
                 }
             }
 
