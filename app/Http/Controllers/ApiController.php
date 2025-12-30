@@ -775,7 +775,25 @@ class ApiController extends Controller
 
         // If Property Classification is passed
         if ($request->has('property_classification') && !empty($request->property_classification)) {
-            $property = $property->where('property_classification', $request->property_classification);
+            $propertyClassification = (int) $request->property_classification;
+            $property = $property->where('property_classification', $propertyClassification);
+            
+            // Log property classification filter for vacation homes and hotel bookings
+            if ($propertyClassification == 4 || $propertyClassification == 5) {
+                \Log::info('🔍 Property Classification Filter Applied', [
+                    'property_classification' => $propertyClassification,
+                    'type' => $propertyClassification == 4 ? 'Vacation Homes' : 'Hotel Bookings',
+                    'property_type' => $request->property_type ?? 'not_set',
+                    'bedrooms' => $request->bedrooms ?? 'not_set',
+                    'bathrooms' => $request->bathrooms ?? 'not_set',
+                    'location' => [
+                        'city' => $request->city ?? 'not_set',
+                        'state' => $request->state ?? 'not_set',
+                        'country' => $request->country ?? 'not_set',
+                    ],
+                    'note' => 'Filter applied for ' . ($propertyClassification == 4 ? 'vacation homes' : 'hotel bookings')
+                ]);
+            }
         }
 
         // CRITICAL FIX: Apply property_type filter BEFORE bedroom filter for vacation homes
@@ -1275,9 +1293,37 @@ class ApiController extends Controller
                 'bedrooms' => $bedroomsValue,
                 'property_classification' => $propertyClassification,
                 'property_type' => $propertyType,
+                'is_vacation_homes' => ($propertyClassification == 4 || $propertyClassification == '4'),
                 'sql_query' => $property->toSql(),
                 'sql_bindings' => $property->getBindings(),
                 'note' => 'This shows the complete query with all filters applied, including property_type'
+            ]);
+        }
+        
+        // Log filter summary for vacation homes and hotel bookings
+        $propertyClassification = $request->has('property_classification') && !empty($request->property_classification) 
+            ? (int) $request->property_classification 
+            : null;
+        if ($propertyClassification == 4 || $propertyClassification == 5) {
+            \Log::info('🔍 Filter Summary - ' . ($propertyClassification == 4 ? 'Vacation Homes' : 'Hotel Bookings'), [
+                'property_classification' => $propertyClassification,
+                'property_type' => $request->property_type ?? 'not_set',
+                'bedrooms' => $request->bedrooms ?? 'not_set',
+                'bathrooms' => $request->bathrooms ?? 'not_set',
+                'location' => [
+                    'city' => $request->city ?? 'not_set',
+                    'state' => $request->state ?? 'not_set',
+                    'country' => $request->country ?? 'not_set',
+                ],
+                'price_range' => [
+                    'min_price' => $request->min_price ?? 'not_set',
+                    'max_price' => $request->max_price ?? 'not_set',
+                ],
+                'facilities' => $request->parameter_id ?? 'not_set',
+                'check_in_date' => $request->check_in_date ?? 'not_set',
+                'check_out_date' => $request->check_out_date ?? 'not_set',
+                'hotel_apartment_type_id' => $request->hotel_apartment_type_id ?? 'not_set',
+                'note' => 'Complete filter summary before query execution'
             ]);
         }
         
