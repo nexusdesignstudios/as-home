@@ -915,17 +915,17 @@ class ApiController extends Controller
                 'note' => 'This fix ensures vacation homes with only vacation_apartments data are matched correctly'
             ]);
             
-            // Get property_type early to use in bedroom filter query if needed
+            // Get property_type and category_id early to use in bedroom filter query if needed
             $propertyType = $request->has('property_type') && ($request->property_type !== null && $request->property_type !== '') ? $request->property_type : null;
+            $categoryId = $request->has('category_id') && ($request->category_id !== null && $request->category_id !== '') ? $request->category_id : null;
             
-            $property = $property->where(function ($query) use ($bedroomsValue, $bedroomsIntValue, $isStudio, $isVacationHomes, $propertyType) {
+            $property = $property->where(function ($query) use ($bedroomsValue, $bedroomsIntValue, $isStudio, $isVacationHomes, $propertyType, $categoryId, $request) {
                 if ($isVacationHomes) {
                     // For vacation homes, check vacation_apartments FIRST
                     // This ensures properties with only vacation_apartments data are matched
                     // CRITICAL: whereHas creates a subquery that checks the relationship
-                    // The property_type filter applied later will still work because it's on the main query
-                    // However, we need to ensure the query structure is correct
-                    $query->whereHas('vacationApartments', function ($aptQuery) use ($bedroomsIntValue, $isStudio) {
+                    // We need to ensure category_id is checked within the whereHas if it's provided
+                    $query->whereHas('vacationApartments', function ($aptQuery) use ($bedroomsIntValue, $isStudio, $categoryId) {
                         $aptQuery->where('status', 1);
                         
                         if ($isStudio) {
@@ -933,10 +933,17 @@ class ApiController extends Controller
                         } else {
                             $aptQuery->where('bedrooms', $bedroomsIntValue);
                         }
+                        
+                        // CRITICAL: Also check category_id within the whereHas subquery if provided
+                        // Join with properties table to check category_id directly
+                        if ($categoryId !== null) {
+                            $aptQuery->join('propertys', 'vacation_apartments.property_id', '=', 'propertys.id')
+                                ->where('propertys.category_id', $categoryId);
+                        }
                     })
                     // OR check assign_parameters (for vacation homes that also have assign_parameters)
-                    ->orWhere(function ($assignParamsQuery) use ($bedroomsValue, $isStudio) {
-                        $assignParamsQuery->whereExists(function ($existsQuery) use ($bedroomsValue, $isStudio) {
+                    ->orWhere(function ($assignParamsQuery) use ($bedroomsValue, $isStudio, $categoryId) {
+                        $assignParamsQuery->whereExists(function ($existsQuery) use ($bedroomsValue, $isStudio, $categoryId) {
                             $existsQuery->select(DB::raw(1))
                                 ->from('assign_parameters')
                                 ->join('parameters', 'assign_parameters.parameter_id', '=', 'parameters.id')
@@ -953,6 +960,29 @@ class ApiController extends Controller
                                 ->where(function ($nameQuery) {
                                     $nameQuery->where('parameters.name', 'LIKE', '%bedroom%')
                                         ->orWhere('parameters.name', 'LIKE', '%bed%');
+                                })
+                                // CRITICAL: Also check category_id in assign_parameters subquery if provided
+                                ->when($categoryId !== null, function ($query) use ($categoryId) {
+                                    // Join with properties table to check category_id
+                                    // Handle both property_id and modal_id cases
+                                    $query->where(function($catQuery) use ($categoryId) {
+                                        $catQuery->whereExists(function($propExistsQuery) use ($categoryId) {
+                                            $propExistsQuery->select(DB::raw(1))
+                                                ->from('propertys')
+                                                ->whereColumn('propertys.id', 'assign_parameters.property_id')
+                                                ->where('propertys.category_id', $categoryId);
+                                        })
+                                        ->orWhereExists(function($modalExistsQuery) use ($categoryId) {
+                                            $modalExistsQuery->select(DB::raw(1))
+                                                ->from('propertys')
+                                                ->whereColumn('propertys.id', 'assign_parameters.modal_id')
+                                                ->where('propertys.category_id', $categoryId)
+                                                ->where(function($typeQuery) {
+                                                    $typeQuery->where('assign_parameters.modal_type', 'App\\Models\\Property')
+                                                        ->orWhere('assign_parameters.modal_type', 'property');
+                                                });
+                                        });
+                                    });
                                 })
                                 ->where(function ($valueQuery) use ($bedroomsValue, $isStudio) {
                                     $valueQuery->whereNotNull('assign_parameters.value')
