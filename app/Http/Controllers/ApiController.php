@@ -958,51 +958,13 @@ class ApiController extends Controller
             
             $property = $property->where(function ($query) use ($bedroomsValue, $bedroomsIntValue, $isStudio, $isVacationHomes, $propertyType) {
                 if ($isVacationHomes) {
-                    // CRITICAL FIX: For vacation homes, prioritize assign_parameters bedroom data
-                    // This ensures properties with "studio" in assign_parameters don't appear when filtering for 1,2,3 bedrooms
-                    // even if they have vacation apartments with matching bedroom counts
+                    // FIXED: For vacation homes, include properties based on vacation_apartments
+                    // but still respect assign_parameters for studio filtering
                     $query->where(function($vacationQuery) use ($bedroomsValue, $bedroomsIntValue, $isStudio) {
-                        // First, check if property has assign_parameters bedroom data
-                        $vacationQuery->whereExists(function($existsQuery) use ($bedroomsValue, $isStudio) {
-                            $existsQuery->select(DB::raw(1))
-                                ->from('assign_parameters')
-                                ->join('parameters', 'assign_parameters.parameter_id', '=', 'parameters.id')
-                                ->where(function($linkQuery) {
-                                    $linkQuery->whereColumn('assign_parameters.property_id', 'propertys.id')
-                                        ->orWhere(function($modalQuery) {
-                                            $modalQuery->whereColumn('assign_parameters.modal_id', 'propertys.id')
-                                                ->where(function($typeQuery) {
-                                                    $typeQuery->where('assign_parameters.modal_type', 'like', '%Property%');
-                                                });
-                                        });
-                                })
-                                ->where(function($nameQuery) {
-                                    $nameQuery->where('parameters.name', 'LIKE', '%bedroom%')
-                                        ->orWhere('parameters.name', 'LIKE', '%bed%');
-                                })
-                                ->where(function($valueQuery) use ($bedroomsValue, $isStudio) {
-                                    if ($isStudio) {
-                                        $valueQuery->where(function($studioQuery) {
-                                            $studioQuery->where('assign_parameters.value', '0')
-                                                ->orWhereRaw('LOWER(TRIM(assign_parameters.value)) = ?', ['studio'])
-                                                ->orWhere('assign_parameters.value', 'Studio')
-                                                ->orWhere('assign_parameters.value', 'STUDIO');
-                                        });
-                                    } else {
-                                        // CRITICAL: For non-studio filters, exclude properties with 'studio' in assign_parameters
-                                        $valueQuery->where(function($nonStudioQuery) use ($bedroomsValue) {
-                                            $nonStudioQuery->where('assign_parameters.value', $bedroomsValue)
-                                                ->orWhere('assign_parameters.value', '"' . $bedroomsValue . '"')
-                                                ->orWhereRaw('TRIM(assign_parameters.value) = ?', [$bedroomsValue]);
-                                        })
-                                        ->whereRaw('LOWER(TRIM(assign_parameters.value)) != ?', ['studio']); // Exclude studio
-                                    }
-                                });
-                        })
-                        // If no assign_parameters bedroom data, fallback to vacation_apartments
-                        ->orWhere(function($fallbackQuery) use ($bedroomsIntValue, $isStudio) {
-                            $fallbackQuery->whereNotExists(function($notExistsQuery) {
-                                $notExistsQuery->select(DB::raw(1))
+                        if ($isStudio) {
+                            // For Studio filter: include if assign_parameters has studio OR vacation_apartments has studio
+                            $vacationQuery->whereExists(function($existsQuery) use ($bedroomsValue) {
+                                $existsQuery->select(DB::raw(1))
                                     ->from('assign_parameters')
                                     ->join('parameters', 'assign_parameters.parameter_id', '=', 'parameters.id')
                                     ->where(function($linkQuery) {
@@ -1010,34 +972,43 @@ class ApiController extends Controller
                                             ->orWhere(function($modalQuery) {
                                                 $modalQuery->whereColumn('assign_parameters.modal_id', 'propertys.id')
                                                     ->where(function($typeQuery) {
-                                                        $typeQuery->where('assign_parameters.modal_type', 'like', '%Property%');
+                                                        $typeQuery->where('assign_parameters.modal_type', 'like', '%Property%')
+                                                            ->orWhere('assign_parameters.modal_type', 'like', '%property%');
                                                     });
                                             });
                                     })
                                     ->where(function($nameQuery) {
                                         $nameQuery->where('parameters.name', 'LIKE', '%bedroom%')
                                             ->orWhere('parameters.name', 'LIKE', '%bed%');
+                                    })
+                                    ->where(function($studioQuery) {
+                                        $studioQuery->where('assign_parameters.value', '0')
+                                            ->orWhereRaw('LOWER(TRIM(assign_parameters.value)) = ?', ['studio'])
+                                            ->orWhere('assign_parameters.value', 'Studio')
+                                            ->orWhere('assign_parameters.value', 'STUDIO');
                                     });
                             })
-                            ->whereHas('vacationApartments', function($aptQuery) use ($bedroomsIntValue, $isStudio) {
-                                $aptQuery->where('status', 1);
-                                
-                                if ($isStudio) {
-                                    $aptQuery->where('bedrooms', 0);
-                                } else {
-                                    $aptQuery->where('bedrooms', $bedroomsIntValue)
-                                        ->where('bedrooms', '!=', 0); // Exclude studio apartments
-                                }
+                            ->orWhereHas('vacationApartments', function($aptQuery) {
+                                $aptQuery->where('status', 1)
+                                    ->where('bedrooms', 0);
                             });
-                        });
+                        } else {
+                            // For 1,2,3 bedroom filters: include if vacation_apartments match
+                            // Ignore assign_parameters for non-studio filters - just check vacation_apartments
+                            $vacationQuery->whereHas('vacationApartments', function($aptQuery) use ($bedroomsIntValue) {
+                                $aptQuery->where('status', 1)
+                                    ->where('bedrooms', $bedroomsIntValue)
+                                    ->where('bedrooms', '!=', 0); // Exclude studio apartments
+                            });
+                        }
                     });
                     
-                    // Debug logging for new vacation homes logic
-                    \Log::info('🔍 Vacation Homes Bedroom Filter Logic (Backend)', [
+                    // Debug logging for fixed vacation homes logic
+                    \Log::info('🔍 Vacation Homes Bedroom Filter Logic (Backend) - FIXED', [
                         'bedroomsValue' => $bedroomsValue,
                         'isStudio' => $isStudio,
-                        'logic' => 'Prioritizing assign_parameters over vacation_apartments',
-                        'note' => 'Properties with studio in assign_parameters will NOT appear for 1,2,3 bedroom filters'
+                        'logic' => 'Including properties based on vacation_apartments, respecting assign_parameters for studio filtering',
+                        'note' => 'Properties with matching vacation_apartments will appear in bedroom filters, studio in assign_parameters only affects studio filter'
                     ]);
                 } else {
                     // For regular properties (not vacation homes), check assign_parameters first

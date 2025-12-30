@@ -1306,8 +1306,8 @@ class PropertController extends Controller
             ->with('customer:id,name,mobile')
             ->with('assignParameter.parameter')
             ->with('interested_users.customer:id,name,email,mobile')
-            ->with('documents')
-            ->with('gallery')
+            ->with('propertiesDocuments')
+            ->with('propertyImages')
             ->with('advertisement')
             ->orderBy($sort, $order);
 
