@@ -1104,8 +1104,8 @@ class ApiController extends Controller
         }
 
         // If Max Price And Min Price passed
-        if (isset($request->max_price) && isset($request->min_price) && (!empty($request->max_price) && !empty($min_price))) {
-            $property = $property->whereBetween('price', [$min_price, $max_price]);
+        if (isset($request->max_price) && isset($request->min_price) && (!empty($request->max_price) && !empty($request->min_price))) {
+            $property = $property->whereBetween('price', [$request->min_price, $request->max_price]);
         }
 
         // NOTE: property_type filter is now applied BEFORE bedroom filter (see above)
@@ -1182,6 +1182,30 @@ class ApiController extends Controller
             } else {
                 // Single city name (backward compatible)
                 $property = $property->where('city', $request->city);
+            }
+        }
+
+        // If nearby cities search is requested (free-text search with nearby detection)
+        if ($request->has('isFreeTextSearch') && $request->isFreeTextSearch === true && $request->has('searchQuery')) {
+            $searchQuery = $request->searchQuery;
+            
+            // First, try to find exact city matches
+            $exactMatches = $property->where('city', 'LIKE', '%' . $searchQuery . '%')->pluck('city')->unique();
+            
+            if ($exactMatches->isEmpty()) {
+                // If no exact matches, find nearby cities using coordinates
+                $nearbyCities = $this->findNearbyCitiesByName($searchQuery);
+                
+                if (!empty($nearbyCities)) {
+                    // Search in nearby cities
+                    $property = $property->whereIn('city', $nearbyCities);
+                } else {
+                    // If no nearby cities found, search in all cities (broader search)
+                    $property = $property->where('city', 'LIKE', '%' . $searchQuery . '%');
+                }
+            } else {
+                // Use exact matches found
+                $property = $property->whereIn('city', $exactMatches);
             }
         }
 
@@ -12549,6 +12573,57 @@ Best regards,
         }
 
         return false;
+    }
+
+    /**
+     * Find nearby cities by name using coordinate-based search
+     * 
+     * @param string $cityName
+     * @return array
+     */
+    private function findNearbyCitiesByName($cityName)
+    {
+        // First, try to find the city in our database to get its coordinates
+        $cityProperties = Property::where('city', 'LIKE', '%' . $cityName . '%')
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->select('city', 'latitude', 'longitude')
+            ->distinct()
+            ->limit(1)
+            ->get();
+
+        if ($cityProperties->isEmpty()) {
+            return [];
+        }
+
+        $referenceCity = $cityProperties->first();
+        $referenceLatitude = $referenceCity->latitude;
+        $referenceLongitude = $referenceCity->longitude;
+
+        // Calculate nearby cities within a reasonable radius (e.g., 50km)
+        // Using the Haversine formula to calculate distance
+        $radius = 50; // kilometers
+        $earthRadius = 6371; // Earth's radius in kilometers
+
+        // Convert radius to radians
+        $radiusInDegrees = $radius / $earthRadius * (180 / pi());
+
+        // Find all cities within the radius
+        $nearbyCities = Property::whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->whereRaw("
+                (6371 * acos(
+                    cos(radians(?)) * cos(radians(latitude)) * 
+                    cos(radians(longitude) - radians(?)) + 
+                    sin(radians(?)) * sin(radians(latitude))
+                )) <= ?
+            ", [$referenceLatitude, $referenceLongitude, $referenceLatitude, $radius])
+            ->select('city')
+            ->distinct()
+            ->pluck('city')
+            ->toArray();
+
+        return $nearbyCities;
     }
 }
 

@@ -1305,7 +1305,9 @@ class PropertController extends Controller
         $sql = Property::with('category')
             ->with('customer:id,name,mobile')
             ->with('assignParameter.parameter')
-            ->with('interested_users')
+            ->with('interested_users.customer:id,name,email,mobile')
+            ->with('documents')
+            ->with('gallery')
             ->with('advertisement')
             ->orderBy($sort, $order);
 
@@ -1479,11 +1481,13 @@ class PropertController extends Controller
             $count = "  " . count($interested_users);
             $interestedUserButton = BootstrapTableService::editButton('', true, null, 'text-secondary', $row->id, null, '', 'bi bi-eye-fill edit_icon', $count);
             $tempRow['interested_users'] = $interestedUserButton;
+            $interested_users_details = [];
             foreach ($row->interested_users as $interested_user) {
-                if ($interested_user->property_id == $row->id) {
-                    $tempRow['interested_users_details'] = Customer::Where('id', $interested_user->customer_id)->get()->toArray();
+                if ($interested_user->property_id == $row->id && $interested_user->customer) {
+                    $interested_users_details[] = $interested_user->customer->toArray();
                 }
             }
+            $tempRow['interested_users_details'] = $interested_users_details;
 
             // Gallery Images
             $galleryButtonCustomClasses = ["btn", "icon", "btn-primary", "btn-sm", "rounded-pill", "gallery-image-btn"];
