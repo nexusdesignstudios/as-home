@@ -805,6 +805,43 @@ class ApiController extends Controller
             $property = $property->where('propery_type', $property_type_int);
         }
 
+        // CRITICAL FIX: Apply category_id filter BEFORE bedroom filter for vacation homes
+        // This ensures whereHas subqueries respect the category_id constraint
+        // Special handling for hotels: if property_classification is 5 and category_id is provided,
+        // treat category_id as hotel_apartment_type_id (star rating) for filtering
+        if ($request->has('category_id') && !empty($request->category_id)) {
+            $categoryId = $request->category_id;
+            $propertyClassification = $request->has('property_classification') ? $request->property_classification : null;
+            
+            // Check if this is a hotel (property_classification = 5)
+            if ($propertyClassification == 5) {
+                // For hotels, filter by category name containing the star rating
+                if (is_numeric($categoryId) && $categoryId >= 1 && $categoryId <= 5) {
+                    $starPatterns = [
+                        $categoryId . ' star',
+                        $categoryId . ' Star',
+                        $categoryId . ' stars',
+                        $categoryId . ' Stars',
+                        'star ' . $categoryId,
+                        'Star ' . $categoryId,
+                        'stars ' . $categoryId,
+                        'Stars ' . $categoryId,
+                        $categoryId . 'نجمة',
+                        'نجمة ' . $categoryId
+                    ];
+                    
+                    $property = $property->whereHas('category', function($catQuery) use ($starPatterns) {
+                        foreach ($starPatterns as $pattern) {
+                            $catQuery->orWhere('category', 'LIKE', '%' . $pattern . '%');
+                        }
+                    });
+                }
+            } else {
+                // For non-hotel properties (including vacation homes), use category_id normally
+                $property = $property->where('category_id', $categoryId);
+            }
+        }
+
         $max_price = isset($request->max_price) ? $request->max_price : Property::max('price');
         $min_price = isset($request->min_price) ? $request->min_price : 0;
         $totalClicks = 0;
@@ -915,17 +952,18 @@ class ApiController extends Controller
                 'note' => 'This fix ensures vacation homes with only vacation_apartments data are matched correctly'
             ]);
             
-            // Get property_type and category_id early to use in bedroom filter query if needed
+            // Get property_type early to use in bedroom filter query if needed
+            // NOTE: category_id is now applied to main query before this, so it will be respected automatically
             $propertyType = $request->has('property_type') && ($request->property_type !== null && $request->property_type !== '') ? $request->property_type : null;
-            $categoryId = $request->has('category_id') && ($request->category_id !== null && $request->category_id !== '') ? $request->category_id : null;
             
-            $property = $property->where(function ($query) use ($bedroomsValue, $bedroomsIntValue, $isStudio, $isVacationHomes, $propertyType, $categoryId, $request) {
+            $property = $property->where(function ($query) use ($bedroomsValue, $bedroomsIntValue, $isStudio, $isVacationHomes, $propertyType) {
                 if ($isVacationHomes) {
                     // For vacation homes, check vacation_apartments FIRST
                     // This ensures properties with only vacation_apartments data are matched
                     // CRITICAL: whereHas creates a subquery that checks the relationship
-                    // We need to ensure category_id is checked within the whereHas if it's provided
-                    $query->whereHas('vacationApartments', function ($aptQuery) use ($bedroomsIntValue, $isStudio, $categoryId) {
+                    // The property_type and category_id filters are already applied to the main query,
+                    // so they will be respected automatically
+                    $query->whereHas('vacationApartments', function ($aptQuery) use ($bedroomsIntValue, $isStudio) {
                         $aptQuery->where('status', 1);
                         
                         if ($isStudio) {
@@ -933,17 +971,11 @@ class ApiController extends Controller
                         } else {
                             $aptQuery->where('bedrooms', $bedroomsIntValue);
                         }
-                        
-                        // CRITICAL: Also check category_id within the whereHas subquery if provided
-                        // Join with properties table to check category_id directly
-                        if ($categoryId !== null) {
-                            $aptQuery->join('propertys', 'vacation_apartments.property_id', '=', 'propertys.id')
-                                ->where('propertys.category_id', $categoryId);
-                        }
+                        // NOTE: category_id is already applied to main query, so it will be respected automatically
                     })
                     // OR check assign_parameters (for vacation homes that also have assign_parameters)
-                    ->orWhere(function ($assignParamsQuery) use ($bedroomsValue, $isStudio, $categoryId) {
-                        $assignParamsQuery->whereExists(function ($existsQuery) use ($bedroomsValue, $isStudio, $categoryId) {
+                    ->orWhere(function ($assignParamsQuery) use ($bedroomsValue, $isStudio) {
+                        $assignParamsQuery->whereExists(function ($existsQuery) use ($bedroomsValue, $isStudio) {
                             $existsQuery->select(DB::raw(1))
                                 ->from('assign_parameters')
                                 ->join('parameters', 'assign_parameters.parameter_id', '=', 'parameters.id')
@@ -961,29 +993,7 @@ class ApiController extends Controller
                                     $nameQuery->where('parameters.name', 'LIKE', '%bedroom%')
                                         ->orWhere('parameters.name', 'LIKE', '%bed%');
                                 })
-                                // CRITICAL: Also check category_id in assign_parameters subquery if provided
-                                ->when($categoryId !== null, function ($query) use ($categoryId) {
-                                    // Join with properties table to check category_id
-                                    // Handle both property_id and modal_id cases
-                                    $query->where(function($catQuery) use ($categoryId) {
-                                        $catQuery->whereExists(function($propExistsQuery) use ($categoryId) {
-                                            $propExistsQuery->select(DB::raw(1))
-                                                ->from('propertys')
-                                                ->whereColumn('propertys.id', 'assign_parameters.property_id')
-                                                ->where('propertys.category_id', $categoryId);
-                                        })
-                                        ->orWhereExists(function($modalExistsQuery) use ($categoryId) {
-                                            $modalExistsQuery->select(DB::raw(1))
-                                                ->from('propertys')
-                                                ->whereColumn('propertys.id', 'assign_parameters.modal_id')
-                                                ->where('propertys.category_id', $categoryId)
-                                                ->where(function($typeQuery) {
-                                                    $typeQuery->where('assign_parameters.modal_type', 'App\\Models\\Property')
-                                                        ->orWhere('assign_parameters.modal_type', 'property');
-                                                });
-                                        });
-                                    });
-                                })
+                                // NOTE: category_id is already applied to main query, so it will be respected automatically
                                 ->where(function ($valueQuery) use ($bedroomsValue, $isStudio) {
                                     $valueQuery->whereNotNull('assign_parameters.value')
                                         ->where('assign_parameters.value', '!=', '')
@@ -1164,60 +1174,9 @@ class ApiController extends Controller
             }
         }
 
-        // If Category Id is Passed
-        // Special handling for hotels: if property_classification is 5 and category_id is provided,
-        // treat category_id as hotel_apartment_type_id (star rating) for filtering
-        if ($request->has('category_id') && !empty($request->category_id)) {
-            $categoryId = $request->category_id;
-            $propertyClassification = $request->has('property_classification') ? $request->property_classification : null;
-            
-            // Check if this is a hotel (property_classification = 5)
-            // For hotels, category_id represents star rating (1-5)
-            // Hotels display star rating in their category name (e.g., "4 Star Hotel", "2 Star Hotel")
-            // So we need to filter by category name containing the star rating pattern
-            if ($propertyClassification == 5) {
-                // Validate that category_id is a valid star rating (1-5)
-                if (is_numeric($categoryId) && $categoryId >= 1 && $categoryId <= 5) {
-                    // For hotels, filter by category name containing the star rating
-                    // This matches what's displayed in hotel cards (ele?.category?.category)
-                    $starPatterns = [
-                        $categoryId . ' star',
-                        $categoryId . ' Star',
-                        $categoryId . ' stars',
-                        $categoryId . ' Stars',
-                        'star ' . $categoryId,
-                        'Star ' . $categoryId,
-                        'stars ' . $categoryId,
-                        'Stars ' . $categoryId,
-                        $categoryId . 'نجمة',
-                        'نجمة ' . $categoryId
-                    ];
-                    
-                    $property = $property->whereHas('category', function($catQuery) use ($starPatterns) {
-                        foreach ($starPatterns as $pattern) {
-                            $catQuery->orWhere('category', 'LIKE', '%' . $pattern . '%');
-                        }
-                    });
-                    
-                    \Log::info('Hotel star rating filter applied (by category name)', [
-                        'category_id' => $categoryId,
-                        'property_classification' => $propertyClassification,
-                        'star_rating' => $categoryId,
-                        'note' => 'Filtering hotels by category name containing star rating pattern (e.g., "4 Star Hotel")'
-                    ]);
-                } else {
-                    // Invalid star rating - log warning but don't filter
-                    \Log::warning('Invalid hotel star rating filter', [
-                        'category_id' => $categoryId,
-                        'property_classification' => $propertyClassification,
-                        'note' => 'category_id must be 1-5 for hotel star rating filtering'
-                    ]);
-                }
-            } else {
-                // For non-hotel properties, use category_id normally
-                $property = $property->where('category_id', $categoryId);
-            }
-        }
+        // NOTE: category_id filter is now applied earlier (before bedroom filter, around line 806)
+        // This ensures whereHas subqueries for vacation homes respect the category_id constraint
+        // The duplicate filter below has been removed to avoid applying it twice
 
         // If Rent Package is Passed
         if ($request->has('rent_package') && !empty($request->rent_package)) {
