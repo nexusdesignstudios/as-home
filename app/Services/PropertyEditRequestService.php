@@ -26,12 +26,6 @@ class PropertyEditRequestService
             'title_image',
             'three_d_image',
             'gallery_images',
-            'address',
-            'city',
-            'state',
-            'country',
-            'latitude',
-            'longitude',
             'hotel_rooms', // Special handling for hotel room descriptions
         ];
     }

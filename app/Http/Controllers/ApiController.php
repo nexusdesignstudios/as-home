@@ -2983,7 +2983,6 @@ class ApiController extends Controller
                             'description', 'description_ar',
                             'area_description', 'area_description_ar',
                             'title_image', 'gallery_images', 'three_d_image', 'og_images',
-                            'address', 'latitude', 'longitude', 'state', 'city', 'country',
                             'hotel_rooms' // Only description field within rooms
                         ];
                         
@@ -12565,26 +12564,6 @@ Best regards,
             $request->hasFile('gallery_images') || 
             $request->hasFile('three_d_image') ||
             $request->hasFile('meta_image')) {
-            return true;
-        }
-
-        // Check address/location fields
-        if ($request->has('address') && $request->address != $property->address) {
-            return true;
-        }
-        if ($request->has('latitude') && $request->latitude != $property->latitude) {
-            return true;
-        }
-        if ($request->has('longitude') && $request->longitude != $property->longitude) {
-            return true;
-        }
-        if ($request->has('city') && $request->city != $property->city) {
-            return true;
-        }
-        if ($request->has('state') && $request->state != $property->state) {
-            return true;
-        }
-        if ($request->has('country') && $request->country != $property->country) {
             return true;
         }
 

@@ -302,6 +302,7 @@ class PropertController extends Controller
                     $saveProperty->reservation_user_name = $request->reservation_user_name ?? null;
                     $saveProperty->reservation_phone_number = $request->reservation_phone_number ?? null;
                     $saveProperty->reservation_email = $request->reservation_email ?? null;
+                    $saveProperty->hotel_vat = $request->hotel_vat ?? null;
                 }
 
                 // Handle agent_addons field (available for all property types)
@@ -739,6 +740,7 @@ class PropertController extends Controller
                     $UpdateProperty->reservation_user_name = $request->reservation_user_name ?? null;
                     $UpdateProperty->reservation_phone_number = $request->reservation_phone_number ?? null;
                     $UpdateProperty->reservation_email = $request->reservation_email ?? null;
+                    $UpdateProperty->hotel_vat = $request->hotel_vat ?? null;
                 }
 
                 // Handle agent_addons field (available for all property types)
