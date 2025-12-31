@@ -228,8 +228,20 @@ class PropertController extends Controller
 
                 // Set vacation home specific fields if property classification is vacation_homes (4)
                 if (isset($request->property_classification) && $request->property_classification == 4) {
-                    $saveProperty->availability_type = $request->availability_type;
-                    $saveProperty->available_dates = $request->available_dates;
+                    // Check if columns exist before setting (in case migration hasn't been run)
+                    if (\Schema::hasColumn('propertys', 'availability_type') && $request->has('availability_type')) {
+                        $saveProperty->availability_type = $request->availability_type;
+                    }
+                    if (\Schema::hasColumn('propertys', 'available_dates') && $request->has('available_dates')) {
+                        $saveProperty->available_dates = $request->available_dates;
+                    } elseif ($request->has('available_dates') && !\Schema::hasColumn('propertys', 'available_dates')) {
+                        // Log error if column doesn't exist (this is critical for new properties)
+                        Log::error('available_dates column not found when creating vacation home property', [
+                            'property_classification' => $request->property_classification,
+                            'migration_needed' => '2025_07_15_000000_add_vacation_home_fields_to_properties.php'
+                        ]);
+                        throw new \Exception('Database migration required: available_dates column is missing. Please run migration: 2025_07_15_000000_add_vacation_home_fields_to_properties.php');
+                    }
                 }
 
                 // Set hotel specific fields if property classification is hotel_booking (5)
@@ -756,8 +768,6 @@ class PropertController extends Controller
                 $UpdateProperty->address = $request->address;
                 $UpdateProperty->client_address = $request->client_address;
                 $UpdateProperty->setAttribute('propery_type', $request->property_type);
-                $UpdateProperty->price = $request->price;
-                $UpdateProperty->setAttribute('propery_type', $request->property_type);
                 $UpdateProperty->property_classification = $request->property_classification;
                 $UpdateProperty->price = $request->price;
                 $UpdateProperty->state = (isset($request->state)) ? $request->state : '';
@@ -790,9 +800,34 @@ class PropertController extends Controller
                 }
 
                 // Set vacation home specific fields if property classification is vacation_homes (4)
+                // Only set these fields if property is actually a vacation home AND columns exist
                 if (isset($request->property_classification) && $request->property_classification == 4) {
-                    $UpdateProperty->availability_type = $request->availability_type;
-                    $UpdateProperty->available_dates = $request->available_dates;
+                    // Check if column exists before setting (in case migration hasn't been run)
+                    if (\Schema::hasColumn('propertys', 'availability_type')) {
+                        if ($request->has('availability_type') && $request->availability_type !== null) {
+                            $UpdateProperty->availability_type = $request->availability_type;
+                        }
+                    }
+                    if (\Schema::hasColumn('propertys', 'available_dates')) {
+                        if ($request->has('available_dates') && $request->available_dates !== null && $request->available_dates !== '') {
+                            $UpdateProperty->available_dates = $request->available_dates;
+                        }
+                    } else {
+                        // Log warning if column doesn't exist
+                        Log::warning('available_dates column not found in propertys table', [
+                            'property_id' => $id,
+                            'property_classification' => $request->property_classification,
+                            'migration_needed' => '2025_07_15_000000_add_vacation_home_fields_to_properties.php',
+                            'has_available_dates_in_request' => $request->has('available_dates')
+                        ]);
+                    }
+                } else {
+                    // If property is NOT a vacation home, ensure available_dates is not set
+                    // This prevents errors if the request accidentally includes this field
+                    if ($request->has('available_dates') && \Schema::hasColumn('propertys', 'available_dates')) {
+                        // Only clear it if column exists, otherwise don't touch it
+                        $UpdateProperty->available_dates = null;
+                    }
                 }
 
                 // Set hotel specific fields if property classification is hotel_booking (5)
@@ -1508,8 +1543,30 @@ class PropertController extends Controller
                     // Extract more specific database error information
                     if (strpos($errorDetails, 'Integrity constraint violation') !== false) {
                         $errorMessage = "Database constraint error. Please check that all related data is valid.";
-                    } elseif (strpos($errorDetails, 'Column not found') !== false) {
-                        $errorMessage = "Database column error. Please contact support.";
+                    } elseif (strpos($errorDetails, 'Column not found') !== false || 
+                              strpos($errorDetails, 'Unknown column') !== false ||
+                              preg_match("/Unknown column ['\"]([^'\"]+)['\"]/i", $errorDetails)) {
+                        // Extract column name from error
+                        $columnName = 'unknown';
+                        if (preg_match("/Unknown column ['\"]([^'\"]+)['\"]/i", $errorDetails, $matches)) {
+                            $columnName = $matches[1];
+                        } elseif (preg_match("/Column ['\"]([^'\"]+)['\"]/i", $errorDetails, $matches)) {
+                            $columnName = $matches[1];
+                        }
+                        
+                        $errorMessage = "Database column error: Column '$columnName' not found. Please contact support.";
+                        
+                        // Log the actual error for debugging
+                        Log::error('Column not found error', [
+                            'property_id' => $id,
+                            'column_name' => $columnName,
+                            'full_error' => $errorDetails,
+                            'error_class' => get_class($e),
+                            'file' => $e->getFile(),
+                            'line' => $e->getLine(),
+                            'request_data_keys' => array_keys($request->except(['title_image', '3d_image', 'documents', 'gallery_images'])),
+                            'property_attributes' => array_keys($UpdateProperty->getAttributes())
+                        ]);
                     } elseif (strpos($errorDetails, 'Duplicate entry') !== false) {
                         $errorMessage = "Duplicate entry error. This data already exists.";
                     } else {

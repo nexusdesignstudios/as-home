@@ -1107,8 +1107,31 @@ class ApiController extends Controller
         }
 
         // If Max Price And Min Price passed
-        if (isset($request->max_price) && isset($request->min_price) && (!empty($request->max_price) && !empty($request->min_price))) {
-            $property = $property->whereBetween('price', [$request->min_price, $request->max_price]);
+        if (isset($request->max_price) && isset($request->min_price) && (!empty($request->max_price) || !empty($request->min_price))) {
+            // For hotel properties (classification = 5), filter by minimum room price
+            // For other properties, filter by main property price
+            if ($request->has('property_classification') && $request->property_classification == 5) {
+                // Hotel properties: filter by minimum room price
+                // This matches the frontend logic that shows the lowest available room price
+                $property = $property->whereHas('hotelRooms', function ($query) use ($request) {
+                    // Apply price range filtering to hotel rooms
+                    if (!empty($request->min_price)) {
+                        $query->where('price_per_night', '>=', $request->min_price);
+                    }
+                    if (!empty($request->max_price)) {
+                        $query->where('price_per_night', '<=', $request->max_price);
+                    }
+                });
+            } else {
+                // Regular properties: filter by main property price
+                if (!empty($request->min_price) && !empty($request->max_price)) {
+                    $property = $property->whereBetween('price', [$request->min_price, $request->max_price]);
+                } elseif (!empty($request->min_price)) {
+                    $property = $property->where('price', '>=', $request->min_price);
+                } elseif (!empty($request->max_price)) {
+                    $property = $property->where('price', '<=', $request->max_price);
+                }
+            }
         }
 
         // NOTE: property_type filter is now applied BEFORE bedroom filter (see above)

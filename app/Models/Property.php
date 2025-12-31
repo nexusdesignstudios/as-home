@@ -33,7 +33,7 @@ class Property extends Model
         'title_image',
         'state',
         'country',
-        'state',
+        'city',
         'status',
         'request_status',
         'total_click',
@@ -71,7 +71,14 @@ class Property extends Model
         'instant_booking',
         'non_refundable',
         'hotel_vat',
-        'hotel_available_rooms'
+        'hotel_available_rooms',
+        'slug_id',
+        'meta_title',
+        'meta_description',
+        'meta_keywords',
+        'rentduration',
+        'video_link',
+        'meta_image'
     ];
     protected $hidden = [
         'updated_at',
