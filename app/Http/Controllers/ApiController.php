@@ -8226,14 +8226,46 @@ class ApiController extends Controller
             }
 
             // If Max Price And Min Price passed
-            if ($request->has('min_price') && !empty($request->min_price)) {
+            if ($request->has('min_price') && !empty($request->min_price) && isset($request->max_price) && !empty($request->max_price)) {
                 $minPrice = $request->min_price;
-                $propertyQuery = $propertyQuery->clone()->where('price', '>=', $minPrice);
-            }
-
-            if (isset($request->max_price) && !empty($request->max_price)) {
                 $maxPrice = $request->max_price;
-                $propertyQuery = $propertyQuery->clone()->where('price', '<=', $maxPrice);
+                
+                // Special handling for hotels (property_classification = 5)
+                if ($request->has('property_classification') && $request->property_classification == 5) {
+                    // Use a more efficient subquery approach - check if ANY room is in the price range
+                    $propertyQuery = $propertyQuery->clone()->whereHas('hotelRooms', function ($query) use ($minPrice, $maxPrice) {
+                        $query->whereBetween('price_per_night', [$minPrice, $maxPrice]);
+                        // Note: Not filtering by status to show all available rooms
+                    });
+                } else {
+                    $propertyQuery = $propertyQuery->clone()->whereBetween('price', [$minPrice, $maxPrice]);
+                }
+            } elseif ($request->has('min_price') && !empty($request->min_price)) {
+                $minPrice = $request->min_price;
+                
+                // Special handling for hotels (property_classification = 5)
+                if ($request->has('property_classification') && $request->property_classification == 5) {
+                    // Use a more efficient subquery approach
+                    $propertyQuery = $propertyQuery->clone()->whereHas('hotelRooms', function ($query) use ($minPrice) {
+                        $query->where('price_per_night', '>=', $minPrice);
+                        // Note: Not filtering by status to show all available rooms
+                    });
+                } else {
+                    $propertyQuery = $propertyQuery->clone()->where('price', '>=', $minPrice);
+                }
+            } elseif (isset($request->max_price) && !empty($request->max_price)) {
+                $maxPrice = $request->max_price;
+                
+                // Special handling for hotels (property_classification = 5)
+                if ($request->has('property_classification') && $request->property_classification == 5) {
+                    // Use a more efficient subquery approach
+                    $propertyQuery = $propertyQuery->clone()->whereHas('hotelRooms', function ($query) use ($maxPrice) {
+                        $query->where('price_per_night', '<=', $maxPrice);
+                        // Note: Not filtering by status to show all available rooms
+                    });
+                } else {
+                    $propertyQuery = $propertyQuery->clone()->where('price', '<=', $maxPrice);
+                }
             }
 
             // If Posted Since 0 or 1 is passed
