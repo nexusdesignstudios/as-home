@@ -88,30 +88,52 @@ $(document).ready(function () {
 
 /// START :: TinyMCE
 document.addEventListener("DOMContentLoaded", () => {
-    tinymce.init({
-        selector: '#tinymce_editor,.tinymce_editor',
-        height: 600,
-        max_chars: 0, // No character limit (0 = unlimited) - supports large email templates and contracts
-        menubar: true,
-        plugins: [
-            'advlist autolink lists link charmap print preview anchor textcolor',
-            'searchreplace visualblocks code fullscreen',
-            'insertdatetime table contextmenu paste code help wordcount'
-        ],
+    // Check if document is in standards mode before initializing TinyMCE
+    if (document.compatMode !== 'CSS1Compat') {
+        console.warn('Document is not in standards mode. TinyMCE may not work correctly.');
+    }
+    
+    // Only initialize TinyMCE if the editor elements exist on the page
+    const editorElements = document.querySelectorAll('#tinymce_editor,.tinymce_editor');
+    if (editorElements.length === 0) {
+        // No TinyMCE editors on this page, skip initialization
+        return;
+    }
+    
+    // Check if TinyMCE is loaded
+    if (typeof tinymce === 'undefined') {
+        console.error('TinyMCE library is not loaded');
+        return;
+    }
+    
+    try {
+        tinymce.init({
+            selector: '#tinymce_editor,.tinymce_editor',
+            height: 600,
+            max_chars: 0, // No character limit (0 = unlimited) - supports large email templates and contracts
+            menubar: true,
+            plugins: [
+                'advlist autolink lists link charmap print preview anchor textcolor',
+                'searchreplace visualblocks code fullscreen',
+                'insertdatetime table contextmenu paste code help wordcount'
+            ],
 
-        toolbar: 'insert | undo redo |  formatselect | bold italic backcolor  | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | help',
-        setup: function (editor) {
-            editor.on("change keyup", function (e) {
-                //tinyMCE.triggerSave(); // updates all instances
-                editor.save(); // updates this instance's textarea
-                $(editor.getElement()).trigger('change'); // for garlic to detect change
-            });
-            // Ensure no character limits for large content
-            editor.on('init', function() {
-                editor.getBody().setAttribute('data-maxlength', '0');
-            });
-        }
-    });
+            toolbar: 'insert | undo redo |  formatselect | bold italic backcolor  | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | help',
+            setup: function (editor) {
+                editor.on("change keyup", function (e) {
+                    //tinyMCE.triggerSave(); // updates all instances
+                    editor.save(); // updates this instance's textarea
+                    $(editor.getElement()).trigger('change'); // for garlic to detect change
+                });
+                // Ensure no character limits for large content
+                editor.on('init', function() {
+                    editor.getBody().setAttribute('data-maxlength', '0');
+                });
+            }
+        });
+    } catch (error) {
+        console.error('Error initializing TinyMCE:', error);
+    }
 });
 
 $('body').append('<div id="loader-container"><div class="loader"></div></div>');

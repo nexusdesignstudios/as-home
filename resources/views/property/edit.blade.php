@@ -1348,9 +1348,10 @@
                 $('.parsley-error').show();
             });
             
-            // Log when form is actually submitted
-            $('#myForm').on('submit', function() {
+            // Log when form is actually submitted (this is just for logging, validation is in the other handler)
+            $('#myForm').on('submit', function(e) {
                 console.log('Form is being submitted...');
+                // Don't prevent default here - let the validation handler do its work
             });
 
             // Add back the is_premium_switch functionality
@@ -1744,12 +1745,30 @@
                 
                 // Show loading indicator
                 var submitButton = $(this).find('button[type="submit"]');
+                var originalButtonText = submitButton.text();
                 if (submitButton.length) {
                     submitButton.prop('disabled', true).text('Saving...');
                 }
                 
+                // Re-enable button if form submission fails (after 10 seconds timeout)
+                setTimeout(function() {
+                    if (submitButton.length) {
+                        submitButton.prop('disabled', false).text(originalButtonText);
+                    }
+                }, 10000);
+                
                 // Let the form submit normally if validation passes
                 // Don't prevent default unless there's an error
+            });
+            
+            // Handle form submission errors
+            $(document).ajaxError(function(event, xhr, settings, thrownError) {
+                console.error('AJAX Error:', {
+                    url: settings.url,
+                    status: xhr.status,
+                    error: thrownError,
+                    response: xhr.responseText
+                });
             });
         });
 

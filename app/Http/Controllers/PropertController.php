@@ -1275,7 +1275,21 @@ class PropertController extends Controller
                 }
             } catch (Exception $e) {
                 DB::rollBack();
-                return ResponseService::logErrorRedirectResponse($e, "Update Property Issue");
+                
+                // Log detailed error information
+                \Log::error('Property update failed', [
+                    'property_id' => $id,
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString(),
+                    'request_data' => [
+                        'city' => $request->city ?? null,
+                        'property_classification' => $request->property_classification ?? null,
+                    ]
+                ]);
+                
+                return ResponseService::logErrorRedirectResponse($e, "Update Property Issue", "An error occurred while updating the property. Please check the logs for details.");
             }
         }
     }
