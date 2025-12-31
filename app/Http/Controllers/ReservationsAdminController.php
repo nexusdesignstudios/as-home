@@ -24,6 +24,18 @@ class ReservationsAdminController extends Controller
     {
         $this->apiResponseService = app(\App\Services\ApiResponseService::class);
     }
+
+    /**
+     * Check if a reservation is flexible (cash/offline payment method).
+     *
+     * @param \App\Models\Reservation $reservation
+     * @return bool
+     */
+    protected function isFlexibleReservation($reservation)
+    {
+        $paymentMethod = $reservation->payment_method ?? 'cash';
+        return !($paymentMethod === 'paymob' || $paymentMethod === 'online' || $reservation->payment);
+    }
     /**
      * Display a listing of reservations.
      *
@@ -283,13 +295,10 @@ class ReservationsAdminController extends Controller
                 // Determine refund policy based on payment method
                 // Cash/Manual payment = Flexible
                 // Online/Paymob payment = Non-Refundable
-                $paymentMethod = $reservation->payment_method ?? 'cash';
-                $isOnlinePayment = ($paymentMethod === 'paymob' || $paymentMethod === 'online' || $reservation->payment);
-                
-                if ($isOnlinePayment) {
-                    $propertyType .= ' (Non-Refundable)';
-                } else {
+                if ($this->isFlexibleReservation($reservation)) {
                     $propertyType .= ' (Flexible)';
+                } else {
+                    $propertyType .= ' (Non-Refundable)';
                 }
             }
 
@@ -442,7 +451,15 @@ class ReservationsAdminController extends Controller
             // If changing from pending to confirmed, use the service method to handle the full confirmation logic
             if ($oldStatus === 'pending' && $newStatus === 'confirmed') {
                 $reservationService = app(\App\Services\ReservationService::class);
-                $paymentStatus = $request->payment_status ?? 'paid';
+                
+                // For flexible reservations (cash/offline), allow any payment status
+                // For non-flexible reservations, default to 'paid' if not specified
+                if ($this->isFlexibleReservation($reservation)) {
+                    $paymentStatus = $request->payment_status ?? 'unpaid'; // Flexible reservations can be unpaid when confirmed
+                } else {
+                    $paymentStatus = $request->payment_status ?? 'paid'; // Non-flexible reservations default to paid
+                }
+                
                 $reservationService->handleReservationConfirmation($reservation, $paymentStatus);
 
                 return response()->json([
@@ -525,13 +542,10 @@ class ReservationsAdminController extends Controller
             // Determine refund policy based on payment method
             // Cash/Manual payment = Flexible
             // Online/Paymob payment = Non-Refundable
-            $paymentMethod = $reservation->payment_method ?? 'cash';
-            $isOnlinePayment = ($paymentMethod === 'paymob' || $paymentMethod === 'online' || $reservation->payment);
-            
-            if ($isOnlinePayment) {
-                $propertyType .= ' (Non-Refundable)';
-            } else {
+            if ($this->isFlexibleReservation($reservation)) {
                 $propertyType .= ' (Flexible)';
+            } else {
+                $propertyType .= ' (Non-Refundable)';
             }
         }
 
@@ -667,7 +681,15 @@ class ReservationsAdminController extends Controller
             // If changing from pending to confirmed, use the service method to handle the full confirmation logic
             if ($oldStatus === 'pending' && $newStatus === 'confirmed') {
                 $reservationService = app(\App\Services\ReservationService::class);
-                $paymentStatus = $request->payment_status ?? 'paid';
+                
+                // For flexible reservations (cash/offline), allow any payment status
+                // For non-flexible reservations, default to 'paid' if not specified
+                if ($this->isFlexibleReservation($reservation)) {
+                    $paymentStatus = $request->payment_status ?? 'unpaid'; // Flexible reservations can be unpaid when confirmed
+                } else {
+                    $paymentStatus = $request->payment_status ?? 'paid'; // Non-flexible reservations default to paid
+                }
+                
                 $reservationService->handleReservationConfirmation($reservation, $paymentStatus);
 
                 return $this->apiResponseService->successResponse('Reservation confirmed successfully. Available dates updated and confirmation email sent.', [
