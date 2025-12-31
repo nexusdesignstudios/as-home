@@ -77,9 +77,9 @@ class PropertyEditRequestService
      */
     public function saveEditRequest(Property $property, array $editedData, int $requestedBy, array $originalData = null)
     {
+        // Note: This method is called within an existing transaction in PropertController::update()
+        // Do NOT start a new transaction here to avoid nested transaction issues
         try {
-            DB::beginTransaction();
-
             // Get original property data as snapshot (use provided or get from property)
             if ($originalData === null) {
                 $originalData = $property->getAttributes();
@@ -99,8 +99,6 @@ class PropertyEditRequestService
                 $existingRequest->requested_by = $requestedBy;
                 $existingRequest->save();
                 
-                DB::commit();
-                
                 Log::info('Property edit request updated', [
                     'edit_request_id' => $existingRequest->id,
                     'property_id' => $property->id,
@@ -118,8 +116,6 @@ class PropertyEditRequestService
                     'original_data' => $originalData,
                 ]);
                 
-                DB::commit();
-                
                 Log::info('Property edit request created', [
                     'edit_request_id' => $editRequest->id,
                     'property_id' => $property->id,
@@ -129,7 +125,7 @@ class PropertyEditRequestService
                 return $editRequest;
             }
         } catch (\Exception $e) {
-            DB::rollBack();
+            // Don't rollback here - let the parent transaction handle it
             Log::error('Failed to save property edit request: ' . $e->getMessage(), [
                 'property_id' => $property->id,
                 'requested_by' => $requestedBy,

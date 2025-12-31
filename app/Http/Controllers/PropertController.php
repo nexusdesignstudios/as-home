@@ -660,6 +660,63 @@ class PropertController extends Controller
                     return redirect()->route('property.index')->with('error', 'Property not found');
                 }
 
+                // Add validation for update method
+                $validator = Validator::make($request->all(), [
+                    'title'             => 'required|string|max:255',
+                    'title_ar'          => 'nullable|string|max:255',
+                    'description'       => 'required|string',
+                    'description_ar'    => 'nullable|string',
+                    'area_description'  => 'nullable|string',
+                    'area_description_ar' => 'nullable|string',
+                    'category'          => 'required|exists:categories,id',
+                    'property_type'     => 'required|in:1,2',
+                    'property_classification' => 'nullable|integer|between:1,5',
+                    'address'           => 'required|string',
+                    'price'             => 'nullable|numeric|min:0',
+                    'title_image'       => 'nullable|file|max:3000|mimes:jpeg,png,jpg',
+                    '3d_image'          => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
+                    'documents.*'       => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
+                    'corresponding_day' => 'nullable|json',
+                    'agent_addons'      => 'nullable|json',
+                    'hotel_rooms'       => 'nullable|array',
+                    'hotel_rooms.*.room_type_id' => 'nullable|exists:hotel_room_types,id',
+                    'hotel_rooms.*.price_per_night' => 'nullable|numeric|min:0',
+                    'hotel_rooms.*.description' => 'nullable|string',
+                    'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
+                        if (!empty($value)) {
+                            $youtubePattern = '/^(https?\:\/\/)?(www\.youtube\.com|youtu\.be)\/.+$/';
+                            if (!preg_match($youtubePattern, $value)) {
+                                return $fail("The Video Link must be a valid YouTube URL.");
+                            }
+                        }
+                    }],
+                ], [
+                    'title.required' => 'Property title is required.',
+                    'description.required' => 'Property description is required.',
+                    'category.required' => 'Property category is required.',
+                    'category.exists' => 'Selected category is invalid.',
+                    'property_type.required' => 'Property type is required.',
+                    'address.required' => 'Property address is required.',
+                    'title_image.mimes' => 'Title image must be a JPEG, PNG, or JPG file.',
+                    'title_image.max' => 'Title image must not exceed 3MB.',
+                ]);
+
+                if ($validator->fails()) {
+                    $errors = $validator->errors();
+                    $firstError = $errors->first();
+                    
+                    Log::warning('Property update validation failed', [
+                        'property_id' => $id,
+                        'errors' => $errors->all(),
+                        'request_data' => $request->except(['title_image', '3d_image', 'documents', 'gallery_images'])
+                    ]);
+                    
+                    return redirect()->back()
+                        ->withErrors($validator)
+                        ->withInput()
+                        ->with('error', 'Validation failed: ' . $firstError);
+                }
+
                 DB::beginTransaction();
                 
                 // Store original property data BEFORE any modifications
@@ -672,6 +729,15 @@ class PropertController extends Controller
                 
                 // Check auto-approve setting for edited listings
                 $autoApproveEdited = HelperService::getSettingData('auto_approve_edited_listings') == 1;
+                
+                // Log initial state for debugging
+                Log::info('Property update started', [
+                    'property_id' => $id,
+                    'is_owner_edit' => $isOwnerEdit,
+                    'auto_approve_edited' => $autoApproveEdited,
+                    'added_by' => $UpdateProperty->added_by,
+                    'property_classification' => $UpdateProperty->property_classification ?? null
+                ]);
                 
                 $destinationPath = public_path('images') . config('global.PROPERTY_TITLE_IMG_PATH');
                 if (!is_dir($destinationPath)) {
@@ -871,12 +937,26 @@ class PropertController extends Controller
                     }
                 }
 
+                // Initialize filteredEditedData to avoid undefined variable errors
+                $filteredEditedData = [];
+                
                 // Check if owner edit requires approval
                 if ($isOwnerEdit && !$autoApproveEdited) {
                     // Owner edits require admin approval when auto-approve is OFF - save as pending request
                     
+                    Log::info('Checking for approval-required changes', [
+                        'property_id' => $id,
+                        'edited_data_keys' => array_keys($editedData)
+                    ]);
+                    
                     // Filter to only include allowed editable fields
                     $filteredEditedData = \App\Services\PropertyEditRequestService::filterAllowedFields($editedData, $UpdateProperty);
+                    
+                    Log::info('Filtered edited data', [
+                        'property_id' => $id,
+                        'filtered_keys' => array_keys($filteredEditedData),
+                        'filtered_data_sample' => array_slice($filteredEditedData, 0, 3, true)
+                    ]);
                     
                     // Note: vacation_apartments are NOT editable by users - only admin can modify them
                     // They are NOT included in filteredEditedData and should not be tracked in edit requests
@@ -889,16 +969,34 @@ class PropertController extends Controller
                     // Only create edit request if there are actual changes in allowed fields
                     // Compare filtered edited data with original data to check for changes
                     $hasChanges = false;
+                    $changeDetails = [];
+                    
                     foreach ($filteredEditedData as $field => $value) {
                         // Skip hotel_rooms as it needs special comparison
                         if ($field === 'hotel_rooms') {
                             // Will be checked separately below
                             continue;
                         }
+                        
+                        // Normalize values for comparison
                         $originalValue = $originalPropertyData[$field] ?? null;
-                        if ($originalValue != $value) {
+                        $normalizedOriginal = $this->normalizeValueForComparison($originalValue);
+                        $normalizedNew = $this->normalizeValueForComparison($value);
+                        
+                        if ($normalizedOriginal !== $normalizedNew) {
                             $hasChanges = true;
-                            break;
+                            $changeDetails[$field] = [
+                                'original' => $normalizedOriginal,
+                                'new' => $normalizedNew,
+                                'original_type' => gettype($originalValue),
+                                'new_type' => gettype($value)
+                            ];
+                            Log::debug('Field change detected', [
+                                'property_id' => $id,
+                                'field' => $field,
+                                'original' => $normalizedOriginal,
+                                'new' => $normalizedNew
+                            ]);
                         }
                     }
                     
@@ -906,43 +1004,100 @@ class PropertController extends Controller
                     if (!$hasChanges && isset($filteredEditedData['hotel_rooms']) && isset($originalPropertyData['hotel_rooms'])) {
                         $originalRoomsMap = [];
                         foreach ($originalPropertyData['hotel_rooms'] as $room) {
-                            $originalRoomsMap[$room['id']] = $room['description'] ?? null;
+                            if (isset($room['id'])) {
+                                $originalRoomsMap[$room['id']] = $this->normalizeValueForComparison($room['description'] ?? null);
+                            }
                         }
                         foreach ($filteredEditedData['hotel_rooms'] as $room) {
                             $roomId = $room['id'] ?? null;
-                            $roomDesc = $room['description'] ?? null;
-                            if (!isset($originalRoomsMap[$roomId]) || $originalRoomsMap[$roomId] != $roomDesc) {
+                            $roomDesc = $this->normalizeValueForComparison($room['description'] ?? null);
+                            if (!isset($originalRoomsMap[$roomId]) || $originalRoomsMap[$roomId] !== $roomDesc) {
                                 $hasChanges = true;
+                                $changeDetails['hotel_rooms'] = [
+                                    'room_id' => $roomId,
+                                    'original' => $originalRoomsMap[$roomId] ?? null,
+                                    'new' => $roomDesc
+                                ];
+                                Log::debug('Hotel room change detected', [
+                                    'property_id' => $id,
+                                    'room_id' => $roomId,
+                                    'original' => $originalRoomsMap[$roomId] ?? null,
+                                    'new' => $roomDesc
+                                ]);
                                 break;
                             }
                         }
                     }
                     
+                    Log::info('Change detection completed', [
+                        'property_id' => $id,
+                        'has_changes' => $hasChanges,
+                        'change_details' => $changeDetails,
+                        'filtered_data_empty' => empty($filteredEditedData)
+                    ]);
+                    
                     if ($hasChanges && !empty($filteredEditedData)) {
-                        // Use PropertyEditRequestService to save the edit request
-                        $editRequestService = new \App\Services\PropertyEditRequestService();
-                        $editRequest = $editRequestService->saveEditRequest(
-                            $UpdateProperty, 
-                            $filteredEditedData,  // Only contains allowed fields now
-                            $UpdateProperty->added_by, 
-                            $originalPropertyData
-                        );
+                        // Store approval-required fields to revert later
+                        $approvalRequiredFieldsToRevert = [];
+                        $allowedFields = \App\Services\PropertyEditRequestService::getAllowedEditableFields();
+                        foreach ($allowedFields as $field) {
+                            if ($field === 'hotel_rooms') {
+                                continue; // Hotel rooms handled separately
+                            }
+                            if (array_key_exists($field, $originalPropertyData)) {
+                                $approvalRequiredFieldsToRevert[$field] = $originalPropertyData[$field];
+                            }
+                        }
                         
-                        // Set request_status to pending (property won't be saved yet, but we need to save related data)
-                        $UpdateProperty->request_status = 'pending';
+                        // Revert approval-required fields to original values before saving
+                        foreach ($approvalRequiredFieldsToRevert as $field => $originalValue) {
+                            $UpdateProperty->$field = $originalValue;
+                        }
                         
-                        // Log the edit request creation
-                        Log::info('Property edit request created from admin panel', [
-                            'edit_request_id' => $editRequest->id,
-                            'property_id' => $UpdateProperty->id,
-                            'requested_by' => $UpdateProperty->added_by,
-                            'fields_changed' => array_keys($filteredEditedData)
+                        // Note: Hotel room descriptions will be reverted after property save
+                        // We'll handle this in a separate step to avoid issues with unsaved property
+                        
+                        Log::info('Reverted approval-required fields', [
+                            'property_id' => $id,
+                            'reverted_fields' => array_keys($approvalRequiredFieldsToRevert)
                         ]);
+                        
+                        // Use PropertyEditRequestService to save the edit request
+                        try {
+                            $editRequestService = new \App\Services\PropertyEditRequestService();
+                            $editRequest = $editRequestService->saveEditRequest(
+                                $UpdateProperty, 
+                                $filteredEditedData,  // Only contains allowed fields now
+                                $UpdateProperty->added_by, 
+                                $originalPropertyData
+                            );
+                            
+                            // Set request_status to pending
+                            $UpdateProperty->request_status = 'pending';
+                            
+                            // Log the edit request creation
+                            Log::info('Property edit request created from admin panel', [
+                                'edit_request_id' => $editRequest->id,
+                                'property_id' => $UpdateProperty->id,
+                                'requested_by' => $UpdateProperty->added_by,
+                                'fields_changed' => array_keys($filteredEditedData)
+                            ]);
+                        } catch (\Exception $e) {
+                            Log::error('Failed to create property edit request', [
+                                'property_id' => $id,
+                                'error' => $e->getMessage(),
+                                'trace' => $e->getTraceAsString(),
+                                'filtered_data' => $filteredEditedData
+                            ]);
+                            throw $e;
+                        }
                     } else {
                         // No changes in allowed fields, save directly (don't create edit request)
                         Log::info('Property edit skipped - no changes in allowed fields', [
                             'property_id' => $UpdateProperty->id,
-                            'requested_by' => $UpdateProperty->added_by
+                            'requested_by' => $UpdateProperty->added_by,
+                            'has_changes' => $hasChanges,
+                            'filtered_data_empty' => empty($filteredEditedData)
                         ]);
                     }
                 } else {
@@ -951,6 +1106,12 @@ class PropertController extends Controller
                     if ($isOwnerEdit && $autoApproveEdited) {
                         $UpdateProperty->request_status = 'approved';
                     }
+                    
+                    Log::info('Property edit - no approval required', [
+                        'property_id' => $id,
+                        'is_owner_edit' => $isOwnerEdit,
+                        'auto_approve' => $autoApproveEdited
+                    ]);
                 }
 
                 // Save the property (this will save even if edit request was created, but request_status will be pending)
@@ -1044,22 +1205,71 @@ class PropertController extends Controller
                 // START :: UPDATE HOTEL ROOMS
                 if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->hotel_rooms) && !empty($request->hotel_rooms)) {
                     try {
-                        \App\Models\HotelRoom::where('property_id', $UpdateProperty->id)->delete();
-                        foreach ($request->hotel_rooms as $room) {
-                            HotelRoom::create([
+                        // Check if we need to revert descriptions (approval required scenario)
+                        $shouldRevertRoomDescriptions = false;
+                        $revertDescriptionsMap = [];
+                        if (isset($isOwnerEdit) && isset($autoApproveEdited) && $isOwnerEdit && !$autoApproveEdited && isset($originalHotelRooms) && !empty($originalHotelRooms)) {
+                            // Check if descriptions were in filteredEditedData (meaning they changed and need approval)
+                            if (isset($filteredEditedData['hotel_rooms']) && !empty($filteredEditedData['hotel_rooms'])) {
+                                $shouldRevertRoomDescriptions = true;
+                                // Create a map of original descriptions
+                                foreach ($originalHotelRooms as $originalRoom) {
+                                    if (isset($originalRoom['id'])) {
+                                        $revertDescriptionsMap[$originalRoom['id']] = $originalRoom['description'] ?? null;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if ($shouldRevertRoomDescriptions) {
+                            // Only update existing rooms, preserving original descriptions
+                            foreach ($request->hotel_rooms as $room) {
+                                if (isset($room['id'])) {
+                                    $hotelRoom = \App\Models\HotelRoom::find($room['id']);
+                                    if ($hotelRoom && $hotelRoom->property_id == $UpdateProperty->id) {
+                                        // Update all fields except description (keep original)
+                                        $hotelRoom->room_type_id = $room['room_type_id'] ?? $hotelRoom->room_type_id;
+                                        $hotelRoom->room_number = $room['room_number'] ?? $hotelRoom->room_number;
+                                        $hotelRoom->price_per_night = isset($room['price_per_night']) ? (float)$room['price_per_night'] : $hotelRoom->price_per_night;
+                                        $hotelRoom->discount_percentage = isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : $hotelRoom->discount_percentage;
+                                        $hotelRoom->refund_policy = $room['refund_policy'] ?? $hotelRoom->refund_policy;
+                                        $hotelRoom->nonrefundable_percentage = isset($room['nonrefundable_percentage']) ? (float)$room['nonrefundable_percentage'] : $hotelRoom->nonrefundable_percentage;
+                                        $hotelRoom->availability_type = isset($room['availability_type']) ? (int)$room['availability_type'] : $hotelRoom->availability_type;
+                                        $hotelRoom->available_dates = $room['available_dates'] ?? $hotelRoom->available_dates;
+                                        $hotelRoom->weekend_commission = isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : $hotelRoom->weekend_commission;
+                                        $hotelRoom->status = $room['status'] ?? $hotelRoom->status;
+                                        // Keep original description
+                                        if (isset($revertDescriptionsMap[$room['id']])) {
+                                            $hotelRoom->description = $revertDescriptionsMap[$room['id']];
+                                        }
+                                        $hotelRoom->save();
+                                    }
+                                }
+                            }
+                            
+                            Log::info('Hotel room descriptions preserved for approval', [
                                 'property_id' => $UpdateProperty->id,
-                                'room_type_id' => $room['room_type_id'] ?? null,
-                                'room_number' => $room['room_number'] ?? null,
-                                'price_per_night' => isset($room['price_per_night']) ? (float)$room['price_per_night'] : 0,
-                                'discount_percentage' => isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : 0,
-                                'refund_policy' => $room['refund_policy'] ?? 'flexible',
-                                'nonrefundable_percentage' => isset($room['nonrefundable_percentage']) ? (float)$room['nonrefundable_percentage'] : 0,
-                                'availability_type' => isset($room['availability_type']) ? (int)$room['availability_type'] : null,
-                                'available_dates' => $room['available_dates'] ?? null,
-                                'weekend_commission' => isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : null,
-                                'description' => $room['description'] ?? null,
-                                'status' => $room['status'] ?? 1
+                                'rooms_count' => count($request->hotel_rooms)
                             ]);
+                        } else {
+                            // Normal update - delete and recreate
+                            \App\Models\HotelRoom::where('property_id', $UpdateProperty->id)->delete();
+                            foreach ($request->hotel_rooms as $room) {
+                                HotelRoom::create([
+                                    'property_id' => $UpdateProperty->id,
+                                    'room_type_id' => $room['room_type_id'] ?? null,
+                                    'room_number' => $room['room_number'] ?? null,
+                                    'price_per_night' => isset($room['price_per_night']) ? (float)$room['price_per_night'] : 0,
+                                    'discount_percentage' => isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : 0,
+                                    'refund_policy' => $room['refund_policy'] ?? 'flexible',
+                                    'nonrefundable_percentage' => isset($room['nonrefundable_percentage']) ? (float)$room['nonrefundable_percentage'] : 0,
+                                    'availability_type' => isset($room['availability_type']) ? (int)$room['availability_type'] : null,
+                                    'available_dates' => $room['available_dates'] ?? null,
+                                    'weekend_commission' => isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : null,
+                                    'description' => $room['description'] ?? null,
+                                    'status' => $room['status'] ?? 1
+                                ]);
+                            }
                         }
                     } catch (\Exception $e) {
                         throw $e;
@@ -1286,10 +1496,24 @@ class PropertController extends Controller
                     'request_data' => [
                         'city' => $request->city ?? null,
                         'property_classification' => $request->property_classification ?? null,
+                        'title' => $request->title ?? null,
+                        'category' => $request->category ?? null,
                     ]
                 ]);
                 
-                return ResponseService::logErrorRedirectResponse($e, "Update Property Issue", "An error occurred while updating the property. Please check the logs for details.");
+                // Provide user-friendly error message
+                $errorMessage = "An error occurred while updating the property.";
+                if (strpos($e->getMessage(), 'SQLSTATE') !== false) {
+                    $errorMessage = "Database error occurred. Please check the data and try again.";
+                } elseif (strpos($e->getMessage(), 'validation') !== false || strpos($e->getMessage(), 'required') !== false) {
+                    $errorMessage = "Validation error: " . $e->getMessage();
+                } elseif (strpos($e->getMessage(), 'permission') !== false || strpos($e->getMessage(), 'unauthorized') !== false) {
+                    $errorMessage = "You don't have permission to perform this action.";
+                }
+                
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', $errorMessage);
             }
         }
     }
@@ -2205,6 +2429,40 @@ class PropertController extends Controller
             DB::rollback();
             ResponseService::logErrorResponse($e, "Update Request Status in Property", "Something Went Wrong");
         }
+    }
+
+    /**
+     * Normalize value for comparison (handles null, empty string, type mismatches)
+     *
+     * @param mixed $value
+     * @return mixed
+     */
+    private function normalizeValueForComparison($value)
+    {
+        // Convert null to empty string for consistent comparison
+        if ($value === null) {
+            return '';
+        }
+        
+        // Handle JSON strings - decode if valid JSON
+        if (is_string($value) && !empty($value)) {
+            $decoded = json_decode($value, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return $decoded;
+            }
+        }
+        
+        // Convert numeric strings to numbers for comparison
+        if (is_string($value) && is_numeric($value)) {
+            // Check if it's a float or int
+            if (strpos($value, '.') !== false) {
+                return (float)$value;
+            }
+            return (int)$value;
+        }
+        
+        // Return as-is for other types
+        return $value;
     }
 
     /**
