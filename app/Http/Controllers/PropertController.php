@@ -986,7 +986,26 @@ class PropertController extends Controller
                     // Filter to only include allowed editable fields
                     $filteredEditedData = \App\Services\PropertyEditRequestService::filterAllowedFields($editedData, $UpdateProperty);
                     
-                    Log::info('Filtered edited data', [
+                    // Remove single image fields from edited data if no files were actually uploaded
+                    // This prevents false positive change detection when users edit other fields
+                    // Gallery images are handled separately through PropertyImages table and should not be in allowed fields
+                    $singleImageFields = [
+                        'title_image' => 'title_image',
+                        'three_d_image' => '3d_image', 
+                        'meta_image' => 'meta_image'
+                    ];
+                    
+                    foreach ($singleImageFields as $dataField => $fileField) {
+                        if (!$request->hasFile($fileField) && isset($filteredEditedData[$dataField])) {
+                            unset($filteredEditedData[$dataField]);
+                            Log::debug("Removed $dataField from filtered edited data - no file uploaded", [
+                                'property_id' => $id,
+                                'file_field' => $fileField
+                            ]);
+                        }
+                    }
+                    
+                    Log::info('Filtered edited data after image field cleanup', [
                         'property_id' => $id,
                         'filtered_keys' => array_keys($filteredEditedData),
                         'filtered_data_sample' => array_slice($filteredEditedData, 0, 3, true)

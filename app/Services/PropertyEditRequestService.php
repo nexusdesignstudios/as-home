@@ -25,7 +25,6 @@ class PropertyEditRequestService
             'area_description_ar',
             'title_image',
             'three_d_image',
-            'gallery_images',
             'hotel_rooms', // Special handling for hotel room descriptions
         ];
     }
