@@ -2,102 +2,99 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
+use App\Http\Controllers\ApiController;
+use Illuminate\Http\Request;
 use App\Models\Property;
 use App\Models\Customer;
 use App\Models\HotelRoom;
-use App\Services\ReservationService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
 
 // Bootstrap Laravel
 $app = require_once __DIR__ . '/bootstrap/app.php';
 $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
-echo "Starting Flexible Reservation Verification...\n";
+echo "Starting Flexible Reservation Verification via ApiController...\n";
 
-// 1. Find a Property with Flexible Refund Policy
-$property = Property::where('refund_policy', 'flexible')
-    ->whereHas('hotelRooms') // Ensure it has rooms if it's a hotel
-    ->first();
+// 1. Find or Setup Data
+$property = Property::where('property_classification', 5)->first(); // Hotel
+if (!$property) die("No hotel property found.\n");
 
-if (!$property) {
-    // If no flexible property, try to find any and temporarily set it to flexible (transaction will roll back)
-    $property = Property::whereHas('hotelRooms')->first();
-    if ($property) {
-        echo "No flexible property found. Using Property ID: {$property->id} and temporarily treating as flexible for test.\n";
-        // We can't easily change the DB record without affecting real data, so we'll just Mock the request logic 
-        // or ensure we set the policy on the object if we were unit testing. 
-        // For this integration test, let's just find one or create a dummy one if needed.
-        // Actually, let's just create a reservation and see if the Service handles the status logic.
-        // WAIT: The logic for "flexible -> confirmed" is in the CONTROLLER, not the SERVICE.
-        // The Service just saves what it's given.
-        // So I need to replicate the Controller logic here to verify it.
-    } else {
-        die("No suitable property found for testing.\n");
-    }
-} else {
-    echo "Found Flexible Property: ID {$property->id}, Name: {$property->title}\n";
-}
+// Force flexible policy for this test
+$originalPolicy = $property->refund_policy;
+$property->refund_policy = 'flexible';
+$property->save();
+echo "Property {$property->id} set to flexible.\n";
 
-$room = $property->hotelRooms->first();
-if (!$room) {
-    die("Property has no rooms.\n");
-}
-echo "Using Room ID: {$room->id}\n";
+$room = HotelRoom::where('property_id', $property->id)->first();
+if (!$room) die("No room found for property {$property->id}.\n");
 
 $user = Customer::first();
 if (!$user) {
-    // If no customers, create one inside transaction (which we might need to start earlier)
-    // For now, let's just die.
-    die("No customers found. Please seed customers.\n");
-}
-echo "Using Customer ID: {$user->id}\n";
-echo "Customer Table: " . $user->getTable() . "\n";
-
-// Ensure the customer actually exists in the DB for the foreign key check
-$exists = DB::table('customers')->where('id', $user->id)->exists();
-echo "Customer ID {$user->id} exists in 'customers' table? " . ($exists ? "Yes" : "No") . "\n";
-
-if (!$exists) {
-    // If we found a model but it's not in the table (how?), let's create one.
-    // Or maybe Customer::first() is using a different connection? Unlikely.
-    // Let's create a dummy customer for this test.
-    $id = DB::table('customers')->insertGetId([
+    // Create one
+     $id = DB::table('customers')->insertGetId([
         'name' => 'Test Customer',
         'email' => 'test@example.com',
-        'password' => 'password',
+        'mobile' => '1234567890',
+        'password' => bcrypt('password'),
         'logintype' => 'email',
         'isActive' => 1
     ]);
-    echo "Created temp customer ID: $id\n";
     $user = Customer::find($id);
-    $requestData['customer_id'] = $id;
 }
 
-// CHECK SCHEMA: Check for 'available_dates' column and add if missing
-$hasColumn = DB::getSchemaBuilder()->hasColumn('hotel_rooms', 'available_dates');
-echo "Column 'available_dates' in 'hotel_rooms'? " . ($hasColumn ? "Yes" : "No") . "\n";
-
-if (!$hasColumn) {
-    echo "Adding missing 'available_dates' column to 'hotel_rooms' for verification...\n";
-    DB::statement("ALTER TABLE hotel_rooms ADD COLUMN available_dates JSON NULL");
-    echo "Column added.\n";
-}
-
-// 2. Simulate Controller Logic
-$isFlexible = $property->refund_policy === 'flexible';
-echo "Is Flexible Policy? " . ($isFlexible ? "Yes" : "No") . "\n";
-
-// Define dates
-$checkIn = now()->addDays(10)->format('Y-m-d');
-$checkOut = now()->addDays(12)->format('Y-m-d');
-
+// 2. Prepare Request Data
 $requestData = [
-    'customer_id' => $user->id,
-    'reservable_id' => $room->id,
-    'reservable_type' => 'App\\Models\\HotelRoom',
     'property_id' => $property->id,
+    'customer_id' => $user->id,
+    'customer_name' => $user->name,
+    'customer_phone' => $user->mobile ?? '1234567890',
+    'customer_email' => $user->email,
+    'card_number' => '1234567812345678',
+    'expiry_date' => '12/25',
+    'cvv' => '123',
+    'amount' => 100,
+    'check_in_date' => now()->addDays(5)->format('Y-m-d'),
+    'check_out_date' => now()->addDays(7)->format('Y-m-d'),
+    'number_of_guests' => 1,
+    'reservable_type' => 'hotel_room',
+    'reservable_data' => [
+        [
+            'id' => $room->id,
+            'room_type_id' => $room->room_type_id,
+            'amount' => 100
+        ]
+    ]
+];
+
+$request = Request::create('/api/submit-payment-form', 'POST', $requestData);
+
+// 3. Call Controller
+$controller = new ApiController();
+try {
+    $response = $controller->submitPaymentForm($request);
+    $data = $response->getData(true);
+    
+    if ($data['error']) {
+        echo "API Error: " . $data['message'] . "\n";
+    } else {
+        echo "API Success. Reservation ID: " . $data['data']['reservation_id'] . "\n";
+        
+        // Verify Reservation Status
+        $reservation = \App\Models\Reservation::find($data['data']['reservation_id']);
+        echo "Status: " . $reservation->status . " (Expected: confirmed)\n";
+        echo "Payment Status: " . $reservation->payment_status . " (Expected: unpaid)\n";
+        echo "Approval Status: " . $reservation->approval_status . " (Expected: approved/confirmed)\n";
+    }
+} catch (\Exception $e) {
+    echo "Exception: " . $e->getMessage() . "\n";
+    echo $e->getTraceAsString();
+}
+
+// Restore policy
+$property->refund_policy = $originalPolicy;
+$property->save();
+
     'check_in_date' => $checkIn,
     'check_out_date' => $checkOut,
     'number_of_guests' => 1,

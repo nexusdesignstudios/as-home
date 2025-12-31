@@ -1140,6 +1140,50 @@ class ApiController extends Controller
             });
         }
 
+        // Commercial Area Range Filter (Min/Max Area)
+        if (($request->has('min_area') && !empty($request->min_area)) || ($request->has('max_area') && !empty($request->max_area))) {
+            $minArea = $request->min_area;
+            $maxArea = $request->max_area;
+            
+            $property = $property->where(function ($query) use ($minArea, $maxArea) {
+                // Check parameters table for area values
+                $query->whereExists(function ($existsQuery) use ($minArea, $maxArea) {
+                    $existsQuery->select(DB::raw(1))
+                        ->from('assign_parameters')
+                        ->join('parameters', 'assign_parameters.parameter_id', '=', 'parameters.id')
+                        ->where(function ($linkQuery) {
+                            // Match by property_id OR by modal_id (polymorphic)
+                            $linkQuery->whereColumn('assign_parameters.property_id', 'propertys.id')
+                                ->orWhere(function ($modalQuery) {
+                                    $modalQuery->whereColumn('assign_parameters.modal_id', 'propertys.id')
+                                        ->where(function ($typeQuery) {
+                                            $typeQuery->where('assign_parameters.modal_type', 'App\\Models\\Property')
+                                                ->orWhere('assign_parameters.modal_type', 'property');
+                                        });
+                                });
+                        })
+                        ->where(function ($nameQuery) {
+                            $nameQuery->where('parameters.name', 'LIKE', '%commercial area%')
+                                ->orWhere('parameters.name', 'LIKE', '%area%')
+                                ->orWhere('parameters.name', 'LIKE', '%size%')
+                                ->orWhere('parameters.name', 'LIKE', '%sqft%')
+                                ->orWhere('parameters.name', 'LIKE', '%sqm%')
+                                ->orWhere('parameters.name', 'LIKE', '%square%');
+                        })
+                        ->where(function ($valueQuery) use ($minArea, $maxArea) {
+                            // Use CAST to treat the value as a number for range comparison
+                            // This handles values like "180 Sq.m" by parsing the leading number
+                            if (!empty($minArea)) {
+                                $valueQuery->whereRaw('CAST(assign_parameters.value AS UNSIGNED) >= ?', [$minArea]);
+                            }
+                            if (!empty($maxArea)) {
+                                $valueQuery->whereRaw('CAST(assign_parameters.value AS UNSIGNED) <= ?', [$maxArea]);
+                            }
+                        });
+                });
+            });
+        }
+
         // If Max Price And Min Price passed
         if (isset($request->max_price) && isset($request->min_price) && (!empty($request->max_price) || !empty($request->min_price))) {
             // For hotel properties (classification = 5), filter by minimum room price
@@ -11643,6 +11687,26 @@ class ApiController extends Controller
             ], 422);
         }
 
+        // Additional validation for hotel room reservations
+        if ($request->reservable_type === 'hotel_room') {
+            if (empty($request->reservable_data) || !is_array($request->reservable_data)) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Hotel room reservations require room data'
+                ], 422);
+            }
+            
+            // Validate that each room has a valid ID
+            foreach ($request->reservable_data as $room) {
+                if (empty($room['id'])) {
+                    return response()->json([
+                    'error' => true,
+                    'message' => 'Each room must have a valid room ID'
+                ], 422);
+                }
+            }
+        }
+
         try {
             // Get property with customer
             $property = Property::with('customer')->findOrFail($request->property_id);
@@ -12574,12 +12638,20 @@ Best regards,
 
             // Create reservation record for the revenue tab
             // Note: $request->amount is the discounted amount (after discount is applied)
+            
+            // For hotel room reservations, reservable_id should be the hotel room ID, not property ID
+            $reservableId = $request->property_id;
+            if ($request->reservable_type === 'hotel_room' && !empty($request->reservable_data)) {
+                // Use the first room's ID as the reservable_id for hotel reservations
+                $reservableId = $request->reservable_data[0]['id'] ?? $request->property_id;
+            }
+            
             $reservationData = [
                 'customer_id' => $request->customer_id, // Use customer ID from request
                 'customer_name' => $request->customer_name,
                 'customer_phone' => $request->customer_phone,
                 'customer_email' => $request->customer_email,
-                'reservable_id' => $request->property_id,
+                'reservable_id' => $reservableId,
                 'reservable_type' => $request->reservable_type,
                 'property_id' => $request->property_id, // Add property_id for proper filtering
                 'check_in_date' => $request->check_in_date,
@@ -12591,7 +12663,7 @@ Best regards,
                 'discount_amount' => isset($request->original_amount) && isset($request->amount) 
                     ? ($request->original_amount - $request->amount) 
                     : 0, // Calculate discount amount
-                'payment_method' => 'Card',
+                'payment_method' => 'cash', // Use 'cash' for flexible reservations (manual payment)
                 'payment_status' => 'pending',
                 'status' => 'pending',
                 'approval_status' => 'pending',
