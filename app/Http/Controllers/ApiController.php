@@ -1106,6 +1106,40 @@ class ApiController extends Controller
             });
         }
 
+        // Commercial area filter (for commercial properties - property_classification = 2)
+        if ($request->has('commercial_area') && !empty($request->commercial_area)) {
+            $commercialAreaValue = (string) $request->commercial_area;
+            $property = $property->where(function ($query) use ($commercialAreaValue) {
+                // Check parameters table for commercial area
+                $query->whereExists(function ($existsQuery) use ($commercialAreaValue) {
+                    $existsQuery->select(DB::raw(1))
+                        ->from('assign_parameters')
+                        ->join('parameters', 'assign_parameters.parameter_id', '=', 'parameters.id')
+                        ->where(function ($linkQuery) {
+                            // Match by property_id OR by modal_id (polymorphic)
+                            $linkQuery->whereColumn('assign_parameters.property_id', 'propertys.id')
+                                ->orWhere(function ($modalQuery) {
+                                    $modalQuery->whereColumn('assign_parameters.modal_id', 'propertys.id')
+                                        ->where(function ($typeQuery) {
+                                            $typeQuery->where('assign_parameters.modal_type', 'App\\Models\\Property')
+                                                ->orWhere('assign_parameters.modal_type', 'property');
+                                        });
+                                });
+                        })
+                        ->where(function ($nameQuery) {
+                            $nameQuery->where('parameters.name', 'LIKE', '%commercial area%')
+                                ->orWhere('parameters.name', 'LIKE', '%area%');
+                        })
+                        ->where(function ($valueQuery) use ($commercialAreaValue) {
+                            $valueQuery->where('assign_parameters.value', $commercialAreaValue)
+                                ->orWhere('assign_parameters.value', '"' . $commercialAreaValue . '"')
+                                ->orWhereRaw('JSON_EXTRACT(assign_parameters.value, "$") = ?', [$commercialAreaValue])
+                                ->orWhereRaw('CAST(JSON_EXTRACT(assign_parameters.value, "$") AS CHAR) = ?', [$commercialAreaValue]);
+                        });
+                });
+            });
+        }
+
         // If Max Price And Min Price passed
         if (isset($request->max_price) && isset($request->min_price) && (!empty($request->max_price) || !empty($request->min_price))) {
             // For hotel properties (classification = 5), filter by minimum room price
@@ -7962,6 +7996,7 @@ class ApiController extends Controller
                 'get_all_premium_properties'    => 'nullable|in:1',
                 'check_in_date'                 => 'nullable|date',
                 'check_out_date'                => 'nullable|date',
+                'search'                        => 'nullable|string|max:255',
             ]);
             
             // Custom validation for dates if both are provided
@@ -9835,6 +9870,28 @@ class ApiController extends Controller
             } else {
                 // Return all parameters if no category_id provided
                 $parameters = parameter::get();
+            }
+            
+            // Filter parameters based on commercial properties
+            if ($request->has('property_classification') && $request->property_classification == 2) {
+                // Hide bedroom and bathroom filters for commercial properties
+                $parameters = $parameters->filter(function($parameter) {
+                    $name = strtolower($parameter->name);
+                    return $name !== 'bedrooms' && $name !== 'bathrooms';
+                });
+                
+                // Add area filter for commercial properties
+                $areaParameter = new \stdClass();
+                $areaParameter->id = 999999;
+                $areaParameter->name = 'Area';
+                $areaParameter->type_of_parameter = 'number';
+                $areaParameter->unit = 'sqm';
+                $areaParameter->description = 'Area in square meters';
+                $areaParameter->created_at = now();
+                $areaParameter->updated_at = now();
+                
+                // Add area parameter to the collection
+                $parameters->push($areaParameter);
             }
             
             ApiResponseService::successResponse("Data Fetched Successfully", $parameters);
@@ -12822,4 +12879,3 @@ Best regards,
         return $nearbyCities;
     }
 }
-

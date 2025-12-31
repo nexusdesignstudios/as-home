@@ -522,7 +522,10 @@ class ReservationController extends Controller
                     }
                 }
 
-                // Create reservation data
+                // Check if property has flexible refund policy for flexible reservation behavior
+                $isFlexible = $property->refund_policy === 'flexible';
+                
+                // Create reservation data with conditional behavior based on refund policy
                 $reservationData = [
                     'customer_id' => Auth::guard('sanctum')->user()->id,
                     'reservable_id' => $request->reservable_id,
@@ -533,9 +536,9 @@ class ReservationController extends Controller
                     'number_of_guests' => $request->number_of_guests ?? 1,
                     'total_price' => $totalPrice,
                     'special_requests' => $request->special_requests,
-                    'status' => 'confirmed', // Auto-confirm for flexible reservations (cash/offline)
+                    'status' => $isFlexible ? 'confirmed' : 'pending', // Auto-confirm only for flexible reservations
                     'payment_status' => 'unpaid',
-                    'payment_method' => 'cash', // Explicitly set as cash payment for flexible reservations
+                    'payment_method' => $isFlexible ? 'cash' : ($request->payment_method ?? 'online'), // Cash only for flexible reservations
                 ];
 
                 // SAFETY: Only populate apartment_id and apartment_quantity for MULTI-UNIT vacation homes
@@ -635,11 +638,27 @@ class ReservationController extends Controller
                     }
                 }
 
+                // Get the property to check refund policy for hotel rooms
+                $property = Property::find($request->property_id);
+                if (!$property) {
+                    ApiResponseService::errorResponse('Property not found for hotel rooms');
+                }
+                
+                // Check if property has flexible refund policy for flexible reservation behavior
+                $isFlexible = $property->refund_policy === 'flexible';
+                
                 // All validations passed, create reservations for each room
                 foreach ($roomObjects as $roomObject) {
                     $roomId = $roomObject['id'];
                     $roomAmount = $roomObject['amount'];
                     $totalAmount += $roomAmount;
+
+                    // Check individual room refund policy (can override property policy)
+                    $room = HotelRoom::find($roomId);
+                    $roomIsFlexible = $isFlexible;
+                    if ($room && $room->refund_policy) {
+                        $roomIsFlexible = $room->refund_policy === 'flexible';
+                    }
 
                     $reservationData = [
                         'customer_id' => Auth::guard('sanctum')->user()->id,
@@ -651,17 +670,23 @@ class ReservationController extends Controller
                         'number_of_guests' => $request->number_of_guests ?? 1,
                         'total_price' => $roomAmount,
                         'special_requests' => $request->special_requests,
-                        'status' => 'confirmed', // Auto-confirm for flexible reservations (cash/offline)
+                        'status' => $roomIsFlexible ? 'confirmed' : 'pending', // Auto-confirm only for flexible reservations
                         'payment_status' => 'unpaid',
-                        'payment_method' => 'cash', // Explicitly set as cash payment for flexible reservations
+                        'payment_method' => $roomIsFlexible ? 'cash' : ($request->payment_method ?? 'online'), // Cash only for flexible reservations
                     ];
 
                     $reservation = $this->reservationService->createReservation($reservationData, true);
                     $reservations[] = $reservation;
                     
-                    // Send flexible hotel booking confirmation email for hotel room reservations
-                    // Hotel rooms are always classification 5 (hotel booking)
-                    $this->reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
+                    // Send appropriate email based on refund policy
+                    if ($roomIsFlexible) {
+                        // Send flexible hotel booking confirmation email for flexible reservations
+                        $this->reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
+                    } else {
+                        // Send standard reservation approval email for non-flexible reservations
+                        // This ensures non-flexible reservations get pending approval emails
+                        $this->reservationService->sendReservationApprovalEmail($reservation);
+                    }
                 }
 
                 ApiResponseService::successResponse('Multiple room reservations created successfully', [
