@@ -1307,6 +1307,18 @@
             // Don't add iframe here - it's causing conflicts with the Google Maps API
             $('.parsley-error filled,.parsley-required').attr("aria-hidden", "true");
             $('.parsley-error filled,.parsley-required').hide();
+            
+            // Ensure Parsley validation errors are visible if validation fails
+            $('#myForm').parsley().on('form:error', function() {
+                console.error('Parsley validation failed');
+                // Show validation errors
+                $('.parsley-error').show();
+            });
+            
+            // Log when form is actually submitted
+            $('#myForm').on('submit', function() {
+                console.log('Form is being submitted...');
+            });
 
             // Add back the is_premium_switch functionality
             $("#is_premium_switch").on('change', function() {
@@ -1688,7 +1700,7 @@
                 if (agentAddonsValue) {
                     try {
                         JSON.parse(agentAddonsValue);
-                    } catch (e) {
+                    } catch (err) {
                         e.preventDefault();
                         $('#agent_addons_field').addClass('is-invalid');
                         $('#agent_addons_error').text('Invalid JSON format. Please fix the syntax before submitting.');
@@ -1696,6 +1708,15 @@
                         return false;
                     }
                 }
+                
+                // Show loading indicator
+                var submitButton = $(this).find('button[type="submit"]');
+                if (submitButton.length) {
+                    submitButton.prop('disabled', true).text('Saving...');
+                }
+                
+                // Let the form submit normally if validation passes
+                // Don't prevent default unless there's an error
             });
         });
 

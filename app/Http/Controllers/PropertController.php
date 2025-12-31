@@ -654,9 +654,13 @@ class PropertController extends Controller
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         } else {
             try {
+                // Validate that property exists
+                $UpdateProperty = Property::with('assignparameter.parameter')->find($id);
+                if (!$UpdateProperty) {
+                    return redirect()->route('property.index')->with('error', 'Property not found');
+                }
 
                 DB::beginTransaction();
-                $UpdateProperty = Property::with('assignparameter.parameter')->find($id);
                 
                 // Store original property data BEFORE any modifications
                 $originalPropertyData = $UpdateProperty->getAttributes();
@@ -1271,7 +1275,7 @@ class PropertController extends Controller
                 }
             } catch (Exception $e) {
                 DB::rollBack();
-                ResponseService::logErrorRedirectResponse($e, "Update Property Issue");
+                return ResponseService::logErrorRedirectResponse($e, "Update Property Issue");
             }
         }
     }

@@ -239,9 +239,7 @@ class ResponseService
     public static function logErrorRedirectResponse($e, string $logMessage = ' ', string $responseMessage = 'Error Occurred')
     {
         Log::error($logMessage . ' ' . $e->getMessage() . '---> ' . $e->getFile() . ' At Line : ' . $e->getLine());
-        if (config('app.debug')) {
-            self::errorRedirectResponse(null, $responseMessage);
-        }
-
+        // Always return a redirect response, not just in debug mode
+        return self::errorRedirectResponse(null, $responseMessage);
     }
 }
