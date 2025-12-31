@@ -319,6 +319,12 @@
                             {{ Form::label('rent_package', __('Rent Package'), ['class' => 'form-label col-12']) }}
                             {{ Form::select('rent_package', ['basic' => __('Basic'), 'premium' => __('Premium')], isset($list->rent_package) ? $list->rent_package : null, ['class' => 'form-control select2', 'placeholder' => __('Select Rent Package')]) }}
                         </div>
+                        
+                        {{-- Hotel VAT --}}
+                        <div class="form-group">
+                            {{ Form::label('hotel_vat', __('Hotel VAT (%)'), ['class' => 'form-label col-12 ']) }}
+                            {{ Form::number('hotel_vat', isset($list->hotel_vat) ? $list->hotel_vat : '', ['class' => 'form-control', 'placeholder' => __('Hotel VAT'), 'min' => '0', 'max' => '100', 'step' => '0.01', 'id' => 'hotel_vat']) }}
+                        </div>
                     </div>
 
 
@@ -326,12 +332,6 @@
                     <div class="control-label col-12 form-group mandatory price-field">
                         {{ Form::label('price', __('Price') . '(' . $currency_symbol . ')', ['class' => 'form-label col-12 ']) }}
                         {{ Form::number('price', isset($list->price) ? $list->price : '', ['class' => 'form-control ', 'placeholder' => __('Price'), 'min' => '1', 'max' => '9223372036854775807', 'id' => 'price']) }}
-                    </div>
-
-                    {{-- Hotel VAT --}}
-                    <div class="control-label col-12 form-group price-field">
-                        {{ Form::label('hotel_vat', __('Hotel VAT (%)'), ['class' => 'form-label col-12 ']) }}
-                        {{ Form::number('hotel_vat', isset($list->hotel_vat) ? $list->hotel_vat : '', ['class' => 'form-control', 'placeholder' => __('Hotel VAT'), 'min' => '0', 'max' => '100', 'step' => '0.01', 'id' => 'hotel_vat']) }}
                     </div>
 
                     {{-- Weekend Commission --}}

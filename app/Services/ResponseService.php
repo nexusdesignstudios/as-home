@@ -130,11 +130,13 @@ class ResponseService
      */
     public static function successRedirectResponse(string $message = "success", $url = null)
     {
+        // Remove ->send() - let Laravel handle the response properly
+        // Calling ->send() immediately outputs the response and can cause white screen issues
         return isset($url) ? redirect($url)->with([
             'success' => trans($message)
-        ])->send() : redirect()->back()->with([
+        ]) : redirect()->back()->with([
             'success' => trans($message)
-        ])->send();
+        ]);
     }
 
     /**
@@ -164,9 +166,11 @@ class ResponseService
      */
     public static function errorRedirectResponse($url = null, string $message = 'Error Occurred')
     {
+        // Remove ->send() - let Laravel handle the response properly
+        // Calling ->send() immediately outputs the response and can cause white screen issues
         return (($url != null) ? redirect($url) : redirect()->back())->with([
             'error' => trans($message)
-        ])->send();
+        ]);
     }
 
     /**

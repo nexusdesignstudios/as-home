@@ -1254,10 +1254,20 @@ class PropertController extends Controller
                 DB::commit();
                 
                 // Show appropriate success message based on whether edit request was created
-                if ($isOwnerEdit && !$autoApproveEdited) {
-                    ResponseService::successRedirectResponse('Property edit request created successfully. Changes will be applied after admin approval.');
-                } else {
-                    ResponseService::successRedirectResponse('Data Updated Successfully');
+                try {
+                    if ($isOwnerEdit && !$autoApproveEdited) {
+                        return redirect()->back()->with('success', trans('Property edit request created successfully. Changes will be applied after admin approval.'));
+                    } else {
+                        return redirect()->back()->with('success', trans('Data Updated Successfully'));
+                    }
+                } catch (\Exception $redirectException) {
+                    // If redirect fails, log it and redirect to property list as fallback
+                    \Log::error('Redirect failed after property update', [
+                        'property_id' => $id,
+                        'error' => $redirectException->getMessage(),
+                        'trace' => $redirectException->getTraceAsString()
+                    ]);
+                    return redirect()->route('property.index')->with('success', trans('Data Updated Successfully'));
                 }
             } catch (Exception $e) {
                 DB::rollBack();

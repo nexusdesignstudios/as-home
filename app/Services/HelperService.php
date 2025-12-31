@@ -2402,7 +2402,7 @@ class HelperService
     public static function sendMail($data, $requiredEmailException = false)
     {
         try {
-            $adminMail = env('MAIL_FROM_ADDRESS');
+            $adminMail = env('MAIL_FROM_ADDRESS') ?? env('MAIL_USERNAME') ?? config('mail.from.address') ?? 'noreply@ashome-eg.com';
 
             // Get logo for email footer - embed as base64 for email compatibility
             $logoUrl = '';
