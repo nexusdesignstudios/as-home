@@ -660,7 +660,7 @@ class PropertController extends Controller
                     return redirect()->route('property.index')->with('error', 'Property not found');
                 }
 
-                // Add validation for update method
+                // Add validation for update method (more lenient than create)
                 $validator = Validator::make($request->all(), [
                     'title'             => 'required|string|max:255',
                     'title_ar'          => 'nullable|string|max:255',
@@ -668,22 +668,22 @@ class PropertController extends Controller
                     'description_ar'    => 'nullable|string',
                     'area_description'  => 'nullable|string',
                     'area_description_ar' => 'nullable|string',
-                    'category'          => 'required|exists:categories,id',
-                    'property_type'     => 'required|in:1,2',
+                    'category'          => 'required',
+                    'property_type'     => 'nullable|in:0,1,2',
                     'property_classification' => 'nullable|integer|between:1,5',
                     'address'           => 'required|string',
                     'price'             => 'nullable|numeric|min:0',
                     'title_image'       => 'nullable|file|max:3000|mimes:jpeg,png,jpg',
                     '3d_image'          => 'nullable|mimes:jpg,jpeg,png,gif|max:3000',
                     'documents.*'       => 'nullable|mimes:pdf,doc,docx,txt|max:5120',
-                    'corresponding_day' => 'nullable|json',
-                    'agent_addons'      => 'nullable|json',
+                    'corresponding_day' => 'nullable',
+                    'agent_addons'      => 'nullable',
                     'hotel_rooms'       => 'nullable|array',
-                    'hotel_rooms.*.room_type_id' => 'nullable|exists:hotel_room_types,id',
+                    'hotel_rooms.*.room_type_id' => 'nullable',
                     'hotel_rooms.*.price_per_night' => 'nullable|numeric|min:0',
                     'hotel_rooms.*.description' => 'nullable|string',
-                    'video_link' => ['nullable', 'url', function ($attribute, $value, $fail) {
-                        if (!empty($value)) {
+                    'video_link' => ['nullable', function ($attribute, $value, $fail) {
+                        if (!empty($value) && !filter_var($value, FILTER_VALIDATE_URL)) {
                             $youtubePattern = '/^(https?\:\/\/)?(www\.youtube\.com|youtu\.be)\/.+$/';
                             if (!preg_match($youtubePattern, $value)) {
                                 return $fail("The Video Link must be a valid YouTube URL.");
@@ -694,8 +694,6 @@ class PropertController extends Controller
                     'title.required' => 'Property title is required.',
                     'description.required' => 'Property description is required.',
                     'category.required' => 'Property category is required.',
-                    'category.exists' => 'Selected category is invalid.',
-                    'property_type.required' => 'Property type is required.',
                     'address.required' => 'Property address is required.',
                     'title_image.mimes' => 'Title image must be a JPEG, PNG, or JPG file.',
                     'title_image.max' => 'Title image must not exceed 3MB.',
@@ -708,7 +706,8 @@ class PropertController extends Controller
                     Log::warning('Property update validation failed', [
                         'property_id' => $id,
                         'errors' => $errors->all(),
-                        'request_data' => $request->except(['title_image', '3d_image', 'documents', 'gallery_images'])
+                        'request_keys' => array_keys($request->all()),
+                        'request_data_sample' => array_slice($request->except(['title_image', '3d_image', 'documents', 'gallery_images']), 0, 10, true)
                     ]);
                     
                     return redirect()->back()
@@ -1501,15 +1500,35 @@ class PropertController extends Controller
                     ]
                 ]);
                 
-                // Provide user-friendly error message
+                // Provide user-friendly error message with more details
                 $errorMessage = "An error occurred while updating the property.";
-                if (strpos($e->getMessage(), 'SQLSTATE') !== false) {
-                    $errorMessage = "Database error occurred. Please check the data and try again.";
-                } elseif (strpos($e->getMessage(), 'validation') !== false || strpos($e->getMessage(), 'required') !== false) {
-                    $errorMessage = "Validation error: " . $e->getMessage();
-                } elseif (strpos($e->getMessage(), 'permission') !== false || strpos($e->getMessage(), 'unauthorized') !== false) {
+                $errorDetails = $e->getMessage();
+                
+                if (strpos($errorDetails, 'SQLSTATE') !== false) {
+                    // Extract more specific database error information
+                    if (strpos($errorDetails, 'Integrity constraint violation') !== false) {
+                        $errorMessage = "Database constraint error. Please check that all related data is valid.";
+                    } elseif (strpos($errorDetails, 'Column not found') !== false) {
+                        $errorMessage = "Database column error. Please contact support.";
+                    } elseif (strpos($errorDetails, 'Duplicate entry') !== false) {
+                        $errorMessage = "Duplicate entry error. This data already exists.";
+                    } else {
+                        $errorMessage = "Database error occurred. Please check the data and try again.";
+                    }
+                } elseif (strpos($errorDetails, 'validation') !== false || strpos($errorDetails, 'required') !== false) {
+                    $errorMessage = "Validation error: " . $errorDetails;
+                } elseif (strpos($errorDetails, 'permission') !== false || strpos($errorDetails, 'unauthorized') !== false) {
                     $errorMessage = "You don't have permission to perform this action.";
                 }
+                
+                // Log the full error for debugging
+                Log::error('Property update error details', [
+                    'property_id' => $id,
+                    'error_message' => $errorDetails,
+                    'error_class' => get_class($e),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ]);
                 
                 return redirect()->back()
                     ->withInput()
