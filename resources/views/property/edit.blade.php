@@ -1070,7 +1070,24 @@
 @section('script')
     <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=places&key={{ env('PLACE_API_KEY') }}&callback=initMap" async defer></script>
     <script>
+        // Flag to track if map is initialized
+        var mapInitialized = false;
+        
         function initMap() {
+            // Check if Google Maps API is loaded
+            if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
+                console.warn('Google Maps API not loaded yet, waiting...');
+                // Retry after a short delay
+                setTimeout(initMap, 100);
+                return;
+            }
+            
+            // Prevent multiple initializations
+            if (mapInitialized) {
+                console.log('Map already initialized, skipping...');
+                return;
+            }
+            
             // Properly parse latitude and longitude as floats, with fallback values
             var latitude = parseFloat($('#latitude').val()) || 20.593684;
             var longitude = parseFloat($('#longitude').val()) || 78.96288;
@@ -1135,6 +1152,11 @@
                 });
             });
             var input = document.getElementById('searchInput');
+            if (!input) {
+                console.error('searchInput element not found');
+                return;
+            }
+            
             // map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
 
             var autocomplete = new google.maps.places.Autocomplete(input);
@@ -1204,9 +1226,14 @@
                 $('#latitude').val(place.geometry.location.lat());
                 $('#longitude').val(place.geometry.location.lng());
             });
+            
+            // Mark map as initialized
+            mapInitialized = true;
         }
 
         $(document).ready(function() {
+            // Don't call initMap() here - it's called automatically by Google Maps API callback
+            // The callback=initMap in the script tag will call it when API is ready
             // Debug form values on page load
             console.log("Form values on page load:");
             console.log("City:", $('#searchInput').val());
@@ -1302,7 +1329,13 @@
             $('.title_img').hide();
         });
         jQuery(document).ready(function() {
-            initMap();
+            // Don't call initMap() here - it's called automatically by Google Maps API callback
+            // The callback=initMap in the script tag will call it when API is ready
+            // Only call it manually if Google Maps API is already loaded (fallback)
+            if (typeof google !== 'undefined' && typeof google.maps !== 'undefined' && !mapInitialized) {
+                // API is already loaded, initialize map
+                initMap();
+            }
 
             // Don't add iframe here - it's causing conflicts with the Google Maps API
             $('.parsley-error filled,.parsley-required').attr("aria-hidden", "true");
