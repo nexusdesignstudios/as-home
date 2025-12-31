@@ -533,8 +533,9 @@ class ReservationController extends Controller
                     'number_of_guests' => $request->number_of_guests ?? 1,
                     'total_price' => $totalPrice,
                     'special_requests' => $request->special_requests,
-                    'status' => 'pending',
+                    'status' => 'confirmed', // Auto-confirm for flexible reservations (cash/offline)
                     'payment_status' => 'unpaid',
+                    'payment_method' => 'cash', // Explicitly set as cash payment for flexible reservations
                 ];
 
                 // SAFETY: Only populate apartment_id and apartment_quantity for MULTI-UNIT vacation homes
@@ -650,8 +651,9 @@ class ReservationController extends Controller
                         'number_of_guests' => $request->number_of_guests ?? 1,
                         'total_price' => $roomAmount,
                         'special_requests' => $request->special_requests,
-                        'status' => 'pending',
+                        'status' => 'confirmed', // Auto-confirm for flexible reservations (cash/offline)
                         'payment_status' => 'unpaid',
+                        'payment_method' => 'cash', // Explicitly set as cash payment for flexible reservations
                     ];
 
                     $reservation = $this->reservationService->createReservation($reservationData, true);

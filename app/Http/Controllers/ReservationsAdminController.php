@@ -234,14 +234,16 @@ class ReservationsAdminController extends Controller
             }
 
             // Get property name and type
-            $propertyName = '';
-            $propertyType = '';
+            $propertyName = 'N/A';
+            $propertyType = 'N/A';
 
             if ($reservation->reservable_type === 'App\\Models\\Property') {
                 if (!$reservable) {
-                    continue; // Skip if reservable is missing
-                }
-                $propertyName = $reservable->title ?? 'N/A';
+                    // Handle missing reservable - show as orphaned reservation
+                    $propertyName = 'Property (Missing)';
+                    $propertyType = 'Orphaned';
+                } else {
+                    $propertyName = $reservable->title ?? 'N/A';
                 // Check property classification to determine type
                 try {
                     $propertyClassification = $reservable->getRawOriginal('property_classification');
@@ -269,36 +271,38 @@ class ReservationsAdminController extends Controller
                     // Other classifications (1=Sell/Rent, 2=Commercial, 3=New Project)
                     $propertyType = 'Property';
                 }
-            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+            }
+        } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
                 if (!$reservable) {
-                    // Skip reservations where reservable is null (orphaned reservations)
-                    continue;
-                }
-                
-                // Load property relationship if not already loaded
-                if (!$reservable->relationLoaded('property')) {
-                    $reservable->load('property:id,title');
-                }
-                
-                $propertyName = $reservable->property->title ?? 'N/A';
-                $propertyType = 'Hotel Room';
-                
-                // Load roomType if not already loaded
-                if (!$reservable->relationLoaded('roomType') && $reservable->room_type_id) {
-                    $reservable->load('roomType:id,name');
-                }
-                
-                if ($reservable->roomType) {
-                    $propertyName .= ' - ' . $reservable->roomType->name;
-                }
-                
-                // Determine refund policy based on payment method
-                // Cash/Manual payment = Flexible
-                // Online/Paymob payment = Non-Refundable
-                if ($this->isFlexibleReservation($reservation)) {
-                    $propertyType .= ' (Flexible)';
+                    // Handle missing reservable - show as orphaned reservation
+                    $propertyName = 'Hotel Room (Missing)';
+                    $propertyType = 'Orphaned';
                 } else {
-                    $propertyType .= ' (Non-Refundable)';
+                    // Load property relationship if not already loaded
+                    if (!$reservable->relationLoaded('property')) {
+                        $reservable->load('property:id,title');
+                    }
+                    
+                    $propertyName = $reservable->property->title ?? 'N/A';
+                    $propertyType = 'Hotel Room';
+                    
+                    // Load roomType if not already loaded
+                    if (!$reservable->relationLoaded('roomType') && $reservable->room_type_id) {
+                        $reservable->load('roomType:id,name');
+                    }
+                    
+                    if ($reservable->roomType) {
+                        $propertyName .= ' - ' . $reservable->roomType->name;
+                    }
+                    
+                    // Determine refund policy based on payment method
+                    // Cash/Manual payment = Flexible
+                    // Online/Paymob payment = Non-Refundable
+                    if ($this->isFlexibleReservation($reservation)) {
+                        $propertyType .= ' (Flexible)';
+                    } else {
+                        $propertyType .= ' (Non-Refundable)';
+                    }
                 }
             }
 
