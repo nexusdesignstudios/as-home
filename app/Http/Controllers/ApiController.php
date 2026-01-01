@@ -12669,6 +12669,7 @@ Best regards,
                 'approval_status' => 'pending',
                 'requires_approval' => true,
                 'booking_type' => 'reservation_request',
+                'refund_policy' => $request->refund_policy ?? 'non-refundable', // Store refund policy from request
                 'special_requests' => $request->special_requests,
                 'transaction_id' => 'PF-' . $submission->id, // Payment Form prefix
                 'created_at' => now(),

@@ -539,6 +539,7 @@ class ReservationController extends Controller
                     'status' => $isFlexible ? 'confirmed' : 'pending', // Auto-confirm only for flexible reservations
                     'payment_status' => 'unpaid',
                     'payment_method' => $isFlexible ? 'cash' : ($request->payment_method ?? 'online'), // Cash only for flexible reservations
+                    'refund_policy' => $isFlexible ? 'flexible' : 'non-refundable', // Store the refund policy
                 ];
 
                 // SAFETY: Only populate apartment_id and apartment_quantity for MULTI-UNIT vacation homes
@@ -673,6 +674,7 @@ class ReservationController extends Controller
                         'status' => $roomIsFlexible ? 'confirmed' : 'pending', // Auto-confirm only for flexible reservations
                         'payment_status' => 'unpaid',
                         'payment_method' => $roomIsFlexible ? 'cash' : ($request->payment_method ?? 'online'), // Cash only for flexible reservations
+                        'refund_policy' => $roomIsFlexible ? 'flexible' : 'non-refundable', // Store the refund policy
                     ];
 
                     $reservation = $this->reservationService->createReservation($reservationData, true);

@@ -82,13 +82,20 @@ class ReservationsAdminController extends Controller
         // Conditionally load nested relationships only for HotelRoom reservations
         // Don't try to load reservable.property for Property types (it doesn't exist)
         // For vacation homes, reservable IS the property, so no nested relationships needed
-        if ($type === 'hotels' || $type === 'all') {
-            // Load these for HotelRoom reservations
+        if ($type === 'hotels') {
+            // Load these for HotelRoom reservations only
             $query->with([
                 'reservable.property:id,title,property_classification',
                 'reservable.roomType:id,name',
                 'payment:id,reservation_id,status' // Load payment to check if it's online payment
             ]);
+        } elseif ($type === 'all') {
+            // For 'all' type, we need to be more careful with relationship loading
+            // Load only the base relationships that exist for all types
+            $query->with([
+                'payment:id,reservation_id,status' // Load payment to check if it's online payment
+            ]);
+            // We'll load the specific relationships later based on reservable_type
         }
 
         // Filter by type
@@ -411,7 +418,7 @@ class ReservationsAdminController extends Controller
             }
 
             // Status badge
-            $statusBadge = $this->getStatusBadge($reservation->status);
+            $statusBadge = $this->getStatusBadge($reservation->status, $reservation);
             $paymentBadge = $this->getPaymentStatusBadge($reservation->payment_status);
 
             // Handle date formatting safely
@@ -450,10 +457,17 @@ class ReservationsAdminController extends Controller
      * Get status badge HTML.
      *
      * @param string $status
+     * @param \App\Models\Reservation|null $reservation
      * @return string
      */
-    private function getStatusBadge($status)
+    private function getStatusBadge($status, $reservation = null)
     {
+        // Check if this is a flexible reservation and add orange styling
+        $isFlexible = false;
+        if ($reservation) {
+            $isFlexible = $this->isFlexibleReservation($reservation);
+        }
+
         $badges = [
             'pending' => '<span class="badge bg-warning">Pending</span>',
             'approved' => '<span class="badge bg-info">Approved</span>',
@@ -463,7 +477,18 @@ class ReservationsAdminController extends Controller
             'rejected' => '<span class="badge bg-danger">Rejected</span>'
         ];
 
-        return $badges[$status] ?? '<span class="badge bg-secondary">' . ucfirst($status) . '</span>';
+        $badge = $badges[$status] ?? '<span class="badge bg-secondary">' . ucfirst($status) . '</span>';
+
+        // Add orange styling for flexible reservations
+        if ($isFlexible) {
+            // Use orange (bg-warning) for flexible reservations, but preserve some differentiation
+            $badge = str_replace('bg-success', 'bg-warning', $badge); // Confirmed flexible = orange
+            $badge = str_replace('bg-info', 'bg-warning', $badge);    // Approved flexible = orange  
+            $badge = str_replace('bg-secondary', 'bg-warning', $badge); // Completed flexible = orange
+            // Keep pending as bg-warning (already orange), cancelled as bg-danger (red)
+        }
+
+        return $badge;
     }
 
     /**

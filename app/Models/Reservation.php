@@ -40,6 +40,7 @@ class Reservation extends Model
         'approval_status',
         'requires_approval',
         'booking_type',
+        'refund_policy',
         'property_details',
         'reservable_data',
         'feedback_token',
