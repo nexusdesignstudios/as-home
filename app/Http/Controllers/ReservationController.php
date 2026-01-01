@@ -537,7 +537,7 @@ class ReservationController extends Controller
                     'total_price' => $totalPrice,
                     'special_requests' => $request->special_requests,
                     'status' => $isFlexible ? 'confirmed' : 'pending', // Auto-confirm only for flexible reservations
-                    'payment_status' => 'unpaid',
+                    'payment_status' => $isFlexible ? 'paid' : 'unpaid', // Treat flexible reservations as paid
                     'payment_method' => $isFlexible ? 'cash' : ($request->payment_method ?? 'online'), // Cash only for flexible reservations
                     'refund_policy' => $isFlexible ? 'flexible' : 'non-refundable', // Store the refund policy
                 ];
@@ -613,7 +613,7 @@ class ReservationController extends Controller
                     }
                 } elseif ($propertyClassification == 5) {
                     // Hotel booking - send flexible hotel booking confirmation email
-                    $this->reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
+                    $this->reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation);
                 }
 
                 ApiResponseService::successResponse('Reservation created successfully', [
@@ -698,7 +698,7 @@ class ReservationController extends Controller
                         'total_price' => $roomAmount,
                         'special_requests' => $request->special_requests,
                         'status' => $roomIsFlexible ? 'confirmed' : 'pending', // Auto-confirm only for flexible reservations
-                        'payment_status' => 'unpaid',
+                        'payment_status' => $roomIsFlexible ? 'paid' : 'unpaid', // Treat flexible reservations as paid
                         'payment_method' => $roomIsFlexible ? 'cash' : ($request->payment_method ?? 'online'), // Cash only for flexible reservations
                         'refund_policy' => $roomIsFlexible ? 'flexible' : 'non-refundable', // Store the refund policy
                     ];
@@ -732,7 +732,7 @@ class ReservationController extends Controller
                         }
                         
                         // Send flexible hotel booking confirmation email for flexible reservations
-                        $this->reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
+                        $this->reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation);
                     } else {
                         // Send standard reservation approval email for non-flexible reservations
                         // This ensures non-flexible reservations get pending approval emails
