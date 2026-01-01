@@ -12803,6 +12803,14 @@ Best regards,
         } catch (Exception $e) {
             DB::rollBack();
             ResponseService::logErrorResponse($e, "Payment Form Submission Error", "Something Went Wrong");
+            
+            // Always return JSON response to prevent frontend JSON parsing errors
+            return response()->json([
+                'error' => true,
+                'message' => 'An error occurred while processing your payment. Please try again.',
+                'data' => null,
+                'details' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
         }
     }
 
