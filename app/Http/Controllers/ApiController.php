@@ -12687,6 +12687,15 @@ Best regards,
                 $reservationData['booking_type'] = $request->booking_type;
             }
 
+            // Handle flexible reservations - ensure proper status and payment method
+            if ($request->has('booking_type') && $request->booking_type === 'flexible_booking') {
+                $reservationData['status'] = 'confirmed'; // Auto-confirm flexible reservations
+                $reservationData['payment_status'] = 'unpaid'; // Keep as unpaid until manual payment
+                $reservationData['payment_method'] = 'cash'; // Use cash for flexible reservations
+                $reservationData['approval_status'] = 'approved'; // Auto-approve
+                $reservationData['requires_approval'] = false; // No approval needed
+            }
+
             // Add property details if provided
             if ($request->has('property_details')) {
                 $reservationData['property_details'] = json_encode($request->property_details);
@@ -12753,7 +12762,18 @@ Best regards,
                     $reservationService = new \App\Services\ReservationService();
                     $propertyClassification = $property->getRawOriginal('property_classification');
                     
-                    if ($propertyClassification == 4) {
+                    // Check if this is a flexible booking
+                    $isFlexibleBooking = $reservation->booking_type === 'flexible_booking';
+                    
+                    if ($isFlexibleBooking) {
+                        // Flexible booking - send confirmation email (no approval needed)
+                        $reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation);
+                        Log::info('Flexible booking confirmation email sent to customer', [
+                            'reservation_id' => $reservation->id,
+                            'customer_email' => $customer->email,
+                            'booking_type' => 'flexible_booking'
+                        ]);
+                    } elseif ($propertyClassification == 4) {
                         // Vacation home - send pending approval email
                         $reservationService->sendVacationHomePendingApprovalEmail($reservation);
                     } elseif ($propertyClassification == 5) {
@@ -12761,14 +12781,15 @@ Best regards,
                         $reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation);
                     }
                     
-                    Log::info('Both emails sent: Payment form submission to owner and pending approval email to customer', [
+                    Log::info('Both emails sent: Payment form submission to owner and appropriate email to customer', [
                         'reservation_id' => $reservation->id,
                         'property_owner_email' => $property->customer->email,
                         'customer_email' => $customer->email,
                         'property_classification' => $propertyClassification,
                         'property_id' => $property->id,
                         'instant_booking' => $property->instant_booking,
-                        'booking_type' => 'payment_form_submission'
+                        'booking_type' => $reservation->booking_type,
+                        'is_flexible_booking' => $isFlexibleBooking
                     ]);
                 } else {
                     Log::info('Payment form submission email sent to property owner only (customer email not found)', [

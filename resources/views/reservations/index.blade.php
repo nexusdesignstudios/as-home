@@ -683,5 +683,49 @@ function updateStatus(id, status) {
         }
     });
 }
+
+function updatePaymentStatus(id, paymentStatus) {
+    const actionText = paymentStatus === 'paid' ? 'mark as paid' : 'mark as unpaid';
+    if (!confirm(`Are you sure you want to ${actionText} this reservation?`)) {
+        return;
+    }
+
+    $.ajax({
+        url: '{{ route("reservations.update-status", ":id") }}'.replace(':id', id),
+        method: 'POST',
+        data: {
+            payment_status: paymentStatus,
+            _token: '{{ csrf_token() }}'
+        },
+        success: function(response) {
+            if (response.success) {
+                // Refresh the current table
+                if (tables[currentTab]) {
+                    tables[currentTab].bootstrapTable('refresh');
+                }
+
+                // Show success message
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: response.message || 'Payment status updated successfully'
+                });
+            }
+        },
+        error: function(xhr) {
+            console.error('Error updating payment status:', xhr);
+            let errorMessage = 'Error updating payment status';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            }
+
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: errorMessage
+            });
+        }
+    });
+}
 </script>
 @endsection

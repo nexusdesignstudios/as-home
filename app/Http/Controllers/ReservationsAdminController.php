@@ -553,6 +553,19 @@ class ReservationsAdminController extends Controller
                         </button>';
         }
 
+        // Payment status update for flexible reservations (cash/manual payments)
+        if ($this->isFlexibleReservation($reservation)) {
+            if ($reservation->payment_status === 'unpaid' && in_array($reservation->status, ['pending', 'confirmed'])) {
+                $buttons .= '<button type="button" class="btn btn-sm btn-outline-warning" onclick="updatePaymentStatus(' . $reservation->id . ', \'paid\')" title="Mark as Paid">
+                                <i class="bi bi-currency-dollar"></i>
+                            </button>';
+            } elseif ($reservation->payment_status === 'paid' && in_array($reservation->status, ['pending', 'confirmed'])) {
+                $buttons .= '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="updatePaymentStatus(' . $reservation->id . ', \'unpaid\')" title="Mark as Unpaid">
+                                <i class="bi bi-currency-dollar"></i>
+                            </button>';
+            }
+        }
+
         $buttons .= '</div>';
 
         return $buttons;
@@ -595,9 +608,13 @@ class ReservationsAdminController extends Controller
                 
                 $reservationService->handleReservationConfirmation($reservation, $paymentStatus);
 
+                // Reload the reservation with updated data
+                $reservation->refresh();
+
                 return response()->json([
                     'success' => true,
-                    'message' => 'Reservation confirmed successfully. Available dates updated and confirmation email sent.'
+                    'message' => 'Reservation confirmed successfully. Available dates updated and confirmation email sent.',
+                    'reservation' => $reservation
                 ]);
             } elseif ($newStatus === 'approved') {
                 // Handle approved status - send approval email
@@ -613,9 +630,13 @@ class ReservationsAdminController extends Controller
                 $reservationService = app(\App\Services\ReservationService::class);
                 $reservationService->sendReservationApprovalEmail($reservation);
 
+                // Reload the reservation with updated data
+                $reservation->refresh();
+
                 return response()->json([
                     'success' => true,
-                    'message' => 'Reservation approved successfully. Approval email sent to customer.'
+                    'message' => 'Reservation approved successfully. Approval email sent to customer.',
+                    'reservation' => $reservation
                 ]);
             } else {
                 // For other status changes, use the existing logic
@@ -627,9 +648,13 @@ class ReservationsAdminController extends Controller
 
                 $reservation->save();
 
+                // Reload the reservation with updated data
+                $reservation->refresh();
+
                 return response()->json([
                     'success' => true,
-                    'message' => 'Reservation status updated successfully'
+                    'message' => 'Reservation status updated successfully',
+                    'reservation' => $reservation
                 ]);
             }
         } catch (\Exception $e) {
