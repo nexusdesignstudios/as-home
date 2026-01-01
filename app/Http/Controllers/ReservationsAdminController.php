@@ -82,16 +82,14 @@ class ReservationsAdminController extends Controller
         // Conditionally load nested relationships only for HotelRoom reservations
         // Don't try to load reservable.property for Property types (it doesn't exist)
         // For vacation homes, reservable IS the property, so no nested relationships needed
-        if ($type === 'hotels') {
-            // Only load these for HotelRoom reservations
+        if ($type === 'hotels' || $type === 'all') {
+            // Load these for HotelRoom reservations
             $query->with([
                 'reservable.property:id,title,property_classification',
                 'reservable.roomType:id,name',
                 'payment:id,reservation_id,status' // Load payment to check if it's online payment
             ]);
         }
-        // For type 'all', we'll handle loading relationships per-reservation in the loop
-        // to avoid trying to load reservable.property on Property models
 
         // Filter by type
         if ($type === 'vacation_homes') {
@@ -303,6 +301,112 @@ class ReservationsAdminController extends Controller
                     } else {
                         $propertyType .= ' (Non-Refundable)';
                     }
+                }
+            } elseif ($reservation->reservable_type === 'hotel_room') {
+                // Handle case where resolvable_type is 'hotel_room' (lowercase)
+                if (!$reservable) {
+                    // Try to load the hotel room manually since the polymorphic relationship might not work
+                    $hotelRoom = \App\Models\HotelRoom::find($reservation->reservable_id);
+                    if ($hotelRoom) {
+                        // Load property relationship
+                        $property = \App\Models\Property::find($hotelRoom->property_id);
+                        if ($property) {
+                            $propertyName = $property->title ?? 'N/A';
+                            $propertyType = 'Hotel Room';
+                            
+                            // Load room type if available
+                            if ($hotelRoom->room_type_id) {
+                                $roomType = \App\Models\RoomType::find($hotelRoom->room_type_id);
+                                if ($roomType) {
+                                    $propertyName .= ' - ' . $roomType->name;
+                                }
+                            }
+                            
+                            // Determine refund policy based on payment method
+                            if ($this->isFlexibleReservation($reservation)) {
+                                $propertyType .= ' (Flexible)';
+                            } else {
+                                $propertyType .= ' (Non-Refundable)';
+                            }
+                        } else {
+                            $propertyName = 'Property (Missing)';
+                            $propertyType = 'Orphaned';
+                        }
+                    } else {
+                        $propertyName = 'Hotel Room (Missing)';
+                        $propertyType = 'Orphaned';
+                    }
+                } else {
+                    // Fallback to standard HotelRoom logic if resolvable is loaded
+                    // Load property relationship if not already loaded
+                    if (!$reservable->relationLoaded('property')) {
+                        $reservable->load('property:id,title');
+                    }
+                    
+                    $propertyName = $reservable->property->title ?? 'N/A';
+                    $propertyType = 'Hotel Room';
+                    
+                    // Load roomType if not already loaded
+                    if (!$reservable->relationLoaded('roomType') && $reservable->room_type_id) {
+                        $reservable->load('roomType:id,name');
+                    }
+                    
+                    if ($reservable->roomType) {
+                        $propertyName .= ' - ' . $reservable->roomType->name;
+                    }
+                    
+                    // Determine refund policy based on payment method
+                    if ($this->isFlexibleReservation($reservation)) {
+                        $propertyType .= ' (Flexible)';
+                    } else {
+                        $propertyType .= ' (Non-Refundable)';
+                    }
+                }
+            }
+
+            // Handle property-level reservations (when resolvable_type is empty but property_id is set)
+            if (empty($reservation->reservable_type) && $reservation->property_id) {
+                $property = \App\Models\Property::find($reservation->property_id);
+                if ($property) {
+                    $propertyName = $property->title ?? 'N/A';
+                    
+                    // Check property classification to determine type
+                    try {
+                        $propertyClassification = $property->getRawOriginal('property_classification');
+                    } catch (\Exception $e) {
+                        // Fallback if getRawOriginal fails
+                        $propertyClassification = $property->property_classification ?? null;
+                        // If it's still null or a string, try to parse it
+                        if (is_string($propertyClassification)) {
+                            $propertyClassification = match($propertyClassification) {
+                                'vacation_homes' => 4,
+                                'hotel_booking' => 5,
+                                'sell_rent' => 1,
+                                'commercial' => 2,
+                                'new_project' => 3,
+                                default => null
+                            };
+                        }
+                    }
+                    
+                    if ($propertyClassification == 4) {
+                        $propertyType = 'Vacation Home';
+                    } elseif ($propertyClassification == 5) {
+                        $propertyType = 'Hotel Property';
+                    } else {
+                        // Other classifications (1=Sell/Rent, 2=Commercial, 3=New Project)
+                        $propertyType = 'Property';
+                    }
+                    
+                    // Determine refund policy based on payment method
+                    if ($this->isFlexibleReservation($reservation)) {
+                        $propertyType .= ' (Flexible)';
+                    } else {
+                        $propertyType .= ' (Non-Refundable)';
+                    }
+                } else {
+                    $propertyName = 'Property (Missing)';
+                    $propertyType = 'Orphaned';
                 }
             }
 
