@@ -36,10 +36,18 @@ foreach ($rooms as $room) {
     
     // Count reservations for this room - check correct column name
     $reservationCount = Reservation::where(function($query) use ($room) {
-        $query->where('room_ids', 'LIKE', '%"' . $room->id . '"%')
-              ->orWhere('room_ids', 'LIKE', '%' . $room->id . '%');
+        // Method 1: Direct room ID match (old reservations)
+        $query->where(function($q) use ($room) {
+            $q->where('reservable_id', $room->id)
+              ->where('reservable_type', 'hotel_room');
+        })
+        // Method 2: Property ID in reservable_id, but room ID in reservable_data (new reservations)
+        ->orWhere(function($q) use ($room) {
+            $q->where('reservable_id', 351) // property ID
+              ->where('reservable_type', 'property')
+              ->whereRaw('JSON_CONTAINS(reservable_data, ?)', ['{"id": ' . $room->id . '}']);
+        });
     })
-    ->where('property_id', 351)
     ->whereIn('status', ['pending', 'approved', 'confirmed'])
     ->count();
     
@@ -61,13 +69,44 @@ $reservations = Reservation::where('property_id', 351)
     ->whereIn('status', ['pending', 'approved', 'confirmed'])
     ->get();
 
+// Also check for reservations with property_id in reservable_id (bug case)
+echo "=== POTENTIAL BUG RESERVATIONS (reservable_id = 351) ===\n";
+$bugReservations = Reservation::where('reservable_id', 351)
+    ->where('reservable_type', 'hotel_room')
+    ->where(function($query) {
+        $query->whereBetween('check_in_date', ['2026-01-01', '2026-01-03'])
+              ->orWhereBetween('check_out_date', ['2026-01-01', '2026-01-03'])
+              ->orWhere(function($q) {
+                  $q->where('check_in_date', '<=', '2026-01-01')
+                    ->where('check_out_date', '>=', '2026-01-03');
+              });
+    })
+    ->whereIn('status', ['pending', 'approved', 'confirmed'])
+    ->get();
+
 foreach ($reservations as $reservation) {
     echo "🔒 Reservation ID: {$reservation->id}\n";
-    echo "🛏️ Room IDs: {$reservation->room_ids}\n";
+    echo "🛏️ Reservable ID: {$reservation->reservable_id}\n";
+    echo "🛏️ Reservable Type: {$reservation->reservable_type}\n";
     echo "📅 Check-in: {$reservation->check_in_date}\n";
     echo "📅 Check-out: {$reservation->check_out_date}\n";
     echo "🔖 Status: {$reservation->status}\n";
     echo "💳 Payment Method: {$reservation->payment_method}\n";
+    echo "📋 Reservable Data: " . json_encode($reservation->reservable_data) . "\n";
+    echo "---\n";
+}
+
+// Show bug reservations separately
+echo "=== BUG RESERVATIONS (reservable_id = 351, should be room ID) ===\n";
+foreach ($bugReservations as $reservation) {
+    echo "🔒 BUG Reservation ID: {$reservation->id}\n";
+    echo "🛏️ Reservable ID: {$reservation->reservable_id} (SHOULD BE ROOM ID!)\n";
+    echo "🛏️ Reservable Type: {$reservation->reservable_type}\n";
+    echo "📅 Check-in: {$reservation->check_in_date}\n";
+    echo "📅 Check-out: {$reservation->check_out_date}\n";
+    echo "🔖 Status: {$reservation->status}\n";
+    echo "💳 Payment Method: {$reservation->payment_method}\n";
+    echo "📋 Reservable Data: " . json_encode($reservation->reservable_data) . "\n";
     echo "---\n";
 }
 
@@ -92,10 +131,18 @@ foreach ($rooms as $room) {
     // Check for conflicting reservations
     if ($isAvailable) {
         $conflictingReservations = Reservation::where(function($query) use ($room) {
-            $query->where('room_ids', 'LIKE', '%"' . $room->id . '"%')
-                  ->orWhere('room_ids', 'LIKE', '%' . $room->id . '%');
+            // Method 1: Direct room ID match (old reservations)
+            $query->where(function($q) use ($room) {
+                $q->where('reservable_id', $room->id)
+                  ->where('reservable_type', 'hotel_room');
+            })
+            // Method 2: Property ID in reservable_id, but room ID in reservable_data (new reservations)
+            ->orWhere(function($q) use ($room) {
+                $q->where('reservable_id', 351) // property ID
+                  ->where('reservable_type', 'property')
+                  ->whereRaw('JSON_CONTAINS(reservable_data, ?)', ['{"id": ' . $room->id . '}']);
+            });
         })
-        ->where('property_id', 351)
         ->where(function($query) use ($targetDate) {
             $query->where(function($q) use ($targetDate) {
                 $q->where('check_in_date', '<=', $targetDate)

@@ -562,6 +562,32 @@ class ReservationController extends Controller
                 // Create the reservation without sending emails (checkout without payment)
                 $reservation = $this->reservationService->createReservation($reservationData, true);
                 
+                // For flexible reservations, update available dates immediately since they're auto-confirmed
+                if ($isFlexible) {
+                    try {
+                        $this->reservationService->updateAvailableDates(
+                            $reservation->reservable_type,
+                            $reservation->reservable_id,
+                            $reservation->check_in_date,
+                            $reservation->check_out_date,
+                            $reservation->id
+                        );
+                        
+                        Log::info('Available dates updated for flexible vacation home reservation', [
+                            'reservation_id' => $reservation->id,
+                            'property_id' => $reservation->reservable_id,
+                            'check_in' => $reservation->check_in_date,
+                            'check_out' => $reservation->check_out_date
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to update available dates for flexible vacation home reservation', [
+                            'error' => $e->getMessage(),
+                            'reservation_id' => $reservation->id,
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                    }
+                }
+                
                 // Send appropriate email based on property classification
                 $propertyClassification = $property->getRawOriginal('property_classification');
                 if ($propertyClassification == 4) {
@@ -680,8 +706,31 @@ class ReservationController extends Controller
                     $reservation = $this->reservationService->createReservation($reservationData, true);
                     $reservations[] = $reservation;
                     
-                    // Send appropriate email based on refund policy
+                    // For flexible reservations, update available dates immediately since they're auto-confirmed
                     if ($roomIsFlexible) {
+                        try {
+                            $this->reservationService->updateAvailableDates(
+                                $reservation->reservable_type,
+                                $reservation->reservable_id,
+                                $reservation->check_in_date,
+                                $reservation->check_out_date,
+                                $reservation->id
+                            );
+                            
+                            Log::info('Available dates updated for flexible reservation', [
+                                'reservation_id' => $reservation->id,
+                                'room_id' => $reservation->reservable_id,
+                                'check_in' => $reservation->check_in_date,
+                                'check_out' => $reservation->check_out_date
+                            ]);
+                        } catch (\Exception $e) {
+                            Log::error('Failed to update available dates for flexible reservation', [
+                                'error' => $e->getMessage(),
+                                'reservation_id' => $reservation->id,
+                                'trace' => $e->getTraceAsString()
+                            ]);
+                        }
+                        
                         // Send flexible hotel booking confirmation email for flexible reservations
                         $this->reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
                     } else {
