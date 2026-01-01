@@ -844,17 +844,21 @@ class ReservationController extends Controller
                 $q->where('reservable_type', 'App\\Models\\Property')
                     ->where('reservable_id', $propertyId);
             })->orWhere(function ($q) use ($propertyId) {
-                $q->where('reservable_type', 'App\\Models\\HotelRoom')
-                    ->whereHas('reservable', function ($q) use ($propertyId) {
-                        $q->where('property_id', $propertyId);
-                    });
+                $q->where(function($q2) {
+                    $q2->where('reservable_type', 'App\\Models\\HotelRoom')
+                       ->orWhere('reservable_type', 'hotel_room');
+                })->whereHas('reservable', function ($q) use ($propertyId) {
+                    $q->where('property_id', $propertyId);
+                });
             });
         }
 
         if ($roomId) {
             $query->where(function ($q) use ($roomId) {
-                $q->where('reservable_type', 'App\\Models\\HotelRoom')
-                    ->where('reservable_id', $roomId);
+                $q->where(function($q2) {
+                    $q2->where('reservable_type', 'App\\Models\\HotelRoom')
+                       ->orWhere('reservable_type', 'hotel_room');
+                })->where('reservable_id', $roomId);
             });
         }
 
@@ -1758,8 +1762,8 @@ class ReservationController extends Controller
             $reservations = $query->with([
                 'customer:id,name,email,mobile',
                 'property:id,title,category_id,price,title_image,property_classification',
-                'property.category:id,category,image'
-                // Temporarily remove 'reservable' to test if that's the issue
+                'property.category:id,category,image',
+                'reservable'
             ])
                 ->orderBy('created_at', 'desc')
                 ->paginate($perPage);
@@ -1854,6 +1858,11 @@ class ReservationController extends Controller
                 $reservation->load('reservable');
             }
             
+            // Load reservable relationship for hotel rooms if not already loaded
+            if (($reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room') && !$reservation->relationLoaded('reservable')) {
+                $reservation->load('reservable');
+            }
+            
             // Add reservable property_classification if available
             if ($reservation->reservable && $reservation->reservable instanceof \App\Models\Property) {
                 $reservableClassification = $reservation->reservable->getRawOriginal('property_classification') ?? $reservation->reservable->property_classification;
@@ -1877,7 +1886,7 @@ class ReservationController extends Controller
             }
 
             // Add specific information based on reservation type
-            if ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+            if ($reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room') {
                 // For hotel room reservations, add room-specific information
                 if (isset($reservation->reservable) && $reservation->reservable) {
                     $hotelRoom = $reservation->reservable;
@@ -1899,6 +1908,39 @@ class ReservationController extends Controller
                         'room_type' => 'Unknown',
                         'price_per_night' => 0
                     ];
+                }
+
+                // Status mapping for flexible reservations - fix display consistency
+                // Map 'approved' to 'confirmed' for flexible hotel reservations to maintain consistency
+                if ($reservation->status === 'approved' && ($reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room')) {
+                    // Check if this is a flexible reservation (cash/offline payment)
+                    $isFlexible = false;
+                    $paymentMethod = $reservation->payment_method ?? 'cash';
+                    if (!($paymentMethod === 'paymob' || $paymentMethod === 'online' || $reservation->payment)) {
+                        $isFlexible = true;
+                    }
+                    
+                    // Also check if booking_type indicates flexible booking (post-fix reservations)
+                    if ($reservation->booking_type === 'flexible_booking') {
+                        $isFlexible = true;
+                    }
+                    
+                    // For flexible reservations, show 'confirmed' instead of 'approved' for consistency
+                    if ($isFlexible) {
+                        $data['status'] = 'confirmed';
+                        $data['display_status'] = 'confirmed'; // Add display status for frontend
+                        $data['is_flexible_reservation'] = true;
+                        
+                        // Log the status mapping for debugging
+                        \Log::info('Flexible reservation status mapped', [
+                            'reservation_id' => $reservation->id,
+                            'original_status' => $reservation->status,
+                            'mapped_status' => 'confirmed',
+                            'payment_method' => $paymentMethod,
+                            'booking_type' => $reservation->booking_type,
+                            'has_payment' => !empty($reservation->payment)
+                        ]);
+                    }
                 }
             }
 
