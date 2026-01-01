@@ -1207,21 +1207,21 @@ Confirmation Date: {confirmation_date}
     }
 
     /**
-     * Send flexible hotel booking approval email to customer.
+     * Send flexible hotel booking confirmation email to customer.
      *
      * @param \App\Models\Reservation $reservation
      * @return void
      */
-    public function sendFlexibleHotelBookingApprovalEmail($reservation)
+    public function sendFlexibleHotelBookingConfirmationEmail($reservation)
     {
         try {
             $customer = $reservation->customer;
             if ($customer && $customer->email) {
                 // Get Data of email type
-                $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("flexible_hotel_booking_approval");
+                $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("flexible_hotel_booking_confirmation");
 
                 // Email Template
-                $emailTemplateData = system_setting('flexible_hotel_booking_approval_mail_template');
+                $emailTemplateData = system_setting('flexible_hotel_booking_confirmation_mail_template');
                 $appName = env("APP_NAME") ?? "As Home";
 
                 // Get hotel and room information
@@ -1284,7 +1284,7 @@ Confirmation Date: {confirmation_date}
                 );
 
                 if (empty($emailTemplateData)) {
-                    $emailTemplateData = "Dear {customer_name},\n\nYour reservation request for {property_name} has been received and is now pending the property owner's approval.\n\nYou'll receive a confirmation email once your booking is approved.\n\nThank you for choosing {app_name}!\n\nBest regards,\n{app_name} Team";
+                    $emailTemplateData = "Dear {customer_name},\n\nYour reservation for {property_name} has been confirmed!\n\nWe are pleased to confirm your booking details:\n\nProperty: {property_name}\nRoom Type: {room_type}\nRoom Number: {room_number}\nAddress: {property_address}\nCheck-in Date: {check_in_date}\nCheck-out Date: {check_out_date}\nNumber of Guests: {number_of_guests}\nTotal Amount: {total_price} {currency_symbol}\n\nYour reservation is now confirmed and the room has been reserved for you.\n\nThank you for choosing {app_name}!\n\nBest regards,\n{app_name} Team";
                 }
                 
                 // Log the template and variables for debugging

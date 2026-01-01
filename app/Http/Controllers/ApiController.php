@@ -12757,7 +12757,7 @@ Best regards,
                         $reservationService->sendVacationHomePendingApprovalEmail($reservation);
                     } elseif ($propertyClassification == 5) {
                         // Hotel booking - send flexible hotel booking confirmation email
-                        $reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
+                        $reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation);
                     }
                     
                     Log::info('Both emails sent: Payment form submission to owner and pending approval email to customer', [
