@@ -113,7 +113,15 @@ class Reservation extends Model
     public static function datesOverlap($checkInDate, $checkOutDate, $reservableId, $reservableType, $excludeReservationId = null)
     {
         $query = self::where('reservable_id', $reservableId)
-            ->where('reservable_type', $reservableType)
+            ->where(function($query) use ($reservableType) {
+                // Handle both possible reservable_type values
+                if ($reservableType === 'App\\Models\\HotelRoom') {
+                    $query->where('reservable_type', 'App\\Models\\HotelRoom')
+                          ->orWhere('reservable_type', 'hotel_room');
+                } else {
+                    $query->where('reservable_type', $reservableType);
+                }
+            })
             ->where('status', 'confirmed')
             ->where(function ($query) use ($checkInDate, $checkOutDate) {
                 // Check if the dates overlap

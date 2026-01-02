@@ -59,9 +59,13 @@ class HotelRoomController extends Controller
         // Filter rooms based on availability
         $availableRooms = $rooms->filter(function ($room) use ($fromDate, $toDate) {
             // First check if the room has any existing reservations that conflict with the requested dates
+            // Check both possible reservable_type values: 'App\\Models\\HotelRoom' and 'hotel_room'
             $hasConflictingReservation = \App\Models\Reservation::where('reservable_id', $room->id)
-                ->where('reservable_type', 'App\\Models\\HotelRoom')
                 ->where('property_id', $room->property_id)
+                ->where(function($query) {
+                    $query->where('reservable_type', 'App\\Models\\HotelRoom')
+                          ->orWhere('reservable_type', 'hotel_room');
+                })
                 ->whereIn('status', ['confirmed', 'approved', 'active'])
                 ->where(function($query) use ($fromDate, $toDate) {
                     $query->where('check_in_date', '<=', $toDate->format('Y-m-d'))
