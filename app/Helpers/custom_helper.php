@@ -790,7 +790,24 @@ function handleFileUpload($request, $key, $destinationPath, $filename, $database
                 throw $e;
             }
         } else {
-            throw new Exception('S3 disk is required for file uploads');
+            try {
+                if (!is_dir($destinationPath)) {
+                    @mkdir($destinationPath, 0755, true);
+                }
+
+                $uploadedFile->move($destinationPath, $finalFilename);
+
+                Log::info('handleFileUpload: local upload complete', [
+                    'path' => rtrim($destinationPath, '\\/') . '/' . $finalFilename,
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('Local upload failed in handleFileUpload', [
+                    'directory' => $destinationPath,
+                    'filename' => $finalFilename,
+                    'error' => $e->getMessage(),
+                ]);
+                throw $e;
+            }
         }
 
         return $finalFilename;

@@ -33,7 +33,7 @@
                                         <div class="col-md-6 mt-3">
                                             <div class="col-12 form-group mandatory card title_card">
                                                 {{ Form::label('web_favicon', __('Favicon'), ['class' => 'form-label col-12 ']) }}
-                                                <input type="file" class="filepond" id="web_favicon" name="web_favicon" {{ isset($getWebSettings['web_favicon']) && $getWebSettings['web_favicon'] == '' ? 'required' : '' }} accept="image/png,image/jpg,image/jpeg">
+                                                <input type="file" class="filepond" id="web_favicon" name="web_favicon" {{ isset($getWebSettings['web_favicon']) && $getWebSettings['web_favicon'] == '' ? 'required' : '' }} accept="image/png,image/jpg,image/jpeg,image/x-icon,image/vnd.microsoft.icon">
                                                 @if (isset($getWebSettings['web_favicon']) && $getWebSettings['web_favicon'] != '')
                                                     <div class="title_img mt-2">
                                                         <img src="{{ url('assets/images/logo/'.$getWebSettings['web_favicon']) }}" alt="Image" class="img-fluid" width="100" height="100">
