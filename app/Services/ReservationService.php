@@ -1086,8 +1086,30 @@ Confirmation Date: {confirmation_date}
                 return true;
             }
 
-            // If no confirmed reservations blocking, allow booking
-            // Don't check available_dates, availability_type, or any other conditions
+            // If no confirmed reservations blocking, check available_dates for hotel rooms
+            if ($modelType === 'App\\Models\\HotelRoom') {
+                // Check if the room is available based on available_dates
+                $availableDates = $model->available_dates ?? [];
+                
+                if (empty($availableDates)) {
+                    // No available dates configured - not available
+                    return false;
+                }
+                
+                // Check if the requested dates fall within any available date range
+                $dateInRange = false;
+                foreach ($availableDates as $dateRange) {
+                    if ($checkIn->format('Y-m-d') >= $dateRange['from'] && 
+                        $checkOut->format('Y-m-d') <= $dateRange['to']) {
+                        $dateInRange = true;
+                        break;
+                    }
+                }
+                
+                return $dateInRange;
+            }
+            
+            // For properties, allow booking if no confirmed reservations blocking
             return true;
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Unexpected error in areDatesAvailable', [
