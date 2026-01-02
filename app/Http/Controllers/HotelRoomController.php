@@ -58,8 +58,24 @@ class HotelRoomController extends Controller
 
         // Filter rooms based on availability
         $availableRooms = $rooms->filter(function ($room) use ($fromDate, $toDate) {
-            // If availability_type is 1 (available_days), check if search date range falls within any of the available date ranges
-            if ($room->availability_type == 1) {
+            // First check if the room has any existing reservations that conflict with the requested dates
+            $hasConflictingReservation = \App\Models\Reservation::where('reservable_id', $room->id)
+                ->where('reservable_type', 'App\\Models\\HotelRoom')
+                ->where('property_id', $room->property_id)
+                ->whereIn('status', ['confirmed', 'approved', 'active'])
+                ->where(function($query) use ($fromDate, $toDate) {
+                    $query->where('check_in_date', '<=', $toDate->format('Y-m-d'))
+                          ->where('check_out_date', '>', $fromDate->format('Y-m-d'));
+                })
+                ->exists();
+            
+            // If there's a conflicting reservation, room is not available
+            if ($hasConflictingReservation) {
+                return false;
+            }
+            
+            // If availability_type is 1 or 'available_days', check if search date range falls within any of the available date ranges
+            if ($room->availability_type == 1 || $room->availability_type == 'available_days') {
                 $availableDateRanges = $room->available_dates;
 
                 // Check if the requested date range is covered by any of the available date ranges
@@ -75,8 +91,8 @@ class HotelRoomController extends Controller
 
                 return false;
             }
-            // If availability_type is 2 (busy_days), check if search date range doesn't overlap with any of the busy date ranges
-            else if ($room->availability_type == 2) {
+            // If availability_type is 2 or 'busy_days', check if search date range doesn't overlap with any of the busy date ranges
+            else if ($room->availability_type == 2 || $room->availability_type == 'busy_days') {
                 $busyDateRanges = $room->available_dates;
 
                 // Check if the requested date range overlaps with any busy date range

@@ -90,7 +90,24 @@ class HotelRoom extends Model
      */
     public function getAvailableDatesAttribute($value)
     {
-        $decodedValue = $value ? (is_string($value) ? json_decode($value, true) : $value) : [];
+        // Read from the available_dates_hotel_rooms table instead of the old column
+        $availableDates = \DB::table('available_dates_hotel_rooms')
+            ->where('hotel_room_id', $this->id)
+            ->where('property_id', $this->property_id)
+            ->orderBy('from_date', 'asc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'from' => $item->from_date,
+                    'to' => $item->to_date,
+                    'price' => (float) $item->price,
+                    'type' => $item->type,
+                    'nonrefundable_percentage' => (float) ($item->nonrefundable_percentage ?? $this->nonrefundable_percentage ?? 0)
+                ];
+            })
+            ->toArray();
+
+        $decodedValue = $availableDates;
 
         // Ensure proper structure with type field
         if (is_array($decodedValue)) {
