@@ -35,9 +35,15 @@
                                                 {{ Form::label('web_favicon', __('Favicon'), ['class' => 'form-label col-12 ']) }}
                                                 <input type="file" class="filepond" id="web_favicon" name="web_favicon" {{ isset($getWebSettings['web_favicon']) && $getWebSettings['web_favicon'] == '' ? 'required' : '' }} accept="image/png,image/jpg,image/jpeg,image/x-icon,image/vnd.microsoft.icon">
                                                 @if (isset($getWebSettings['web_favicon']) && $getWebSettings['web_favicon'] != '')
-                                                    <div class="title_img mt-2">
-                                                        <img src="{{ url('assets/images/logo/'.$getWebSettings['web_favicon']) }}" alt="Image" class="img-fluid" width="100" height="100">
-                                                    </div>
+                                                    @php
+                                                        $webFaviconFile = $getWebSettings['web_favicon'];
+                                                        $webFaviconPath = public_path('assets/images/logo/' . $webFaviconFile);
+                                                    @endphp
+                                                    @if (!empty($webFaviconFile) && file_exists($webFaviconPath))
+                                                        <div class="title_img mt-2">
+                                                            <img src="{{ url('assets/images/logo/'.$webFaviconFile) }}" alt="Image" class="img-fluid" width="100" height="100">
+                                                        </div>
+                                                    @endif
                                                 @endif
                                             </div>
                                         </div>
@@ -48,9 +54,15 @@
                                                 {{ Form::label('web_logo', __('Main Logo'), ['class' => 'form-label col-12 ']) }}
                                                 <input type="file" class="filepond" id="web_logo" name="web_logo" {{ isset($getWebSettings['web_logo']) && $getWebSettings['web_logo'] == '' ? 'required' : '' }} accept="image/png,image/jpg,image/jpeg">
                                                 @if (isset($getWebSettings['web_logo']) && $getWebSettings['web_logo'] != '')
-                                                    <div class="title_img mt-2">
-                                                        <img src="{{ url('assets/images/logo/'.$getWebSettings['web_logo']) }}" alt="Image" class="img-fluid" width="100" height="100">
-                                                    </div>
+                                                    @php
+                                                        $webLogoFile = $getWebSettings['web_logo'];
+                                                        $webLogoPath = public_path('assets/images/logo/' . $webLogoFile);
+                                                    @endphp
+                                                    @if (!empty($webLogoFile) && file_exists($webLogoPath))
+                                                        <div class="title_img mt-2">
+                                                            <img src="{{ url('assets/images/logo/'.$webLogoFile) }}" alt="Image" class="img-fluid" width="100" height="100">
+                                                        </div>
+                                                    @endif
                                                 @endif
                                             </div>
                                         </div>
@@ -61,9 +73,15 @@
                                                 {{ Form::label('web_placeholder_logo', __('Placeholder Image'), ['class' => 'form-label col-12 ']) }}
                                                 <input type="file" class="filepond" id="web_placeholder_logo" name="web_placeholder_logo" {{ isset($getWebSettings['web_placeholder_logo']) && $getWebSettings['web_placeholder_logo'] == '' ? 'required' : '' }} accept="image/png,image/jpg,image/jpeg">
                                                 @if (isset($getWebSettings['web_placeholder_logo']) && $getWebSettings['web_placeholder_logo'] != '')
-                                                    <div class="title_img mt-2">
-                                                        <img src="{{ url('assets/images/logo/'.$getWebSettings['web_placeholder_logo']) }}" alt="Image" class="img-fluid" width="100" height="100">
-                                                    </div>
+                                                    @php
+                                                        $webPlaceholderFile = $getWebSettings['web_placeholder_logo'];
+                                                        $webPlaceholderPath = public_path('assets/images/logo/' . $webPlaceholderFile);
+                                                    @endphp
+                                                    @if (!empty($webPlaceholderFile) && file_exists($webPlaceholderPath))
+                                                        <div class="title_img mt-2">
+                                                            <img src="{{ url('assets/images/logo/'.$webPlaceholderFile) }}" alt="Image" class="img-fluid" width="100" height="100">
+                                                        </div>
+                                                    @endif
                                                 @endif
                                             </div>
                                         </div>
@@ -74,9 +92,15 @@
                                                 {{ Form::label('web_footer_logo', __('Footer Logo'), ['class' => 'form-label col-12 ']) }}
                                                 <input type="file" class="filepond" id="web_footer_logo" name="web_footer_logo" {{ isset($getWebSettings['web_footer_logo']) && $getWebSettings['web_footer_logo'] == '' ? 'required' : '' }} accept="image/png,image/jpg,image/jpeg">
                                                 @if (isset($getWebSettings['web_footer_logo']) && $getWebSettings['web_footer_logo'] != '')
-                                                    <div class="title_img mt-2">
-                                                        <img src="{{ url('assets/images/logo/'.$getWebSettings['web_footer_logo']) }}" alt="Image" class="img-fluid" width="100" height="100">
-                                                    </div>
+                                                    @php
+                                                        $webFooterFile = $getWebSettings['web_footer_logo'];
+                                                        $webFooterPath = public_path('assets/images/logo/' . $webFooterFile);
+                                                    @endphp
+                                                    @if (!empty($webFooterFile) && file_exists($webFooterPath))
+                                                        <div class="title_img mt-2">
+                                                            <img src="{{ url('assets/images/logo/'.$webFooterFile) }}" alt="Image" class="img-fluid" width="100" height="100">
+                                                        </div>
+                                                    @endif
                                                 @endif
                                             </div>
                                         </div>

@@ -14,7 +14,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <link rel="shortcut icon" href="{{ url('assets/images/logo/' . (system_setting('favicon_icon') ?? null)) }}" type="image/x-icon">
+    @php
+        $faviconFile = system_setting('favicon_icon');
+        $faviconPath = !empty($faviconFile) ? public_path('assets/images/logo/' . $faviconFile) : null;
+        $faviconUrl = (!empty($faviconFile) && $faviconPath && file_exists($faviconPath))
+            ? url('assets/images/logo/' . $faviconFile)
+            : url('favicon.ico');
+    @endphp
+    <link rel="shortcut icon" href="{{ $faviconUrl }}" type="image/x-icon">
     <title>@yield('title') || {{ config('app.name') }}</title>
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">

@@ -4,7 +4,13 @@
             <div class="d-flex justify-content-center">
                 <div class="logo">
                     <a href="{{ url('home') }}">
-                        <img src="{{ url('assets/images/logo/' . (system_setting('company_logo') ?? null)) }}" alt="Logo" srcset="" style="max-width: 180px; height: auto;">
+                        @php
+                            $companyLogoFile = system_setting('company_logo');
+                            $companyLogoPath = !empty($companyLogoFile) ? public_path('assets/images/logo/' . $companyLogoFile) : null;
+                        @endphp
+                        @if (!empty($companyLogoFile) && $companyLogoPath && file_exists($companyLogoPath))
+                            <img src="{{ url('assets/images/logo/' . $companyLogoFile) }}" alt="Logo" srcset="" style="max-width: 180px; height: auto;">
+                        @endif
                     </a>
                 </div>
             </div>
