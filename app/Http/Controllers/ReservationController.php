@@ -2019,6 +2019,149 @@ class ReservationController extends Controller
             return ApiResponseService::errorResponse('An error occurred while fetching reservations: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Get reservations for a specific property (without requiring owner)
+     * This is used for properties without owners or when owner ID is not available
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPropertyReservations(Request $request)
+    {
+        try {
+            \Log::info('getPropertyReservations called', [
+                'request_params' => $request->all()
+            ]);
+
+            $validator = Validator::make($request->all(), [
+                'property_id' => 'required|integer|exists:propertys,id',
+                'status' => 'nullable|string',
+                'per_page' => 'nullable|integer|min:1|max:100',
+                'page' => 'nullable|integer|min:1',
+            ]);
+
+            if ($validator->fails()) {
+                return ApiResponseService::errorResponse('Validation failed', $validator->errors());
+            }
+
+            $propertyId = $request->property_id;
+            $status = $request->status && trim($request->status) !== '' ? explode(',', $request->status) : null;
+            $perPage = $request->per_page ?? 100;
+            $page = $request->page ?? 1;
+
+            \Log::info('Executing property reservations query', [
+                'property_id' => $propertyId,
+                'status' => $status,
+                'per_page' => $perPage,
+                'page' => $page
+            ]);
+
+            // Build query for reservations by property ID
+            $query = Reservation::where('property_id', $propertyId);
+
+            // Add status filter if provided
+            if ($status && !empty(array_filter($status))) {
+                $query->whereIn('status', array_filter($status));
+            }
+
+            // Order by creation date (newest first)
+            $query->orderBy('created_at', 'desc');
+
+            // Get paginated results
+            $reservations = $query->paginate($perPage, ['*'], 'page', $page);
+
+            \Log::info('Property reservations query executed', [
+                'property_id' => $propertyId,
+                'total_found' => $reservations->total(),
+                'current_page' => $reservations->currentPage()
+            ]);
+
+            // Format reservations with flexible reservation detection
+            $formattedReservations = $reservations->getCollection()->map(function ($reservation) {
+                // Determine if this is a flexible reservation
+                $isFlexible = false;
+                $paymentMethod = $reservation->payment_method ?? 'cash';
+                
+                if (!($paymentMethod === 'paymob' || $paymentMethod === 'online' || $reservation->payment)) {
+                    $isFlexible = true;
+                }
+                
+                // Also check if booking_type indicates flexible booking
+                if ($reservation->booking_type === 'flexible_booking') {
+                    $isFlexible = true;
+                }
+
+                // For flexible reservations, show 'confirmed' instead of 'approved'
+                if ($isFlexible) {
+                    $data['status'] = 'confirmed';
+                    $data['display_status'] = 'confirmed';
+                    $data['is_flexible_reservation'] = true;
+                }
+
+                return [
+                    'id' => $reservation->id,
+                    'property_id' => $reservation->property_id,
+                    'reservable_id' => $reservation->reservable_id,
+                    'reservable_type' => $reservation->reservable_type,
+                    'customer_id' => $reservation->customer_id,
+                    'customer_name' => $reservation->customer_name,
+                    'customer_email' => $reservation->customer_email,
+                    'customer_phone' => $reservation->customer_phone,
+                    'check_in_date' => $reservation->check_in_date,
+                    'check_out_date' => $reservation->check_out_date,
+                    'number_of_guests' => $reservation->number_of_guests,
+                    'total_price' => $reservation->total_price,
+                    'original_amount' => $reservation->original_amount,
+                    'discount_percentage' => $reservation->discount_percentage,
+                    'discount_amount' => $reservation->discount_amount,
+                    'payment_method' => $reservation->payment_method,
+                    'payment_status' => $reservation->payment_status,
+                    'status' => $reservation->status,
+                    'display_status' => $reservation->display_status ?? $reservation->status,
+                    'approval_status' => $reservation->approval_status,
+                    'requires_approval' => $reservation->requires_approval,
+                    'booking_type' => $reservation->booking_type,
+                    'refund_policy' => $reservation->refund_policy,
+                    'special_requests' => $reservation->special_requests,
+                    'transaction_id' => $reservation->transaction_id,
+                    'is_flexible_reservation' => $isFlexible,
+                    'created_at' => $reservation->created_at,
+                    'updated_at' => $reservation->updated_at,
+                    'reservable_data' => $reservation->reservable_data ? json_decode($reservation->reservable_data, true) : null,
+                ];
+            });
+
+            // Return paginated response
+            $paginatedData = new \Illuminate\Pagination\LengthAwarePaginator(
+                $formattedReservations,
+                $reservations->total(),
+                $reservations->perPage(),
+                $reservations->currentPage(),
+                [
+                    'path' => $request->url(),
+                    'pageName' => 'page',
+                ]
+            );
+
+            return ApiResponseService::successResponse('Property reservations retrieved successfully', [
+                'reservations' => $paginatedData,
+                'total_reservations' => $paginatedData->total(),
+                'current_page' => $paginatedData->currentPage(),
+                'per_page' => $paginatedData->perPage(),
+                'last_page' => $paginatedData->lastPage(),
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error in getPropertyReservations', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return ApiResponseService::errorResponse('An error occurred while fetching reservations: ' . $e->getMessage());
+        }
+    }
+
     /**
      * Send reservation cancellation email to customer
      *

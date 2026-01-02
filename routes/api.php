@@ -298,6 +298,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/reservations/{id}/cancel', [App\Http\Controllers\ReservationController::class, 'cancelReservation']);
     Route::post('/reservations/{id}/update-status', [App\Http\Controllers\ReservationsAdminController::class, 'updateStatusApi'])->name('api.reservations.update-status');
     Route::get('/property-owner-reservations/{customer_id}', [App\Http\Controllers\ReservationController::class, 'getPropertyOwnerReservations']);
+    Route::get('/property-reservations', [App\Http\Controllers\ReservationController::class, 'getPropertyReservations']);
     Route::get('/customer-reservation-counts/{customer_id}', [App\Http\Controllers\ReservationController::class, 'getCustomerReservationCounts']);
 });
 
