@@ -124,16 +124,20 @@ class Reservation extends Model
             })
             ->where('status', 'confirmed')
             ->where(function ($query) use ($checkInDate, $checkOutDate) {
-                // Check if the dates overlap
+                // Check if the dates overlap using hotel reservation logic
+                // Check-in is INCLUSIVE, Check-out is EXCLUSIVE
                 $query->where(function ($q) use ($checkInDate, $checkOutDate) {
+                    // Reservation starts during requested period
                     $q->where('check_in_date', '>=', $checkInDate)
                         ->where('check_in_date', '<', $checkOutDate);
                 })->orWhere(function ($q) use ($checkInDate, $checkOutDate) {
+                    // Reservation ends during requested period (check-out day is available)
                     $q->where('check_out_date', '>', $checkInDate)
-                        ->where('check_out_date', '<=', $checkOutDate);
+                        ->where('check_out_date', '<', $checkOutDate); // Changed from <= to <
                 })->orWhere(function ($q) use ($checkInDate, $checkOutDate) {
+                    // Reservation completely contains requested period (check-out day is available)
                     $q->where('check_in_date', '<=', $checkInDate)
-                        ->where('check_out_date', '>=', $checkOutDate);
+                        ->where('check_out_date', '>', $checkOutDate); // Changed from >= to >
                 });
             });
 
