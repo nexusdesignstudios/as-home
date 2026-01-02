@@ -984,30 +984,8 @@ Confirmation Date: {confirmation_date}
                 if ($modelType === 'App\\Models\\HotelRoom') {
                     $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
                     if ($hasOverlap) {
-                        // This specific room has a confirmed reservation - check if there are other available rooms
-                        // Get the room to check its room type
-                        $room = \App\Models\HotelRoom::find($modelId);
-                        if ($room) {
-                            // Check if there are other rooms of the same type available for these dates
-                            $sameTypeRooms = \App\Models\HotelRoom::where('room_type_id', $room->room_type_id)
-                                ->where('property_id', $room->property_id)
-                                ->where('id', '!=', $modelId)
-                                ->where('status', 1) // Only active rooms
-                                ->get();
-                            
-                            // Check if any of these rooms are available (no confirmed reservations)
-                            foreach ($sameTypeRooms as $altRoom) {
-                                $altHasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $altRoom->id, $modelType);
-                                if (!$altHasOverlap) {
-                                    // Found an available room of the same type - allow booking
-                                    return true;
-                                }
-                            }
-                            
-                            // No available rooms of this type - block booking
-                            return false;
-                        }
-                        // If room not found, block to be safe
+                        // This specific room has a confirmed reservation - return false
+                        // The API controller will handle finding alternative rooms
                         return false;
                     }
                 } else {
