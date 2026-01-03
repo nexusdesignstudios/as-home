@@ -1715,6 +1715,18 @@ class ReservationController extends Controller
                 ]);
             }
         } catch (\Exception $e) {
+            // Enhanced error logging for debugging
+            Log::error('Exception in createReservationWithPayment', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'error_trace' => $e->getTraceAsString(),
+                'request_data' => $request->except(['payment']),
+                'reservable_type' => $request->reservable_type,
+                'reservable_id' => $request->reservable_id,
+                'property_id' => $request->property_id
+            ]);
+
             // If payment intent creation fails, we should clean up the created records
             if ($request->reservable_type === 'property') {
                 // Clean up single reservation
