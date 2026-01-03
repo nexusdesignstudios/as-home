@@ -1059,6 +1059,18 @@ class ReservationController extends Controller
      */
     public function createReservationWithPayment(Request $request)
     {
+        // TEMP DEBUG: Log incoming request data
+        Log::info('createReservationWithPayment called', [
+            'request_data' => $request->all(),
+            'reservable_type' => $request->reservable_type,
+            'reservable_id' => $request->reservable_id,
+            'property_id' => $request->property_id,
+            'dates' => [
+                'check_in_date' => $request->check_in_date,
+                'check_out_date' => $request->check_out_date
+            ]
+        ]);
+
         $validator = Validator::make($request->all(), [
             'reservable_type' => 'required|in:property,hotel_room',
             'review_url' => 'nullable|url',
@@ -1105,7 +1117,11 @@ class ReservationController extends Controller
         }
 
         if ($validator->fails()) {
-            ApiResponseService::errorResponse('Validation failed', $validator->errors());
+            Log::error('Validation failed in createReservationWithPayment', [
+                'errors' => $validator->errors()->toArray(),
+                'request_data' => $request->all()
+            ]);
+            return ApiResponseService::errorResponse('Validation failed', $validator->errors());
         }
 
         // Map the reservable type to the model class
