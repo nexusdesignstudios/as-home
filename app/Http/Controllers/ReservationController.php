@@ -450,7 +450,7 @@ class ReservationController extends Controller
                 $property = Property::find($request->reservable_id);
 
                 if (!$property) {
-                    ApiResponseService::errorResponse('Property not found');
+                    ApiResponseService::errorResponse('Property not found', null, 404);
                 }
 
                 // Calculate total price
@@ -500,14 +500,14 @@ class ReservationController extends Controller
                             $availableUnits = $totalUnits - $bookedUnits;
                             
                             if ($availableUnits == 0) {
-                                ApiResponseService::errorResponse('All units are booked for the selected dates');
+                                ApiResponseService::errorResponse('All units are booked for the selected dates', null, 409);
                             } else {
-                                ApiResponseService::errorResponse("Only {$availableUnits} unit(s) available for the selected dates. You requested {$apartmentQuantity} unit(s).");
+                                ApiResponseService::errorResponse("Only {$availableUnits} unit(s) available for the selected dates. You requested {$apartmentQuantity} unit(s).", null, 409);
                             }
                         }
                     }
                     
-                    ApiResponseService::errorResponse('Selected dates are not available for this property');
+                    ApiResponseService::errorResponse('Selected dates are not available for this property', null, 409);
                 }
                 if ($isVacationHome && $selectedApartmentId) {
                     $apartment = \App\Models\VacationApartment::where('id', $selectedApartmentId)
@@ -1121,7 +1121,7 @@ class ReservationController extends Controller
                 'errors' => $validator->errors()->toArray(),
                 'request_data' => $request->all()
             ]);
-            return ApiResponseService::errorResponse('Validation failed', $validator->errors());
+            return ApiResponseService::errorResponse('Validation failed', $validator->errors(), 400);
         }
 
         // Map the reservable type to the model class
@@ -1142,7 +1142,7 @@ class ReservationController extends Controller
                 $property = Property::find($request->reservable_id);
 
                 if (!$property) {
-                    ApiResponseService::errorResponse('Property not found');
+                    return ApiResponseService::errorResponse('Property not found', null, 404);
                 }
 
                 // Prepare data array for apartment-specific availability checking
@@ -1184,14 +1184,14 @@ class ReservationController extends Controller
                             $availableUnits = $totalUnits - $bookedUnits;
                             
                             if ($availableUnits == 0) {
-                                ApiResponseService::errorResponse('All units are booked for the selected dates');
+                                ApiResponseService::errorResponse('All units are booked for the selected dates', null, 409);
                             } else {
-                                ApiResponseService::errorResponse("Only {$availableUnits} unit(s) available for the selected dates. You requested {$apartmentQuantity} unit(s).");
+                                ApiResponseService::errorResponse("Only {$availableUnits} unit(s) available for the selected dates. You requested {$apartmentQuantity} unit(s).", null, 409);
                             }
                         }
                     }
                     
-                    ApiResponseService::errorResponse('Selected dates are not available for this property');
+                    ApiResponseService::errorResponse('Selected dates are not available for this property', null, 409);
                 }
 
                 // Calculate discount
@@ -1209,7 +1209,7 @@ class ReservationController extends Controller
                         'error' => $e->getMessage(),
                         'trace' => $e->getTraceAsString()
                     ]);
-                    return ApiResponseService::errorResponse('Failed to calculate discount. Please try again.');
+                    return ApiResponseService::errorResponse('Failed to calculate discount. Please try again.', null, 400);
                 }
 
                 // Validate discount info
@@ -1220,7 +1220,7 @@ class ReservationController extends Controller
                         'customer_id' => $customerId,
                         'property_id' => $request->property_id
                     ]);
-                    return ApiResponseService::errorResponse('Failed to calculate discount. Please try again.');
+                    return ApiResponseService::errorResponse('Failed to calculate discount. Please try again.', null, 400);
                 }
 
                 if (!isset($discountInfo['final_amount']) || $discountInfo['final_amount'] <= 0) {
@@ -1230,7 +1230,7 @@ class ReservationController extends Controller
                         'customer_id' => $customerId,
                         'property_id' => $request->property_id
                     ]);
-                    return ApiResponseService::errorResponse('Invalid payment amount after discount calculation');
+                    return ApiResponseService::errorResponse('Invalid payment amount after discount calculation', null, 400);
                 }
 
                 // Use database transaction
@@ -1326,20 +1326,18 @@ class ReservationController extends Controller
                 $checkOut = Carbon::parse($request->check_out_date);
                 $numberOfDays = $checkIn->diffInDays($checkOut);
 
-                // Validate all rooms exist and are available
-                foreach ($roomObjects as $roomObject) {
+                foreach ($roomObjects as &$roomObject) {
                     $roomId = $roomObject['id'];
                     $roomAmount = $roomObject['amount'];
 
                     $room = HotelRoom::find($roomId);
 
                     if (!$room) {
-                        return ApiResponseService::errorResponse("Hotel room with ID {$roomId} not found", 404);
+                        return ApiResponseService::errorResponse("Hotel room with ID {$roomId} not found", null, 404);
                     }
 
-                    // Check if the room belongs to the specified property
                     if ($room->property_id != $request->property_id) {
-                        return ApiResponseService::errorResponse("Room {$roomId} does not belong to the specified property", 400);
+                        return ApiResponseService::errorResponse("Room {$roomId} does not belong to the specified property", null, 400);
                     }
 
                     // Check room status - allow booking of active rooms (status = true) and pending rooms
@@ -1443,13 +1441,16 @@ class ReservationController extends Controller
                             
                             return ApiResponseService::errorResponse(
                                 "No rooms available for the selected dates. All rooms of this type are fully booked.",
-                                400
+                                null,
+                                409
                             );
                         }
                         // If hasAvailableRooms is true, we've already updated the room to use an available one
                         // Continue with the booking process
                     }
                 }
+
+                unset($roomObject);
 
                 // Calculate discount on the total payment amount
                 $discountInfo = $this->calculateCustomerDiscount(
@@ -1465,7 +1466,7 @@ class ReservationController extends Controller
                         'payment_amount' => $request->payment['amount'],
                         'customer_id' => $customerId
                     ]);
-                    return ApiResponseService::errorResponse('Invalid payment amount after discount calculation');
+                    return ApiResponseService::errorResponse('Invalid payment amount after discount calculation', null, 400);
                 }
                 
                 // Create/update tier discount record if discount is available
