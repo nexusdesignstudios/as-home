@@ -237,6 +237,7 @@
                                     <th>{{ __('Weekend Commission') }}</th>
                                     <th>{{ __('Availability Type') }}</th>
                                     <th>{{ __('Description') }}</th>
+                                    <th>{{ __('Active') }}</th>
                                     <th>{{ __('Action') }}</th>
                                 </tr>
                             </thead>
@@ -1005,6 +1006,12 @@
                     <td>
                         <textarea class="form-control" name="hotel_rooms[${roomIndex}][description]" rows="2"></textarea>
                     </td>
+                    <td class="text-center">
+                        <input type="hidden" class="room-status-value" name="hotel_rooms[${roomIndex}][status]" value="1">
+                        <div class="form-check form-switch d-flex justify-content-center">
+                            <input class="form-check-input room-status-toggle" type="checkbox" checked>
+                        </div>
+                    </td>
                     <td>
                         <button type="button" class="btn btn-danger btn-sm remove-room">
                             <i class="bi bi-trash"></i>
@@ -1020,6 +1027,11 @@
         // Remove room
         $(document).on('click', '.remove-room', function() {
             $(this).closest('tr').remove();
+        });
+
+        $(document).on('change', '.room-status-toggle', function() {
+            var isActive = $(this).is(':checked');
+            $(this).closest('td').find('.room-status-value').val(isActive ? 1 : 0);
         });
 
         // Add new addon package

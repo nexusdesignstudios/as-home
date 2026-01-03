@@ -559,6 +559,7 @@
                                     <th>{{ __('Price/Night') }}</th>
                                     <th>{{ __('Discount %') }}</th>
                                     <th>{{ __('Refund Policy') }}</th>
+                                    <th>{{ __('Active') }}</th>
                                     <th>{{ __('Actions') }}</th>
                                 </tr>
                             </thead>
@@ -588,6 +589,12 @@
                                                     <option value="flexible" {{ $room->refund_policy == 'flexible' ? 'selected' : '' }}>{{ __('Flexible') }}</option>
                                                     <option value="non-refundable" {{ $room->refund_policy == 'non-refundable' ? 'selected' : '' }}>{{ __('Non-Refundable') }}</option>
                                                 </select>
+                                            </td>
+                                            <td class="text-center">
+                                                <input type="hidden" class="room-status-value" name="hotel_rooms[{{ $index }}][status]" value="{{ $room->status ? 1 : 0 }}">
+                                                <div class="form-check form-switch d-flex justify-content-center">
+                                                    <input class="form-check-input room-status-toggle" type="checkbox" {{ $room->status ? 'checked' : '' }}>
+                                                </div>
                                             </td>
                                             <td>
                                                 <button type="button" class="btn btn-danger btn-sm remove-room" data-room-id="{{ $room->id }}">
@@ -1587,6 +1594,12 @@
                                 <option value="non-refundable">{{ __('Non-Refundable') }}</option>
                             </select>
                         </td>
+                        <td class="text-center">
+                            <input type="hidden" class="room-status-value" name="hotel_rooms[${roomIndex}][status]" value="1">
+                            <div class="form-check form-switch d-flex justify-content-center">
+                                <input class="form-check-input room-status-toggle" type="checkbox" checked>
+                            </div>
+                        </td>
                         <td>
                             <button type="button" class="btn btn-danger btn-sm remove-room">
                                 <i class="bi bi-trash"></i>
@@ -1607,6 +1620,11 @@
                     $('#deleted-rooms-container').append(`<input type="hidden" name="deleted_room_ids[]" value="${roomId}">`);
                 }
                 $(this).closest('tr').remove();
+            });
+
+            $(document).on('change', '.room-status-toggle', function() {
+                var isActive = $(this).is(':checked');
+                $(this).closest('td').find('.room-status-value').val(isActive ? 1 : 0);
             });
 
             // Corresponding Day Management
