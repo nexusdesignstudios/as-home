@@ -982,6 +982,35 @@ Confirmation Date: {confirmation_date}
             try {
                 // For hotel rooms, check if this specific room has a confirmed reservation
                 if ($modelType === 'App\\Models\\HotelRoom') {
+                    // TEMP DEBUG: Log what we're checking
+                    \Illuminate\Support\Facades\Log::info('Checking room availability', [
+                        'modelId' => $modelId,
+                        'checkInDate' => $checkInDate,
+                        'checkOutDate' => $checkOutDate,
+                        'excludeReservationId' => $excludeReservationId
+                    ]);
+                    
+                    // Check for any existing reservations first
+                    $existingReservations = \App\Models\Reservation::where('reservable_id', $modelId)
+                        ->where('reservable_type', 'App\\Models\\HotelRoom')
+                        ->where('status', 'confirmed')
+                        ->where(function($q) use ($checkInDate, $checkOutDate) {
+                            $q->where('check_in_date', '>=', $checkInDate)
+                                ->where('check_in_date', '<', $checkOutDate);
+                        })->orWhere(function($q) use ($checkInDate, $checkOutDate) {
+                            $q->where('check_out_date', '>', $checkInDate)
+                                ->where('check_out_date', '<', $checkOutDate);
+                        })->orWhere(function($q) use ($checkInDate, $checkOutDate) {
+                            $q->where('check_in_date', '<=', $checkInDate)
+                                ->where('check_out_date', '>', $checkOutDate);
+                        })->get();
+                    
+                    \Illuminate\Support\Facades\Log::info('Existing confirmed reservations for room', [
+                        'modelId' => $modelId,
+                        'reservations' => $existingReservations->toArray(),
+                        'count' => $existingReservations->count()
+                    ]);
+                    
                     $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
                     if ($hasOverlap) {
                         // This specific room has a confirmed reservation - return false
