@@ -1105,25 +1105,25 @@ Confirmation Date: {confirmation_date}
 
             // If no confirmed reservations blocking, check available_dates for hotel rooms
             if ($modelType === 'App\\Models\\HotelRoom') {
-                // Check if the room is available based on available_dates
-                $availableDates = $model->available_dates ?? [];
+                // Check if the room is available based on available_dates_hotel_rooms table
+                $availableDates = \DB::table('available_dates_hotel_rooms')
+                    ->where('hotel_room_id', $modelId)
+                    ->where('from_date', '<=', $checkIn->format('Y-m-d'))
+                    ->where('to_date', '>=', $checkOut->format('Y-m-d'))
+                    ->exists();
                 
-                if (empty($availableDates)) {
-                    // No available dates configured - not available
+                if (!$availableDates) {
+                    // No available dates configured - room is not available
+                    \Illuminate\Support\Facades\Log::info('Room has no available_dates configured, not available', [
+                        'modelId' => $modelId,
+                        'checkInDate' => $checkInDate,
+                        'checkOutDate' => $checkOutDate
+                    ]);
                     return false;
                 }
                 
-                // Check if the requested dates fall within any available date range
-                $dateInRange = false;
-                foreach ($availableDates as $dateRange) {
-                    if ($checkIn->format('Y-m-d') >= $dateRange['from'] && 
-                        $checkOut->format('Y-m-d') <= $dateRange['to']) {
-                        $dateInRange = true;
-                        break;
-                    }
-                }
-                
-                return $dateInRange;
+                // Room is available based on available_dates_hotel_rooms table
+                return true;
             }
             
             // For properties, allow booking if no confirmed reservations blocking
