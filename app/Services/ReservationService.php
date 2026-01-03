@@ -186,7 +186,7 @@ class ReservationService
     {
         if ($modelType === 'App\\Models\\Property') {
             return Property::find($modelId);
-        } elseif ($modelType === 'App\\Models\\HotelRoom') {
+        } elseif ($modelType === 'App\\Models\\HotelRoom' || $modelType === 'hotel_room') {
             return HotelRoom::find($modelId);
         }
 
@@ -1032,7 +1032,7 @@ Confirmation Date: {confirmation_date}
             // Only block when room type availability equals zero AND no available rooms for this day
             try {
                 // For hotel rooms, check if this specific room has a confirmed reservation
-                if ($modelType === 'App\\Models\\HotelRoom') {
+                if ($modelType === 'App\\Models\\HotelRoom' || $modelType === 'hotel_room') {
                     // TEMP DEBUG: Log what we're checking
                     \Illuminate\Support\Facades\Log::info('Checking room availability', [
                         'modelId' => $modelId,
@@ -1155,25 +1155,36 @@ Confirmation Date: {confirmation_date}
             }
 
             // If no confirmed reservations blocking, check available_dates for hotel rooms
-            if ($modelType === 'App\\Models\\HotelRoom') {
-                // Check if the room is available based on available_dates_hotel_rooms table
-                $availableDates = \DB::table('available_dates_hotel_rooms')
+            if ($modelType === 'App\\Models\\HotelRoom' || $modelType === 'hotel_room') {
+                // Treat rooms as available by default unless there is an explicit block
+                // (dead/reserved) in available_dates_hotel_rooms overlapping the stay.
+                $blockingDatesQuery = \DB::table('available_dates_hotel_rooms')
                     ->where('hotel_room_id', $modelId)
-                    ->where('from_date', '<=', $checkIn->format('Y-m-d'))
-                    ->where('to_date', '>=', $checkOut->format('Y-m-d'))
-                    ->exists();
-                
-                if (!$availableDates) {
-                    // No available dates configured - room is not available
-                    \Illuminate\Support\Facades\Log::info('Room has no available_dates configured, not available', [
+                    ->whereIn('type', ['dead', 'reserved'])
+                    // Overlap condition for [checkIn, checkOut) nights:
+                    // blocked_from < checkOut AND blocked_to >= checkIn
+                    ->where('from_date', '<', $checkOut->format('Y-m-d'))
+                    ->where('to_date', '>=', $checkIn->format('Y-m-d'));
+
+                // Keep the property_id filter only when we have a property_id
+                if (!empty($model->property_id)) {
+                    $blockingDatesQuery->where(function ($q) use ($model) {
+                        $q->whereNull('property_id')
+                          ->orWhere('property_id', $model->property_id);
+                    });
+                }
+
+                $hasBlockingDates = $blockingDatesQuery->exists();
+
+                if ($hasBlockingDates) {
+                    \Illuminate\Support\Facades\Log::info('Room has blocked available_dates during selected dates, not available', [
                         'modelId' => $modelId,
                         'checkInDate' => $checkInDate,
                         'checkOutDate' => $checkOutDate
                     ]);
                     return false;
                 }
-                
-                // Room is available based on available_dates_hotel_rooms table
+
                 return true;
             }
             
