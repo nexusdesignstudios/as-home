@@ -1351,6 +1351,12 @@ class ReservationController extends Controller
 
                     // Check availability - only confirmed reservations block availability
                     // Pending/unpaid reservations do NOT block availability
+                    Log::info('Checking availability for room', [
+                        'roomId' => $roomId,
+                        'checkInDate' => $request->check_in_date,
+                        'checkOutDate' => $request->check_out_date
+                    ]);
+                    
                     $isAvailable = $this->reservationService->areDatesAvailable(
                         $modelType,
                         $roomId,
@@ -1358,11 +1364,21 @@ class ReservationController extends Controller
                         $request->check_out_date
                     );
 
+                    Log::info('Room availability check result', [
+                        'roomId' => $roomId,
+                        'isAvailable' => $isAvailable
+                    ]);
+
                     if (!$isAvailable) {
                         // NEW CONDITION: Only block if room type availability equals zero
                         // Check if there are any available rooms of the same type
                         $roomTypeId = $room->room_type_id ?? null;
                         $hasAvailableRooms = false;
+                        
+                        Log::info('Room not available, searching for alternatives', [
+                            'roomId' => $roomId,
+                            'roomTypeId' => $roomTypeId
+                        ]);
                         
                         if ($roomTypeId) {
                             // Get all rooms of the same type in the same property
@@ -1372,14 +1388,30 @@ class ReservationController extends Controller
                                 ->where('id', '!=', $roomId) // Exclude the current room
                                 ->get();
                             
+                            Log::info('Found rooms of same type', [
+                                'roomTypeId' => $roomTypeId,
+                                'count' => $sameTypeRooms->count(),
+                                'rooms' => $sameTypeRooms->pluck('id')->toArray()
+                            ]);
+                            
                             // Check if any room of this type is available (no confirmed reservations)
                             foreach ($sameTypeRooms as $sameTypeRoom) {
+                                Log::info('Checking alternative room', [
+                                    'alternativeRoomId' => $sameTypeRoom->id
+                                ]);
+                                
                                 $roomAvailable = $this->reservationService->areDatesAvailable(
                                     $modelType,
                                     $sameTypeRoom->id,
                                     $request->check_in_date,
                                     $request->check_out_date
                                 );
+                                
+                                Log::info('Alternative room availability', [
+                                    'alternativeRoomId' => $sameTypeRoom->id,
+                                    'isAvailable' => $roomAvailable
+                                ]);
+                                
                                 if ($roomAvailable) {
                                     $hasAvailableRooms = true;
                                     // Use this available room instead
@@ -1387,6 +1419,13 @@ class ReservationController extends Controller
                                     $room = $sameTypeRoom;
                                     $roomId = $sameTypeRoom->id;
                                     $roomAmount = $roomObject['amount'];
+                                    
+                                    Log::info('Found available alternative room', [
+                                        'originalRoomId' => $roomObject['id'],
+                                        'newRoomId' => $roomId,
+                                        'newAmount' => $roomAmount
+                                    ]);
+                                    
                                     break;
                                 }
                             }
@@ -1395,6 +1434,13 @@ class ReservationController extends Controller
                         // Only block if no rooms of this type are available (room type availability = 0)
                         if (!$hasAvailableRooms) {
                             // All rooms of this type are fully booked - return error
+                            Log::error('All rooms of this type are fully booked', [
+                                'requestedRoomId' => $roomId,
+                                'roomTypeId' => $roomTypeId,
+                                'checkInDate' => $request->check_in_date,
+                                'checkOutDate' => $request->check_out_date
+                            ]);
+                            
                             return ApiResponseService::errorResponse(
                                 "No rooms available for the selected dates. All rooms of this type are fully booked.",
                                 400

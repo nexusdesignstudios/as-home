@@ -1012,9 +1012,19 @@ Confirmation Date: {confirmation_date}
                     ]);
                     
                     $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
+                    \Illuminate\Support\Facades\Log::info('datesOverlap result', [
+                        'modelId' => $modelId,
+                        'hasOverlap' => $hasOverlap,
+                        'checkInDate' => $checkInDate,
+                        'checkOutDate' => $checkOutDate
+                    ]);
+                    
                     if ($hasOverlap) {
                         // This specific room has a confirmed reservation - return false
                         // The API controller will handle finding alternative rooms
+                        \Illuminate\Support\Facades\Log::info('Room not available - has overlapping reservation', [
+                            'modelId' => $modelId
+                        ]);
                         return false;
                     }
                 } else {

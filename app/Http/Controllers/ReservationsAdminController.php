@@ -437,6 +437,7 @@ class ReservationsAdminController extends Controller
                 'customer_email' => $customer->email ?? 'N/A',
                 'property_name' => $propertyName,
                 'property_type' => $propertyType,
+                'reservable_id' => $reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room' ? $reservation->reservable_id : null, // Show room ID for hotel reservations
                 'check_in_date' => $checkInDate,
                 'check_out_date' => $checkOutDate,
                 'number_of_guests' => $reservation->number_of_guests ?? 0,

@@ -236,6 +236,7 @@
                                     <th>Email</th>
                                     <th>Hotel</th>
                                     <th>Room</th>
+                                    <th>Room ID</th>
                                     <th>Check In</th>
                                     <th>Check Out</th>
                                     <th>Guests</th>
@@ -531,6 +532,9 @@ function initializeTables() {
             { field: 'customer_email', title: 'Email', sortable: true },
             { field: 'property_name', title: 'Hotel', sortable: true },
             { field: 'property_type', title: 'Room', sortable: true },
+            { field: 'reservable_id', title: 'Room ID', sortable: true, formatter: function(value) {
+                return value || '-';
+            }},
             { field: 'check_in_date', title: 'Check In', sortable: true },
             { field: 'check_out_date', title: 'Check Out', sortable: true },
             { field: 'number_of_guests', title: 'Guests', sortable: true },
