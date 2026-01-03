@@ -91,10 +91,19 @@ class HotelRoom extends Model
     public function getAvailableDatesAttribute($value)
     {
         // Read from the available_dates_hotel_rooms table instead of the old column
-        $availableDates = \DB::table('available_dates_hotel_rooms')
+        $availableDatesQuery = \DB::table('available_dates_hotel_rooms')
             ->where('hotel_room_id', $this->id)
-            ->where('property_id', $this->property_id)
-            ->orderBy('from_date', 'asc')
+            ->orderBy('from_date', 'asc');
+
+        // Keep the property_id filter only when we have a property_id (older rows may have null)
+        if (!empty($this->property_id)) {
+            $availableDatesQuery->where(function ($q) {
+                $q->whereNull('property_id')
+                    ->orWhere('property_id', $this->property_id);
+            });
+        }
+
+        $availableDates = $availableDatesQuery
             ->get()
             ->map(function ($item) {
                 return [
@@ -107,7 +116,34 @@ class HotelRoom extends Model
             })
             ->toArray();
 
+        // Backwards compatibility: if the new table has no rows, fallback to the legacy JSON column.
         $decodedValue = $availableDates;
+        if (empty($decodedValue)) {
+            if (is_string($value) && $value !== '') {
+                $legacy = json_decode($value, true);
+                $decodedValue = is_array($legacy) ? $legacy : [];
+            } elseif (is_array($value)) {
+                $decodedValue = $value;
+            }
+
+            // Normalize legacy keys (from_date/to_date/etc) into (from/to)
+            if (is_array($decodedValue)) {
+                $decodedValue = array_values(array_filter(array_map(function ($dateInfo) {
+                    if (!is_array($dateInfo)) {
+                        return $dateInfo;
+                    }
+                    if (!isset($dateInfo['from'])) {
+                        $dateInfo['from'] = $dateInfo['from_date'] ?? $dateInfo['fromDate'] ?? $dateInfo['start_date'] ?? $dateInfo['startDate'] ?? $dateInfo['start'] ?? null;
+                    }
+                    if (!isset($dateInfo['to'])) {
+                        $dateInfo['to'] = $dateInfo['to_date'] ?? $dateInfo['toDate'] ?? $dateInfo['end_date'] ?? $dateInfo['endDate'] ?? $dateInfo['end'] ?? null;
+                    }
+                    return $dateInfo;
+                }, $decodedValue), function ($v) {
+                    return $v !== null;
+                }));
+            }
+        }
 
         // Ensure proper structure with type field
         if (is_array($decodedValue)) {

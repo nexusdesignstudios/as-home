@@ -37,11 +37,28 @@ class ReservationService
                 'payment_status' => $data['payment_status'] ?? 'unpaid',
                 'payment_method' => $data['payment_method'] ?? null,
                 'transaction_id' => $data['transaction_id'] ?? null,
+                'booking_type' => $data['booking_type'] ?? null,
             ]);
 
-            // Only update available dates if the reservation is confirmed
-            // Pending reservations should not block other bookings
-            if (($data['status'] ?? 'pending') === 'confirmed') {
+            // Update available dates based on booking type and payment status
+            // Non-refundable: only block when confirmed AND paid
+            // Flexible: block when confirmed (regardless of payment status)
+            $shouldBlockDates = false;
+            $status = $data['status'] ?? 'pending';
+            $paymentStatus = $data['payment_status'] ?? 'unpaid';
+            $bookingType = $data['booking_type'] ?? null;
+            
+            if ($status === 'confirmed') {
+                if ($bookingType === 'flexible_booking') {
+                    // Flexible reservations block dates when confirmed (paid or unpaid)
+                    $shouldBlockDates = true;
+                } else {
+                    // Non-refundable reservations only block dates when confirmed AND paid
+                    $shouldBlockDates = ($paymentStatus === 'paid');
+                }
+            }
+            
+            if ($shouldBlockDates) {
                 $this->updateAvailableDates(
                     $data['reservable_type'],
                     $data['reservable_id'],
@@ -464,19 +481,41 @@ class ReservationService
                 'payment_status' => $reservation->payment_status
             ]);
 
-            // Update available dates
+            // Update available dates based on booking type and payment status
             try {
-                $this->updateAvailableDates(
-                    $reservation->reservable_type,
-                    $reservation->reservable_id,
-                    $reservation->check_in_date,
-                    $reservation->check_out_date,
-                    $reservation->id
-                );
-
-                \Illuminate\Support\Facades\Log::info('Available dates updated successfully via admin confirmation', [
-                    'reservation_id' => $reservation->id
-                ]);
+                // Check if we should update available dates based on booking type
+                $shouldUpdateDates = false;
+                $bookingType = $reservation->booking_type;
+                
+                if ($bookingType === 'flexible_booking') {
+                    // Flexible reservations: update dates when confirmed (regardless of payment status)
+                    $shouldUpdateDates = true;
+                } else {
+                    // Non-refundable reservations: only update dates when confirmed AND paid
+                    $shouldUpdateDates = ($reservation->payment_status === 'paid');
+                }
+                
+                if ($shouldUpdateDates) {
+                    $this->updateAvailableDates(
+                        $reservation->reservable_type,
+                        $reservation->reservable_id,
+                        $reservation->check_in_date,
+                        $reservation->check_out_date,
+                        $reservation->id
+                    );
+                    
+                    \Illuminate\Support\Facades\Log::info('Available dates updated successfully via admin confirmation', [
+                        'reservation_id' => $reservation->id,
+                        'booking_type' => $bookingType,
+                        'payment_status' => $reservation->payment_status
+                    ]);
+                } else {
+                    \Illuminate\Support\Facades\Log::info('Available dates not updated - conditions not met', [
+                        'reservation_id' => $reservation->id,
+                        'booking_type' => $bookingType,
+                        'payment_status' => $reservation->payment_status
+                    ]);
+                }
 
                 // Send payment completion email to property owner
                 $this->sendPaymentCompletionEmailToOwner($reservation);

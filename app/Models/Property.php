@@ -985,6 +985,14 @@ class Property extends Model
     }
 
     /**
+     * Get the hotel rooms for this property.
+     */
+    public function hotel_rooms()
+    {
+        return $this->hasMany(HotelRoom::class);
+    }
+
+    /**
      * Get the certificates for this property.
      */
     public function certificates()
