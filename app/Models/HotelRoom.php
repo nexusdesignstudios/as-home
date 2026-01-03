@@ -34,8 +34,12 @@ class HotelRoom extends Model
         'weekend_commission' => 'float',
         'nonrefundable_percentage' => 'float',
         'max_guests' => 'integer',
-        'available_rooms' => 'integer'
+        'available_rooms' => 'integer',
+        'available_dates' => 'array'
     ];
+
+    // Automatically include available_dates in JSON responses
+    protected $appends = ['available_dates'];
 
     /**
      * Get the property that owns the room.

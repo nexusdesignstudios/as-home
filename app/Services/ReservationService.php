@@ -22,6 +22,18 @@ class ReservationService
     public function createReservation(array $data, bool $skipEmails = false)
     {
         return DB::transaction(function () use ($data, $skipEmails) {
+            // CRITICAL FIX: Check for existing reservations before creating new one
+            $existingReservation = $this->checkExistingReservation(
+                $data['reservable_type'],
+                $data['reservable_id'],
+                $data['check_in_date'],
+                $data['check_out_date']
+            );
+            
+            if ($existingReservation) {
+                throw new \Exception("Room is already booked for the selected dates. Existing reservation ID: " . $existingReservation->id);
+            }
+            
             // Create the reservation
             $reservation = Reservation::create([
                 'customer_id' => $data['customer_id'],
@@ -1503,5 +1515,49 @@ Confirmation Date: {confirmation_date}
                 'trace' => $e->getTraceAsString()
             ]);
         }
+    }
+
+    /**
+     * Check if there's an existing reservation for the same room and overlapping dates
+     *
+     * @param string $reservableType
+     * @param int $reservableId
+     * @param string $checkInDate
+     * @param string $checkOutDate
+     * @return \App\Models\Reservation|null
+     */
+    public function checkExistingReservation($reservableType, $reservableId, $checkInDate, $checkOutDate)
+    {
+        // Check for existing reservations that overlap with the requested dates
+        // Using standard hotel booking logic: check-in is inclusive, check-out is exclusive
+        $existingReservation = Reservation::where('reservable_type', $reservableType)
+            ->where('reservable_id', $reservableId)
+            ->where('status', '!=', 'cancelled')
+            ->where('status', '!=', 'rejected')
+            ->where(function ($query) use ($checkInDate, $checkOutDate) {
+                // Check for overlapping reservations:
+                // 1. Existing reservation starts before new check-out AND ends after new check-in
+                $query->where(function ($subQuery) use ($checkInDate, $checkOutDate) {
+                    $subQuery->where('check_in_date', '<', $checkOutDate)
+                           ->where('check_out_date', '>', $checkInDate);
+                });
+            })
+            ->first();
+
+        if ($existingReservation) {
+            \Illuminate\Support\Facades\Log::warning('Reservation conflict detected', [
+                'reservable_type' => $reservableType,
+                'reservable_id' => $reservableId,
+                'requested_check_in' => $checkInDate,
+                'requested_check_out' => $checkOutDate,
+                'existing_reservation_id' => $existingReservation->id,
+                'existing_check_in' => $existingReservation->check_in_date,
+                'existing_check_out' => $existingReservation->check_out_date,
+                'existing_status' => $existingReservation->status,
+                'existing_customer' => $existingReservation->customer_name
+            ]);
+        }
+
+        return $existingReservation;
     }
 }

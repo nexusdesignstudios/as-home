@@ -747,6 +747,15 @@ class ReservationController extends Controller
                 ]);
             }
         } catch (\Exception $e) {
+            // Handle reservation conflicts specifically
+            if (strpos($e->getMessage(), 'Room is already booked') !== false) {
+                return ApiResponseService::errorResponse(
+                    'This room is already booked for the selected dates. Please choose different dates or another room.',
+                    null,
+                    409 // Conflict status code
+                );
+            }
+            
             ApiResponseService::errorResponse('Failed to create reservation: ' . $e->getMessage());
         }
     }
