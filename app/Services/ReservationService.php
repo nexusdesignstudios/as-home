@@ -993,7 +993,7 @@ Confirmation Date: {confirmation_date}
                     // Check for any existing reservations first
                     $existingReservations = \App\Models\Reservation::where('reservable_id', $modelId)
                         ->where('reservable_type', 'App\\Models\\HotelRoom')
-                        ->where('status', 'confirmed')
+                        ->whereIn('status', ['confirmed', 'approved', 'pending']) // Match frontend logic
                         ->where(function($q) use ($checkInDate, $checkOutDate) {
                             $q->where('check_in_date', '>=', $checkInDate)
                                 ->where('check_in_date', '<', $checkOutDate);

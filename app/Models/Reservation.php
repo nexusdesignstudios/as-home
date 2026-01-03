@@ -122,7 +122,7 @@ class Reservation extends Model
                     $query->where('reservable_type', $reservableType);
                 }
             })
-            ->where('status', 'confirmed')
+            ->whereIn('status', ['confirmed', 'approved', 'pending']) // Match frontend logic
             ->where(function ($query) use ($checkInDate, $checkOutDate) {
                 // Check if the dates overlap using hotel reservation logic
                 // Check-in is INCLUSIVE, Check-out is EXCLUSIVE
