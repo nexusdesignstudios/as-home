@@ -695,7 +695,7 @@ function updatePaymentStatus(id, paymentStatus) {
     }
 
     $.ajax({
-        url: '{{ route("reservations.update-status", ":id") }}'.replace(':id', id),
+        url: '{{ route("reservations.update-payment-status", ":id") }}'.replace(':id', id),
         method: 'POST',
         data: {
             payment_status: paymentStatus,

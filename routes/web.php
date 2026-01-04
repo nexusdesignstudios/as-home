@@ -323,6 +323,7 @@ Route::middleware(['language'])->group(function () {
         Route::get('reservations', [ReservationsAdminController::class, 'index'])->name('reservations.index');
         Route::get('reservations-list', [ReservationsAdminController::class, 'getReservationsList'])->name('reservations.list');
         Route::post('reservations/{id}/update-status', [ReservationsAdminController::class, 'updateStatus'])->name('reservations.update-status');
+        Route::post('reservations/{id}/update-payment-status', [ReservationsAdminController::class, 'updatePaymentStatus'])->name('reservations.update-payment-status');
         Route::get('reservations/{id}/details', [ReservationsAdminController::class, 'getReservationDetails'])->name('reservations.details');
         Route::get('reservations-statistics', [ReservationsAdminController::class, 'getStatistics'])->name('reservations.statistics');
         /// END :: RESERVATIONS ROUTE

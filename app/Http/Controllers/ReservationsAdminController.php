@@ -573,6 +573,77 @@ class ReservationsAdminController extends Controller
     }
 
     /**
+     * Update payment status only (for flexible reservations).
+     *
+     * @param Request $request
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updatePaymentStatus(Request $request, $id)
+    {
+        if (!has_permissions('update', 'reservations')) {
+            return response()->json(['error' => PERMISSION_ERROR_MSG], 403);
+        }
+
+        $request->validate([
+            'payment_status' => 'required|in:paid,unpaid,partial'
+        ]);
+
+        $reservation = Reservation::findOrFail($id);
+        $oldPaymentStatus = $reservation->payment_status;
+        $newPaymentStatus = $request->payment_status;
+
+        try {
+            // Only allow payment status updates for flexible reservations
+            if (!$this->isFlexibleReservation($reservation)) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Payment status can only be updated for flexible reservations (cash/manual payments).'
+                ], 400);
+            }
+
+            // Only allow payment status updates for certain reservation statuses
+            if (!in_array($reservation->status, ['pending', 'confirmed'])) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Payment status can only be updated for pending or confirmed reservations.'
+                ], 400);
+            }
+
+            // Update payment status
+            $reservation->payment_status = $newPaymentStatus;
+            $reservation->save();
+
+            // Log the change
+            \Illuminate\Support\Facades\Log::info('Payment status updated', [
+                'reservation_id' => $id,
+                'old_payment_status' => $oldPaymentStatus,
+                'new_payment_status' => $newPaymentStatus,
+                'updated_by' => Auth::id()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment status updated successfully',
+                'reservation' => $reservation
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to update payment status', [
+                'reservation_id' => $id,
+                'old_payment_status' => $oldPaymentStatus,
+                'new_payment_status' => $newPaymentStatus,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update payment status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Update reservation status.
      *
      * @param Request $request
