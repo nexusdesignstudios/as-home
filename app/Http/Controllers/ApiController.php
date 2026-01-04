@@ -1145,6 +1145,12 @@ class ApiController extends Controller
             $minArea = $request->min_area;
             $maxArea = $request->max_area;
             
+            \Log::info('🔍 Area Filter Applied', [
+                'min_area' => $minArea,
+                'max_area' => $maxArea,
+                'request_all' => $request->all()
+            ]);
+            
             $property = $property->where(function ($query) use ($minArea, $maxArea) {
                 // Check parameters table for area values
                 $query->whereExists(function ($existsQuery) use ($minArea, $maxArea) {
@@ -1182,6 +1188,14 @@ class ApiController extends Controller
                         });
                 });
             });
+        } else {
+            \Log::info('🔍 Area Filter Skipped', [
+                'has_min_area' => $request->has('min_area'),
+                'min_area' => $request->min_area,
+                'has_max_area' => $request->has('max_area'),
+                'max_area' => $request->max_area,
+                'request_all' => $request->all()
+            ]);
         }
 
         // If Max Price And Min Price passed
