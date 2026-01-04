@@ -8887,66 +8887,60 @@ class ApiController extends Controller
                 'condition' => "from_date <= $checkInStr AND to_date >= $checkOutExclusiveStr"
             ]);
             
-            // Get property_ids from available_dates_hotel_rooms that match the date range
-            $availablePropertyIds = DB::table('available_dates_hotel_rooms')
-                ->where('from_date', '<=', $checkInStr)
-                ->where('to_date', '>=', $checkOutExclusiveStr)
-                ->where(function ($query) {
-                    $query->where('type', '!=', 'reserved')
-                        ->orWhereNull('type');
-                })
-                ->distinct()
-                ->pluck('property_id')
-                ->toArray();
-            
-            \Log::info('Hotel Search - Found property_ids from available_dates:', $availablePropertyIds);
-            
-            if (empty($availablePropertyIds)) {
-                // No properties have available dates for this period
-                return response()->json([
-                    'error' => false,
-                    'total' => 0,
-                    'data' => [],
-                    'message' => 'No hotels available for the selected dates'
-                ]);
-            }
-            
-            // Now get properties that match the criteria
-            $propertyQuery = Property::whereIn('id', $availablePropertyIds)
+            // NOTE:
+            // We intentionally do NOT prefilter by available_dates_hotel_rooms here.
+            // That table stores explicit availability periods, but the frontend booking calendar
+            // treats gaps between configured periods as available. Prefiltering would incorrectly
+            // exclude hotels like "Amazing 4 Star Hotel" when availability is represented as
+            // multiple adjacent periods.
+            $propertyQuery = Property::query()
                 ->where('property_classification', 5)
                 ->where('request_status', 'approved')
                 ->where('status', 1);
             
             // Filter properties to ensure they have at least one available room (not reserved)
-            $propertyQuery = $propertyQuery->whereHas('hotelRooms', function ($roomQuery) use ($checkInDate, $checkOutDate, $checkInStr, $checkOutStr) {
+            $propertyQuery = $propertyQuery->whereHas('hotelRooms', function ($roomQuery) use ($checkInDate, $checkOutDate, $checkInStr, $checkOutStr, $checkOutExclusiveStr) {
                 $roomQuery->where('status', 1) // Only active rooms
-                    ->where(function ($availabilityQuery) use ($checkInStr, $checkOutStr) {
-                        // Room has available dates covering the search range
+                    ->where(function ($availabilityQuery) use ($checkInStr, $checkOutExclusiveStr) {
+                        // availability_type = 1 (available_days) or NULL
+                        // Match frontend behavior: gaps between availability ranges are treated as available.
+                        // Therefore, check that the requested period is inside the overall envelope
+                        // [MIN(from), MAX(to)] of non-reserved ranges.
                         $availabilityQuery->whereRaw("JSON_VALID(available_dates)")
-                            ->where(function ($dateQuery) use ($checkInStr, $checkOutStr) {
-                                // Handle availability_type = 1 (available_days) or NULL
-                                $dateQuery->where(function ($typeQuery) {
-                                    $typeQuery->whereNull('availability_type')
-                                        ->orWhere('availability_type', 1);
-                                })
-                                ->whereRaw("
-                                    EXISTS (
-                                        SELECT 1
-                                        FROM JSON_TABLE(
-                                            available_dates,
-                                            '$[*]' COLUMNS (
-                                                from_date DATE PATH '$.from',
-                                                to_date DATE PATH '$.to',
-                                                type VARCHAR(20) PATH '$.type'
-                                            )
-                                        ) AS jt
-                                        WHERE (jt.type IS NULL OR jt.type != 'reserved')
-                                        AND jt.from_date <= ?
-                                        AND jt.to_date >= ?
-                                    )
-                                ", [$checkInStr, $checkOutExclusiveStr]);
+                            ->where(function ($dateQuery) use ($checkInStr, $checkOutExclusiveStr) {
+                                $dateQuery
+                                    ->where(function ($typeQuery) {
+                                        $typeQuery->whereNull('availability_type')
+                                            ->orWhere('availability_type', 1);
+                                    })
+                                    ->whereRaw("
+                                        (
+                                            SELECT MIN(jt.from_date)
+                                            FROM JSON_TABLE(
+                                                available_dates,
+                                                '$[*]' COLUMNS (
+                                                    from_date DATE PATH '$.from',
+                                                    type VARCHAR(20) PATH '$.type'
+                                                )
+                                            ) AS jt
+                                            WHERE (jt.type IS NULL OR jt.type != 'reserved')
+                                        ) <= ?
+                                    ", [$checkInStr])
+                                    ->whereRaw("
+                                        (
+                                            SELECT MAX(jt.to_date)
+                                            FROM JSON_TABLE(
+                                                available_dates,
+                                                '$[*]' COLUMNS (
+                                                    to_date DATE PATH '$.to',
+                                                    type VARCHAR(20) PATH '$.type'
+                                                )
+                                            ) AS jt
+                                            WHERE (jt.type IS NULL OR jt.type != 'reserved')
+                                        ) >= ?
+                                    ", [$checkOutExclusiveStr]);
                             })
-                            // Handle availability_type = 2 (busy_days)
+                            // availability_type = 2 (busy_days)
                             ->orWhere(function ($busyDaysQuery) use ($checkInStr, $checkOutExclusiveStr) {
                                 $busyDaysQuery->where('availability_type', 2)
                                     ->whereRaw("
