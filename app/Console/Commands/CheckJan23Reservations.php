@@ -62,7 +62,7 @@ class CheckJan23Reservations extends Command
             FROM reservations r
             LEFT JOIN hotel_rooms hr ON r.reservable_id = hr.id
             LEFT JOIN hotel_room_types hrt ON hr.room_type_id = hrt.id
-            WHERE r.reservable_type = 'App\\\\Models\\\\HotelRoom'
+            WHERE r.reservable_type IN ('App\\\\Models\\\\HotelRoom', 'hotel_room')
             AND r.property_id = (SELECT id FROM propertys WHERE title LIKE '%Amazing 4 Star Hotel%' LIMIT 1)
             AND r.status NOT IN ('cancelled', 'rejected')
             AND (
@@ -101,7 +101,7 @@ class CheckJan23Reservations extends Command
             LEFT JOIN hotel_rooms hr ON r.reservable_id = hr.id
             LEFT JOIN hotel_room_types hrt ON hr.room_type_id = hrt.id
             LEFT JOIN propertys p ON r.property_id = p.id
-            WHERE r.reservable_type = 'App\\\\Models\\\\HotelRoom'
+            WHERE r.reservable_type IN ('App\\\\Models\\\\HotelRoom', 'hotel_room')
             AND r.status NOT IN ('cancelled', 'rejected')
             AND (
                 (r.check_in_date <= ? AND r.check_out_date > ?) OR

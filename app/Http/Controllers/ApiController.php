@@ -8877,21 +8877,20 @@ class ApiController extends Controller
             $offset = $request->has('offset') && !empty($request->offset) ? (int)$request->offset : 0;
             $limit = $request->has('limit') && !empty($request->limit) ? (int)$request->limit : 10;
 
-            // Query available_dates_hotel_rooms table directly to get property_ids
-            // This is more efficient and direct than going through hotel_rooms relationship
             $checkInStr = $checkInDate->format('Y-m-d');
             $checkOutStr = $checkOutDate->format('Y-m-d');
+            $checkOutExclusiveStr = $checkOutDate->copy()->subDay()->format('Y-m-d');
             
             \Log::info('Hotel Search - Querying available_dates_hotel_rooms:', [
                 'check_in' => $checkInStr,
                 'check_out' => $checkOutStr,
-                'condition' => "from_date <= $checkInStr AND to_date >= $checkOutStr"
+                'condition' => "from_date <= $checkInStr AND to_date >= $checkOutExclusiveStr"
             ]);
             
             // Get property_ids from available_dates_hotel_rooms that match the date range
             $availablePropertyIds = DB::table('available_dates_hotel_rooms')
                 ->where('from_date', '<=', $checkInStr)
-                ->where('to_date', '>=', $checkOutStr)
+                ->where('to_date', '>=', $checkOutExclusiveStr)
                 ->where(function ($query) {
                     $query->where('type', '!=', 'reserved')
                         ->orWhereNull('type');
@@ -8945,10 +8944,10 @@ class ApiController extends Controller
                                         AND jt.from_date <= ?
                                         AND jt.to_date >= ?
                                     )
-                                ", [$checkInStr, $checkOutStr]);
+                                ", [$checkInStr, $checkOutExclusiveStr]);
                             })
                             // Handle availability_type = 2 (busy_days)
-                            ->orWhere(function ($busyDaysQuery) use ($checkInStr, $checkOutStr) {
+                            ->orWhere(function ($busyDaysQuery) use ($checkInStr, $checkOutExclusiveStr) {
                                 $busyDaysQuery->where('availability_type', 2)
                                     ->whereRaw("
                                         NOT EXISTS (
@@ -8963,7 +8962,7 @@ class ApiController extends Controller
                                             WHERE jt.from_date <= ?
                                             AND jt.to_date >= ?
                                         )
-                                    ", [$checkOutStr, $checkInStr]);
+                                    ", [$checkOutExclusiveStr, $checkInStr]);
                             });
                     })
                     // OR room has no available_dates (treat as always available)
