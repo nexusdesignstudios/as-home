@@ -2630,31 +2630,18 @@ www.ashome-eg.com';
         try {
             $userId = Auth::guard('sanctum')->user()->id;
             
-            // Get payments that require approval for properties owned by the authenticated user
-            $refundApprovals = PaymobPayment::with(['reservation.reservable'])
+            // Get payments that require approval - simplified query
+            $refundApprovals = PaymobPayment::with(['reservation'])
                 ->where('requires_approval', true)
                 ->whereHas('reservation', function ($query) use ($userId) {
-                    $query->where(function ($subQuery) use ($userId) {
-                        $subQuery->where(function ($propertyQuery) use ($userId) {
-                            $propertyQuery->where('reservable_type', 'App\\Models\\Property')
-                                ->whereHas('reservable', function ($propertyQuery) use ($userId) {
-                                    $propertyQuery->where('added_by', $userId);
-                                });
-                        })
-                        ->orWhere(function ($roomQuery) use ($userId) {
-                            $roomQuery->where('reservable_type', 'App\\Models\\HotelRoom')
-                                ->whereHas('reservable', function ($roomQuery) use ($userId) {
-                                    $roomQuery->whereHas('property', function ($propertyQuery) use ($userId) {
-                                        $propertyQuery->where('added_by', $userId);
-                                    });
-                                });
-                        });
+                    $query->whereHasMorph('reservable', function ($morphQuery) use ($userId) {
+                        $morphQuery->where('added_by', $userId);
                     });
                 })
                 ->orderBy('created_at', 'desc')
                 ->get();
 
-            // Transform the data to match frontend expectations
+            // Transform data to match frontend expectations
             $transformedApprovals = $refundApprovals->map(function ($payment) {
                 $reservation = $payment->reservation;
                 $propertyTitle = 'Unknown Property';

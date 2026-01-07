@@ -558,6 +558,7 @@
                                     <th>{{ __('Room Type') }}</th>
                                     <th>{{ __('Price/Night') }}</th>
                                     <th>{{ __('Discount %') }}</th>
+                                    <th>{{ __('Availability') }}</th>
                                     <th>{{ __('Refund Policy') }}</th>
                                     <th>{{ __('Active') }}</th>
                                     <th>{{ __('Actions') }}</th>
@@ -583,6 +584,18 @@
                                             </td>
                                             <td>
                                                 <input type="number" class="form-control" name="hotel_rooms[{{ $index }}][discount_percentage]" value="{{ $room->discount_percentage }}" min="0" max="100" step="0.01">
+                                            </td>
+                                            <td>
+                                                <select class="form-control availability-type-select" data-index="{{ $index }}">
+                                                    <option value="">{{ __('None') }}</option>
+                                                    <option value="1" {{ $room->availability_type == 1 ? 'selected' : '' }}>{{ __('Available Days') }}</option>
+                                                    <option value="2" {{ $room->availability_type == 2 ? 'selected' : '' }}>{{ __('Busy Days') }}</option>
+                                                </select>
+                                                <input type="hidden" name="hotel_rooms[{{ $index }}][availability_type]" class="availability-type-value" value="{{ $room->availability_type }}">
+                                                <input type="hidden" name="hotel_rooms[{{ $index }}][available_dates]" value="{{ json_encode($room->available_dates) }}" class="available-dates-value">
+                                                <button type="button" class="btn btn-sm btn-info mt-2 select-dates-btn" data-index="{{ $index }}" style="display:{{ $room->availability_type == 1 || $room->availability_type == 2 ? 'block' : 'none' }};">
+                                                    <i class="bi bi-calendar"></i> {{ __('Select Dates') }}
+                                                </button>
                                             </td>
                                             <td>
                                                 <select class="form-control" name="hotel_rooms[{{ $index }}][refund_policy]">
@@ -1589,6 +1602,18 @@
                             <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][discount_percentage]" value="0" min="0" max="100" step="0.01">
                         </td>
                         <td>
+                            <select class="form-control availability-type-select" data-index="${roomIndex}">
+                                <option value="">{{ __('None') }}</option>
+                                <option value="1">{{ __('Available Days') }}</option>
+                                <option value="2">{{ __('Busy Days') }}</option>
+                            </select>
+                            <input type="hidden" name="hotel_rooms[${roomIndex}][availability_type]" class="availability-type-value">
+                            <input type="hidden" name="hotel_rooms[${roomIndex}][available_dates]" value="[]" class="available-dates-value">
+                            <button type="button" class="btn btn-sm btn-info mt-2 select-dates-btn" data-index="${roomIndex}" style="display:none;">
+                                <i class="bi bi-calendar"></i> {{ __('Select Dates') }}
+                            </button>
+                        </td>
+                        <td>
                             <select class="form-control" name="hotel_rooms[${roomIndex}][refund_policy]">
                                 <option value="flexible">{{ __('Flexible') }}</option>
                                 <option value="non-refundable">{{ __('Non-Refundable') }}</option>
@@ -1735,6 +1760,35 @@
                     $(this).removeClass('is-invalid is-valid');
                     $('#agent_addons_error').text('');
                 }
+            });
+
+            // Handle availability type change for hotel rooms
+            $(document).on('change', '.availability-type-select', function() {
+                var index = $(this).data('index');
+                var value = $(this).val();
+
+                $(this).siblings('.availability-type-value').val(value);
+
+                if (value === '1' || value === '2') {
+                    $(this).siblings('.select-dates-btn').show();
+                } else {
+                    $(this).siblings('.select-dates-btn').hide();
+                }
+            });
+
+            // Handle select dates button click
+            $(document).on('click', '.select-dates-btn', function() {
+                var index = $(this).data('index');
+                // Here you would open a date picker or calendar modal
+                // For now, we'll just set a sample date range
+                var sampleDates = JSON.stringify([
+                    {
+                        from: '2023-01-01',
+                        to: '2023-01-15'
+                    }
+                ]);
+                $(this).siblings('.available-dates-value').val(sampleDates);
+                alert('Date selection would open here. A sample date range has been set.');
             });
 
             // Form validation before submit
