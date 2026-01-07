@@ -2618,4 +2618,106 @@ www.ashome-eg.com';
             return redirect()->route('send-money.failed', ['source' => 'paymob']);
         }
     }
+
+    /**
+     * Get refund approvals for the authenticated property owner
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getRefundApprovals(Request $request)
+    {
+        try {
+            $userId = Auth::guard('sanctum')->user()->id;
+            
+            // Get payments that require approval for properties owned by the authenticated user
+            $refundApprovals = PaymobPayment::with(['reservation.reservable'])
+                ->where('requires_approval', true)
+                ->whereHas('reservation', function ($query) use ($userId) {
+                    $query->where(function ($subQuery) use ($userId) {
+                        $subQuery->where(function ($propertyQuery) use ($userId) {
+                            $propertyQuery->where('reservable_type', 'App\\Models\\Property')
+                                ->whereHas('reservable', function ($propertyQuery) use ($userId) {
+                                    $propertyQuery->where('added_by', $userId);
+                                });
+                        })
+                        ->orWhere(function ($roomQuery) use ($userId) {
+                            $roomQuery->where('reservable_type', 'App\\Models\\HotelRoom')
+                                ->whereHas('reservable', function ($roomQuery) use ($userId) {
+                                    $roomQuery->whereHas('property', function ($propertyQuery) use ($userId) {
+                                        $propertyQuery->where('added_by', $userId);
+                                    });
+                                });
+                        });
+                    });
+                })
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Transform the data to match frontend expectations
+            $transformedApprovals = $refundApprovals->map(function ($payment) {
+                $reservation = $payment->reservation;
+                $propertyTitle = 'Unknown Property';
+                $customerInfo = (object) [
+                    'first_name' => 'Unknown',
+                    'last_name' => 'Customer',
+                    'email' => 'unknown@example.com'
+                ];
+
+                if ($reservation) {
+                    // Get property title based on reservable type
+                    if ($reservation->reservable_type === 'App\\Models\\Property' && $reservation->reservable) {
+                        $propertyTitle = $reservation->reservable->title ?? 'Unknown Property';
+                    } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom' && $reservation->reservable) {
+                        $room = $reservation->reservable;
+                        if ($room->property) {
+                            $propertyTitle = $room->property->title ?? 'Unknown Property';
+                        }
+                    }
+
+                    // Get customer information from reservation
+                    $customerInfo = (object) [
+                        'first_name' => $reservation->first_name ?? 'Unknown',
+                        'last_name' => $reservation->last_name ?? 'Customer',
+                        'email' => $reservation->email ?? 'unknown@example.com'
+                    ];
+                }
+
+                return [
+                    'id' => $payment->id,
+                    'transaction_id' => $payment->transaction_id,
+                    'property_title' => $propertyTitle,
+                    'customer' => $customerInfo,
+                    'check_in_date' => $reservation?->check_in_date,
+                    'check_out_date' => $reservation?->check_out_date,
+                    'amount' => $payment->amount,
+                    'refund_amount' => $payment->refund_amount,
+                    'payment_method' => $payment->payment_method ?? 'paymob',
+                    'refund_status' => $payment->refund_status,
+                    'refund_reason' => $payment->refund_reason,
+                    'requires_approval' => $payment->requires_approval,
+                    'created_at' => $payment->created_at,
+                    'reservation' => $reservation
+                ];
+            });
+
+            return response()->json([
+                'error' => false,
+                'message' => 'Refund approvals retrieved successfully',
+                'refund_approvals' => $transformedApprovals,
+                'total' => $transformedApprovals->count()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error getting refund approvals: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => true,
+                'message' => 'Failed to retrieve refund approvals: ' . $e->getMessage(),
+                'refund_approvals' => [],
+                'total' => 0
+            ], 500);
+        }
+    }
 }

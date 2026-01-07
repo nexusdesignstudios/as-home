@@ -181,6 +181,7 @@
                                     <th>Email</th>
                                     <th>Property</th>
                                     <th>Type</th>
+                                    <th>Room ID</th>
                                     <th>Check In</th>
                                     <th>Check Out</th>
                                     <th>Guests</th>
@@ -208,6 +209,7 @@
                                     <th>Customer</th>
                                     <th>Email</th>
                                     <th>Property</th>
+                                    <th>Room ID</th>
                                     <th>Check In</th>
                                     <th>Check Out</th>
                                     <th>Guests</th>
@@ -278,6 +280,7 @@
                         <h6>Property Information</h6>
                         <p><strong>Property:</strong> <span id="modal-property-name"></span></p>
                         <p><strong>Type:</strong> <span id="modal-property-type"></span></p>
+                        <p><strong>Room ID:</strong> <span id="modal-room-id"></span></p>
                         <p><strong>Transaction ID:</strong> <span id="modal-transaction-id"></span></p>
                     </div>
                 </div>
@@ -407,6 +410,9 @@ function initializeTables() {
             { field: 'customer_email', title: 'Email', sortable: true },
             { field: 'property_name', title: 'Property', sortable: true },
             { field: 'property_type', title: 'Type', sortable: true },
+            { field: 'reservable_id', title: 'Room ID', sortable: true, formatter: function(value) {
+                return value || '-';
+            }},
             { field: 'check_in_date', title: 'Check In', sortable: true },
             { field: 'check_out_date', title: 'Check Out', sortable: true },
             { field: 'number_of_guests', title: 'Guests', sortable: true },
@@ -469,6 +475,9 @@ function initializeTables() {
             { field: 'customer_name', title: 'Customer', sortable: true },
             { field: 'customer_email', title: 'Email', sortable: true },
             { field: 'property_name', title: 'Property', sortable: true },
+            { field: 'reservable_id', title: 'Room ID', sortable: true, formatter: function(value) {
+                return value || '-';
+            }},
             { field: 'check_in_date', title: 'Check In', sortable: true },
             { field: 'check_out_date', title: 'Check Out', sortable: true },
             { field: 'number_of_guests', title: 'Guests', sortable: true },
@@ -617,6 +626,7 @@ function viewReservation(id) {
             $('#modal-customer-phone').text(reservation.customer_phone);
             $('#modal-property-name').text(reservation.property_name);
             $('#modal-property-type').text(reservation.property_type);
+            $('#modal-room-id').text(reservation.reservable_id || 'N/A');
             $('#modal-transaction-id').text(reservation.transaction_id || 'N/A');
             $('#modal-check-in').text(reservation.check_in_date);
             $('#modal-check-out').text(reservation.check_out_date);

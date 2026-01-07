@@ -161,6 +161,10 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::get('paymob-bank-codes', [PaymobController::class, 'getBankCodes']);
     Route::get('paymob-bank-transaction-types', [PaymobController::class, 'getBankTransactionTypes']);
 
+    // Refund Approvals
+    Route::get('payments/refund-approvals', [PaymobController::class, 'getRefundApprovals']);
+    Route::post('payments/refund-approvals/{id}', [PaymobController::class, 'updateRefundApprovalStatus']);
+
     // Payment Receipt
     Route::get('get-payment-receipt', [ApiController::class, 'getPaymentReceipt']);
 
