@@ -6907,7 +6907,7 @@ class ApiController extends Controller
                             $query->orderBy('apartment_number');
                         },
                         'hotel_rooms' => function($query) {
-                            $query->select('id', 'property_id', 'room_type_id', 'room_number', 'price_per_night', 'discount_percentage', 'nonrefundable_percentage', 'refund_policy', 'description', 'status', 'availability_type', 'weekend_commission', 'max_guests', 'available_rooms');
+                            $query->select('id', 'property_id', 'room_type_id', 'room_number', 'price_per_night', 'discount_percentage', 'nonrefundable_percentage', 'refund_policy', 'description', 'status', 'availability_type', 'available_dates', 'weekend_commission', 'max_guests', 'available_rooms');
                         }
                     ]);
 

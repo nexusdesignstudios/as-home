@@ -2176,11 +2176,12 @@ class ReservationController extends Controller
                     $isFlexible = true;
                 }
 
-                // For flexible reservations, show 'confirmed' instead of 'approved'
+                // For flexible reservations, show 'confirmed' consistently in API response
+                $statusOut = $reservation->status;
+                $displayStatusOut = $reservation->display_status ?? $reservation->status;
                 if ($isFlexible) {
-                    $data['status'] = 'confirmed';
-                    $data['display_status'] = 'confirmed';
-                    $data['is_flexible_reservation'] = true;
+                    $statusOut = 'confirmed';
+                    $displayStatusOut = 'confirmed';
                 }
 
                 return [
@@ -2201,8 +2202,8 @@ class ReservationController extends Controller
                     'discount_amount' => $reservation->discount_amount,
                     'payment_method' => $reservation->payment_method,
                     'payment_status' => $reservation->payment_status,
-                    'status' => $reservation->status,
-                    'display_status' => $reservation->display_status ?? $reservation->status,
+                    'status' => $statusOut,
+                    'display_status' => $displayStatusOut,
                     'approval_status' => $reservation->approval_status,
                     'requires_approval' => $reservation->requires_approval,
                     'booking_type' => $reservation->booking_type,
@@ -2212,7 +2213,7 @@ class ReservationController extends Controller
                     'is_flexible_reservation' => $isFlexible,
                     'created_at' => $reservation->created_at,
                     'updated_at' => $reservation->updated_at,
-                    'reservable_data' => $reservation->reservable_data ? json_decode($reservation->reservable_data, true) : null,
+                    'reservable_data' => $reservation->reservable_data,
                 ];
             });
 
