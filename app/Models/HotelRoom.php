@@ -122,7 +122,7 @@ class HotelRoom extends Model
 
         // Backwards compatibility: if the new table has no rows, fallback to the legacy JSON column.
         $decodedValue = $availableDates;
-        if (empty($decodedValue)) {
+        if (empty($availableDates)) {
             if (is_string($value) && $value !== '') {
                 $legacy = json_decode($value, true);
                 $decodedValue = is_array($legacy) ? $legacy : [];

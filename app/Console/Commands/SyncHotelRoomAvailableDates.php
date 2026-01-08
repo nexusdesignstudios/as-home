@@ -98,6 +98,11 @@ class SyncHotelRoomAvailableDates extends Command
                 
                 $this->info("   Synced {$periodsCount} periods");
                 $syncedRooms++;
+            } elseif ($hotelRoom->availability_type == 2) {
+                // Handle rooms with closed periods (availability_type = 2) that have empty available_dates
+                // These rooms should still be processed to maintain their closed status
+                $this->info("   Room has closed periods but no available_dates - keeping closed status");
+                $syncedRooms++;
             } else {
                 $this->info("   No valid periods found");
             }

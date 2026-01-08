@@ -567,9 +567,11 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
             // Hotel name field removed
             $tempRow['refund_policy'] = $row->refund_policy;
             $tempRow['hotel_rooms'] = $row->hotel_rooms ? $row->hotel_rooms->map(function($room) {
-            // Ensure available_dates are loaded for each room
+            // Ensure available_dates and availability_type are loaded for each room
             $roomData = $room->toArray();
             $roomData['available_dates'] = $room->available_dates;
+            // Explicitly include availability_type to ensure it's in the response
+            $roomData['availability_type'] = $room->availability_type;
             return $roomData;
         })->toArray() : [];
             $tempRow['hotel_apartment_type'] = $row->hotel_apartment_type;
