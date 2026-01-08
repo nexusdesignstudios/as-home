@@ -29,7 +29,8 @@ class HotelRoomObserver
     protected function syncAvailableDates(HotelRoom $hotelRoom): void
     {
         // Sync for availability_type = 1 (available_days), 2 (busy_days), or NULL
-        if (isset($hotelRoom->availability_type) && !in_array($hotelRoom->availability_type, [1, 2])) {
+        $availabilityTypeRaw = $hotelRoom->getRawOriginal('availability_type');
+        if (isset($availabilityTypeRaw) && !in_array((int) $availabilityTypeRaw, [1, 2], true)) {
             return;
         }
 
@@ -57,8 +58,8 @@ class HotelRoomObserver
 
                     // Determine period type based on hotel room availability_type
                     $periodType = 'open'; // Default
-                    if ($hotelRoom->availability_type == 2) {
-                        $periodType = 'closed'; // Busy Days should create closed periods
+                    if ((int) $availabilityTypeRaw === 2) {
+                        $periodType = 'dead'; // Busy Days should create dead periods
                     } elseif (isset($dateRange['type'])) {
                         $periodType = $dateRange['type']; // Use explicit type if provided
                     }

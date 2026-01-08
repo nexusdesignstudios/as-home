@@ -110,11 +110,15 @@ class HotelRoom extends Model
         $availableDates = $availableDatesQuery
             ->get()
             ->map(function ($item) {
+                $type = $item->type;
+                if ($type === 'closed') {
+                    $type = 'dead';
+                }
                 return [
                     'from' => $item->from_date,
                     'to' => $item->to_date,
                     'price' => (float) $item->price,
-                    'type' => $item->type,
+                    'type' => $type,
                     'nonrefundable_percentage' => (float) ($item->nonrefundable_percentage ?? $this->nonrefundable_percentage ?? 0)
                 ];
             })
@@ -153,6 +157,10 @@ class HotelRoom extends Model
         if (is_array($decodedValue)) {
             foreach ($decodedValue as $key => $dateInfo) {
                 if (is_array($dateInfo)) {
+                    if (isset($dateInfo['type']) && $dateInfo['type'] === 'closed') {
+                        $decodedValue[$key]['type'] = 'dead';
+                        $dateInfo['type'] = 'dead';
+                    }
                     // Ensure each date entry has the required fields
                     if (!isset($dateInfo['price'])) {
                         $decodedValue[$key]['price'] = 0;
