@@ -13054,7 +13054,7 @@ Best regards,
             ->whereIn('id', $roomIds)
             ->where('status', 1)
             ->whereDoesntHave('reservations', function ($query) use ($checkInDate, $checkOutDate) {
-                $query->whereIn('status', ['confirmed', 'pending', 'approved'])
+                $query->where('status', 'confirmed')
                     ->where(function ($dateQuery) use ($checkInDate, $checkOutDate) {
                         $dateQuery->where(function ($q) use ($checkInDate, $checkOutDate) {
                             $q->where('check_in_date', '<=', $checkInDate)
