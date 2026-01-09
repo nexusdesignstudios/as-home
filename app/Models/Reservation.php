@@ -45,6 +45,10 @@ class Reservation extends Model
         'reservable_data',
         'feedback_token',
         'feedback_email_sent_at',
+        // Flexible booking fields
+        'flexible_booking_discount',
+        'is_flexible_booking',
+        'property_owner_id',
     ];
 
     protected $casts = [
