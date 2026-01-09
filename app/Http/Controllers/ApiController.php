@@ -12570,15 +12570,6 @@ Best regards,
      */
     public function submitPaymentForm(Request $request)
     {
-        Log::info('submitPaymentForm called', [
-            'property_id' => $request->property_id,
-            'booking_type' => $request->booking_type,
-            'check_in' => $request->check_in_date,
-            'check_out' => $request->check_out_date,
-            'reservable_type' => $request->reservable_type,
-            'has_reservable_data' => !empty($request->reservable_data)
-        ]);
-        
         $validator = Validator::make($request->all(), [
             'property_id' => 'required|exists:propertys,id',
             'customer_id' => 'required|exists:customers,id',
@@ -12663,16 +12654,6 @@ Best regards,
             if ($request->reservable_type === 'hotel_room' && !empty($request->reservable_data)) {
                 // Check if this is a flexible booking that needs room assignment
                 $isFlexibleBooking = $request->has('booking_type') && $request->booking_type === 'flexible_booking';
-                
-                Log::info('Flexible booking check', [
-                    'has_booking_type' => $request->has('booking_type'),
-                    'booking_type' => $request->get('booking_type'),
-                    'is_flexible_booking' => $isFlexibleBooking,
-                    'property_id' => $request->property_id,
-                    'check_in' => $request->check_in_date,
-                    'check_out' => $request->check_out_date,
-                    'reservable_data' => $request->reservable_data
-                ]);
                 
                 if ($isFlexibleBooking) {
                     // For flexible bookings, find an available room instead of using the first room
@@ -13050,15 +13031,8 @@ Best regards,
      */
     private function findAvailableHotelRoom($propertyId, $checkInDate, $checkOutDate, $reservableData)
     {
+        // Extract room IDs from reservable_data
         $roomIds = array_column($reservableData, 'id');
-        
-        Log::info('findAvailableHotelRoom called', [
-            'property_id' => $propertyId,
-            'check_in' => $checkInDate,
-            'check_out' => $checkOutDate,
-            'room_ids' => $roomIds,
-            'reservable_data_count' => count($reservableData)
-        ]);
         
         if (empty($roomIds)) {
             Log::error('No room IDs found in reservable_data for flexible booking', [
@@ -13097,17 +13071,6 @@ Best regards,
                     });
             })
             ->first();
-        
-        Log::info('Room availability query executed', [
-            'property_id' => $propertyId,
-            'room_ids_checked' => $roomIds,
-            'check_in' => $checkInDate,
-            'check_out' => $checkOutDate,
-            'found_room' => $availableRoom ? [
-                'id' => $availableRoom->id,
-                'room_number' => $availableRoom->room_number
-            ] : null
-        ]);
         
         if ($availableRoom) {
             Log::info('Found available room for flexible booking', [
