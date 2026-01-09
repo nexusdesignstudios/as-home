@@ -12587,7 +12587,18 @@ Best regards,
             'special_requests' => 'nullable|string',
             'reservable_type' => 'required|in:property,hotel_room',
             'reservable_data' => 'nullable|array',
-            'review_url' => 'nullable|url'
+            'review_url' => 'nullable|url',
+            // Flexible booking fields
+            'property_owner_id' => 'nullable|exists:customers,id',
+            'discount_percentage' => 'nullable|numeric|min:0|max:100',
+            'original_amount' => 'nullable|numeric|min:0',
+            'approval_status' => 'nullable|in:pending,approved,rejected',
+            'requires_approval' => 'nullable|boolean',
+            'booking_type' => 'nullable|in:reservation_request,flexible_booking',
+            'is_flexible_booking' => 'nullable|boolean',
+            'flexible_booking_discount' => 'nullable|numeric|min:0',
+            'property_details' => 'nullable|array',
+            'refund_policy' => 'nullable|string|in:refundable,non-refundable'
         ]);
 
         if ($validator->fails()) {
@@ -12725,6 +12736,11 @@ Best regards,
             if ($request->has('booking_type') && $request->booking_type !== null) {
                 $reservationData['booking_type'] = $request->booking_type;
             }
+            
+            // Handle property_owner_id if provided (for flexible bookings)
+            if ($request->has('property_owner_id') && $request->property_owner_id !== null) {
+                $reservationData['property_owner_id'] = $request->property_owner_id;
+            }
 
             // Handle flexible reservations - ensure proper status and payment method
             if ($request->has('booking_type') && $request->booking_type === 'flexible_booking') {
@@ -12733,6 +12749,16 @@ Best regards,
                 $reservationData['payment_method'] = 'cash'; // Use cash for flexible reservations
                 $reservationData['approval_status'] = 'approved'; // Auto-approve
                 $reservationData['requires_approval'] = false; // No approval needed
+                
+                // Handle flexible booking discount if provided
+                if ($request->has('flexible_booking_discount') && $request->flexible_booking_discount !== null) {
+                    $reservationData['flexible_booking_discount'] = $request->flexible_booking_discount;
+                }
+                
+                // Handle is_flexible_booking flag if provided
+                if ($request->has('is_flexible_booking') && $request->is_flexible_booking !== null) {
+                    $reservationData['is_flexible_booking'] = $request->is_flexible_booking;
+                }
             }
 
             // Add property details if provided
@@ -13031,13 +13057,23 @@ Best regards,
      */
     private function findAvailableHotelRoom($propertyId, $checkInDate, $checkOutDate, $reservableData)
     {
-        // Extract room IDs from reservable_data
-        $roomIds = array_column($reservableData, 'id');
+        // Extract room IDs from reservable_data with type handling
+        $roomIds = [];
+        foreach ($reservableData as $room) {
+            if (isset($room['id']) && $room['id'] !== null && $room['id'] !== '') {
+                // Convert to string to handle type mismatches
+                $roomIds[] = (string) $room['id'];
+            } elseif (isset($room['roomId']) && $room['roomId'] !== null && $room['roomId'] !== '') {
+                // Fallback to roomId if id is not present
+                $roomIds[] = (string) $room['roomId'];
+            }
+        }
         
         if (empty($roomIds)) {
             Log::error('No room IDs found in reservable_data for flexible booking', [
                 'property_id' => $propertyId,
-                'reservable_data' => $reservableData
+                'reservable_data' => $reservableData,
+                'extracted_room_ids' => $roomIds
             ]);
             return null;
         }
@@ -13046,27 +13082,31 @@ Best regards,
             'property_id' => $propertyId,
             'check_in' => $checkInDate,
             'check_out' => $checkOutDate,
-            'candidate_room_ids' => $roomIds
+            'candidate_room_ids' => $roomIds,
+            'converted_room_ids' => $integerRoomIds
         ]);
         
         // Find an available room from the provided room IDs
+        // Convert room IDs to integers for database comparison since Laravel expects integers
+        $integerRoomIds = array_map('intval', $roomIds);
+        
         $availableRoom = HotelRoom::where('property_id', $propertyId)
-            ->whereIn('id', $roomIds)
+            ->whereIn('id', $integerRoomIds)
             ->where('status', 1)
             ->whereDoesntHave('reservations', function ($query) use ($checkInDate, $checkOutDate) {
+                // For flexible bookings, be more lenient with availability checks
+                // Only check for exact date conflicts (same check-in and check-out dates)
                 $query->where('status', 'confirmed')
                     ->where(function ($dateQuery) use ($checkInDate, $checkOutDate) {
+                        // Check for exact date matches (most restrictive)
                         $dateQuery->where(function ($q) use ($checkInDate, $checkOutDate) {
-                            $q->where('check_in_date', '<=', $checkInDate)
-                                ->where('check_out_date', '>', $checkInDate);
+                            $q->where('check_in_date', '=', $checkInDate)
+                                ->where('check_out_date', '=', $checkOutDate);
                         })
+                        // Check for overlapping stays (partial overlap)
                         ->orWhere(function ($q) use ($checkInDate, $checkOutDate) {
                             $q->where('check_in_date', '<', $checkOutDate)
-                                ->where('check_out_date', '>=', $checkOutDate);
-                        })
-                        ->orWhere(function ($q) use ($checkInDate, $checkOutDate) {
-                            $q->where('check_in_date', '>=', $checkInDate)
-                                ->where('check_out_date', '<=', $checkOutDate);
+                                ->where('check_out_date', '>', $checkInDate);
                         });
                     });
             })
@@ -13083,7 +13123,8 @@ Best regards,
                 'property_id' => $propertyId,
                 'check_in' => $checkInDate,
                 'check_out' => $checkOutDate,
-                'candidate_room_ids' => $roomIds
+                'candidate_room_ids' => $roomIds,
+                'converted_room_ids' => $integerRoomIds
             ]);
         }
         
