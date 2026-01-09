@@ -12652,8 +12652,37 @@ Best regards,
             // For hotel room reservations, reservable_id should be the hotel room ID, not property ID
             $reservableId = $request->property_id;
             if ($request->reservable_type === 'hotel_room' && !empty($request->reservable_data)) {
-                // Use the first room's ID as the reservable_id for hotel reservations
-                $reservableId = $request->reservable_data[0]['id'] ?? $request->property_id;
+                // Check if this is a flexible booking that needs room assignment
+                $isFlexibleBooking = $request->has('booking_type') && $request->booking_type === 'flexible_booking';
+                
+                if ($isFlexibleBooking) {
+                    // For flexible bookings, find an available room instead of using the first room
+                    $availableRoom = $this->findAvailableHotelRoom(
+                        $request->property_id,
+                        $request->check_in_date,
+                        $request->check_out_date,
+                        $request->reservable_data
+                    );
+                    
+                    if (!$availableRoom) {
+                        return response()->json([
+                            'error' => true,
+                            'message' => 'No available rooms found for the selected dates. Please choose different dates.'
+                        ], 400);
+                    }
+                    
+                    $reservableId = $availableRoom->id;
+                    Log::info('Flexible booking - assigned available room', [
+                        'property_id' => $request->property_id,
+                        'check_in' => $request->check_in_date,
+                        'check_out' => $request->check_out_date,
+                        'assigned_room_id' => $availableRoom->id,
+                        'room_number' => $availableRoom->room_number ?? 'N/A'
+                    ]);
+                } else {
+                    // For non-flexible bookings, use the first room's ID as before
+                    $reservableId = $request->reservable_data[0]['id'] ?? $request->property_id;
+                }
             }
             
             $reservationData = [
@@ -12989,5 +13018,75 @@ Best regards,
             ->toArray();
 
         return $nearbyCities;
+    }
+
+    /**
+     * Find an available hotel room for flexible bookings
+     * 
+     * @param int $propertyId
+     * @param string $checkInDate
+     * @param string $checkOutDate
+     * @param array $reservableData
+     * @return HotelRoom|null
+     */
+    private function findAvailableHotelRoom($propertyId, $checkInDate, $checkOutDate, $reservableData)
+    {
+        // Extract room IDs from reservable_data
+        $roomIds = array_column($reservableData, 'id');
+        
+        if (empty($roomIds)) {
+            Log::error('No room IDs found in reservable_data for flexible booking', [
+                'property_id' => $propertyId,
+                'reservable_data' => $reservableData
+            ]);
+            return null;
+        }
+        
+        Log::info('Finding available hotel room for flexible booking', [
+            'property_id' => $propertyId,
+            'check_in' => $checkInDate,
+            'check_out' => $checkOutDate,
+            'candidate_room_ids' => $roomIds
+        ]);
+        
+        // Find an available room from the provided room IDs
+        $availableRoom = HotelRoom::where('property_id', $propertyId)
+            ->whereIn('id', $roomIds)
+            ->where('status', 1)
+            ->whereDoesntHave('reservations', function ($query) use ($checkInDate, $checkOutDate) {
+                $query->whereIn('status', ['confirmed', 'pending', 'approved'])
+                    ->where(function ($dateQuery) use ($checkInDate, $checkOutDate) {
+                        $dateQuery->where(function ($q) use ($checkInDate, $checkOutDate) {
+                            $q->where('check_in_date', '<=', $checkInDate)
+                                ->where('check_out_date', '>', $checkInDate);
+                        })
+                        ->orWhere(function ($q) use ($checkInDate, $checkOutDate) {
+                            $q->where('check_in_date', '<', $checkOutDate)
+                                ->where('check_out_date', '>=', $checkOutDate);
+                        })
+                        ->orWhere(function ($q) use ($checkInDate, $checkOutDate) {
+                            $q->where('check_in_date', '>=', $checkInDate)
+                                ->where('check_out_date', '<=', $checkOutDate);
+                        });
+                    });
+            })
+            ->first();
+        
+        if ($availableRoom) {
+            Log::info('Found available room for flexible booking', [
+                'property_id' => $propertyId,
+                'assigned_room_id' => $availableRoom->id,
+                'room_number' => $availableRoom->room_number ?? 'N/A'
+            ]);
+        } else {
+            Log::warning('No available rooms found for flexible booking', [
+                'property_id' => $propertyId,
+                'check_in' => $checkInDate,
+                'check_out' => $checkOutDate,
+                'candidate_room_ids' => $roomIds
+            ]);
+        }
+        
+        return $availableRoom;
     }
 }
