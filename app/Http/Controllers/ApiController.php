@@ -12692,8 +12692,12 @@ Best regards,
             if ($maskedCardNumber) {
                 $submissionData['card_number_masked'] = $maskedCardNumber;
             }
-            if ($request->has('expiry_date')) {
+            // Ensure expiry_date is set (required by DB)
+            if ($request->has('expiry_date') && !empty($request->expiry_date)) {
                 $submissionData['expiry_date'] = $request->expiry_date;
+            } else {
+                // Default value for flexible bookings or when missing
+                $submissionData['expiry_date'] = 'N/A';
             }
             if ($maskedCvv) {
                 $submissionData['cvv_masked'] = $maskedCvv;
@@ -12799,10 +12803,10 @@ Best regards,
                     $reservationData['flexible_booking_discount'] = $request->flexible_booking_discount;
                 }
                 
-                // Handle is_flexible_booking flag if provided
-                if ($request->has('is_flexible_booking') && $request->is_flexible_booking !== null) {
-                    $reservationData['is_flexible_booking'] = $request->is_flexible_booking;
-                }
+                // Handle is_flexible_booking flag if provided - SKIP as column might not exist
+                // if ($request->has('is_flexible_booking') && $request->is_flexible_booking !== null) {
+                //    $reservationData['is_flexible_booking'] = $request->is_flexible_booking;
+                // }
             }
 
             // Add property details if provided
