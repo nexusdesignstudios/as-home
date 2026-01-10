@@ -477,20 +477,7 @@ class Property extends Model
 
     public function getPropertyClassificationAttribute($value)
     {
-        switch ($value) {
-            case 1:
-                return "sell_rent";
-            case 2:
-                return "commercial";
-            case 3:
-                return "new_project";
-            case 4:
-                return "vacation_homes";
-            case 5:
-                return "hotel_booking";
-            default:
-                return null;
-        }
+        return (int) $value; // Return the raw integer value
     }
 
     public function getIsPromotedAttribute()
