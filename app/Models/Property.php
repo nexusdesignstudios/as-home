@@ -475,10 +475,6 @@ class Property extends Model
         $this->attributes['propery_type'] = $value;
     }
 
-    public function getPropertyClassificationAttribute($value)
-    {
-        return (int) $value; // Return the raw integer value
-    }
 
     public function getIsPromotedAttribute()
     {
@@ -763,10 +759,10 @@ class Property extends Model
         return $isPropertyTypeValid && $hasExpiredAdvertisement;
     }
 
-    public function getPropertyClassificationAttribute($value)
-    {
-        return (int) $value; // Return the raw integer value
-    }
+    // public function getPropertyClassificationAttribute($value)
+    // {
+    //     return (int) $value; // Return the raw integer value
+    // }
 
     public function getAvailabilityTypeAttribute($value)
     {
