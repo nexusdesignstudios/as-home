@@ -13145,7 +13145,7 @@ Best regards,
             ->whereDoesntHave('reservations', function ($query) use ($checkInDate, $checkOutDate) {
                 // For flexible bookings, be more lenient with availability checks
                 // Only check for exact date conflicts (same check-in and check-out dates)
-                $query->where('status', 'confirmed')
+                $query->whereIn('status', ['confirmed', 'approved', 'pending']) // Also exclude pending/approved to be safe
                     ->where(function ($dateQuery) use ($checkInDate, $checkOutDate) {
                         // Check for exact date matches (most restrictive)
                         $dateQuery->where(function ($q) use ($checkInDate, $checkOutDate) {

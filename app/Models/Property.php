@@ -763,6 +763,11 @@ class Property extends Model
         return $isPropertyTypeValid && $hasExpiredAdvertisement;
     }
 
+    public function getPropertyClassificationAttribute($value)
+    {
+        return (int) $value; // Return the raw integer value
+    }
+
     public function getAvailabilityTypeAttribute($value)
     {
         switch ($value) {
