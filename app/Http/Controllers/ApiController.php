@@ -335,7 +335,7 @@ class ApiController extends Controller
                         'email' => $request->email,
                         'title' => $emailTypeData['title'],
                     );
-                    HelperService::sendMail($data);
+                    HelperService::sendMail($data, false, true); // Skip PDF for booking confirmations
                 } catch (Exception $e) {
                     Log::info("Welcome Mail Sending Issue with error :- " . $e->getMessage());
                 }
@@ -12570,16 +12570,13 @@ Best regards,
      */
     public function submitPaymentForm(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        // Base validation rules
+        $rules = [
             'property_id' => 'required|exists:propertys,id',
             'customer_id' => 'required|exists:customers,id',
             'customer_name' => 'required|string|max:255',
             'customer_phone' => 'required|string|max:20',
             'customer_email' => 'required|email|max:255',
-            'card_number' => 'required|string|min:16|max:19',
-            'expiry_date' => 'required|string|max:7',
-            'cvv' => 'required|string|min:3|max:4',
-            'amount' => 'required|numeric|min:0',
             'currency' => 'nullable|string|max:3',
             'check_in_date' => 'required|date|after_or_equal:today',
             'check_out_date' => 'required|date|after:check_in_date',
@@ -12599,7 +12596,26 @@ Best regards,
             'flexible_booking_discount' => 'nullable|numeric|min:0',
             'property_details' => 'nullable|array',
             'refund_policy' => 'nullable|string|in:refundable,non-refundable'
-        ]);
+        ];
+
+        // Conditional validation: Only require card data for non-flexible bookings
+        $isFlexibleBooking = $request->has('booking_type') && $request->booking_type === 'flexible_booking';
+        
+        if (!$isFlexibleBooking) {
+            // Non-flexible bookings require card data
+            $rules['card_number'] = 'required|string|min:16|max:19';
+            $rules['expiry_date'] = 'required|string|max:7';
+            $rules['cvv'] = 'required|string|min:3|max:4';
+            $rules['amount'] = 'required|numeric|min:0';
+        } else {
+            // Flexible bookings: card data optional, amount can be 0
+            $rules['card_number'] = 'nullable|string|min:16|max:19';
+            $rules['expiry_date'] = 'nullable|string|max:7';
+            $rules['cvv'] = 'nullable|string|min:3|max:4';
+            $rules['amount'] = 'nullable|numeric|min:0';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return response()->json([
@@ -12631,21 +12647,36 @@ Best regards,
                 ], 400);
             }
 
-            // Mask sensitive card information
-            $cardNumber = $request->card_number;
-            $maskedCardNumber = '**** **** **** ' . substr($cardNumber, -4);
-            $maskedCvv = str_repeat('*', strlen($request->cvv));
+            // Handle card data for flexible bookings
+            $isFlexibleBooking = $request->has('booking_type') && $request->booking_type === 'flexible_booking';
+            
+            // Mask sensitive card information (only if card data is provided)
+            $maskedCardNumber = null;
+            $maskedCvv = null;
+            
+            if (!$isFlexibleBooking && $request->has('card_number')) {
+                // Non-flexible bookings: mask actual card data
+                $cardNumber = $request->card_number;
+                $maskedCardNumber = '**** **** **** ' . substr($cardNumber, -4);
+                $maskedCvv = str_repeat('*', strlen($request->cvv));
+            } elseif ($isFlexibleBooking && $request->has('card_number')) {
+                // Flexible bookings with card data: mask it
+                $cardNumber = $request->card_number;
+                $maskedCardNumber = '**** **** **** ' . substr($cardNumber, -4);
+                $maskedCvv = str_repeat('*', strlen($request->cvv));
+            } else {
+                // Flexible bookings without card data: use placeholder
+                $maskedCardNumber = '**** **** **** 0000';
+                $maskedCvv = '***';
+            }
 
             // Create payment form submission record
-            $submission = PaymentFormSubmission::create([
+            $submissionData = [
                 'property_id' => $request->property_id,
                 'customer_name' => $request->customer_name,
                 'customer_phone' => $request->customer_phone,
                 'customer_email' => $request->customer_email,
-                'card_number_masked' => $maskedCardNumber,
-                'expiry_date' => $request->expiry_date,
-                'cvv_masked' => $maskedCvv,
-                'amount' => $request->amount,
+                'amount' => $request->amount ?? 0,
                 'currency' => $request->currency ?? 'EGP',
                 'check_in_date' => $request->check_in_date,
                 'check_out_date' => $request->check_out_date,
@@ -12655,7 +12686,20 @@ Best regards,
                 'reservable_data' => $request->reservable_data,
                 'review_url' => $request->review_url,
                 'status' => 'pending'
-            ]);
+            ];
+
+            // Add card data only if provided
+            if ($maskedCardNumber) {
+                $submissionData['card_number_masked'] = $maskedCardNumber;
+            }
+            if ($request->has('expiry_date')) {
+                $submissionData['expiry_date'] = $request->expiry_date;
+            }
+            if ($maskedCvv) {
+                $submissionData['cvv_masked'] = $maskedCvv;
+            }
+
+            $submission = PaymentFormSubmission::create($submissionData);
 
             // Create reservation record for the revenue tab
             // Note: $request->amount is the discounted amount (after discount is applied)
@@ -13078,6 +13122,9 @@ Best regards,
             return null;
         }
         
+        // Convert room IDs to integers for database comparison since Laravel expects integers
+        $integerRoomIds = array_map('intval', $roomIds);
+        
         Log::info('Finding available hotel room for flexible booking', [
             'property_id' => $propertyId,
             'check_in' => $checkInDate,
@@ -13087,8 +13134,6 @@ Best regards,
         ]);
         
         // Find an available room from the provided room IDs
-        // Convert room IDs to integers for database comparison since Laravel expects integers
-        $integerRoomIds = array_map('intval', $roomIds);
         
         $availableRoom = HotelRoom::where('property_id', $propertyId)
             ->whereIn('id', $integerRoomIds)

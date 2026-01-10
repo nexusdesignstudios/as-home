@@ -660,7 +660,7 @@ class ReservationService
                     'email' => $customer->email,
                     'title' => $emailTypeData['title'],
                 );
-                \App\Services\HelperService::sendMail($data);
+                \App\Services\HelperService::sendMail($data, false, true); // Skip PDF for booking confirmation emails
 
                 \Illuminate\Support\Facades\Log::info('Reservation approval email sent successfully', [
                     'reservation_id' => $reservation->id,

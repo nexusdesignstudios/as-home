@@ -2486,7 +2486,7 @@ class HelperService
         return $templateContent;
     }
 
-    public static function sendMail($data, $requiredEmailException = false)
+    public static function sendMail($data, $requiredEmailException = false, $skipPdf = false)
     {
         try {
             $adminMail = env('MAIL_FROM_ADDRESS') ?? env('MAIL_USERNAME') ?? config('mail.from.address') ?? 'noreply@ashome-eg.com';
@@ -2526,96 +2526,110 @@ class HelperService
             $viewName = isset($data['view']) && is_string($data['view']) ? $data['view'] : 'mail-templates.mail-template';
             $emailHtml = view($viewName, $emailData)->render();
 
-            // 2) Generate PDF - use separate PDF template if provided, otherwise use email template
-            // This allows email body and PDF content to be different (e.g., welcoming message in email, contract only in PDF)
-            // For PDF: use URL logo (PDF generators can access URLs)
-            $pdfData = $data;
-            if (isset($data['pdf_template'])) {
-                // Use separate PDF template (e.g., contract only without welcoming message)
-                $pdfData['email_template'] = $data['pdf_template'];
+            // Initialize variables for PDF content
+            $pdfContent = null;
+            $filename = null;
+            $tempPath = null;
+
+            // Only generate PDF if not skipped
+            if (!$skipPdf) {
+                // 2) Generate PDF - use separate PDF template if provided, otherwise use email template
+                // This allows email body and PDF content to be different (e.g., welcoming message in email, contract only in PDF)
+                // For PDF: use URL logo (PDF generators can access URLs)
+                $pdfData = $data;
+                if (isset($data['pdf_template'])) {
+                    // Use separate PDF template (e.g., contract only without welcoming message)
+                    $pdfData['email_template'] = $data['pdf_template'];
+                }
+                $pdfData['use_base64_logo'] = false; // Flag to use URL in PDF template
+                $pdfHtml = view($viewName, $pdfData)->render();
+
+                // 3) Generate PDF from the HTML content (A4 portrait)
+                // Set PDF options to remove character/content limits and enable full content rendering
+                // Increase memory limit temporarily for large PDFs (contracts can be very long)
+                $originalMemoryLimit = ini_get('memory_limit');
+                ini_set('memory_limit', '1024M'); // Increased to 1GB for very long contracts
+                
+                // Also increase execution time for large PDFs
+                $originalMaxExecutionTime = ini_get('max_execution_time');
+                ini_set('max_execution_time', 300); // 5 minutes for large contracts
+                
+                $pdf = Pdf::loadHTML($pdfHtml)->setPaper('A4', 'portrait');
+                $pdf->setOptions([
+                    'isHtml5ParserEnabled' => true,
+                    'isRemoteEnabled' => true,
+                    'defaultFont' => 'DejaVu Sans',
+                    'isPhpEnabled' => true,
+                    'chroot' => public_path(),
+                    'enable-local-file-access' => true,
+                    'dpi' => 150,
+                    'enable-font-subsetting' => false,
+                    'isFontSubsettingEnabled' => false,
+                    'isJavascriptEnabled' => false,
+                    'debugKeepTemp' => false,
+                    'debugCss' => false,
+                    'logOutputFile' => '',
+                    'tempDir' => sys_get_temp_dir(),
+                    'fontHeightRatio' => 1.1,
+                    'enableCssFloat' => true,
+                    'enableInlineCss' => true,
+                    // Ensure no content truncation
+                    'enable-smart-shrinking' => false,
+                    'page-size' => 'A4',
+                    'orientation' => 'Portrait',
+                    'margin-top' => 15,
+                    'margin-right' => 15,
+                    'margin-bottom' => 15,
+                    'margin-left' => 15,
+                    // Allow unlimited pages
+                    'no-stop-slow-scripts' => true,
+                ]);
+                
+                // Set unlimited page height to allow content to flow across multiple pages
+                // This ensures the entire contract is included in the PDF
+                $pdf->setOption('enable-smart-shrinking', false);
+                $pdfContent = $pdf->output();
+                
+                // Restore original execution time
+                ini_set('max_execution_time', $originalMaxExecutionTime);
+                
+                // Restore original memory limit
+                ini_set('memory_limit', $originalMemoryLimit);
+
+                // Build filename (safe)
+                $safeTitle = preg_replace('/[^A-Za-z0-9_-]+/', '_', (string)($data['title'] ?? 'document'));
+                $filename = $safeTitle . '_' . date('Ymd_His') . '.pdf';
+
+                // Optional: save a temporary copy
+                $tempDir = storage_path('app/tmp');
+                if (!is_dir($tempDir)) {
+                    @mkdir($tempDir, 0755, true);
+                }
+                $tempPath = $tempDir . DIRECTORY_SEPARATOR . $filename;
+                @file_put_contents($tempPath, $pdfContent);
             }
-            $pdfData['use_base64_logo'] = false; // Flag to use URL in PDF template
-            $pdfHtml = view($viewName, $pdfData)->render();
-
-            // 3) Generate PDF from the HTML content (A4 portrait)
-            // Set PDF options to remove character/content limits and enable full content rendering
-            // Increase memory limit temporarily for large PDFs (contracts can be very long)
-            $originalMemoryLimit = ini_get('memory_limit');
-            ini_set('memory_limit', '1024M'); // Increased to 1GB for very long contracts
-            
-            // Also increase execution time for large PDFs
-            $originalMaxExecutionTime = ini_get('max_execution_time');
-            ini_set('max_execution_time', 300); // 5 minutes for large contracts
-            
-            $pdf = Pdf::loadHTML($pdfHtml)->setPaper('A4', 'portrait');
-            $pdf->setOptions([
-                'isHtml5ParserEnabled' => true,
-                'isRemoteEnabled' => true,
-                'defaultFont' => 'DejaVu Sans',
-                'isPhpEnabled' => true,
-                'chroot' => public_path(),
-                'enable-local-file-access' => true,
-                'dpi' => 150,
-                'enable-font-subsetting' => false,
-                'isFontSubsettingEnabled' => false,
-                'isJavascriptEnabled' => false,
-                'debugKeepTemp' => false,
-                'debugCss' => false,
-                'logOutputFile' => '',
-                'tempDir' => sys_get_temp_dir(),
-                'fontHeightRatio' => 1.1,
-                'enableCssFloat' => true,
-                'enableInlineCss' => true,
-                // Ensure no content truncation
-                'enable-smart-shrinking' => false,
-                'page-size' => 'A4',
-                'orientation' => 'Portrait',
-                'margin-top' => 15,
-                'margin-right' => 15,
-                'margin-bottom' => 15,
-                'margin-left' => 15,
-                // Allow unlimited pages
-                'no-stop-slow-scripts' => true,
-            ]);
-            
-            // Set unlimited page height to allow content to flow across multiple pages
-            // This ensures the entire contract is included in the PDF
-            $pdf->setOption('enable-smart-shrinking', false);
-            $pdfContent = $pdf->output();
-            
-            // Restore original execution time
-            ini_set('max_execution_time', $originalMaxExecutionTime);
-            
-            // Restore original memory limit
-            ini_set('memory_limit', $originalMemoryLimit);
-
-            // Build filename (safe)
-            $safeTitle = preg_replace('/[^A-Za-z0-9_-]+/', '_', (string)($data['title'] ?? 'document'));
-            $filename = $safeTitle . '_' . date('Ymd_His') . '.pdf';
-
-            // Optional: save a temporary copy
-            $tempDir = storage_path('app/tmp');
-            if (!is_dir($tempDir)) {
-                @mkdir($tempDir, 0755, true);
-            }
-            $tempPath = $tempDir . DIRECTORY_SEPARATOR . $filename;
-            @file_put_contents($tempPath, $pdfContent);
 
             // 3) Send the email with HTML body (from template) and the PDF attached
-            Mail::send([], [], function ($message) use ($data, $adminMail, $pdfContent, $filename, $emailHtml) {
+            Mail::send([], [], function ($message) use ($data, $adminMail, $pdfContent, $filename, $emailHtml, $skipPdf) {
                 $to = $data['email'];
                 $subject = $data['title'] ?? 'Notification';
                 $message->to($to)->subject($subject);
                 $message->from($adminMail, 'As Home Team');
                 // Preferred HTML content
                 $message->html($emailHtml);
-                // Alt plain text
-                $message->text('Please find attached your details as a PDF.');
+                // Alt plain text - different message when no PDF
+                if ($skipPdf) {
+                    $message->text('Please review the details in this email.');
+                } else {
+                    $message->text('Please find attached your details as a PDF.');
+                }
 
-                // Attach generated PDF
-                $message->attachData($pdfContent, $filename, [
-                    'mime' => 'application/pdf',
-                ]);
+                // Attach generated PDF only if it was generated
+                if (!$skipPdf && $pdfContent && $filename) {
+                    $message->attachData($pdfContent, $filename, [
+                        'mime' => 'application/pdf',
+                    ]);
+                }
 
                 // Preserve any additional attachments passed by callers
                 if (isset($data['attachments']) && is_array($data['attachments'])) {
@@ -2631,7 +2645,9 @@ class HelperService
             });
 
             // 4) Optionally delete temp file (kept briefly for troubleshooting)
-            @unlink($tempPath);
+            if ($tempPath) {
+                @unlink($tempPath);
+            }
 
         } catch (Exception $e) {
             if ($requiredEmailException == true) {
