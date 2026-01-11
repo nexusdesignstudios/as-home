@@ -1062,11 +1062,13 @@ Confirmation Date: {confirmation_date}
                                 ->where('check_out_date', '>', $checkOutDate);
                         })->get();
                     
-                    \Illuminate\Support\Facades\Log::info('Existing confirmed reservations for room', [
-                        'modelId' => $modelId,
-                        'reservations' => $existingReservations->toArray(),
-                        'count' => $existingReservations->count()
-                    ]);
+                    if ($existingReservations->count() > 0) {
+                        \Illuminate\Support\Facades\Log::info('Existing confirmed reservations for room (Direct Query)', [
+                            'modelId' => $modelId,
+                            'reservations' => $existingReservations->toArray(),
+                            'count' => $existingReservations->count()
+                        ]);
+                    }
                     
                     $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
                     
@@ -1081,7 +1083,7 @@ Confirmation Date: {confirmation_date}
                         // However, to prevent double booking, 'pending' usually needs to block
                         
                         // For now, we trust datesOverlap as the source of truth for "is this room taken"
-                        \Illuminate\Support\Facades\Log::info('Room not available - has overlapping reservation', [
+                        \Illuminate\Support\Facades\Log::info('Room not available - has overlapping reservation (datesOverlap)', [
                             'modelId' => $modelId
                         ]);
                         return false;
@@ -1185,10 +1187,12 @@ Confirmation Date: {confirmation_date}
                 $hasBlockingDates = $blockingDatesQuery->exists();
 
                 if ($hasBlockingDates) {
+                    $blockingDates = $blockingDatesQuery->get();
                     \Illuminate\Support\Facades\Log::info('Room has blocked available_dates during selected dates, not available', [
                         'modelId' => $modelId,
                         'checkInDate' => $checkInDate,
-                        'checkOutDate' => $checkOutDate
+                        'checkOutDate' => $checkOutDate,
+                        'blockingEntries' => $blockingDates->toArray()
                     ]);
                     return false;
                 }
