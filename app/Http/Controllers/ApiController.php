@@ -12794,9 +12794,9 @@ Best regards,
             }
             
             // Handle property_owner_id if provided (for flexible bookings)
-            if ($request->has('property_owner_id') && $request->property_owner_id !== null) {
-                $reservationData['property_owner_id'] = $request->property_owner_id;
-            }
+            // if ($request->has('property_owner_id') && $request->property_owner_id !== null) {
+            //    $reservationData['property_owner_id'] = $request->property_owner_id;
+            // }
 
             // Handle flexible reservations - ensure proper status and payment method
             if ($request->has('booking_type') && $request->booking_type === 'flexible_booking') {
@@ -12807,9 +12807,9 @@ Best regards,
                 $reservationData['requires_approval'] = false; // No approval needed
                 
                 // Handle flexible booking discount if provided
-                if ($request->has('flexible_booking_discount') && $request->flexible_booking_discount !== null) {
-                    $reservationData['flexible_booking_discount'] = $request->flexible_booking_discount;
-                }
+                // if ($request->has('flexible_booking_discount') && $request->flexible_booking_discount !== null) {
+                //    $reservationData['flexible_booking_discount'] = $request->flexible_booking_discount;
+                // }
                 
                 // Handle is_flexible_booking flag if provided - SKIP as column might not exist
                 // if ($request->has('is_flexible_booking') && $request->is_flexible_booking !== null) {
