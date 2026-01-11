@@ -13142,7 +13142,9 @@ Best regards,
             'check_in' => $checkInDate,
             'check_out' => $checkOutDate,
             'candidate_room_ids' => $roomIds,
-            'converted_room_ids' => $integerRoomIds
+            'converted_room_ids' => $integerRoomIds,
+            'reservable_data_type' => gettype($reservableData),
+            'first_item' => !empty($reservableData) ? $reservableData[0] : 'empty'
         ]);
         
         // Find an available room from the provided room IDs
@@ -13168,6 +13170,14 @@ Best regards,
                     });
             })
             ->first();
+
+        if (!$availableRoom) {
+             $debugTotal = HotelRoom::where('property_id', $propertyId)->whereIn('id', $integerRoomIds)->count();
+             Log::warning('DEBUG: Primary search failed', [
+                 'rooms_exist_count' => $debugTotal,
+                 'ids' => $integerRoomIds
+             ]);
+        }
         
         if ($availableRoom) {
             Log::info('Found available room for flexible booking', [
