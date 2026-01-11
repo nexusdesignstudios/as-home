@@ -149,7 +149,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
 
     Route::post('create-payment-intent', [ApiController::class, 'getPaymentIntent']);
     Route::post('payment-transaction-fail', [ApiController::class, 'makePaymentTransactionFail']);
-    Route::post('submit-payment-form', [ApiController::class, 'submitPaymentForm']);
+    // Route::post('submit-payment-form', [ApiController::class, 'submitPaymentForm']);
 
     // Paymob Payment
     Route::post('create-paymob-payment', [PaymobController::class, 'createPaymentIntent']);

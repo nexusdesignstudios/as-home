@@ -12578,6 +12578,8 @@ Best regards,
      */
     public function submitPaymentForm(Request $request)
     {
+        Log::info('submitPaymentForm called', ['request' => $request->all()]);
+
         // Base validation rules
         $rules = [
             'property_id' => 'required|exists:propertys,id',
@@ -12781,9 +12783,9 @@ Best regards,
             }
             
             // Handle property_owner_id if provided (for flexible bookings)
-            // if ($request->has('property_owner_id') && $request->property_owner_id !== null) {
-            //    $reservationData['property_owner_id'] = $request->property_owner_id;
-            // }
+            if ($request->has('property_owner_id') && $request->property_owner_id !== null) {
+                // $reservationData['property_owner_id'] = $request->property_owner_id;
+            }
 
             // Handle flexible reservations - ensure proper status and payment method
             if ($request->has('booking_type') && $request->booking_type === 'flexible_booking') {
@@ -12813,6 +12815,14 @@ Best regards,
             if ($request->reservable_type === 'hotel_room' && $request->reservable_data) {
                 $reservationData['reservable_data'] = json_encode($request->reservable_data);
             }
+
+            // SAFETY CHECK: Remove columns that might not exist in DB yet to prevent 500 errors
+            // This ensures compatibility even if database migrations are pending
+            if (isset($reservationData['property_owner_id'])) unset($reservationData['property_owner_id']);
+            if (isset($reservationData['flexible_booking_discount'])) unset($reservationData['flexible_booking_discount']);
+            if (isset($reservationData['is_flexible_booking'])) unset($reservationData['is_flexible_booking']);
+            
+            Log::info('Creating reservation', ['keys' => array_keys($reservationData)]);
 
             // Create the reservation
             $reservation = \App\Models\Reservation::create($reservationData);
