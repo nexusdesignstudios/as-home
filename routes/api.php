@@ -80,7 +80,7 @@ Route::get('get_app_settings', [ApiController::class, 'get_app_settings']);
 /** Authenticated APIS */
 Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::post('save-property-question-answers', [ApiController::class, 'savePropertyQuestionAnswers']);
-    Route::post('submit-payment-form', [ApiController::class, 'submitPaymentForm']);
+    // Route::post('submit-payment-form', [ApiController::class, 'submitPaymentForm']);
     Route::get('check-user-review-status', [ApiController::class, 'checkUserReviewStatus']);
     /*********************************************************************** */
     /** Property */
@@ -149,6 +149,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
 
     Route::post('create-payment-intent', [ApiController::class, 'getPaymentIntent']);
     Route::post('payment-transaction-fail', [ApiController::class, 'makePaymentTransactionFail']);
+    Route::post('submit-payment-form', [ApiController::class, 'submitPaymentForm']);
 
     // Paymob Payment
     Route::post('create-paymob-payment', [PaymobController::class, 'createPaymentIntent']);
