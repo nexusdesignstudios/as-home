@@ -1069,16 +1069,18 @@ Confirmation Date: {confirmation_date}
                     ]);
                     
                     $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
-                    \Illuminate\Support\Facades\Log::info('datesOverlap result', [
-                        'modelId' => $modelId,
-                        'hasOverlap' => $hasOverlap,
-                        'checkInDate' => $checkInDate,
-                        'checkOutDate' => $checkOutDate
-                    ]);
                     
                     if ($hasOverlap) {
-                        // This specific room has a confirmed reservation - return false
-                        // The API controller will handle finding alternative rooms
+                        // Check if the overlapping reservation is actually 'confirmed' or 'approved'
+                        // If it's a flexible reservation that is 'confirmed' but 'unpaid', it should block dates
+                        // If it's a non-refundable reservation that is 'pending' or 'unpaid', it might not block dates depending on policy
+                        // But for safety, we currently block all 'confirmed', 'approved', 'pending' in datesOverlap scope
+                        
+                        // FIX: Ensure we only block for truly conflicting reservations
+                        // The existing check in datesOverlap includes 'pending', which might be too aggressive for some flows
+                        // However, to prevent double booking, 'pending' usually needs to block
+                        
+                        // For now, we trust datesOverlap as the source of truth for "is this room taken"
                         \Illuminate\Support\Facades\Log::info('Room not available - has overlapping reservation', [
                             'modelId' => $modelId
                         ]);

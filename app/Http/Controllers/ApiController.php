@@ -12737,7 +12737,58 @@ Best regards,
                     ]);
                 } else {
                     // For non-flexible bookings, use the first room's ID as before
-                    $reservableId = $request->reservable_data[0]['id'] ?? $request->property_id;
+                $reservableId = $request->reservable_data[0]['id'] ?? $request->property_id;
+                
+                // NEW: Check availability and find alternative room if needed
+                if (!$isFlexibleBooking && $reservableId) {
+                    $reservationService = new \App\Services\ReservationService();
+                    $isAvailable = $reservationService->areDatesAvailable(
+                        'App\\Models\\HotelRoom',
+                        $reservableId,
+                        $request->check_in_date,
+                        $request->check_out_date
+                    );
+                    
+                    if (!$isAvailable) {
+                        Log::info('Selected room is not available, searching for alternative', [
+                            'room_id' => $reservableId
+                        ]);
+                        
+                        // Get the room details
+                        $room = HotelRoom::find($reservableId);
+                        if ($room) {
+                            // Find other rooms of the same type in the same property
+                            $alternativeRooms = HotelRoom::where('property_id', $room->property_id)
+                                ->where('room_type_id', $room->room_type_id)
+                                ->where('id', '!=', $room->id)
+                                ->where('status', 1) // Active rooms only
+                                ->get();
+                                
+                            foreach ($alternativeRooms as $altRoom) {
+                                if ($reservationService->areDatesAvailable(
+                                    'App\\Models\\HotelRoom',
+                                    $altRoom->id,
+                                    $request->check_in_date,
+                                    $request->check_out_date
+                                )) {
+                                    $reservableId = $altRoom->id;
+                                    Log::info('Found alternative available room', [
+                                        'original_room_id' => $room->id,
+                                        'new_room_id' => $reservableId
+                                    ]);
+                                    
+                                    // Update the reservable_data with the new ID to ensure consistency
+                                    $reservableData = $request->reservable_data;
+                                    if (isset($reservableData[0])) {
+                                        $reservableData[0]['id'] = $reservableId;
+                                        $request->merge(['reservable_data' => $reservableData]);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
                 }
             }
             
