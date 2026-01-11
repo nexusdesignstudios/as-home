@@ -12723,28 +12723,15 @@ Best regards,
                 $isFlexibleBooking = $request->has('booking_type') && $request->booking_type === 'flexible_booking';
                 
                 if ($isFlexibleBooking) {
-                    // For flexible bookings, find an available room instead of using the first room
-                    $availableRoom = $this->findAvailableHotelRoom(
-                        $request->property_id,
-                        $request->check_in_date,
-                        $request->check_out_date,
-                        $request->reservable_data
-                    );
+                    // For flexible bookings (Admin Override), skip strict availability check
+                    // Use the room ID explicitly selected by the admin
+                    // This prevents blocking when overriding availability for maintenance/VIPs
+                    $firstRoom = $request->reservable_data[0];
+                    $reservableId = $firstRoom['id'] ?? $firstRoom['roomId'] ?? $request->property_id;
                     
-                    if (!$availableRoom) {
-                        return response()->json([
-                            'error' => true,
-                            'message' => 'No available rooms found for the selected dates. Please choose different dates.'
-                        ], 400);
-                    }
-                    
-                    $reservableId = $availableRoom->id;
-                    Log::info('Flexible booking - assigned available room', [
+                    Log::info('Flexible booking - using selected room (skipping availability check)', [
                         'property_id' => $request->property_id,
-                        'check_in' => $request->check_in_date,
-                        'check_out' => $request->check_out_date,
-                        'assigned_room_id' => $availableRoom->id,
-                        'room_number' => $availableRoom->room_number ?? 'N/A'
+                        'assigned_room_id' => $reservableId
                     ]);
                 } else {
                     // For non-flexible bookings, use the first room's ID as before
