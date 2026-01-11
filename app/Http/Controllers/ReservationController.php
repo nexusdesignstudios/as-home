@@ -537,7 +537,7 @@ class ReservationController extends Controller
                     'total_price' => $totalPrice,
                     'special_requests' => $request->special_requests,
                     'status' => $isFlexible ? 'confirmed' : 'pending', // Auto-confirm only for flexible reservations
-                    'payment_status' => $isFlexible ? 'paid' : 'unpaid', // Treat flexible reservations as paid
+                    'payment_status' => $isFlexible ? 'unpaid' : 'unpaid', // Keep unpaid for flexible until manual update
                     'payment_method' => $isFlexible ? 'cash' : ($request->payment_method ?? 'online'), // Cash only for flexible reservations
                     'refund_policy' => $isFlexible ? 'flexible' : 'non-refundable', // Store the refund policy
                 ];
@@ -1717,7 +1717,7 @@ class ReservationController extends Controller
                     ]);
                     $property = null;
                 }
-                if ($property && $property->property_classification == 5 && !$property->instant_booking) {
+                if ($property && $property->property_classification == 5 && !$property->instant_booking && $reservation->payment_status !== 'paid') {
                     try {
                         // Send flexible booking approval email to customer
                         $this->reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);

@@ -70,6 +70,12 @@ class ReservationService
                 }
             }
             
+            // Special case for flexible reservations that are confirmed but unpaid (manual confirmation)
+            // They should still block dates to ensure availability is updated
+            if ($status === 'confirmed' && $paymentStatus === 'unpaid' && isset($data['refund_policy']) && $data['refund_policy'] === 'flexible') {
+                $shouldBlockDates = true;
+            }
+            
             if ($shouldBlockDates) {
                 $this->updateAvailableDates(
                     $data['reservable_type'],
@@ -1305,6 +1311,17 @@ Confirmation Date: {confirmation_date}
                 'trace' => $e->getTraceAsString()
             ]);
         }
+    }
+
+    /**
+     * Send flexible hotel booking approval email (alias for confirmation email).
+     *
+     * @param \App\Models\Reservation $reservation
+     * @return void
+     */
+    public function sendFlexibleHotelBookingApprovalEmail($reservation)
+    {
+        return $this->sendFlexibleHotelBookingConfirmationEmail($reservation);
     }
 
     /**
