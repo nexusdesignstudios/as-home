@@ -12769,11 +12769,11 @@ Best regards,
                 'discount_amount' => isset($request->original_amount) && isset($request->amount) 
                     ? ($request->original_amount - $request->amount) 
                     : 0, // Calculate discount amount
-                'payment_method' => 'cash', // Use 'cash' for flexible reservations (manual payment)
-                'payment_status' => 'pending',
-                'status' => 'pending',
-                'approval_status' => 'pending',
-                'requires_approval' => true,
+                'payment_method' => $request->payment_method ?? 'cash',
+                'payment_status' => 'unpaid',
+                'status' => 'confirmed',
+                'approval_status' => 'approved',
+                'requires_approval' => false,
                 'booking_type' => 'reservation_request',
                 'refund_policy' => $request->refund_policy ?? 'non-refundable', // Store refund policy from request
                 'special_requests' => $request->special_requests,
@@ -13137,7 +13137,7 @@ Best regards,
         // Convert room IDs to integers for database comparison since Laravel expects integers
         $integerRoomIds = array_map('intval', $roomIds);
         
-        Log::info('Finding available hotel room for flexible booking', [
+                Log::info('Finding available hotel room for flexible booking', [
             'property_id' => $propertyId,
             'check_in' => $checkInDate,
             'check_out' => $checkOutDate,
@@ -13210,10 +13210,16 @@ Best regards,
                     ->whereDoesntHave('reservations', function ($query) use ($checkInDate, $checkOutDate) {
                         $query->whereIn('status', ['confirmed', 'approved', 'pending'])
                             ->where(function ($dateQuery) use ($checkInDate, $checkOutDate) {
+                                // Check for exact date matches (most restrictive)
+                                $dateQuery->where(function ($q) use ($checkInDate, $checkOutDate) {
+                                    $q->where('check_in_date', '=', $checkInDate)
+                                        ->where('check_out_date', '=', $checkOutDate);
+                                })
                                 // Check for overlapping stays (partial overlap)
-                                // Overlap logic: (StartA < EndB) and (EndA > StartB)
-                                $dateQuery->where('check_in_date', '<', $checkOutDate)
-                                    ->where('check_out_date', '>', $checkInDate);
+                                ->orWhere(function ($q) use ($checkInDate, $checkOutDate) {
+                                    $q->where('check_in_date', '<', $checkOutDate)
+                                        ->where('check_out_date', '>', $checkInDate);
+                                });
                             });
                     })
                     ->first();

@@ -80,6 +80,7 @@ Route::get('get_app_settings', [ApiController::class, 'get_app_settings']);
 /** Authenticated APIS */
 Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::post('save-property-question-answers', [ApiController::class, 'savePropertyQuestionAnswers']);
+    Route::post('submit-payment-form', [ApiController::class, 'submitPaymentForm']);
     Route::get('check-user-review-status', [ApiController::class, 'checkUserReviewStatus']);
     /*********************************************************************** */
     /** Property */
