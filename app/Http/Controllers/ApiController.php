@@ -13176,13 +13176,57 @@ Best regards,
                 'room_number' => $availableRoom->room_number ?? 'N/A'
             ]);
         } else {
-            Log::warning('No available rooms found for flexible booking', [
-                'property_id' => $propertyId,
-                'check_in' => $checkInDate,
-                'check_out' => $checkOutDate,
-                'candidate_room_ids' => $roomIds,
-                'converted_room_ids' => $integerRoomIds
-            ]);
+            // Fallback: If specific room is not available, try to find ANY room of the same room type
+            // Extract room type IDs from reservable_data
+            $roomTypeIds = [];
+            foreach ($reservableData as $room) {
+                if (isset($room['room_type_id']) && $room['room_type_id'] !== null) {
+                    $roomTypeIds[] = $room['room_type_id'];
+                }
+            }
+            
+            // Remove duplicates
+            $roomTypeIds = array_unique($roomTypeIds);
+            
+            if (!empty($roomTypeIds)) {
+                Log::info('Searching for alternative rooms by type', [
+                    'property_id' => $propertyId,
+                    'room_type_ids' => $roomTypeIds
+                ]);
+                
+                $availableRoom = HotelRoom::where('property_id', $propertyId)
+                    ->whereIn('room_type_id', $roomTypeIds)
+                    ->where('status', 1)
+                    ->whereDoesntHave('reservations', function ($query) use ($checkInDate, $checkOutDate) {
+                        $query->whereIn('status', ['confirmed', 'approved', 'pending'])
+                            ->where(function ($dateQuery) use ($checkInDate, $checkOutDate) {
+                                // Check for overlapping stays (partial overlap)
+                                // Overlap logic: (StartA < EndB) and (EndA > StartB)
+                                $dateQuery->where('check_in_date', '<', $checkOutDate)
+                                    ->where('check_out_date', '>', $checkInDate);
+                            });
+                    })
+                    ->first();
+                    
+                if ($availableRoom) {
+                    Log::info('Found alternative room by type', [
+                        'property_id' => $propertyId,
+                        'original_room_ids' => $integerRoomIds,
+                        'assigned_alternative_room_id' => $availableRoom->id,
+                        'room_type_id' => $availableRoom->room_type_id
+                    ]);
+                }
+            }
+            
+            if (!$availableRoom) {
+                Log::warning('No available rooms found for flexible booking (checked specific IDs and room types)', [
+                    'property_id' => $propertyId,
+                    'check_in' => $checkInDate,
+                    'check_out' => $checkOutDate,
+                    'candidate_room_ids' => $roomIds,
+                    'candidate_room_type_ids' => $roomTypeIds ?? []
+                ]);
+            }
         }
         
         return $availableRoom;
