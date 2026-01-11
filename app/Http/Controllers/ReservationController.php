@@ -306,6 +306,7 @@ class ReservationController extends Controller
             // Vacation apartment specific (optional) — used for vacation homes
             'apartment_id' => 'nullable|integer|exists:vacation_apartments,id',
             'apartment_quantity' => 'nullable|integer|min:1',
+            'total_price' => 'nullable|numeric|min:0',
         ]);
 
         // Custom validation for dates - use timezone-aware comparison
@@ -406,6 +407,7 @@ class ReservationController extends Controller
             // Vacation apartment specific (optional) — used for vacation homes
             'apartment_id' => 'nullable|integer|exists:vacation_apartments,id',
             'apartment_quantity' => 'nullable|integer|min:1',
+            'total_price' => 'nullable|numeric|min:0',
         ]);
 
         // Add conditional validation rules based on reservable_type
@@ -460,6 +462,14 @@ class ReservationController extends Controller
 
                 // If a vacation apartment is selected, price should come from the apartment (per unit * quantity)
                 $totalPrice = $property->price * $numberOfDays;
+
+                // Fix for flexible reservations showing 0 price
+                // If total_price is provided in the request, use it instead of the calculated one
+                // This is especially important for Hotel properties where property.price might be 0
+                if ($request->has('total_price') && is_numeric($request->total_price) && $request->total_price > 0) {
+                    $totalPrice = $request->total_price;
+                }
+
                 $selectedApartmentId = $request->apartment_id;
                 $apartmentQuantity = $request->apartment_quantity ?? 1;
 

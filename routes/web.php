@@ -396,6 +396,10 @@ Route::get('statement-of-account/tax-invoice/export', [\App\Http\Controllers\Sta
         /// START :: SEO SETTINGS
         Route::resource('seo_settings', SeoSettingsController::class);
         Route::get('seo-settings-destroy/{id}', [SeoSettingsController::class, 'destroy'])->name('seo_settings.destroy');
+
+        // Google Analytics
+        Route::get('google-analytics', [SeoSettingsController::class, 'googleAnalyticsIndex'])->name('google-analytics.index');
+        Route::post('google-analytics', [SeoSettingsController::class, 'googleAnalyticsStore'])->name('google-analytics.store');
         /// END :: SEO SETTINGS
 
         /// START :: FAQs

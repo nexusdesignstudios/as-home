@@ -478,6 +478,13 @@
                                 </li>
                             @endif
 
+                            {{-- Google Analytics --}}
+                            @if (has_permissions('read', 'seo_setting'))
+                                <li class="submenu-item">
+                                    <a href="{{ route('google-analytics.index') }}">{{ __('Google Analytics') }}</a>
+                                </li>
+                            @endif
+
                             {{-- Seo Settings --}}
                             @if (has_permissions('read', 'seo_setting'))
                                 <li class="submenu-item">

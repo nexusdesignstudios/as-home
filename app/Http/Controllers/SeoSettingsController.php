@@ -239,4 +239,46 @@ class SeoSettingsController extends Controller
             }
         }
     }
+
+    /**
+     * Display Google Analytics settings page
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function googleAnalyticsIndex()
+    {
+        if (!has_permissions('read', 'seo_setting')) {
+            return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
+        }
+        
+        $google_analytics_id = system_setting('google_analytics_id');
+        return view('seo_settings.google_analytics', compact('google_analytics_id'));
+    }
+
+    /**
+     * Store Google Analytics settings
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\Response
+     */
+    public function googleAnalyticsStore(Request $request)
+    {
+        if (!has_permissions('create', 'seo_setting')) {
+            ResponseService::errorResponse(PERMISSION_ERROR_MSG);
+        } else {
+            $request->validate([
+                'google_analytics_id' => 'required|string',
+            ]);
+
+            $setting = \App\Models\Setting::where('type', 'google_analytics_id')->first();
+            if (!$setting) {
+                $setting = new \App\Models\Setting();
+                $setting->type = 'google_analytics_id';
+            }
+            $setting->data = $request->google_analytics_id;
+            $setting->save();
+
+            ResponseService::successRedirectResponse('Google Analytics ID Updated Successfully');
+        }
+    }
 }
