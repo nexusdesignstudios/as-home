@@ -128,6 +128,12 @@ function send_push_notification($registrationIDs = array(), $fcmMsg = '')
         }
         $client = new GuzzleClient();
         $access_token = getAccessToken(); // Get Access Token
+        
+        if (!$access_token) {
+            Log::error("send_push_notification: Failed to get access token");
+            return false;
+        }
+
         $projectId = system_setting('firebase_project_id'); // Get Project Id
         $url = 'https://fcm.googleapis.com/v1/projects/' . $projectId . '/messages:send'; // Create URL
         // Headers
@@ -184,7 +190,7 @@ function send_push_notification($registrationIDs = array(), $fcmMsg = '')
         }
 
         return true;
-    } catch (Exception $e) {
+    } catch (\Throwable $e) {
         Log::error("Error in Notification Sending :- " . $e->getMessage());
         return false;
     }
@@ -1097,17 +1103,38 @@ if (!function_exists('generateSlug')) {
 if (!function_exists('getAccessToken')) {
     function getAccessToken()
     {
-        $file_name = system_setting('firebase_service_json_file');
+        try {
+            $file_name = system_setting('firebase_service_json_file');
 
-        $file_path = public_path() . '/assets/' . $file_name;
+            if (empty($file_name)) {
+                Log::error('getAccessToken: Firebase service JSON file setting is empty');
+                return null;
+            }
 
-        $client = new Client();
-        $client->setAuthConfig($file_path);
-        $client->setScopes(['https://www.googleapis.com/auth/firebase.messaging']);
-        $accessToken = $client->fetchAccessTokenWithAssertion()['access_token'];
+            $file_path = public_path() . '/assets/' . $file_name;
 
+            if (!file_exists($file_path)) {
+                Log::error('getAccessToken: Firebase service JSON file not found at ' . $file_path);
+                return null;
+            }
 
-        return $accessToken;
+            $client = new Client();
+            $client->setAuthConfig($file_path);
+            $client->setScopes(['https://www.googleapis.com/auth/firebase.messaging']);
+            
+            $accessTokenData = $client->fetchAccessTokenWithAssertion();
+            
+            if (isset($accessTokenData['access_token'])) {
+                return $accessTokenData['access_token'];
+            }
+            
+            Log::error('getAccessToken: Failed to retrieve access token from response', ['data' => $accessTokenData]);
+            return null;
+            
+        } catch (\Throwable $e) {
+            Log::error('getAccessToken: Error - ' . $e->getMessage());
+            return null;
+        }
     }
 }
 if (!function_exists('updateEnv')) {
