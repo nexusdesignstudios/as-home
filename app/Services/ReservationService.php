@@ -22,16 +22,49 @@ class ReservationService
     public function createReservation(array $data, bool $skipEmails = false)
     {
         return DB::transaction(function () use ($data, $skipEmails) {
-            // CRITICAL FIX: Check for existing reservations before creating new one
-            $existingReservation = $this->checkExistingReservation(
-                $data['reservable_type'],
-                $data['reservable_id'],
-                $data['check_in_date'],
-                $data['check_out_date']
-            );
+            // MULTI-UNIT SUPPORT: Check if this is a multi-unit vacation home booking
+            $isMultiUnit = false;
+            $apartmentId = $data['apartment_id'] ?? null;
             
-            if ($existingReservation) {
-                throw new \Exception("Room is already booked for the selected dates. Existing reservation ID: " . $existingReservation->id);
+            if ($data['reservable_type'] === 'App\\Models\\Property' && $apartmentId) {
+                // Check if apartment has multiple units
+                $apartment = \App\Models\VacationApartment::find($apartmentId);
+                
+                if ($apartment && $apartment->quantity > 1) {
+                    $isMultiUnit = true;
+                    $totalUnits = $apartment->quantity;
+                    $requestedQuantity = $data['apartment_quantity'] ?? 1;
+                    
+                    // Count all active bookings (confirmed, pending, approved)
+                    // We treat 'pending' as booked to prevent double booking during payment
+                    $bookedUnits = $this->countBookedUnitsForApartment(
+                        $data['reservable_id'],
+                        $apartmentId,
+                        $data['check_in_date'],
+                        $data['check_out_date'],
+                        null,
+                        ['confirmed', 'approved', 'pending']
+                    );
+                    
+                    if (($bookedUnits + $requestedQuantity) > $totalUnits) {
+                        throw new \Exception("Not enough units available for the selected dates. Available: " . ($totalUnits - $bookedUnits));
+                    }
+                }
+            }
+
+            // Only perform standard single-unit check if NOT multi-unit
+            if (!$isMultiUnit) {
+                // CRITICAL FIX: Check for existing reservations before creating new one
+                $existingReservation = $this->checkExistingReservation(
+                    $data['reservable_type'],
+                    $data['reservable_id'],
+                    $data['check_in_date'],
+                    $data['check_out_date']
+                );
+                
+                if ($existingReservation) {
+                    throw new \Exception("Room is already booked for the selected dates. Existing reservation ID: " . $existingReservation->id);
+                }
             }
             
             // Create the reservation
@@ -951,15 +984,15 @@ Confirmation Date: {confirmation_date}
      * @param int|null $excludeReservationId
      * @return int
      */
-    public function countBookedUnitsForApartment($propertyId, $apartmentId, $checkInDate, $checkOutDate, $excludeReservationId = null)
+    public function countBookedUnitsForApartment($propertyId, $apartmentId, $checkInDate, $checkOutDate, $excludeReservationId = null, $statuses = ['confirmed'])
     {
         $checkIn = Carbon::parse($checkInDate)->startOfDay();
         $checkOut = Carbon::parse($checkOutDate)->startOfDay();
         
-        // Get all confirmed reservations for this property on overlapping dates
+        // Get all reservations for this property on overlapping dates with specified statuses
         $reservations = Reservation::where('reservable_type', 'App\\Models\\Property')
             ->where('reservable_id', $propertyId)
-            ->where('status', 'confirmed')
+            ->whereIn('status', $statuses)
             ->where(function($query) use ($checkIn, $checkOut) {
                 $query->where('check_in_date', '<', $checkOut)
                       ->where('check_out_date', '>', $checkIn);
@@ -1118,7 +1151,8 @@ Confirmation Date: {confirmation_date}
                                         $apartmentId,
                                         $checkInDate,
                                         $checkOutDate,
-                                        $excludeReservationId
+                                        $excludeReservationId,
+                                        ['confirmed', 'approved', 'pending']
                                     );
                                     
                                     $availableUnits = $totalUnits - $bookedUnits;
@@ -1136,10 +1170,21 @@ Confirmation Date: {confirmation_date}
                                     // Allow booking if enough units are available
                                     return $availableUnits >= $requestedQuantity;
                                 } else {
-                                    // SINGLE-UNIT LOGIC: Use existing fallback (datesOverlap)
-                                    // This ensures single-unit vacation homes continue working as before
-                                    $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
-                                    return !$hasOverlap;
+                                    // SINGLE-UNIT LOGIC: Use apartment-specific check
+                                    // If apartment_id is provided, we MUST check if THIS apartment is booked.
+                                    // We cannot use generic datesOverlap because it checks property-level which blocks all apartments.
+                                    
+                                    $bookedUnits = $this->countBookedUnitsForApartment(
+                                        $modelId,
+                                        $apartmentId,
+                                        $checkInDate,
+                                        $checkOutDate,
+                                        $excludeReservationId,
+                                        ['confirmed', 'approved', 'pending']
+                                    );
+                                    
+                                    // Since quantity is 1, any booking blocks it
+                                    return $bookedUnits < 1;
                                 }
                             }
                         }
