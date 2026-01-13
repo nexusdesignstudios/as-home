@@ -418,6 +418,9 @@ class PropertController extends Controller
                 }
                 // END :: ADD CITY DATA
 
+                // Track custom room type IDs for mapping to packages
+                $customRoomTypeMap = [];
+
                 // START :: ADD HOTEL ROOMS
                 if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->hotel_rooms) && !empty($request->hotel_rooms)) {
                     try {
@@ -437,6 +440,8 @@ class PropertController extends Controller
                                     ]);
                                     $roomTypeId = $newType->id;
                                 }
+                                // Map the custom name to the resolved ID
+                                $customRoomTypeMap[$room['custom_room_type']] = $roomTypeId;
                             }
 
                             HotelRoom::create([
@@ -474,7 +479,22 @@ class PropertController extends Controller
                             // Create the package
                             $addonsPackage = new \App\Models\AddonsPackage();
                             $addonsPackage->name = $package['name'];
-                            $addonsPackage->room_type_id = $package['room_type_id'] ?? null;
+                            
+                            // Resolve room type ID for custom types
+                            $pkgRoomTypeId = $package['room_type_id'] ?? null;
+                            if (($pkgRoomTypeId === 'other' || empty($pkgRoomTypeId)) && !empty($package['custom_room_type'])) {
+                                if (isset($customRoomTypeMap[$package['custom_room_type']])) {
+                                    $pkgRoomTypeId = $customRoomTypeMap[$package['custom_room_type']];
+                                } else {
+                                    // Fallback: try to find existing type by name if not in current map
+                                    $existingType = HotelRoomType::where('name', $package['custom_room_type'])->first();
+                                    if ($existingType) {
+                                        $pkgRoomTypeId = $existingType->id;
+                                    }
+                                }
+                            }
+                            
+                            $addonsPackage->room_type_id = $pkgRoomTypeId;
                             $addonsPackage->description = $package['description'] ?? null;
                             $addonsPackage->property_id = $saveProperty->id;
                             $addonsPackage->status = $package['status'] ?? 'active';
