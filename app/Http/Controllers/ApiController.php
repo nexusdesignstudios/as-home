@@ -1804,7 +1804,8 @@ class ApiController extends Controller
             'instant_booking'   => 'nullable|boolean',
             'non_refundable'        => 'nullable|boolean',
             'hotel_rooms'       => 'nullable|array',
-            'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
+            'hotel_rooms.*.room_type_id' => 'nullable',
+            'hotel_rooms.*.custom_room_type' => 'nullable|string',
             'hotel_rooms.*.max_guests' => 'nullable|integer|min:0',
             'hotel_rooms.*.room_number' => 'required_with:hotel_rooms',
             'hotel_rooms.*.price_per_night' => 'required_with:hotel_rooms|numeric|min:0',
@@ -2223,12 +2224,26 @@ class ApiController extends Controller
                     foreach ($request->hotel_rooms as $index => $room) {
                         try {
                             // Make sure both room_type_id and room_type have the same value
-                            $roomTypeId = $room['room_type_id'];
+                            $roomTypeId = $room['room_type_id'] ?? null;
+                            $customRoomType = $room['custom_room_type'] ?? null;
+
+                            // Validate required fields
+                            if ((!isset($roomTypeId) && !isset($customRoomType)) || !isset($room['price_per_night'])) {
+                                \Log::error('Missing required fields for new room', [
+                                    'room_data' => $room,
+                                    'missing_fields' => [
+                                        'room_type_id_or_custom' => !isset($roomTypeId) && !isset($customRoomType),
+                                        'price_per_night' => !isset($room['price_per_night'])
+                                    ]
+                                ]);
+                                continue;
+                            }
 
                             $hotelRoom = HotelRoom::create([
                                 'property_id' => $saveProperty->id,
                                 'room_type_id' => $roomTypeId,
-                                'room_number' => $room['room_number'],
+                                'custom_room_type' => $customRoomType,
+                                'room_number' => $room['room_number'] ?? "0",
                                 'price_per_night' => (float)$room['price_per_night'],
                                 'discount_percentage' => isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : 0,
                                 'nonrefundable_percentage' => isset($room['nonrefundable_percentage']) ? (float)$room['nonrefundable_percentage'] : 0,

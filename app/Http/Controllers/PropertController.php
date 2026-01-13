@@ -126,7 +126,8 @@ class PropertController extends Controller
                 'reservation_phone_number' => 'nullable|string',
                 'reservation_email' => 'nullable|email',
                 'hotel_rooms'       => 'nullable|array',
-                'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
+                'hotel_rooms.*.room_type_id' => 'nullable',
+                'hotel_rooms.*.custom_room_type' => 'nullable|string',
                 'hotel_rooms.*.room_number' => 'required_with:hotel_rooms',
                 'hotel_rooms.*.price_per_night' => 'required_with:hotel_rooms|numeric|min:0',
                 'hotel_rooms.*.discount_percentage' => 'nullable|numeric|min:0|max:100',
@@ -425,28 +426,30 @@ class PropertController extends Controller
                 if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->hotel_rooms) && !empty($request->hotel_rooms)) {
                     try {
                         foreach ($request->hotel_rooms as $room) {
-                            $roomTypeId = $room['room_type_id'];
+                            $roomTypeId = $room['room_type_id'] ?? null;
+                            $customRoomType = $room['custom_room_type'] ?? null;
                             
                             // Handle custom room type
-                            if ($roomTypeId === 'other' && !empty($room['custom_room_type'])) {
+                            if (($roomTypeId === 'other' || empty($roomTypeId)) && !empty($customRoomType)) {
                                 // Check if it already exists to avoid duplicates
-                                $existingType = HotelRoomType::where('name', $room['custom_room_type'])->first();
+                                $existingType = HotelRoomType::where('name', $customRoomType)->first();
                                 if ($existingType) {
                                     $roomTypeId = $existingType->id;
                                 } else {
                                     $newType = HotelRoomType::create([
-                                        'name' => $room['custom_room_type'],
+                                        'name' => $customRoomType,
                                         'status' => 1
                                     ]);
                                     $roomTypeId = $newType->id;
                                 }
                                 // Map the custom name to the resolved ID
-                                $customRoomTypeMap[$room['custom_room_type']] = $roomTypeId;
+                                $customRoomTypeMap[$customRoomType] = $roomTypeId;
                             }
 
                             HotelRoom::create([
                                 'property_id' => $saveProperty->id,
                                 'room_type_id' => $roomTypeId,
+                                'custom_room_type' => $customRoomType,
                                 'room_number' => $room['room_number'],
                                 'price_per_night' => (float)$room['price_per_night'],
                                 'discount_percentage' => isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : 0,
@@ -730,6 +733,7 @@ class PropertController extends Controller
                     'agent_addons'      => 'nullable',
                     'hotel_rooms'       => 'nullable|array',
                     'hotel_rooms.*.room_type_id' => 'nullable',
+                    'hotel_rooms.*.custom_room_type' => 'nullable|string',
                     'hotel_rooms.*.price_per_night' => 'nullable|numeric|min:0',
                     'hotel_rooms.*.description' => 'nullable|string',
                     'video_link' => ['nullable', function ($attribute, $value, $fail) {
