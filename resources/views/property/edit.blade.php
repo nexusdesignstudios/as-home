@@ -573,11 +573,13 @@
                                                 <input type="text" class="form-control" name="hotel_rooms[{{ $index }}][room_number]" value="{{ $room->room_number }}">
                                             </td>
                                             <td>
-                                                <select class="form-control" name="hotel_rooms[{{ $index }}][room_type_id]">
+                                                <select class="form-control room-type-select" name="hotel_rooms[{{ $index }}][room_type_id]" data-index="{{ $index }}">
                                                     @foreach(App\Models\HotelRoomType::where('status', 1)->get() as $roomType)
                                                         <option value="{{ $roomType->id }}" {{ $room->room_type_id == $roomType->id ? 'selected' : '' }}>{{ $roomType->name }}</option>
                                                     @endforeach
+                                                    <option value="other">{{ __('Other') }}</option>
                                                 </select>
+                                                <input type="text" class="form-control mt-2 custom-room-type-input" name="hotel_rooms[{{ $index }}][custom_room_type]" style="display:none;" placeholder="{{ __('Enter Room Type Name') }}">
                                             </td>
                                             <td>
                                                 <input type="number" class="form-control" name="hotel_rooms[{{ $index }}][price_per_night]" value="{{ $room->price_per_night }}" min="0" step="0.01">
@@ -1581,6 +1583,21 @@
             // Room management
             var roomIndex = {{ isset($list->hotelRooms) ? count($list->hotelRooms) : 0 }};
 
+            // Handle room type change
+            $(document).on('change', '.room-type-select', function() {
+                var value = $(this).val();
+                var input = $(this).closest('td').find('.custom-room-type-input');
+                
+                if (value === 'other') {
+                    input.show();
+                    input.attr('required', 'required');
+                } else {
+                    input.hide();
+                    input.removeAttr('required');
+                    input.val('');
+                }
+            });
+
             // Add new room
             $('#add-room-btn').on('click', function() {
                 var newRow = `
@@ -1589,11 +1606,13 @@
                             <input type="text" class="form-control" name="hotel_rooms[${roomIndex}][room_number]">
                         </td>
                         <td>
-                            <select class="form-control" name="hotel_rooms[${roomIndex}][room_type_id]">
+                            <select class="form-control room-type-select" name="hotel_rooms[${roomIndex}][room_type_id]">
                                 @foreach(App\Models\HotelRoomType::where('status', 1)->get() as $roomType)
                                     <option value="{{ $roomType->id }}">{{ $roomType->name }}</option>
                                 @endforeach
+                                <option value="other">{{ __('Other') }}</option>
                             </select>
+                            <input type="text" class="form-control mt-2 custom-room-type-input" name="hotel_rooms[${roomIndex}][custom_room_type]" style="display:none;" placeholder="{{ __('Enter Room Type Name') }}">
                         </td>
                         <td>
                             <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][price_per_night]" min="0" step="0.01">

@@ -33,6 +33,7 @@ use App\Services\BootstrapTableService;
 use App\Models\AssignedOutdoorFacilities;
 use Illuminate\Support\Facades\Validator;
 use App\Models\HotelRoom;
+use App\Models\HotelRoomType;
 
 
 class PropertController extends Controller
@@ -421,9 +422,26 @@ class PropertController extends Controller
                 if (isset($request->property_classification) && $request->property_classification == 5 && isset($request->hotel_rooms) && !empty($request->hotel_rooms)) {
                     try {
                         foreach ($request->hotel_rooms as $room) {
+                            $roomTypeId = $room['room_type_id'];
+                            
+                            // Handle custom room type
+                            if ($roomTypeId === 'other' && !empty($room['custom_room_type'])) {
+                                // Check if it already exists to avoid duplicates
+                                $existingType = HotelRoomType::where('name', $room['custom_room_type'])->first();
+                                if ($existingType) {
+                                    $roomTypeId = $existingType->id;
+                                } else {
+                                    $newType = HotelRoomType::create([
+                                        'name' => $room['custom_room_type'],
+                                        'status' => 1
+                                    ]);
+                                    $roomTypeId = $newType->id;
+                                }
+                            }
+
                             HotelRoom::create([
                                 'property_id' => $saveProperty->id,
-                                'room_type_id' => $room['room_type_id'],
+                                'room_type_id' => $roomTypeId,
                                 'room_number' => $room['room_number'],
                                 'price_per_night' => (float)$room['price_per_night'],
                                 'discount_percentage' => isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : 0,
@@ -1281,7 +1299,23 @@ class PropertController extends Controller
                                     $hotelRoom = \App\Models\HotelRoom::find($room['id']);
                                     if ($hotelRoom && $hotelRoom->property_id == $UpdateProperty->id) {
                                         // Update all fields except description (keep original)
-                                        $hotelRoom->room_type_id = $room['room_type_id'] ?? $hotelRoom->room_type_id;
+                                        $roomTypeId = $room['room_type_id'] ?? $hotelRoom->room_type_id;
+                                        
+                                        // Handle custom room type
+                                        if ($roomTypeId === 'other' && !empty($room['custom_room_type'])) {
+                                            $existingType = HotelRoomType::where('name', $room['custom_room_type'])->first();
+                                            if ($existingType) {
+                                                $roomTypeId = $existingType->id;
+                                            } else {
+                                                $newType = HotelRoomType::create([
+                                                    'name' => $room['custom_room_type'],
+                                                    'status' => 1
+                                                ]);
+                                                $roomTypeId = $newType->id;
+                                            }
+                                        }
+
+                                        $hotelRoom->room_type_id = $roomTypeId;
                                         $hotelRoom->room_number = $room['room_number'] ?? $hotelRoom->room_number;
                                         $hotelRoom->price_per_night = isset($room['price_per_night']) ? (float)$room['price_per_night'] : $hotelRoom->price_per_night;
                                         $hotelRoom->discount_percentage = isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : $hotelRoom->discount_percentage;
@@ -1308,9 +1342,25 @@ class PropertController extends Controller
                             // Normal update - delete and recreate
                             \App\Models\HotelRoom::where('property_id', $UpdateProperty->id)->delete();
                             foreach ($request->hotel_rooms as $room) {
+                                $roomTypeId = $room['room_type_id'] ?? null;
+                                
+                                // Handle custom room type
+                                if ($roomTypeId === 'other' && !empty($room['custom_room_type'])) {
+                                    $existingType = HotelRoomType::where('name', $room['custom_room_type'])->first();
+                                    if ($existingType) {
+                                        $roomTypeId = $existingType->id;
+                                    } else {
+                                        $newType = HotelRoomType::create([
+                                            'name' => $room['custom_room_type'],
+                                            'status' => 1
+                                        ]);
+                                        $roomTypeId = $newType->id;
+                                    }
+                                }
+
                                 HotelRoom::create([
                                     'property_id' => $UpdateProperty->id,
-                                    'room_type_id' => $room['room_type_id'] ?? null,
+                                    'room_type_id' => $roomTypeId,
                                     'room_number' => $room['room_number'] ?? null,
                                     'price_per_night' => isset($room['price_per_night']) ? (float)$room['price_per_night'] : 0,
                                     'discount_percentage' => isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : 0,

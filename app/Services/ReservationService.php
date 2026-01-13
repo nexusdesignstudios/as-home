@@ -1182,18 +1182,38 @@ Confirmation Date: {confirmation_date}
                                         $excludeReservationId,
                                         ['confirmed', 'approved', 'pending']
                                     );
+
+                                    \Illuminate\Support\Facades\Log::info('Single-unit vacation home availability check', [
+                                        'property_id' => $modelId,
+                                        'apartment_id' => $apartmentId,
+                                        'booked_units' => $bookedUnits,
+                                        'can_book' => $bookedUnits < 1
+                                    ]);
                                     
                                     // Since quantity is 1, any booking blocks it
                                     return $bookedUnits < 1;
                                 }
                             }
+                        } else {
+                            \Illuminate\Support\Facades\Log::warning('Apartment verification failed in areDatesAvailable', [
+                                'apartment_id' => $apartmentId,
+                                'model_id' => $modelId,
+                                'apartment_exists' => !!$apartment,
+                                'apartment_property_id' => $apartment ? $apartment->property_id : null
+                            ]);
                         }
                     }
                     
                     // FALLBACK: For all other properties (non-vacation homes, or vacation homes without apartment_id)
                     // Use existing standard overlap check - NO CHANGES
                     $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
+                    
                     if ($hasOverlap) {
+                        \Illuminate\Support\Facades\Log::info('Property not available - has overlapping reservation (Fallback datesOverlap)', [
+                            'modelId' => $modelId,
+                            'checkIn' => $checkInDate,
+                            'checkOut' => $checkOutDate
+                        ]);
                         return false;
                     }
                 }

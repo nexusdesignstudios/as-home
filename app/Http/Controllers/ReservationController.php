@@ -482,6 +482,15 @@ class ReservationController extends Controller
                     $data['apartment_quantity'] = $apartmentQuantity;
                 }
 
+                \Illuminate\Support\Facades\Log::info('Checking availability for property reservation', [
+                    'property_id' => $request->reservable_id,
+                    'is_vacation_home' => $isVacationHome,
+                    'apartment_id' => $selectedApartmentId,
+                    'check_in' => $request->check_in_date,
+                    'check_out' => $request->check_out_date,
+                    'data' => $data
+                ]);
+
                 // Check availability with apartment data
                 $isAvailable = $this->reservationService->areDatesAvailable(
                     $modelType,
@@ -491,6 +500,10 @@ class ReservationController extends Controller
                     null, // excludeReservationId
                     $data  // apartment data
                 );
+
+                \Illuminate\Support\Facades\Log::info('Availability check result', [
+                    'is_available' => $isAvailable
+                ]);
 
                 if (!$isAvailable) {
                     // For vacation homes with apartments, provide more specific error message
@@ -535,6 +548,28 @@ class ReservationController extends Controller
                 // Check if property has flexible refund policy for flexible reservation behavior
                 $isFlexible = $property->refund_policy === 'flexible';
                 
+                // Get property classification
+                $propertyClassification = $property->getRawOriginal('property_classification');
+                $isVacationHome = $propertyClassification == 4;
+
+                // Determine status based on property type
+                if ($isVacationHome) {
+                    // Vacation Homes:
+                    // If instant_booking is enabled (1):
+                    // - If payment is 'cash', confirm immediately.
+                    // - If payment is 'online' (gateway), status is pending (awaiting payment).
+                    // If instant_booking is disabled (0), status is pending (requires approval).
+                    if ($property->instant_booking) {
+                        $paymentMethod = $request->payment_method ?? 'online';
+                        $status = ($paymentMethod === 'cash') ? 'confirmed' : 'pending';
+                    } else {
+                        $status = 'pending';
+                    }
+                } else {
+                    // Other properties (Hotels, etc.): Status depends on flexible policy
+                    $status = $isFlexible ? 'confirmed' : 'pending';
+                }
+                
                 // Create reservation data with conditional behavior based on refund policy
                 $reservationData = [
                     'customer_id' => Auth::guard('sanctum')->user()->id,
@@ -546,7 +581,7 @@ class ReservationController extends Controller
                     'number_of_guests' => $request->number_of_guests ?? 1,
                     'total_price' => $totalPrice,
                     'special_requests' => $request->special_requests,
-                    'status' => $isFlexible ? 'confirmed' : 'pending', // Auto-confirm only for flexible reservations
+                    'status' => $status, // Use the determined status
                     'payment_status' => $isFlexible ? 'unpaid' : 'unpaid', // Keep unpaid for flexible until manual update
                     'payment_method' => $isFlexible ? 'cash' : ($request->payment_method ?? 'online'), // Cash only for flexible reservations
                     'refund_policy' => $isFlexible ? 'flexible' : 'non-refundable', // Store the refund policy
@@ -572,8 +607,8 @@ class ReservationController extends Controller
                 // Create the reservation without sending emails (checkout without payment)
                 $reservation = $this->reservationService->createReservation($reservationData, true);
                 
-                // For flexible reservations, update available dates immediately since they're auto-confirmed
-                if ($isFlexible) {
+                // For confirmed reservations (Flexible or Instant Booking Cash), update available dates immediately
+                if ($status === 'confirmed') {
                     try {
                         $this->reservationService->updateAvailableDates(
                             $reservation->reservable_type,
@@ -583,14 +618,13 @@ class ReservationController extends Controller
                             $reservation->id
                         );
                         
-                        Log::info('Available dates updated for flexible vacation home reservation', [
+                        Log::info('Available dates updated for confirmed reservation', [
                             'reservation_id' => $reservation->id,
                             'property_id' => $reservation->reservable_id,
-                            'check_in' => $reservation->check_in_date,
-                            'check_out' => $reservation->check_out_date
+                            'status' => $status
                         ]);
                     } catch (\Exception $e) {
-                        Log::error('Failed to update available dates for flexible vacation home reservation', [
+                        Log::error('Failed to update available dates for confirmed reservation', [
                             'error' => $e->getMessage(),
                             'reservation_id' => $reservation->id,
                             'trace' => $e->getTraceAsString()
@@ -601,11 +635,18 @@ class ReservationController extends Controller
                 // Send appropriate email based on property classification
                 $propertyClassification = $property->getRawOriginal('property_classification');
                 if ($propertyClassification == 4) {
-                    // Vacation home - send pending approval email to customer
-                    $this->reservationService->sendVacationHomePendingApprovalEmail($reservation);
-                    
-                    // If instant booking is disabled, notify property owner about the booking request
-                    if (!$property->instant_booking) {
+                    if ($status === 'confirmed') {
+                        // Vacation home with Instant Booking (Cash) - send confirmation email
+                        $this->reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation);
+                        
+                        // Notify owner about the new confirmed booking
+                        $this->sendNewBookingNotificationToOwner($reservation);
+                    } elseif (!$property->instant_booking) {
+                        // Vacation home without Instant Booking - send pending approval email to customer
+                        // ONLY if instant booking is disabled (requires approval)
+                        $this->reservationService->sendVacationHomePendingApprovalEmail($reservation);
+                        
+                        // Notify property owner about the booking request
                         try {
                             $this->sendVacationHomeBookingRequestToOwner($reservation);
                             Log::info('Vacation home booking request notification sent to property owner', [
