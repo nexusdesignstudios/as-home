@@ -12,6 +12,7 @@ class HotelRoom extends Model
     protected $fillable = [
         'property_id',
         'room_type_id',
+        'custom_room_type',
         'room_number',
         'price_per_night',
         'discount_percentage',

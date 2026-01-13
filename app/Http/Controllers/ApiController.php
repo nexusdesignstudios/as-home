@@ -2614,7 +2614,8 @@ class ApiController extends Controller
             'non_refundable'        => 'nullable|boolean',
             'hotel_rooms'       => 'nullable|array',
             'hotel_rooms.*.id'  => 'nullable|exists:hotel_rooms,id',
-            'hotel_rooms.*.room_type_id' => 'required_with:hotel_rooms',
+            'hotel_rooms.*.room_type_id' => 'nullable',
+            'hotel_rooms.*.custom_room_type' => 'nullable|string',
             'hotel_rooms.*.room_number' => 'required_with:hotel_rooms',
             'hotel_rooms.*.price_per_night' => 'required_with:hotel_rooms|numeric|min:0',
             'hotel_rooms.*.discount_percentage' => 'nullable|numeric|min:0|max:100',
@@ -3789,6 +3790,7 @@ class ApiController extends Controller
                                         }
                                         
                                         $hotelRoom->room_type_id = $room['room_type_id'];
+                                        $hotelRoom->custom_room_type = $room['custom_room_type'] ?? null;
                                         $hotelRoom->room_number = $room['room_number'];
                                         $hotelRoom->price_per_night = (float)$room['price_per_night'];
                                         $hotelRoom->discount_percentage = isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : $hotelRoom->discount_percentage;
@@ -3813,11 +3815,11 @@ class ApiController extends Controller
                                     ]);
                                     
                                     // Validate required fields for new room
-                                    if (!isset($room['room_type_id']) || !isset($room['price_per_night'])) {
+                                    if ((!isset($room['room_type_id']) && !isset($room['custom_room_type'])) || !isset($room['price_per_night'])) {
                                         \Log::error('Missing required fields for new room', [
                                             'room_data' => $room,
                                             'missing_fields' => [
-                                                'room_type_id' => !isset($room['room_type_id']),
+                                                'room_type_id_or_custom' => !isset($room['room_type_id']) && !isset($room['custom_room_type']),
                                                 'price_per_night' => !isset($room['price_per_night'])
                                             ]
                                         ]);
@@ -3833,7 +3835,8 @@ class ApiController extends Controller
                                         
                                         $newRoom = HotelRoom::create([
                                             'property_id' => $property->id,
-                                            'room_type_id' => $room['room_type_id'],
+                                            'room_type_id' => $room['room_type_id'] ?? null,
+                                            'custom_room_type' => $room['custom_room_type'] ?? null,
                                             'room_number' => $room['room_number'] ?? "0",
                                             'price_per_night' => (float)$room['price_per_night'],
                                             'discount_percentage' => isset($room['discount_percentage']) ? (float)$room['discount_percentage'] : 0,
