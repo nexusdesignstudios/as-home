@@ -559,10 +559,6 @@ class HelperService
                                 'is_condition' => false,
                             ],
                             [
-                                'name' => 'room_type',
-                                'is_condition' => false,
-                            ],
-                            [
                                 'name' => 'room_number',
                                 'is_condition' => false,
                             ],
@@ -643,10 +639,6 @@ class HelperService
                             ],
                             [
                                 'name' => 'property_name',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'room_type',
                                 'is_condition' => false,
                             ],
                             [

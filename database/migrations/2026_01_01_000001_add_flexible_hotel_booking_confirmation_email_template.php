@@ -41,10 +41,6 @@ return new class extends Migration
                     <td style="padding: 8px 0; color: #333; border-bottom: 1px solid #eee;">{{hotel_name}}</td>
                 </tr>
                 <tr>
-                    <td style="padding: 8px 0; font-weight: bold; color: #555; border-bottom: 1px solid #eee;">Room Type:</td>
-                    <td style="padding: 8px 0; color: #333; border-bottom: 1px solid #eee;">{{room_type}}</td>
-                </tr>
-                <tr>
                     <td style="padding: 8px 0; font-weight: bold; color: #555; border-bottom: 1px solid #eee;">Room Number:</td>
                     <td style="padding: 8px 0; color: #333; border-bottom: 1px solid #eee;">{{room_number}}</td>
                 </tr>

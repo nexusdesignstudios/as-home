@@ -31,7 +31,6 @@ return new class extends Migration
             
             <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 15px;">
                 <h3 style="color: #2c3e50; margin: 0 0 10px 0; font-size: 18px;">{hotel_name}</h3>
-                <p style="margin: 5px 0; color: #7f8c8d;"><strong>Room Type:</strong> {room_type}</p>
                 <p style="margin: 5px 0; color: #7f8c8d;"><strong>Address:</strong> {hotel_address}</p>
             </div>
             
