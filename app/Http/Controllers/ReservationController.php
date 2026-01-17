@@ -748,9 +748,9 @@ class ReservationController extends Controller
                         'number_of_guests' => $request->number_of_guests ?? 1,
                         'total_price' => $roomAmount,
                         'special_requests' => $request->special_requests,
-                        'status' => $roomIsFlexible ? 'confirmed' : 'pending', // Auto-confirm only for flexible reservations
-                        'payment_status' => $roomIsFlexible ? 'unpaid' : 'unpaid', // Treat flexible reservations as unpaid until manually paid
-                        'payment_method' => $roomIsFlexible ? 'cash' : ($request->payment_method ?? 'online'), // Cash only for flexible reservations
+                        'status' => $request->status ?? ($roomIsFlexible ? 'confirmed' : 'pending'), // Use request status if provided (e.g. admin booking), otherwise auto-confirm only for flexible
+                        'payment_status' => $request->payment_status ?? ($roomIsFlexible ? 'unpaid' : 'unpaid'), // Use request payment status if provided
+                        'payment_method' => $request->payment_method ?? ($roomIsFlexible ? 'cash' : ($request->payment_method ?? 'online')), // Use request payment method if provided
                         'refund_policy' => $roomIsFlexible ? 'flexible' : 'non-refundable', // Store the refund policy
                     ];
 

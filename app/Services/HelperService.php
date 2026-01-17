@@ -332,6 +332,7 @@ class HelperService
                     return array(
                         'title' => 'Flexible Reservation Confirmation',
                         'type' => 'flexible_reservation_confirmation_mail_template',
+                        'category' => 'hotel',
                         'required_fields' => array(
                             [
                                 'name' => 'app_name',
@@ -2330,6 +2331,11 @@ class HelperService
             [
                 'title' => 'Reservation Confirmation',
                 'type' => 'reservation_confirmation',
+                'category' => 'main',
+            ],
+            [
+                'title' => 'Flexible Reservation Confirmation',
+                'type' => 'flexible_reservation_confirmation',
                 'category' => 'main',
             ],
             [

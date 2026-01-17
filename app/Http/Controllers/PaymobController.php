@@ -481,6 +481,40 @@ class PaymobController extends Controller
                             'status' => $reservation->status,
                             'payment_status' => $reservation->payment_status
                         ]);
+
+                        // FIX: Also confirm other reservations in the same batch (multi-room booking)
+                        // Heuristic: Same customer, same property, same dates, created within 2 minutes of the main reservation
+                        try {
+                            $relatedReservations = Reservation::where('id', '!=', $reservation->id)
+                                ->where('customer_id', $reservation->customer_id)
+                                ->where('property_id', $reservation->property_id)
+                                ->where('check_in_date', $reservation->check_in_date)
+                                ->where('check_out_date', $reservation->check_out_date)
+                                ->where('status', 'pending') // Only pending ones
+                                ->whereBetween('created_at', [
+                                    $reservation->created_at->subMinutes(2),
+                                    $reservation->created_at->addMinutes(2)
+                                ])
+                                ->get();
+
+                            if ($relatedReservations->count() > 0) {
+                                Log::info('Found related multi-room reservations to confirm', [
+                                    'main_reservation_id' => $reservation->id,
+                                    'related_count' => $relatedReservations->count(),
+                                    'related_ids' => $relatedReservations->pluck('id')->toArray()
+                                ]);
+
+                                foreach ($relatedReservations as $relatedRes) {
+                                    $reservationService->handleReservationConfirmation($relatedRes, 'paid');
+                                    Log::info('Related reservation confirmed', ['reservation_id' => $relatedRes->id]);
+                                }
+                            }
+                        } catch (\Exception $e) {
+                            Log::error('Failed to auto-confirm related reservations', [
+                                'error' => $e->getMessage(),
+                                'main_reservation_id' => $reservation->id
+                            ]);
+                        }
                     } else {
                         // Handle failed payments
                         $reservation->status = 'cancelled';
@@ -767,6 +801,39 @@ class PaymobController extends Controller
                                 'status' => $reservation->status,
                                 'payment_status' => $reservation->payment_status
                             ]);
+
+                            // FIX: Also confirm other reservations in the same batch (multi-room booking)
+                            try {
+                                $relatedReservations = Reservation::where('id', '!=', $reservation->id)
+                                    ->where('customer_id', $reservation->customer_id)
+                                    ->where('property_id', $reservation->property_id)
+                                    ->where('check_in_date', $reservation->check_in_date)
+                                    ->where('check_out_date', $reservation->check_out_date)
+                                    ->where('status', 'pending') // Only pending ones
+                                    ->whereBetween('created_at', [
+                                        $reservation->created_at->subMinutes(2),
+                                        $reservation->created_at->addMinutes(2)
+                                    ])
+                                    ->get();
+
+                                if ($relatedReservations->count() > 0) {
+                                    Log::info('Found related multi-room reservations to confirm in handleReturn', [
+                                        'main_reservation_id' => $reservation->id,
+                                        'related_count' => $relatedReservations->count(),
+                                        'related_ids' => $relatedReservations->pluck('id')->toArray()
+                                    ]);
+
+                                    foreach ($relatedReservations as $relatedRes) {
+                                        $reservationService->handleReservationConfirmation($relatedRes, 'paid');
+                                        Log::info('Related reservation confirmed in handleReturn', ['reservation_id' => $relatedRes->id]);
+                                    }
+                                }
+                            } catch (\Exception $e) {
+                                Log::error('Failed to auto-confirm related reservations in handleReturn', [
+                                    'error' => $e->getMessage(),
+                                    'main_reservation_id' => $reservation->id
+                                ]);
+                            }
                         }
                     }
                 }
