@@ -842,7 +842,7 @@ class ReservationService
                 $hotelRoom = $reservation->reservable;
                 $property = $hotelRoom->property;
                 $propertyOwner = $property->customer;
-                $roomType = $hotelRoom->room_type->name ?? 'Standard Room';
+                $roomType = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->room_type)->name ?? 'Standard Room');
             }
 
             if (!$property) {
@@ -853,8 +853,13 @@ class ReservationService
             }
 
             // Get email template data
-            $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("reservation_confirmation");
-            $reservationConfirmationTemplateData = system_setting('reservation_confirmation_mail_template');
+            if ($reservation->booking_type === 'flexible_booking') {
+                $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("flexible_reservation_confirmation");
+                $reservationConfirmationTemplateData = system_setting('flexible_reservation_confirmation_mail_template');
+            } else {
+                $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("reservation_confirmation");
+                $reservationConfirmationTemplateData = system_setting('reservation_confirmation_mail_template');
+            }
             $appName = env("APP_NAME") ?? "As-home";
 
             // Get currency symbol

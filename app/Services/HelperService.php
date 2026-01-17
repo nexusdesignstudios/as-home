@@ -291,6 +291,69 @@ class HelperService
                                 'is_condition' => false,
                             ],
                             [
+                                'name' => 'room_type',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_in_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_out_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'number_of_guests',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_price',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'payment_status',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'transaction_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'special_requests',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'flexible_reservation_confirmation':
+                    return array(
+                        'title' => 'Flexible Reservation Confirmation',
+                        'type' => 'flexible_reservation_confirmation_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'user_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'room_type',
+                                'is_condition' => false,
+                            ],
+                            [
                                 'name' => 'check_in_date',
                                 'is_condition' => false,
                             ],
