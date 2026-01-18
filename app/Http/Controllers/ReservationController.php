@@ -1603,8 +1603,8 @@ class ReservationController extends Controller
                                 'discount_percentage' => $discountInfo['discount_percentage'] ?? 0,
                                 'discount_amount' => $roomDiscountAmount ?? 0,
                                 'special_requests' => $request->special_requests,
-                                'status' => 'pending',
-                                'payment_status' => 'unpaid',
+                                'status' => $request->status ?? 'pending',
+                                'payment_status' => $request->payment_status ?? 'unpaid',
                                 'payment_method' => 'paymob',
                                 'transaction_id' => $transactionId,
                                 'review_url' => $request->review_url,
@@ -1657,8 +1657,8 @@ class ReservationController extends Controller
                                 'discount_percentage' => $discountInfo['discount_percentage'] ?? 0,
                                 'discount_amount' => $roomDiscountAmount ?? 0,
                                 'special_requests' => $request->special_requests,
-                                'status' => 'pending',
-                                'payment_status' => 'unpaid',
+                                'status' => $request->status ?? 'pending',
+                                'payment_status' => $request->payment_status ?? 'unpaid',
                                 'payment_method' => 'paymob',
                                 'transaction_id' => $transactionId, // Same transaction ID for all reservations
                                 'review_url' => $request->review_url,
@@ -1791,6 +1791,26 @@ class ReservationController extends Controller
                             'trace' => $e->getTraceAsString()
                         ]);
                     }
+                }
+            }
+
+            // Send aggregated confirmation email if reservations are confirmed and paid immediately
+            // (e.g. forced from frontend for specific scenarios)
+            if (!empty($reservations) && 
+                (($request->status ?? '') === 'confirmed' || ($reservations[0]->status ?? '') === 'confirmed') && 
+                (($request->payment_status ?? '') === 'paid' || ($reservations[0]->payment_status ?? '') === 'paid')) {
+                
+                try {
+                    $this->reservationService->sendAggregatedReservationConfirmationEmail($reservations);
+                    
+                    Log::info('Aggregated reservation confirmation email sent immediately', [
+                        'count' => count($reservations),
+                        'total_price' => collect($reservations)->sum('total_price')
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to send aggregated reservation confirmation email immediately', [
+                        'error' => $e->getMessage()
+                    ]);
                 }
             }
 

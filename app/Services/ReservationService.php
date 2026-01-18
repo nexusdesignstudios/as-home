@@ -505,7 +505,7 @@ class ReservationService
      * @param string $paymentStatus
      * @return void
      */
-    public function handleReservationConfirmation($reservation, $paymentStatus = 'paid')
+    public function handleReservationConfirmation($reservation, $paymentStatus = 'paid', $skipEmail = false)
     {
         try {
             // Prevent duplicate email sending - if already confirmed and paid, skip
@@ -571,8 +571,10 @@ class ReservationService
                 // Send payment completion email to property owner
                 $this->sendPaymentCompletionEmailToOwner($reservation);
                 
-                // Send reservation confirmation email to customer
-                $this->sendReservationConfirmationEmail($reservation);
+                // Send reservation confirmation email to customer (unless skipped)
+                if (!$skipEmail) {
+                    $this->sendReservationConfirmationEmail($reservation);
+                }
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Failed to update available dates via admin confirmation', [
                     'error' => $e->getMessage(),
@@ -964,6 +966,215 @@ Confirmation Date: {confirmation_date}
             \Illuminate\Support\Facades\Log::error('Failed to send reservation confirmation email via admin confirmation', [
                 'error' => $e->getMessage(),
                 'reservation_id' => $reservation->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
+     * Send aggregated reservation confirmation email for multiple rooms.
+     *
+     * @param array $reservations
+     * @return void
+     */
+    public function sendAggregatedReservationConfirmationEmail($reservations)
+    {
+        if (empty($reservations)) {
+            return;
+        }
+
+        try {
+            $firstReservation = $reservations[0];
+            $customer = $firstReservation->customer;
+
+            if (!$customer || !$customer->email) {
+                \Illuminate\Support\Facades\Log::warning('Cannot send aggregated confirmation email: customer or email not found', [
+                    'customer_id' => $firstReservation->customer_id
+                ]);
+                return;
+            }
+
+            // Aggregate Data
+            $totalPrice = 0;
+            $roomDetails = [];
+            $property = null;
+            $propertyOwner = null;
+
+            foreach ($reservations as $reservation) {
+                $totalPrice += $reservation->total_price;
+
+                if ($reservation->reservable_type === 'App\Models\HotelRoom') {
+                    $hotelRoom = $reservation->reservable;
+                    $property = $hotelRoom->property;
+                    $propertyOwner = $property->customer;
+                    $roomName = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->room_type)->name ?? 'Standard Room');
+                } else {
+                    $roomName = 'Property';
+                    if ($reservation->reservable_type === 'App\Models\Property') {
+                        $property = $reservation->reservable;
+                        $propertyOwner = $property->customer;
+                    }
+                }
+
+                if (!isset($roomDetails[$roomName])) {
+                    $roomDetails[$roomName] = 0;
+                }
+                $roomDetails[$roomName]++;
+            }
+
+            if (!$property) {
+                return;
+            }
+
+            // Get Email Template
+            $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("reservation_confirmation");
+            $reservationConfirmationTemplateData = system_setting('reservation_confirmation_mail_template');
+
+            $appName = env("APP_NAME") ?? "As-home";
+            $currencySymbol = system_setting('currency_symbol') ?? 'EGP';
+
+            // Build HTML Table for Multi-Room details
+            $tableRows = '';
+            foreach ($reservations as $res) {
+                $resName = 'Property';
+                if ($res->reservable_type === 'App\Models\HotelRoom') {
+                     $hotelRoom = $res->reservable;
+                     $resName = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->room_type)->name ?? 'Standard Room');
+                } elseif ($res->reservable_type === 'App\Models\Property') {
+                     $resName = $res->reservable->title ?? 'Property';
+                }
+                
+                $resPrice = number_format($res->total_price, 2);
+                $resGuests = $res->number_of_guests;
+                
+                $tableRows .= "
+                    <tr>
+                        <td style='padding: 8px; border: 1px solid #ddd;'>{$resName}</td>
+                        <td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>{$resGuests}</td>
+                        <td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>{$resPrice} {$currencySymbol}</td>
+                    </tr>
+                ";
+            }
+
+            $roomDetailsTable = "
+                <div style='margin-top: 15px; margin-bottom: 15px;'>
+                    <table style='width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 14px;'>
+                        <thead>
+                            <tr style='background-color: #f2f2f2;'>
+                                <th style='padding: 10px; border: 1px solid #ddd; text-align: left;'>Room Type</th>
+                                <th style='padding: 10px; border: 1px solid #ddd; text-align: center;'>Guests</th>
+                                <th style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {$tableRows}
+                        </tbody>
+                        <tfoot>
+                            <tr style='font-weight: bold; background-color: #f9f9f9;'>
+                                <td colspan='2' style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Total</td>
+                                <td style='padding: 10px; border: 1px solid #ddd; text-align: right;'>" . number_format($totalPrice, 2) . " {$currencySymbol}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            ";
+
+            // Format Room Type String (Summary) - kept for reference or specific templates
+            $roomTypeParts = [];
+            foreach ($roomDetails as $name => $count) {
+                $roomTypeParts[] = "{$count}x {$name}";
+            }
+            $roomTypeSummary = implode(', ', $roomTypeParts);
+            
+            // Use table as the primary display for 'room_type' to ensure visibility in default templates
+            $roomTypeDisplay = $roomDetailsTable;
+
+            // Get Email Template
+            // $emailTypeData, $reservationConfirmationTemplateData, $appName, $currencySymbol moved up
+
+            // Calculate number of nights (using first reservation)
+            $numberOfNights = 1;
+            if ($firstReservation->check_in_date && $firstReservation->check_out_date) {
+                $numberOfNights = $firstReservation->check_in_date->diffInDays($firstReservation->check_out_date);
+            }
+
+            // Prepare variables
+            $variables = array(
+                'app_name' => $appName,
+                'user_name' => $customer->name,
+                'customer_name' => $customer->name,
+                'customer_email' => $customer->email,
+                'customer_phone' => $customer->mobile ?? $firstReservation->customer_phone ?? 'N/A',
+                'reservation_id' => $firstReservation->id, // Use first ID or maybe list them? keeping simple for now
+                'property_name' => $property->title,
+                'property_address' => $property->address ?? 'N/A',
+                'room_type' => $roomTypeDisplay, // Aggregated Room Types as Table
+                'room_type_summary' => $roomTypeSummary, // Summary string available if needed
+                'check_in_date' => $firstReservation->check_in_date ? $firstReservation->check_in_date->format('d M Y') : 'N/A',
+                'check_out_date' => $firstReservation->check_out_date ? $firstReservation->check_out_date->format('d M Y') : 'N/A',
+                'check_in_time' => $firstReservation->check_in_time ?? 'N/A',
+                'check_out_time' => $firstReservation->check_out_time ?? 'N/A',
+                'number_of_guests' => $firstReservation->number_of_guests * count($reservations), // Approximate total guests
+                'number_of_nights' => $numberOfNights,
+                'total_price' => number_format($totalPrice, 2), // Aggregated Total
+                'currency_symbol' => $currencySymbol,
+                'payment_status' => ucfirst($firstReservation->payment_status),
+                'transaction_id' => $firstReservation->transaction_id ?? 'N/A',
+                'special_requests' => $firstReservation->special_requests ?? 'None',
+                'review_url' => $firstReservation->review_url ?? '',
+                'confirmation_date' => now()->format('d M Y, h:i A'),
+                'booking_type' => $firstReservation->booking_type ?? 'reservation',
+                'property_owner_name' => $propertyOwner->name ?? 'Property Owner',
+                'property_owner_email' => $propertyOwner->email ?? 'N/A',
+                'property_owner_phone' => $propertyOwner->mobile ?? 'N/A',
+                'cancellation_policy' => $property->cancellation_policy ?? 'Please contact the property owner for cancellation policy.',
+                'property_phone' => $property->mobile ?? $propertyOwner->mobile ?? 'N/A',
+                'property_email' => $property->email ?? $propertyOwner->email ?? 'N/A'
+            );
+
+             // Default comprehensive template if none is set
+             if (empty($reservationConfirmationTemplateData)) {
+                $reservationConfirmationTemplateData = '
+Dear {customer_name},
+
+🎉 Your reservation has been confirmed!
+
+Reservation Details:
+• Reservation ID: {reservation_id}
+• Property: {property_name}
+• Address: {property_address}
+• Rooms: {room_type}
+• Check-in: {check_in_date}
+• Check-out: {check_out_date}
+• Total Amount: {total_price} {currency_symbol}
+• Payment Status: {payment_status}
+
+We look forward to hosting you!
+
+Best regards,
+{app_name} Team
+                ';
+            }
+
+            $reservationConfirmationTemplate = \App\Services\HelperService::replaceEmailVariables($reservationConfirmationTemplateData, $variables);
+
+            $data = array(
+                'email_template' => $reservationConfirmationTemplate,
+                'email' => $customer->email,
+                'title' => $emailTypeData['title'] ?? 'Reservation Confirmed - Payment Successful'
+            );
+
+            \App\Services\HelperService::sendMail($data);
+
+            \Illuminate\Support\Facades\Log::info('Aggregated reservation confirmation email sent', [
+                'customer_email' => $customer->email,
+                'total_amount' => $totalPrice,
+                'reservations_count' => count($reservations)
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send aggregated confirmation email', [
+                'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
         }
