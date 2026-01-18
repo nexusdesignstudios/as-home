@@ -12971,18 +12971,19 @@ Best regards,
                     
                     if ($isFlexibleBooking) {
                         // Flexible booking - send confirmation email (no approval needed)
-                        $reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation);
+                        $reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation, $siblings);
                         Log::info('Flexible booking confirmation email sent to customer', [
                             'reservation_id' => $reservation->id,
                             'customer_email' => $customer->email,
-                            'booking_type' => 'flexible_booking'
+                            'booking_type' => 'flexible_booking',
+                            'siblings_count' => count($siblings)
                         ]);
                     } elseif ($propertyClassification == 4) {
                         // Vacation home - send pending approval email
                         $reservationService->sendVacationHomePendingApprovalEmail($reservation);
                     } elseif ($propertyClassification == 5) {
                         // Hotel booking - send flexible hotel booking confirmation email
-                        $reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation);
+                        $reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation, $siblings);
                     }
                     
                     Log::info('Both emails sent: Payment form submission to owner and appropriate email to customer', [

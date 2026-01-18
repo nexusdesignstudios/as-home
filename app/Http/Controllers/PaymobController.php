@@ -791,44 +791,46 @@ class PaymobController extends Controller
                         $reservation = \App\Models\Reservation::find($payment->reservation_id);
                         if ($reservation) {
                             $reservationService = app(\App\Services\ReservationService::class);
-                            $reservationService->handleReservationConfirmation($reservation, 'paid');
-
-                            Log::info('Reservation confirmed in handleReturn', [
-                                'reservation_id' => $reservation->id,
-                                'status' => $reservation->status,
-                                'payment_status' => $reservation->payment_status
-                            ]);
-
-                            // FIX: Also confirm other reservations in the same batch (multi-room booking)
-                            try {
-                                $relatedReservations = Reservation::where('id', '!=', $reservation->id)
-                                    ->where('customer_id', $reservation->customer_id)
-                                    ->where('property_id', $reservation->property_id)
-                                    ->where('check_in_date', $reservation->check_in_date)
-                                    ->where('check_out_date', $reservation->check_out_date)
-                                    ->where('status', 'pending') // Only pending ones
-                                    ->whereBetween('created_at', [
-                                        $reservation->created_at->subMinutes(2),
-                                        $reservation->created_at->addMinutes(2)
-                                    ])
+                            
+                            // Check for multi-room booking sharing the same transaction_id
+                            $relatedReservations = collect([]);
+                            if ($reservation->transaction_id) {
+                                $relatedReservations = \App\Models\Reservation::where('transaction_id', $reservation->transaction_id)
+                                    ->where('id', '!=', $reservation->id)
                                     ->get();
+                            }
 
-                                if ($relatedReservations->count() > 0) {
-                                    Log::info('Found related multi-room reservations to confirm in handleReturn', [
-                                        'main_reservation_id' => $reservation->id,
-                                        'related_count' => $relatedReservations->count(),
-                                        'related_ids' => $relatedReservations->pluck('id')->toArray()
-                                    ]);
+                            if ($relatedReservations->count() > 0) {
+                                // Multi-room case: Confirm all and send one aggregated email
+                                Log::info('Processing multi-room payment confirmation in handleReturn', [
+                                    'transaction_id' => $reservation->transaction_id,
+                                    'count' => $relatedReservations->count() + 1
+                                ]);
 
-                                    foreach ($relatedReservations as $relatedRes) {
-                                        $reservationService->handleReservationConfirmation($relatedRes, 'paid');
-                                        Log::info('Related reservation confirmed in handleReturn', ['reservation_id' => $relatedRes->id]);
-                                    }
+                                // 1. Confirm Main Reservation (Skip individual email)
+                                $reservationService->handleReservationConfirmation($reservation, 'paid', true);
+
+                                // 2. Confirm Related Reservations (Skip individual email)
+                                foreach ($relatedReservations as $relatedRes) {
+                                    $reservationService->handleReservationConfirmation($relatedRes, 'paid', true);
                                 }
-                            } catch (\Exception $e) {
-                                Log::error('Failed to auto-confirm related reservations in handleReturn', [
-                                    'error' => $e->getMessage(),
+
+                                // 3. Send Aggregated Email
+                                // Combine main and related reservations for the email
+                                $allReservations = $relatedReservations->push($reservation);
+                                $reservationService->sendAggregatedReservationConfirmationEmail($allReservations);
+                                
+                                Log::info('Aggregated confirmation email sent for multi-room payment', [
                                     'main_reservation_id' => $reservation->id
+                                ]);
+                            } else {
+                                // Single room case: Confirm and send normal email
+                                $reservationService->handleReservationConfirmation($reservation, 'paid');
+                                
+                                Log::info('Reservation confirmed in handleReturn', [
+                                    'reservation_id' => $reservation->id,
+                                    'status' => $reservation->status,
+                                    'payment_status' => $reservation->payment_status
                                 ]);
                             }
                         }

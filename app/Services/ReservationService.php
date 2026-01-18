@@ -1176,14 +1176,14 @@ Confirmation Date: {confirmation_date}
             foreach ($reservations as $reservation) {
                 $totalPrice += $reservation->total_price;
 
-                if ($reservation->reservable_type === 'App\Models\HotelRoom') {
+                if (in_array($reservation->reservable_type, ['App\Models\HotelRoom', 'hotel_room'])) {
                     $hotelRoom = $reservation->reservable;
                     $property = $hotelRoom->property;
                     $propertyOwner = $property->customer;
                     $roomName = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->room_type)->name ?? 'Standard Room');
                 } else {
                     $roomName = 'Property';
-                    if ($reservation->reservable_type === 'App\Models\Property') {
+                    if (in_array($reservation->reservable_type, ['App\Models\Property', 'property'])) {
                         $property = $reservation->reservable;
                         $propertyOwner = $property->customer;
                     }
