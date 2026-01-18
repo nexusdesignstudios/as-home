@@ -683,7 +683,7 @@ class ReservationService
                     'property_name' => $propertyName,
                     'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
                     'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
-                    'number_of_guests' => $reservation->number_of_guests,
+                    'number_of_guests' => $reservation->number_of_guests ?: 1,
                     'total_price' => number_format($reservation->total_price, 2),
                     'currency_symbol' => $currencySymbol,
                     'payment_status' => ucfirst($reservation->payment_status),
@@ -712,6 +712,179 @@ class ReservationService
             \Illuminate\Support\Facades\Log::error('Failed to send reservation approval email', [
                 'error' => $e->getMessage(),
                 'reservation_id' => $reservation->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
+     * Send aggregated reservation approval email for multiple rooms (Pending).
+     *
+     * @param array $reservations
+     * @return void
+     */
+    public function sendAggregatedReservationApprovalEmail($reservations)
+    {
+        if (empty($reservations)) {
+            return;
+        }
+
+        try {
+            $firstReservation = $reservations[0];
+            $customer = $firstReservation->customer;
+
+            if (!$customer || !$customer->email) {
+                \Illuminate\Support\Facades\Log::warning('Cannot send aggregated approval email: customer or email not found', [
+                    'customer_id' => $firstReservation->customer_id
+                ]);
+                return;
+            }
+
+            // Aggregate Data
+            $totalPrice = 0;
+            $roomDetails = [];
+            $property = null;
+            $propertyOwner = null;
+
+            foreach ($reservations as $reservation) {
+                $totalPrice += $reservation->total_price;
+
+                if ($reservation->reservable_type === 'App\Models\HotelRoom') {
+                    $hotelRoom = $reservation->reservable;
+                    $property = $hotelRoom->property;
+                    $propertyOwner = $property->customer;
+                    $roomName = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->room_type)->name ?? 'Standard Room');
+                } else {
+                    $roomName = 'Property';
+                    if ($reservation->reservable_type === 'App\Models\Property') {
+                        $property = $reservation->reservable;
+                        $propertyOwner = $property->customer;
+                    }
+                }
+
+                if (!isset($roomDetails[$roomName])) {
+                    $roomDetails[$roomName] = 0;
+                }
+                $roomDetails[$roomName]++;
+            }
+
+            if (!$property) {
+                return;
+            }
+
+            // Get Email Template
+            $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("reservation_approval");
+            $reservationApprovalTemplateData = system_setting('reservation_approval_mail_template');
+
+            $appName = env("APP_NAME") ?? "As-home";
+            $currencySymbol = system_setting('currency_symbol') ?? 'EGP';
+
+            // Build HTML Table for Multi-Room details
+            $tableRows = '';
+            foreach ($reservations as $res) {
+                $resName = 'Property';
+                if ($res->reservable_type === 'App\Models\HotelRoom') {
+                     $hotelRoom = $res->reservable;
+                     $resName = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->room_type)->name ?? 'Standard Room');
+                } elseif ($res->reservable_type === 'App\Models\Property') {
+                     $resName = $res->reservable->title ?? 'Property';
+                }
+                
+                $resPrice = number_format($res->total_price, 2);
+                $resGuests = $res->number_of_guests ?: 1;
+                
+                $tableRows .= "
+                    <tr>
+                        <td style='padding: 8px; border: 1px solid #ddd;'>{$resName}</td>
+                        <td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>{$resGuests}</td>
+                        <td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>{$resPrice} {$currencySymbol}</td>
+                    </tr>
+                ";
+            }
+
+            $roomDetailsTable = "
+                <div style='margin-top: 15px; margin-bottom: 15px;'>
+                    <table style='width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 14px;'>
+                        <thead>
+                            <tr style='background-color: #f2f2f2;'>
+                                <th style='padding: 10px; border: 1px solid #ddd; text-align: left;'>Room Type</th>
+                                <th style='padding: 10px; border: 1px solid #ddd; text-align: center;'>Guests</th>
+                                <th style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {$tableRows}
+                        </tbody>
+                        <tfoot>
+                            <tr style='font-weight: bold; background-color: #f9f9f9;'>
+                                <td colspan='2' style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Total</td>
+                                <td style='padding: 10px; border: 1px solid #ddd; text-align: right;'>" . number_format($totalPrice, 2) . " {$currencySymbol}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            ";
+
+            // Use table as the primary display for 'room_type'
+            $roomTypeDisplay = $roomDetailsTable;
+
+            // Calculate number of nights
+            $numberOfNights = 1;
+            if ($firstReservation->check_in_date && $firstReservation->check_out_date) {
+                $numberOfNights = $firstReservation->check_in_date->diffInDays($firstReservation->check_out_date);
+            }
+
+            // Prepare variables
+            $variables = array(
+                'app_name' => $appName,
+                'user_name' => $customer->name,
+                'customer_name' => $customer->name, // Alias
+                'customer_email' => $customer->email,
+                'customer_phone' => $customer->mobile ?? $firstReservation->customer_phone ?? 'N/A',
+                'reservation_id' => $firstReservation->id,
+                'property_name' => $property->title,
+                'property_address' => $property->address ?? 'N/A',
+                'room_type' => $roomTypeDisplay,
+                'check_in_date' => $firstReservation->check_in_date ? $firstReservation->check_in_date->format('d M Y') : 'N/A',
+                'check_out_date' => $firstReservation->check_out_date ? $firstReservation->check_out_date->format('d M Y') : 'N/A',
+                'number_of_guests' => $firstReservation->number_of_guests * count($reservations),
+                'number_of_nights' => $numberOfNights,
+                'total_price' => number_format($totalPrice, 2),
+                'currency_symbol' => $currencySymbol,
+                'payment_status' => ucfirst($firstReservation->payment_status),
+                'transaction_id' => $firstReservation->transaction_id ?? 'N/A',
+                'special_requests' => $firstReservation->special_requests ?? 'None',
+                'booking_type' => $firstReservation->booking_type ?? 'reservation',
+                'property_owner_name' => $propertyOwner->name ?? 'Property Owner',
+                'property_owner_email' => $propertyOwner->email ?? 'N/A',
+                'property_owner_phone' => $propertyOwner->mobile ?? 'N/A',
+                'property_phone' => $property->mobile ?? $propertyOwner->mobile ?? 'N/A',
+                'property_email' => $property->email ?? $propertyOwner->email ?? 'N/A'
+            );
+
+            if (empty($reservationApprovalTemplateData)) {
+                $reservationApprovalTemplateData = "Dear {customer_name},\n\nYour reservation for {property_name} has been approved!\n\nDetails:\nRooms: {room_type}\nCheck-in: {check_in_date}\nTotal: {total_price} {currency_symbol}\n\nBest regards,\n{app_name} Team";
+            }
+
+            $reservationApprovalTemplate = \App\Services\HelperService::replaceEmailVariables($reservationApprovalTemplateData, $variables);
+
+            $data = array(
+                'email_template' => $reservationApprovalTemplate,
+                'email' => $customer->email,
+                'title' => $emailTypeData['title'] ?? 'Reservation Approved'
+            );
+
+            \App\Services\HelperService::sendMail($data, false, true); // Skip PDF
+
+            \Illuminate\Support\Facades\Log::info('Aggregated reservation approval email sent', [
+                'customer_email' => $customer->email,
+                'total_amount' => $totalPrice,
+                'reservations_count' => count($reservations)
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send aggregated approval email', [
+                'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
         }
@@ -754,7 +927,7 @@ class ReservationService
                     'property_name' => $propertyName,
                     'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
                     'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
-                    'number_of_guests' => $reservation->number_of_guests,
+                    'number_of_guests' => $reservation->number_of_guests ?: 1,
                     'total_price' => number_format($reservation->total_price, 2),
                     'currency_symbol' => $currencySymbol,
                     'payment_status' => ucfirst($reservation->payment_status),
@@ -1026,9 +1199,14 @@ Confirmation Date: {confirmation_date}
                 return;
             }
 
-            // Get Email Template
-            $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("reservation_confirmation");
-            $reservationConfirmationTemplateData = system_setting('reservation_confirmation_mail_template');
+            // Get Email Template based on booking type
+            if ($firstReservation->booking_type === 'flexible_booking') {
+                $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("flexible_hotel_booking_confirmation");
+                $reservationConfirmationTemplateData = system_setting('flexible_hotel_booking_confirmation_mail_template');
+            } else {
+                $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("reservation_confirmation");
+                $reservationConfirmationTemplateData = system_setting('reservation_confirmation_mail_template');
+            }
 
             $appName = env("APP_NAME") ?? "As-home";
             $currencySymbol = system_setting('currency_symbol') ?? 'EGP';
@@ -1045,7 +1223,7 @@ Confirmation Date: {confirmation_date}
                 }
                 
                 $resPrice = number_format($res->total_price, 2);
-                $resGuests = $res->number_of_guests;
+                $resGuests = $res->number_of_guests ?: 1;
                 
                 $tableRows .= "
                     <tr>
@@ -1089,9 +1267,6 @@ Confirmation Date: {confirmation_date}
             // Use table as the primary display for 'room_type' to ensure visibility in default templates
             $roomTypeDisplay = $roomDetailsTable;
 
-            // Get Email Template
-            // $emailTypeData, $reservationConfirmationTemplateData, $appName, $currencySymbol moved up
-
             // Calculate number of nights (using first reservation)
             $numberOfNights = 1;
             if ($firstReservation->check_in_date && $firstReservation->check_out_date) {
@@ -1105,18 +1280,22 @@ Confirmation Date: {confirmation_date}
                 'customer_name' => $customer->name,
                 'customer_email' => $customer->email,
                 'customer_phone' => $customer->mobile ?? $firstReservation->customer_phone ?? 'N/A',
-                'reservation_id' => $firstReservation->id, // Use first ID or maybe list them? keeping simple for now
+                'reservation_id' => $firstReservation->id,
                 'property_name' => $property->title,
+                'hotel_name' => $property->title, // Alias for flexible template
                 'property_address' => $property->address ?? 'N/A',
+                'hotel_address' => $property->address ?? 'N/A', // Alias for flexible template
                 'room_type' => $roomTypeDisplay, // Aggregated Room Types as Table
-                'room_type_summary' => $roomTypeSummary, // Summary string available if needed
+                'room_type_summary' => $roomTypeSummary,
+                'room_number' => 'Multiple', // For flexible template
                 'check_in_date' => $firstReservation->check_in_date ? $firstReservation->check_in_date->format('d M Y') : 'N/A',
                 'check_out_date' => $firstReservation->check_out_date ? $firstReservation->check_out_date->format('d M Y') : 'N/A',
                 'check_in_time' => $firstReservation->check_in_time ?? 'N/A',
                 'check_out_time' => $firstReservation->check_out_time ?? 'N/A',
-                'number_of_guests' => $firstReservation->number_of_guests * count($reservations), // Approximate total guests
+                'number_of_guests' => $firstReservation->number_of_guests * count($reservations),
                 'number_of_nights' => $numberOfNights,
-                'total_price' => number_format($totalPrice, 2), // Aggregated Total
+                'total_price' => number_format($totalPrice, 2),
+                'total_amount' => number_format($totalPrice, 2), // Alias for flexible template
                 'currency_symbol' => $currencySymbol,
                 'payment_status' => ucfirst($firstReservation->payment_status),
                 'transaction_id' => $firstReservation->transaction_id ?? 'N/A',
@@ -1161,7 +1340,7 @@ Best regards,
             $data = array(
                 'email_template' => $reservationConfirmationTemplate,
                 'email' => $customer->email,
-                'title' => $emailTypeData['title'] ?? 'Reservation Confirmed - Payment Successful'
+                'title' => $emailTypeData['title'] ?? 'Reservation Confirmed'
             );
 
             \App\Services\HelperService::sendMail($data);
@@ -1169,7 +1348,8 @@ Best regards,
             \Illuminate\Support\Facades\Log::info('Aggregated reservation confirmation email sent', [
                 'customer_email' => $customer->email,
                 'total_amount' => $totalPrice,
-                'reservations_count' => count($reservations)
+                'reservations_count' => count($reservations),
+                'booking_type' => $firstReservation->booking_type
             ]);
 
         } catch (\Exception $e) {
@@ -1617,7 +1797,7 @@ Best regards,
      * @param \App\Models\Reservation $reservation
      * @return void
      */
-    public function sendFlexibleHotelBookingConfirmationEmail($reservation)
+    public function sendFlexibleHotelBookingConfirmationEmail($reservation, $siblings = [])
     {
         try {
             $customer = $reservation->customer;
@@ -1628,6 +1808,10 @@ Best regards,
                 // Email Template
                 $emailTemplateData = system_setting('flexible_hotel_booking_confirmation_mail_template');
                 $appName = env("APP_NAME") ?? "As Home";
+
+                // Combine reservation with siblings for multi-room logic
+                $allReservations = array_merge([$reservation], $siblings);
+                $isMultiRoom = count($allReservations) > 1;
 
                 // Get hotel and room information
                 $hotelName = '';
@@ -1660,10 +1844,69 @@ Best regards,
                 // Get currency symbol
                 $currencySymbol = system_setting('currency_symbol') ?? '$';
 
+                // Calculate Total Price and Build Room Table if Multi-Room
+                $totalPriceValue = $reservation->total_price;
+                
+                if ($isMultiRoom) {
+                    $totalPriceValue = 0;
+                    $tableRows = '';
+                    
+                    foreach ($allReservations as $res) {
+                        $totalPriceValue += $res->total_price;
+                        
+                        $resName = 'Property';
+                        if ($res->reservable_type === 'App\\Models\\HotelRoom') {
+                             $hRoom = $res->reservable;
+                             $resName = !empty($hRoom->custom_room_type) ? $hRoom->custom_room_type : (optional($hRoom->roomType)->name ?? 'Standard Room');
+                        } elseif ($res->reservable_type === 'App\\Models\\Property') {
+                             $resName = $res->reservable->title ?? 'Property';
+                        }
+                        
+                        $resPrice = number_format($res->total_price, 2);
+                        $resGuests = $res->number_of_guests;
+                        
+                        $tableRows .= "
+                            <tr>
+                                <td style='padding: 8px; border: 1px solid #ddd;'>{$resName}</td>
+                                <td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>{$resGuests}</td>
+                                <td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>{$resPrice} {$currencySymbol}</td>
+                            </tr>
+                        ";
+                    }
+
+                    $roomDetailsTable = "
+                        <div style='margin-top: 15px; margin-bottom: 15px;'>
+                            <table style='width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 14px;'>
+                                <thead>
+                                    <tr style='background-color: #f2f2f2;'>
+                                        <th style='padding: 10px; border: 1px solid #ddd; text-align: left;'>Room Type</th>
+                                        <th style='padding: 10px; border: 1px solid #ddd; text-align: center;'>Guests</th>
+                                        <th style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {$tableRows}
+                                </tbody>
+                                <tfoot>
+                                    <tr style='font-weight: bold; background-color: #f9f9f9;'>
+                                        <td colspan='2' style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Total</td>
+                                        <td style='padding: 10px; border: 1px solid #ddd; text-align: right;'>" . number_format($totalPriceValue, 2) . " {$currencySymbol}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    ";
+                    
+                    // Use table as room_type for visibility in template
+                    $roomType = $roomDetailsTable;
+                    // Clear room number as it's multiple
+                    $roomNumber = 'Multiple';
+                }
+
                 // Get customer email and phone
                 $guestEmail = $customer->email ?? $reservation->customer_email ?? 'N/A';
                 $guestPhone = $customer->mobile ?? $reservation->customer_phone ?? 'N/A';
-                $totalAmount = number_format($reservation->total_price, 2);
+                $totalAmount = number_format($totalPriceValue, 2);
 
                 $variables = array(
                     'app_name' => $appName,
@@ -1680,7 +1923,7 @@ Best regards,
                     'property_address' => $hotelAddress, // Add property_address for template compatibility
                     'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
                     'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
-                    'number_of_guests' => $reservation->number_of_guests,
+                    'number_of_guests' => $reservation->number_of_guests * ($isMultiRoom ? count($allReservations) : 1), // Approximate if multi
                     'total_price' => $totalAmount,
                     'total_amount' => $totalAmount, // Add total_amount alias for template compatibility
                     'currency_symbol' => $currencySymbol,

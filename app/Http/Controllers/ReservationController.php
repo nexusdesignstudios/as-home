@@ -803,8 +803,14 @@ class ReservationController extends Controller
                     }
 
                     // Send individual approval emails for non-flexible reservations
-                    foreach ($otherReservations as $res) {
-                        $this->reservationService->sendReservationApprovalEmail($res);
+                    if (!empty($otherReservations)) {
+                        if (count($otherReservations) > 1) {
+                            $this->reservationService->sendAggregatedReservationConfirmationEmail($otherReservations);
+                        } else {
+                            foreach ($otherReservations as $res) {
+                                $this->reservationService->sendReservationApprovalEmail($res);
+                            }
+                        }
                     }
                 }
 
