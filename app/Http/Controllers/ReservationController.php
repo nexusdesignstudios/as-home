@@ -781,13 +781,30 @@ class ReservationController extends Controller
                                 'trace' => $e->getTraceAsString()
                             ]);
                         }
-                        
-                        // Send flexible hotel booking confirmation email for flexible reservations
-                        $this->reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation);
-                    } else {
-                        // Send standard reservation approval email for non-flexible reservations
-                        // This ensures non-flexible reservations get pending approval emails
-                        $this->reservationService->sendReservationApprovalEmail($reservation);
+                    }
+                }
+
+                // Send emails after creating all reservations
+                if (!empty($reservations)) {
+                    $flexibleReservations = [];
+                    $otherReservations = [];
+
+                    foreach ($reservations as $res) {
+                        if ($res->refund_policy === 'flexible') {
+                            $flexibleReservations[] = $res;
+                        } else {
+                            $otherReservations[] = $res;
+                        }
+                    }
+
+                    // Send aggregated email for flexible reservations
+                    if (!empty($flexibleReservations)) {
+                        $this->reservationService->sendAggregatedReservationConfirmationEmail($flexibleReservations);
+                    }
+
+                    // Send individual approval emails for non-flexible reservations
+                    foreach ($otherReservations as $res) {
+                        $this->reservationService->sendReservationApprovalEmail($res);
                     }
                 }
 
