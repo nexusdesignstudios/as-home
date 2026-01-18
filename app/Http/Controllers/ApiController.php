@@ -12736,165 +12736,182 @@ Best regards,
             // Create reservation record for the revenue tab
             // Note: $request->amount is the discounted amount (after discount is applied)
             
-            // For hotel room reservations, reservable_id should be the hotel room ID, not property ID
-            $reservableId = $request->property_id;
-            if ($request->reservable_type === 'hotel_room' && !empty($request->reservable_data)) {
-                // Check if this is a flexible booking that needs room assignment
-                $isFlexibleBooking = $request->has('booking_type') && $request->booking_type === 'flexible_booking';
-                
-                if ($isFlexibleBooking) {
-                    // For flexible bookings (Admin Override), skip strict availability check
-                    // Use the room ID explicitly selected by the admin
-                    // This prevents blocking when overriding availability for maintenance/VIPs
-                    $firstRoom = $request->reservable_data[0];
-                    $reservableId = $firstRoom['id'] ?? $firstRoom['roomId'] ?? $request->property_id;
-                    
-                    Log::info('Flexible booking - using selected room (skipping availability check)', [
-                        'property_id' => $request->property_id,
-                        'assigned_room_id' => $reservableId
-                    ]);
-                } else {
-                    // For non-flexible bookings, use the first room's ID as before
-                $reservableId = $request->reservable_data[0]['id'] ?? $request->property_id;
-                
-                // NEW: Check availability and find alternative room if needed
-                if (!$isFlexibleBooking && $reservableId) {
-                    $reservationService = new \App\Services\ReservationService();
-                    $isAvailable = $reservationService->areDatesAvailable(
-                        'App\\Models\\HotelRoom',
-                        $reservableId,
-                        $request->check_in_date,
-                        $request->check_out_date
-                    );
-                    
-                    if (!$isAvailable) {
-                        Log::info('Selected room is not available, searching for alternative', [
-                            'room_id' => $reservableId
-                        ]);
-                        
-                        // Get the room details
-                        $room = HotelRoom::find($reservableId);
-                        if ($room) {
-                            // Find other rooms of the same type in the same property
-                            $alternativeRooms = HotelRoom::where('property_id', $room->property_id)
-                                ->where('room_type_id', $room->room_type_id)
-                                ->where('id', '!=', $room->id)
-                                ->where('status', 1) // Active rooms only
-                                ->get();
-                                
-                            foreach ($alternativeRooms as $altRoom) {
-                                if ($reservationService->areDatesAvailable(
-                                    'App\\Models\\HotelRoom',
-                                    $altRoom->id,
-                                    $request->check_in_date,
-                                    $request->check_out_date
-                                )) {
-                                    $reservableId = $altRoom->id;
-                                    Log::info('Found alternative available room', [
-                                        'original_room_id' => $room->id,
-                                        'new_room_id' => $reservableId
-                                    ]);
-                                    
-                                    // Update the reservable_data with the new ID to ensure consistency
-                                    $reservableData = $request->reservable_data;
-                                    if (isset($reservableData[0])) {
-                                        $reservableData[0]['id'] = $reservableId;
-                                        $request->merge(['reservable_data' => $reservableData]);
-                                    }
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-                }
-            }
+            // Create reservation record for the revenue tab
+            // Note: $request->amount is the discounted amount (after discount is applied)
             
-            $reservationData = [
-                'customer_id' => $request->customer_id, // Use customer ID from request
+            $transactionId = 'PF-' . $submission->id;
+            
+            // Prepare base reservation data
+            $baseReservationData = [
+                'customer_id' => $request->customer_id,
                 'customer_name' => $request->customer_name,
                 'customer_phone' => $request->customer_phone,
                 'customer_email' => $request->customer_email,
-                'reservable_id' => $reservableId,
                 'reservable_type' => $request->reservable_type,
-                'property_id' => $request->property_id, // Add property_id for proper filtering
+                'property_id' => $request->property_id,
                 'check_in_date' => $request->check_in_date,
                 'check_out_date' => $request->check_out_date,
                 'number_of_guests' => $request->number_of_guests,
-                'total_price' => $request->amount, // This is the discounted amount (after discount)
-                'original_amount' => $request->original_amount ?? $request->amount, // Original amount before discount
-                'discount_percentage' => $request->discount_percentage ?? 0, // Discount percentage
-                'discount_amount' => isset($request->original_amount) && isset($request->amount) 
-                    ? ($request->original_amount - $request->amount) 
-                    : 0, // Calculate discount amount
                 'payment_method' => $request->payment_method ?? 'cash',
                 'payment_status' => 'unpaid',
                 'status' => 'confirmed',
                 'approval_status' => 'approved',
                 'requires_approval' => false,
                 'booking_type' => 'reservation_request',
-                'refund_policy' => $request->refund_policy ?? 'non-refundable', // Store refund policy from request
+                'refund_policy' => $request->refund_policy ?? 'non-refundable',
                 'special_requests' => $request->special_requests,
-                'transaction_id' => 'PF-' . $submission->id, // Payment Form prefix
+                'transaction_id' => $transactionId,
                 'created_at' => now(),
                 'updated_at' => now()
             ];
 
             // Override approval workflow fields if explicitly provided in request
             if ($request->has('approval_status') && $request->approval_status !== null) {
-                $reservationData['approval_status'] = $request->approval_status;
+                $baseReservationData['approval_status'] = $request->approval_status;
             }
             if ($request->has('requires_approval') && $request->requires_approval !== null) {
-                $reservationData['requires_approval'] = $request->requires_approval;
+                $baseReservationData['requires_approval'] = $request->requires_approval;
             }
             if ($request->has('booking_type') && $request->booking_type !== null) {
-                $reservationData['booking_type'] = $request->booking_type;
+                $baseReservationData['booking_type'] = $request->booking_type;
             }
             
-            // Handle property_owner_id if provided (for flexible bookings)
-            if ($request->has('property_owner_id') && $request->property_owner_id !== null) {
-                // $reservationData['property_owner_id'] = $request->property_owner_id;
-            }
-
-            // Handle flexible reservations - ensure proper status and payment method
+            // Handle flexible reservations overrides
             if ($request->has('booking_type') && $request->booking_type === 'flexible_booking') {
-                $reservationData['status'] = 'confirmed'; // Auto-confirm flexible reservations
-                $reservationData['payment_status'] = 'unpaid'; // Keep as unpaid until manual payment
-                $reservationData['payment_method'] = 'cash'; // Use cash for flexible reservations
-                $reservationData['approval_status'] = 'approved'; // Auto-approve
-                $reservationData['requires_approval'] = false; // No approval needed
-                
-                // Handle flexible booking discount if provided
-                // if ($request->has('flexible_booking_discount') && $request->flexible_booking_discount !== null) {
-                //    $reservationData['flexible_booking_discount'] = $request->flexible_booking_discount;
-                // }
-                
-                // Handle is_flexible_booking flag if provided - SKIP as column might not exist
-                // if ($request->has('is_flexible_booking') && $request->is_flexible_booking !== null) {
-                //    $reservationData['is_flexible_booking'] = $request->is_flexible_booking;
-                // }
+                $baseReservationData['status'] = 'confirmed';
+                $baseReservationData['payment_status'] = 'unpaid';
+                $baseReservationData['payment_method'] = 'cash';
+                $baseReservationData['approval_status'] = 'approved';
+                $baseReservationData['requires_approval'] = false;
             }
 
             // Add property details if provided
             if ($request->has('property_details')) {
-                $reservationData['property_details'] = json_encode($request->property_details);
+                $baseReservationData['property_details'] = json_encode($request->property_details);
             }
 
-            // Handle hotel room data
-            if ($request->reservable_type === 'hotel_room' && $request->reservable_data) {
-                $reservationData['reservable_data'] = json_encode($request->reservable_data);
-            }
+            $createdReservations = [];
 
-            // SAFETY CHECK: Remove columns that might not exist in DB yet to prevent 500 errors
-            // This ensures compatibility even if database migrations are pending
-            if (isset($reservationData['property_owner_id'])) unset($reservationData['property_owner_id']);
-            if (isset($reservationData['flexible_booking_discount'])) unset($reservationData['flexible_booking_discount']);
-            if (isset($reservationData['is_flexible_booking'])) unset($reservationData['is_flexible_booking']);
+            // Case 1: Hotel Room Reservations (Potential Multi-Room)
+            $reservableData = $request->reservable_data;
+            if (is_string($reservableData)) {
+                $decoded = json_decode($reservableData, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $reservableData = $decoded;
+                }
+            }
             
-            Log::info('Creating reservation', ['keys' => array_keys($reservationData)]);
+            Log::info('SubmitPaymentForm processing', [
+                'reservable_type' => $request->reservable_type,
+                'reservable_data_type' => gettype($request->reservable_data),
+                'reservable_data_count' => is_array($reservableData) ? count($reservableData) : 'N/A'
+            ]);
 
-            // Create the reservation
-            $reservation = \App\Models\Reservation::create($reservationData);
+            if (trim($request->reservable_type) === 'hotel_room' && !empty($reservableData) && is_array($reservableData)) {
+                $isFlexibleBooking = $request->has('booking_type') && $request->booking_type === 'flexible_booking';
+                $reservationService = new \App\Services\ReservationService();
+                
+                foreach ($reservableData as $roomData) {
+                    $reservableId = $roomData['id'] ?? $roomData['roomId'];
+                    
+                    // Availability Check & Alternative Logic
+                    if ($isFlexibleBooking) {
+                        // Flexible: Use selected room, skip check
+                         Log::info('Flexible booking - using selected room (skipping availability check)', [
+                            'property_id' => $request->property_id,
+                            'assigned_room_id' => $reservableId
+                        ]);
+                    } else {
+                        // Strict: Check availability & find alternative
+                        if ($reservableId) {
+                            $isAvailable = $reservationService->areDatesAvailable(
+                                'App\\Models\\HotelRoom',
+                                $reservableId,
+                                $request->check_in_date,
+                                $request->check_out_date
+                            );
+                            
+                            if (!$isAvailable) {
+                                Log::info('Selected room is not available, searching for alternative', ['room_id' => $reservableId]);
+                                
+                                $room = HotelRoom::find($reservableId);
+                                if ($room) {
+                                    $alternativeRooms = HotelRoom::where('property_id', $room->property_id)
+                                        ->where('room_type_id', $room->room_type_id)
+                                        ->where('id', '!=', $room->id)
+                                        ->where('status', 1)
+                                        ->get();
+                                        
+                                    foreach ($alternativeRooms as $altRoom) {
+                                        if ($reservationService->areDatesAvailable(
+                                            'App\\Models\\HotelRoom',
+                                            $altRoom->id,
+                                            $request->check_in_date,
+                                            $request->check_out_date
+                                        )) {
+                                            $reservableId = $altRoom->id;
+                                            // Update room data ID for consistency in JSON
+                                            $roomData['id'] = $reservableId;
+                                            Log::info('Found alternative available room', ['new_room_id' => $reservableId]);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Create Reservation for this room
+                    $reservationData = $baseReservationData;
+                    $reservationData['reservable_id'] = $reservableId;
+                    // Use individual room amount
+                    $reservationData['total_price'] = $roomData['amount'] ?? 0;
+                    // Fallback for original amount
+                    $reservationData['original_amount'] = $roomData['amount'] ?? 0; 
+                    // Set specific guest count if available, else fallback
+                    $reservationData['number_of_guests'] = $roomData['guest_count'] ?? $request->number_of_guests;
+                    // Store ONLY this room's data
+                    $reservationData['reservable_data'] = json_encode([$roomData]);
+                    
+                    // Calculate discount amount (Pro-rated or simplified)
+                    // For now, we set it to 0 per room unless we calculate pro-rata
+                    $reservationData['discount_amount'] = 0;
+                    $reservationData['discount_percentage'] = $request->discount_percentage ?? 0;
+                    
+                    $createdReservations[] = \App\Models\Reservation::create($reservationData);
+                }
+            } 
+            // Case 2: Property/Single Reservation
+            else {
+                $reservableId = $request->property_id;
+                // Basic availability check for property could be added here if needed, 
+                // but usually handled by 'reservable_type' logic upstream or assumed available if payment form is submitted.
+                
+                $reservationData = $baseReservationData;
+                $reservationData['reservable_id'] = $reservableId;
+                $reservationData['total_price'] = $request->amount;
+                $reservationData['original_amount'] = $request->original_amount ?? $request->amount;
+                $reservationData['discount_amount'] = isset($request->original_amount) ? ($request->original_amount - $request->amount) : 0;
+                $reservationData['discount_percentage'] = $request->discount_percentage ?? 0;
+                
+                // Keep reservable_data if it exists (e.g. for property details not in standard fields)
+                if ($request->reservable_data) {
+                    $reservationData['reservable_data'] = json_encode($request->reservable_data);
+                }
+                
+                $createdReservations[] = \App\Models\Reservation::create($reservationData);
+            }
+            
+            // Set main reservation context for response/emails
+            $reservation = $createdReservations[0];
+            
+            // If multiple reservations were created (multi-room), ensure the email reflects the GRAND TOTAL of the transaction
+            // The individual reservation record has the per-room price, but the customer expects to see the total they paid.
+            if (count($createdReservations) > 1) {
+                $reservation->total_price = $request->amount;
+            }
+            
+            Log::info('Created reservations count: ' . count($createdReservations));
 
             // Send emails to both property owner and customer (if flexible booking)
             try {

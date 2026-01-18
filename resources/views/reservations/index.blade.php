@@ -292,12 +292,32 @@
                         <p><strong>Guests:</strong> <span id="modal-guests"></span></p>
                         <p><strong>Total Price:</strong> <span id="modal-price"></span></p>
                     </div>
+                    <div class="row mt-3">
                     <div class="col-md-6">
                         <h6>Status Information</h6>
                         <p><strong>Status:</strong> <span id="modal-status"></span></p>
                         <p><strong>Payment Status:</strong> <span id="modal-payment-status"></span></p>
                         <p><strong>Created:</strong> <span id="modal-created"></span></p>
                         <p><strong>Updated:</strong> <span id="modal-updated"></span></p>
+                    </div>
+                </div>
+                <div class="row mt-3" id="modal-rooms-section" style="display: none;">
+                    <div class="col-12">
+                        <h6>Booked Rooms</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Room Type</th>
+                                        <th>Price</th>
+                                        <th>Guests</th>
+                                        <th>Nights</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modal-rooms-list">
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
                 <div class="row mt-3" id="special-requests-section" style="display: none;">
@@ -636,6 +656,25 @@ function viewReservation(id) {
             $('#modal-payment-status').text(reservation.payment_status);
             $('#modal-created').text(reservation.created_at);
             $('#modal-updated').text(reservation.updated_at);
+
+            // Handle multi-room display
+            if (reservation.rooms && reservation.rooms.length > 0) {
+                let roomsHtml = '';
+                reservation.rooms.forEach(function(room) {
+                    roomsHtml += `
+                        <tr>
+                            <td>${room.room_type_name}</td>
+                            <td>${room.amount}</td>
+                            <td>${room.guest_count}</td>
+                            <td>${room.nights}</td>
+                        </tr>
+                    `;
+                });
+                $('#modal-rooms-list').html(roomsHtml);
+                $('#modal-rooms-section').show();
+            } else {
+                $('#modal-rooms-section').hide();
+            }
 
             // Handle special requests
             if (reservation.special_requests) {
