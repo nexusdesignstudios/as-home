@@ -749,14 +749,14 @@ class ReservationService
             foreach ($reservations as $reservation) {
                 $totalPrice += $reservation->total_price;
 
-                if ($reservation->reservable_type === 'App\Models\HotelRoom') {
+                if (in_array($reservation->reservable_type, ['App\Models\HotelRoom', 'hotel_room'])) {
                     $hotelRoom = $reservation->reservable;
                     $property = $hotelRoom->property;
                     $propertyOwner = $property->customer;
                     $roomName = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->room_type)->name ?? 'Standard Room');
                 } else {
                     $roomName = 'Property';
-                    if ($reservation->reservable_type === 'App\Models\Property') {
+                    if (in_array($reservation->reservable_type, ['App\Models\Property', 'property'])) {
                         $property = $reservation->reservable;
                         $propertyOwner = $property->customer;
                     }
@@ -783,10 +783,10 @@ class ReservationService
             $tableRows = '';
             foreach ($reservations as $res) {
                 $resName = 'Property';
-                if ($res->reservable_type === 'App\Models\HotelRoom') {
+                if (in_array($res->reservable_type, ['App\Models\HotelRoom', 'hotel_room'])) {
                      $hotelRoom = $res->reservable;
                      $resName = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->room_type)->name ?? 'Standard Room');
-                } elseif ($res->reservable_type === 'App\Models\Property') {
+                } elseif (in_array($res->reservable_type, ['App\Models\Property', 'property'])) {
                      $resName = $res->reservable->title ?? 'Property';
                 }
                 
@@ -1215,10 +1215,10 @@ Confirmation Date: {confirmation_date}
             $tableRows = '';
             foreach ($reservations as $res) {
                 $resName = 'Property';
-                if ($res->reservable_type === 'App\Models\HotelRoom') {
+                if (in_array($res->reservable_type, ['App\Models\HotelRoom', 'hotel_room'])) {
                      $hotelRoom = $res->reservable;
                      $resName = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->room_type)->name ?? 'Standard Room');
-                } elseif ($res->reservable_type === 'App\Models\Property') {
+                } elseif (in_array($res->reservable_type, ['App\Models\Property', 'property'])) {
                      $resName = $res->reservable->title ?? 'Property';
                 }
                 
