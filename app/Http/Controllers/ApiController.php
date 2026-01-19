@@ -12922,11 +12922,30 @@ Best regards,
                 
                 if (count($createdReservations) > 1) {
                     $tableRows = '';
+                    $hasPackages = false;
+                    
+                    // First pass to check if any room has a package
+                    foreach ($createdReservations as $res) {
+                         $reservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;
+                         if (!empty($reservableData) && isset($reservableData[0]['package_name'])) {
+                             $hasPackages = true;
+                             break;
+                         }
+                    }
+
                     foreach ($createdReservations as $res) {
                         $resName = 'Property';
+                        $packageName = '-';
+                        
                         if (in_array($res->reservable_type, ['App\Models\HotelRoom', 'hotel_room'])) {
                              $hotelRoom = $res->reservable;
                              $resName = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->room_type)->name ?? 'Standard Room');
+                             
+                             // Extract package info from reservable_data
+                             $reservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;
+                             if (!empty($reservableData) && isset($reservableData[0]['package_name'])) {
+                                 $packageName = $reservableData[0]['package_name'];
+                             }
                         } elseif (in_array($res->reservable_type, ['App\Models\Property', 'property'])) {
                              $resName = $res->reservable->title ?? 'Property';
                         }
@@ -12934,14 +12953,20 @@ Best regards,
                         $resPrice = number_format($res->total_price, 2);
                         $resGuests = $res->number_of_guests ?: 1;
                         
+                        $packageCell = $hasPackages ? "<td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>{$packageName}</td>" : "";
+                        
                         $tableRows .= "
                             <tr>
                                 <td style='padding: 8px; border: 1px solid #ddd;'>{$resName}</td>
+                                {$packageCell}
                                 <td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>{$resGuests}</td>
                                 <td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>{$resPrice} {$currencySymbol}</td>
                             </tr>
                         ";
                     }
+
+                    $packageHeader = $hasPackages ? "<th style='padding: 10px; border: 1px solid #ddd; text-align: center;'>Package</th>" : "";
+                    $colspan = $hasPackages ? "3" : "2";
 
                     $roomType = "
                         <div style='margin-top: 15px; margin-bottom: 15px;'>
@@ -12949,6 +12974,7 @@ Best regards,
                                 <thead>
                                     <tr style='background-color: #f2f2f2;'>
                                         <th style='padding: 10px; border: 1px solid #ddd; text-align: left;'>Room Type</th>
+                                        {$packageHeader}
                                         <th style='padding: 10px; border: 1px solid #ddd; text-align: center;'>Guests</th>
                                         <th style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Price</th>
                                     </tr>
@@ -12958,7 +12984,7 @@ Best regards,
                                 </tbody>
                                 <tfoot>
                                     <tr style='font-weight: bold; background-color: #f9f9f9;'>
-                                        <td colspan='2' style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Total</td>
+                                        <td colspan='{$colspan}' style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Total</td>
                                         <td style='padding: 10px; border: 1px solid #ddd; text-align: right;'>" . number_format($request->amount, 2) . " {$currencySymbol}</td>
                                     </tr>
                                 </tfoot>

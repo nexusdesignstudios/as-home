@@ -781,11 +781,30 @@ class ReservationService
 
             // Build HTML Table for Multi-Room details
             $tableRows = '';
+            $hasPackages = false;
+            
+            // First pass to check if any room has a package
+            foreach ($reservations as $res) {
+                 $reservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;
+                 if (!empty($reservableData) && isset($reservableData[0]['package_name'])) {
+                     $hasPackages = true;
+                     break;
+                 }
+            }
+
             foreach ($reservations as $res) {
                 $resName = 'Property';
+                $packageName = '-';
+                
                 if (in_array($res->reservable_type, ['App\Models\HotelRoom', 'hotel_room'])) {
                      $hotelRoom = $res->reservable;
                      $resName = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->room_type)->name ?? 'Standard Room');
+                     
+                     // Extract package info from reservable_data
+                     $reservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;
+                     if (!empty($reservableData) && isset($reservableData[0]['package_name'])) {
+                         $packageName = $reservableData[0]['package_name'];
+                     }
                 } elseif (in_array($res->reservable_type, ['App\Models\Property', 'property'])) {
                      $resName = $res->reservable->title ?? 'Property';
                 }
@@ -793,14 +812,20 @@ class ReservationService
                 $resPrice = number_format($res->total_price, 2);
                 $resGuests = $res->number_of_guests ?: 1;
                 
+                $packageCell = $hasPackages ? "<td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>{$packageName}</td>" : "";
+                
                 $tableRows .= "
                     <tr>
                         <td style='padding: 8px; border: 1px solid #ddd;'>{$resName}</td>
+                        {$packageCell}
                         <td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>{$resGuests}</td>
                         <td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>{$resPrice} {$currencySymbol}</td>
                     </tr>
                 ";
             }
+            
+            $packageHeader = $hasPackages ? "<th style='padding: 10px; border: 1px solid #ddd; text-align: center;'>Package</th>" : "";
+            $colspan = $hasPackages ? "3" : "2";
 
             $roomDetailsTable = "
                 <div style='margin-top: 15px; margin-bottom: 15px;'>
@@ -808,6 +833,7 @@ class ReservationService
                         <thead>
                             <tr style='background-color: #f2f2f2;'>
                                 <th style='padding: 10px; border: 1px solid #ddd; text-align: left;'>Room Type</th>
+                                {$packageHeader}
                                 <th style='padding: 10px; border: 1px solid #ddd; text-align: center;'>Guests</th>
                                 <th style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Price</th>
                             </tr>
@@ -817,7 +843,7 @@ class ReservationService
                         </tbody>
                         <tfoot>
                             <tr style='font-weight: bold; background-color: #f9f9f9;'>
-                                <td colspan='2' style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Total</td>
+                                <td colspan='{$colspan}' style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Total</td>
                                 <td style='padding: 10px; border: 1px solid #ddd; text-align: right;'>" . number_format($totalPrice, 2) . " {$currencySymbol}</td>
                             </tr>
                         </tfoot>
@@ -1213,11 +1239,30 @@ Confirmation Date: {confirmation_date}
 
             // Build HTML Table for Multi-Room details
             $tableRows = '';
+            $hasPackages = false;
+            
+            // First pass to check if any room has a package
+            foreach ($reservations as $res) {
+                 $reservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;
+                 if (!empty($reservableData) && isset($reservableData[0]['package_name'])) {
+                     $hasPackages = true;
+                     break;
+                 }
+            }
+
             foreach ($reservations as $res) {
                 $resName = 'Property';
+                $packageName = '-';
+                
                 if (in_array($res->reservable_type, ['App\Models\HotelRoom', 'hotel_room'])) {
                      $hotelRoom = $res->reservable;
                      $resName = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->room_type)->name ?? 'Standard Room');
+                     
+                     // Extract package info from reservable_data
+                     $reservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;
+                     if (!empty($reservableData) && isset($reservableData[0]['package_name'])) {
+                         $packageName = $reservableData[0]['package_name'];
+                     }
                 } elseif (in_array($res->reservable_type, ['App\Models\Property', 'property'])) {
                      $resName = $res->reservable->title ?? 'Property';
                 }
@@ -1225,14 +1270,20 @@ Confirmation Date: {confirmation_date}
                 $resPrice = number_format($res->total_price, 2);
                 $resGuests = $res->number_of_guests ?: 1;
                 
+                $packageCell = $hasPackages ? "<td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>{$packageName}</td>" : "";
+                
                 $tableRows .= "
                     <tr>
                         <td style='padding: 8px; border: 1px solid #ddd;'>{$resName}</td>
+                        {$packageCell}
                         <td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>{$resGuests}</td>
                         <td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>{$resPrice} {$currencySymbol}</td>
                     </tr>
                 ";
             }
+
+            $packageHeader = $hasPackages ? "<th style='padding: 10px; border: 1px solid #ddd; text-align: center;'>Package</th>" : "";
+            $colspan = $hasPackages ? "3" : "2";
 
             $roomDetailsTable = "
                 <div style='margin-top: 15px; margin-bottom: 15px;'>
@@ -1240,6 +1291,7 @@ Confirmation Date: {confirmation_date}
                         <thead>
                             <tr style='background-color: #f2f2f2;'>
                                 <th style='padding: 10px; border: 1px solid #ddd; text-align: left;'>Room Type</th>
+                                {$packageHeader}
                                 <th style='padding: 10px; border: 1px solid #ddd; text-align: center;'>Guests</th>
                                 <th style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Price</th>
                             </tr>
@@ -1249,7 +1301,7 @@ Confirmation Date: {confirmation_date}
                         </tbody>
                         <tfoot>
                             <tr style='font-weight: bold; background-color: #f9f9f9;'>
-                                <td colspan='2' style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Total</td>
+                                <td colspan='{$colspan}' style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Total</td>
                                 <td style='padding: 10px; border: 1px solid #ddd; text-align: right;'>" . number_format($totalPrice, 2) . " {$currencySymbol}</td>
                             </tr>
                         </tfoot>
@@ -1850,14 +1902,32 @@ Best regards,
                 if ($isMultiRoom) {
                     $totalPriceValue = 0;
                     $tableRows = '';
+                    $hasPackages = false;
+                    
+                    // First pass to check if any room has a package
+                    foreach ($allReservations as $res) {
+                         $reservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;
+                         if (!empty($reservableData) && isset($reservableData[0]['package_name'])) {
+                             $hasPackages = true;
+                             break;
+                         }
+                    }
                     
                     foreach ($allReservations as $res) {
                         $totalPriceValue += $res->total_price;
                         
                         $resName = 'Property';
+                        $packageName = '-';
+                        
                         if ($res->reservable_type === 'App\\Models\\HotelRoom' || $res->reservable_type === 'hotel_room') {
                              $hRoom = $res->reservable;
                              $resName = !empty($hRoom->custom_room_type) ? $hRoom->custom_room_type : (optional($hRoom->roomType)->name ?? 'Standard Room');
+                             
+                             // Extract package info from reservable_data
+                             $reservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;
+                             if (!empty($reservableData) && isset($reservableData[0]['package_name'])) {
+                                 $packageName = $reservableData[0]['package_name'];
+                             }
                         } elseif ($res->reservable_type === 'App\\Models\\Property' || $res->reservable_type === 'property') {
                              $resName = $res->reservable->title ?? 'Property';
                         }
@@ -1865,14 +1935,20 @@ Best regards,
                         $resPrice = number_format($res->total_price, 2);
                         $resGuests = $res->number_of_guests;
                         
+                        $packageCell = $hasPackages ? "<td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>{$packageName}</td>" : "";
+                        
                         $tableRows .= "
                             <tr>
                                 <td style='padding: 8px; border: 1px solid #ddd;'>{$resName}</td>
+                                {$packageCell}
                                 <td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>{$resGuests}</td>
                                 <td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>{$resPrice} {$currencySymbol}</td>
                             </tr>
                         ";
                     }
+
+                    $packageHeader = $hasPackages ? "<th style='padding: 10px; border: 1px solid #ddd; text-align: center;'>Package</th>" : "";
+                    $colspan = $hasPackages ? "3" : "2";
 
                     $roomDetailsTable = "
                         <div style='margin-top: 15px; margin-bottom: 15px;'>
@@ -1880,6 +1956,7 @@ Best regards,
                                 <thead>
                                     <tr style='background-color: #f2f2f2;'>
                                         <th style='padding: 10px; border: 1px solid #ddd; text-align: left;'>Room Type</th>
+                                        {$packageHeader}
                                         <th style='padding: 10px; border: 1px solid #ddd; text-align: center;'>Guests</th>
                                         <th style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Price</th>
                                     </tr>
@@ -1889,7 +1966,7 @@ Best regards,
                                 </tbody>
                                 <tfoot>
                                     <tr style='font-weight: bold; background-color: #f9f9f9;'>
-                                        <td colspan='2' style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Total</td>
+                                        <td colspan='{$colspan}' style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Total</td>
                                         <td style='padding: 10px; border: 1px solid #ddd; text-align: right;'>" . number_format($totalPriceValue, 2) . " {$currencySymbol}</td>
                                     </tr>
                                 </tfoot>
