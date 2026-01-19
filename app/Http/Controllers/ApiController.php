@@ -12939,7 +12939,7 @@ Best regards,
                         
                         if (in_array($res->reservable_type, ['App\Models\HotelRoom', 'hotel_room'])) {
                              $hotelRoom = $res->reservable;
-                             $resName = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->room_type)->name ?? 'Standard Room');
+                             $resName = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->roomType)->name ?? 'Standard Room');
                              
                              // Extract package info from reservable_data
                              $reservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;
