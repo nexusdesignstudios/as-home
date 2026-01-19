@@ -12908,12 +12908,6 @@ Best regards,
             // Define siblings for multi-room reservations
             $siblings = count($createdReservations) > 1 ? array_slice($createdReservations, 1) : [];
             
-            // If multiple reservations were created (multi-room), ensure the email reflects the GRAND TOTAL of the transaction
-            // The individual reservation record has the per-room price, but the customer expects to see the total they paid.
-            if (count($createdReservations) > 1) {
-                $reservation->total_price = $request->amount;
-            }
-            
             Log::info('Created reservations count: ' . count($createdReservations));
 
             // Send emails to both property owner and customer (if flexible booking)
