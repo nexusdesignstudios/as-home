@@ -36,21 +36,36 @@ class HomeController extends Controller
      *
      * @return \Illuminate\Contracts\Support\Renderable
      */
-    public function index()
+    public function index(Request $request)
     {
         $currency_symbol = Setting::where('type', 'currency_symbol')->pluck('data')->first();
 
         if (!has_permissions('read', 'dashboard')) {
             return redirect('dashboard')->with('error', PERMISSION_ERROR_MSG);
         } else {
-            // 0:Sell 1:Rent 2:Sold 3:Rented
-            $list['total_sell_property'] = Property::where('propery_type', '0')->get()->count();
-            $list['total_rant_property'] = Property::where('propery_type', '1')->get()->count();
+            
+            $year = $request->input('year');
+            $years = Property::select(DB::raw('YEAR(created_at) as year'))->distinct()->orderBy('year', 'desc')->pluck('year');
+            
+            $propertyQuery = Property::query();
+            if ($year) {
+                $propertyQuery->whereYear('created_at', $year);
+            }
 
-            $list['total_properties'] = Property::all()->count();
+            // 0:Sell 1:Rent 2:Sold 3:Rented
+            $list['total_sell_property'] = (clone $propertyQuery)->where('propery_type', '0')->count();
+            $list['total_rant_property'] = (clone $propertyQuery)->where('propery_type', '1')->count();
+
+            $list['total_properties'] = (clone $propertyQuery)->count();
             $list['total_articles'] = Article::all()->count();
             $list['total_categories'] = Category::all()->count();
             $list['total_customer'] = Customer::all()->count();
+            
+            // New Totals
+            $list['total_vacation_homes'] = (clone $propertyQuery)->where('property_classification', 4)->count();
+            $list['total_hotels'] = (clone $propertyQuery)->where('property_classification', 5)->count();
+            $list['total_commercials'] = (clone $propertyQuery)->where('property_classification', 2)->count();
+
             $list['recent_properties'] = Property::orderBy('id', 'DESC')->limit(10)->where('status', 1)->get();
             $today = now();
 
@@ -62,6 +77,9 @@ class HomeController extends Controller
                 array_push($monthDates, "'" . $monthName . "'");
             }
             $propertiesQuery = Property::query();
+            if ($year) {
+                $propertiesQuery->whereYear('created_at', $year);
+            }
 
             // Calculate sell and rent counts
             $sellProperties = $propertiesQuery->clone()->where('propery_type', 0)->get();
@@ -176,8 +194,50 @@ class HomeController extends Controller
                 ->groupBy(DB::raw("Month(created_at)"))
                 ->pluck('count');
 
-            return view('home', compact('list', 'settings', 'properties', 'userData', 'chartData', 'currency_symbol', 'category_name', 'category_count'));
+            return view('home', compact('list', 'settings', 'properties', 'userData', 'chartData', 'currency_symbol', 'category_name', 'category_count', 'years', 'year'));
         }
+    }
+    public function export_dashboard_properties(Request $request)
+    {
+        $year = $request->input('year');
+        $propertyQuery = Property::query();
+        if ($year) {
+            $propertyQuery->whereYear('created_at', $year);
+        }
+
+        $properties = $propertyQuery->get();
+
+        $filename = "properties_export_" . date('Ymd') . ".csv";
+        $handle = fopen('php://output', 'w');
+
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        fputcsv($handle, ['ID', 'Title', 'Type', 'Classification', 'Price', 'Created At']);
+
+        foreach ($properties as $property) {
+            $type = $property->propery_type == 0 ? 'Sell' : 'Rent';
+            $classification = '';
+            switch ($property->property_classification) {
+                case 1: $classification = 'Residential'; break;
+                case 2: $classification = 'Commercial'; break;
+                case 3: $classification = 'New Project'; break;
+                case 4: $classification = 'Vacation Home'; break;
+                case 5: $classification = 'Hotel'; break;
+            }
+            
+            fputcsv($handle, [
+                $property->id,
+                $property->title,
+                $type,
+                $classification,
+                $property->price,
+                $property->created_at
+            ]);
+        }
+
+        fclose($handle);
+        exit;
     }
     public function blank_dashboard()
     {

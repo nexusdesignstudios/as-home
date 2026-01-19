@@ -24,6 +24,9 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-12">
+                        <div id="toolbar">
+                            <a href="{{ route('export-all-customers') }}" class="btn btn-primary btn-sm">{{ __('Export All Customers') }}</a>
+                        </div>
                         <table class="table table-striped" id="table_list"
                             data-toggle="table" data-url="{{ url('customerList') }}" data-click-to-select="true"
                             data-side-pagination="server" data-pagination="true"

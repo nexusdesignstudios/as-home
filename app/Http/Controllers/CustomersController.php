@@ -33,6 +33,38 @@ class CustomersController extends Controller
         return view('customer.index');
     }
 
+    public function export_all_customers()
+    {
+        if (!has_permissions('read', 'customer')) {
+            return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
+        }
+
+        $customers = Customer::all();
+
+        $filename = "customers_export_" . date('Ymd') . ".csv";
+        $handle = fopen('php://output', 'w');
+
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        fputcsv($handle, ['ID', 'Name', 'Email', 'Mobile', 'Address', 'Status', 'Created At']);
+
+        foreach ($customers as $customer) {
+            fputcsv($handle, [
+                $customer->id,
+                $customer->name,
+                $customer->email,
+                $customer->mobile,
+                $customer->address,
+                $customer->isActive ? 'Active' : 'Inactive',
+                $customer->created_at
+            ]);
+        }
+
+        fclose($handle);
+        exit;
+    }
+
 
 
     /**

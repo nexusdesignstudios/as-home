@@ -97,6 +97,8 @@ Route::middleware(['language'])->group(function () {
         Route::get('render_svg', [HomeController::class, 'render_svg'])->name('render_svg');
         Route::get('dashboard', [App\Http\Controllers\HomeController::class, 'blank_dashboard'])->name('dashboard');
         Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+        Route::get('/export-dashboard-properties', [App\Http\Controllers\HomeController::class, 'export_dashboard_properties'])->name('export-dashboard-properties');
+        Route::get('/export-all-customers', [App\Http\Controllers\CustomersController::class, 'export_all_customers'])->name('export-all-customers');
         Route::get('about-us', [SettingController::class, 'index']);
         Route::get('privacy-policy', [SettingController::class, 'index']);
         Route::get('terms-conditions', [SettingController::class, 'index']);

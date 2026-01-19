@@ -2671,3 +2671,49 @@ body {
 .refresh-chats:hover{
     transform: scale(1.05);
 }
+.lable_vacation .svg_icon {
+padding: 10px;
+width: 60px;
+height: 60px;
+position: relative;
+padding: 10px;
+background: #36a2eb;
+box-shadow: 0px 8px 26px rgba(54, 162, 235, 0.36);
+border-radius: 8px
+}
+
+.lable_vacation .total_sell,
+.lable_hotel .total_sell {
+color: #4D5454;
+font-size: 14px;
+font-weight: 500;
+word-wrap: break-word;
+}
+
+.vacation_lable_text,
+.hotel_lable_text {
+margin-left: 16px;
+display: flex;
+flex-direction: column;
+justify-content: center;
+}
+
+.lable_vacation .no_of_total_sell,
+.lable_hotel .no_of_total_sell {
+color: #212121;
+font-size: 16px;
+font-weight: 700;
+word-wrap: break-word;
+}
+
+.lable_hotel .svg_icon {
+padding: 10px;
+width: 60px;
+height: 60px;
+position: relative;
+padding: 10px;
+background: #9966ff;
+box-shadow: 0px 8px 26px rgba(153, 102, 255, 0.36);
+border-radius: 8px
+}
+
