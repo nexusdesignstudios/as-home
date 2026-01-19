@@ -12916,6 +12916,57 @@ Best regards,
                 $emailTypeData = HelperService::getEmailTemplatesTypes('payment_form_submission');
                 $templateData = system_setting('payment_form_submission_mail_template');
                 
+                // Prepare Room Type or Table for Multi-Room
+                $roomType = $request->room_type ?? 'Standard';
+                $currencySymbol = $request->currency ?? 'EGP';
+                
+                if (count($createdReservations) > 1) {
+                    $tableRows = '';
+                    foreach ($createdReservations as $res) {
+                        $resName = 'Property';
+                        if (in_array($res->reservable_type, ['App\Models\HotelRoom', 'hotel_room'])) {
+                             $hotelRoom = $res->reservable;
+                             $resName = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->room_type)->name ?? 'Standard Room');
+                        } elseif (in_array($res->reservable_type, ['App\Models\Property', 'property'])) {
+                             $resName = $res->reservable->title ?? 'Property';
+                        }
+                        
+                        $resPrice = number_format($res->total_price, 2);
+                        $resGuests = $res->number_of_guests ?: 1;
+                        
+                        $tableRows .= "
+                            <tr>
+                                <td style='padding: 8px; border: 1px solid #ddd;'>{$resName}</td>
+                                <td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>{$resGuests}</td>
+                                <td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>{$resPrice} {$currencySymbol}</td>
+                            </tr>
+                        ";
+                    }
+
+                    $roomType = "
+                        <div style='margin-top: 15px; margin-bottom: 15px;'>
+                            <table style='width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 14px;'>
+                                <thead>
+                                    <tr style='background-color: #f2f2f2;'>
+                                        <th style='padding: 10px; border: 1px solid #ddd; text-align: left;'>Room Type</th>
+                                        <th style='padding: 10px; border: 1px solid #ddd; text-align: center;'>Guests</th>
+                                        <th style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {$tableRows}
+                                </tbody>
+                                <tfoot>
+                                    <tr style='font-weight: bold; background-color: #f9f9f9;'>
+                                        <td colspan='2' style='padding: 10px; border: 1px solid #ddd; text-align: right;'>Total</td>
+                                        <td style='padding: 10px; border: 1px solid #ddd; text-align: right;'>" . number_format($request->amount, 2) . " {$currencySymbol}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    ";
+                }
+                
                 $variables = array(
                     'app_name' => env('APP_NAME') ?? 'As-home',
                     'property_owner_name' => $property->customer->name,
@@ -12924,12 +12975,12 @@ Best regards,
                     'customer_phone' => $request->customer_phone,
                     'property_name' => $property->title,
                     'property_address' => $property->address,
-                    'room_type' => $request->room_type ?? 'Standard',
+                    'room_type' => $roomType,
                     'check_in_date' => $request->check_in_date,
                     'check_out_date' => $request->check_out_date,
                     'number_of_guests' => $request->number_of_guests,
                     'total_amount' => number_format($request->amount, 2),
-                    'currency_symbol' => $request->currency ?? 'EGP',
+                    'currency_symbol' => $currencySymbol,
                     'card_number_masked' => $maskedCardNumber,
                     'special_requests' => $request->special_requests ?? 'None',
                     'submission_date' => now()->format('Y-m-d H:i:s'),
