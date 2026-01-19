@@ -12979,8 +12979,8 @@ Best regards,
                         // Vacation home - send pending approval email
                         $reservationService->sendVacationHomePendingApprovalEmail($reservation);
                     } elseif ($propertyClassification == 5) {
-                        // Hotel booking - send flexible hotel booking confirmation email
-                        $reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation, $siblings);
+                        // Hotel booking - send aggregated reservation confirmation email
+                        $reservationService->sendAggregatedReservationConfirmationEmail($createdReservations);
                     }
                     
                     Log::info('Both emails sent: Payment form submission to owner and appropriate email to customer', [
