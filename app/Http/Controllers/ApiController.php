@@ -12905,6 +12905,9 @@ Best regards,
             // Set main reservation context for response/emails
             $reservation = $createdReservations[0];
             
+            // Define siblings for multi-room reservations
+            $siblings = count($createdReservations) > 1 ? array_slice($createdReservations, 1) : [];
+            
             // If multiple reservations were created (multi-room), ensure the email reflects the GRAND TOTAL of the transaction
             // The individual reservation record has the per-room price, but the customer expects to see the total they paid.
             if (count($createdReservations) > 1) {

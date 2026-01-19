@@ -1819,7 +1819,7 @@ Best regards,
                 $roomNumber = '';
                 $hotelAddress = '';
 
-                if ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                if ($reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room') {
                     $hotelRoom = $reservation->reservable;
                     if ($hotelRoom) {
                         $hotelName = $hotelRoom->property->title ?? 'Hotel';
@@ -1855,10 +1855,10 @@ Best regards,
                         $totalPriceValue += $res->total_price;
                         
                         $resName = 'Property';
-                        if ($res->reservable_type === 'App\\Models\\HotelRoom') {
+                        if ($res->reservable_type === 'App\\Models\\HotelRoom' || $res->reservable_type === 'hotel_room') {
                              $hRoom = $res->reservable;
                              $resName = !empty($hRoom->custom_room_type) ? $hRoom->custom_room_type : (optional($hRoom->roomType)->name ?? 'Standard Room');
-                        } elseif ($res->reservable_type === 'App\\Models\\Property') {
+                        } elseif ($res->reservable_type === 'App\\Models\\Property' || $res->reservable_type === 'property') {
                              $resName = $res->reservable->title ?? 'Property';
                         }
                         
@@ -1932,8 +1932,8 @@ Best regards,
                 );
 
                 if (empty($emailTemplateData)) {
-                    $emailTemplateData = "Dear {customer_name},\n\nYour reservation for {property_name} has been confirmed!\n\nWe are pleased to confirm your booking details:\n\nProperty: {property_name}\nRoom Number: {room_number}\nAddress: {property_address}\nCheck-in Date: {check_in_date}\nCheck-out Date: {check_out_date}\nNumber of Guests: {number_of_guests}\nTotal Amount: {total_price} {currency_symbol}\n\nYour reservation is now confirmed and the room has been reserved for you.\n\nThank you for choosing {app_name}!\n\nBest regards,\n{app_name} Team";
-                }
+                        $emailTemplateData = "Dear {customer_name},\n\nYour reservation for {property_name} has been confirmed!\n\nWe are pleased to confirm your booking details:\n\nProperty: {property_name}\nRoom Type: {room_type}\nRoom Number: {room_number}\nAddress: {property_address}\nCheck-in Date: {check_in_date}\nCheck-out Date: {check_out_date}\nNumber of Guests: {number_of_guests}\nTotal Amount: {total_price} {currency_symbol}\n\nYour reservation is now confirmed and the room has been reserved for you.\n\nThank you for choosing {app_name}!\n\nBest regards,\n{app_name} Team";
+                    }
                 
                 // Log the template and variables for debugging
                 \Illuminate\Support\Facades\Log::info('Email template before variable replacement', [
