@@ -2700,8 +2700,14 @@ www.ashome-eg.com';
             $refundApprovals = PaymobPayment::with(['reservation'])
                 ->where('requires_approval', true)
                 ->whereHas('reservation', function ($query) use ($userId) {
-                    $query->whereHasMorph('reservable', function ($morphQuery) use ($userId) {
-                        $morphQuery->where('added_by', $userId);
+                    $query->whereHasMorph('reservable', ['App\Models\Property', 'App\Models\HotelRoom'], function ($morphQuery, $type) use ($userId) {
+                        if ($type === 'App\Models\Property') {
+                            $morphQuery->where('added_by', $userId);
+                        } elseif ($type === 'App\Models\HotelRoom') {
+                            $morphQuery->whereHas('property', function ($q) use ($userId) {
+                                $q->where('added_by', $userId);
+                            });
+                        }
                     });
                 })
                 ->orderBy('created_at', 'desc')

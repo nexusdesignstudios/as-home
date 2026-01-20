@@ -5519,6 +5519,7 @@ class ApiController extends Controller
             'price',
             'propery_type',
             'title',
+            'title_ar',
             'title_image',
             'is_premium',
             'address',
@@ -7065,6 +7066,7 @@ class ApiController extends Controller
                 'price',
                 'propery_type',
                 'title',
+                'title_ar',
                 'title_image',
                 'is_premium',
                 'address',
@@ -7431,7 +7433,7 @@ class ApiController extends Controller
                     }
                 } else {
                     // Create a proeprty query
-                    $propertiesQuery = Property::select('id', 'slug_id', 'city', 'state', 'category_id', 'country', 'price', 'propery_type', 'title', 'title_image', 'is_premium', 'address', 'added_by')
+                    $propertiesQuery = Property::select('id', 'slug_id', 'city', 'state', 'category_id', 'country', 'price', 'propery_type', 'title', 'title_ar', 'title_image', 'is_premium', 'address', 'added_by')
                         ->where(['status' => 1, 'request_status' => 'approved', 'added_by' => $addedBy]);
 
                     // Count total properties
