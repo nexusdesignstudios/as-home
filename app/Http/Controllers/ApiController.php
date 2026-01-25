@@ -1885,7 +1885,14 @@ class ApiController extends Controller
 
         try {
             DB::beginTransaction();
-            HelperService::updatePackageLimit('property_list');
+            
+            // Check if package limit check is required
+            // Hotel (5) and Vacation Homes (4) do not require package limits
+            $classification = $request->property_classification;
+            if ($classification != 4 && $classification != 5) {
+                HelperService::updatePackageLimit('property_list');
+            }
+            
             $loggedInUserId = Auth::user()->id;
 
             $slugData = (isset($request->slug_id) && !empty($request->slug_id)) ? $request->slug_id : $request->title;
