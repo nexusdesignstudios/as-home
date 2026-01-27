@@ -837,7 +837,7 @@ class SettingController extends Controller
         if (!has_permissions('read', 'email_templates')) {
             return redirect()->back()->with('error', PERMISSION_ERROR_MSG);
         }
-        $types = array('verify_mail', 'reset_password', 'welcome_mail', 'property_status', 'project_status', 'property_ads_status', 'user_status', 'agent_verification_status', 'reservation_confirmation', 'reservation_approval', 'monthly_tax_invoice', 'monthly_tax_invoice_hotels_non_refundable', 'monthly_tax_invoice_hotels_flexible', 'vacation_homes_basic_tax_invoice', 'vacation_homes_premium_tax_invoice', 'hotel_booking_tax_invoice', 'hotel_booking_tax_invoice_flexible', 'hotel_booking_tax_invoice_non_refundable', 'selling_or_renting_contract', 'list_property_sell_contract', 'list_property_rent_contract', 'basic_package_self_managed', 'basic_package_renting', 'premium_package_renting', 'vacation_homes_self_managed_basic_package', 'vacation_homes_ashome_managed_premium_package', 'hotel_booking', 'property_client_meeting', 'orientation_day_confirmation', 'inquiry_form', 'reservation_approval_payment', 'vacation_home_pending_approval', 'vacation_home_owner_booking_notification', 'flexible_reservation_confirmation', 'flexible_hotel_booking_approval', 'send_money_payment', 'refund_approval', 'refund_rejection', 'reservation_rejection', 'reservation_cancellation', 'checkout_reminder', 'payment_form_submission', 'feedback_request', 'payment_completion_owner', 'bank_payment_accepted', 'bank_payment_rejected', 'subscription_success');
+        $types = array('verify_mail', 'reset_password', 'welcome_mail', 'property_status', 'project_status', 'property_ads_status', 'user_status', 'agent_verification_status', 'reservation_confirmation', 'reservation_approval', 'monthly_tax_invoice', 'monthly_tax_invoice_hotels_non_refundable', 'monthly_tax_invoice_hotels_flexible', 'vacation_homes_basic_tax_invoice', 'vacation_homes_premium_tax_invoice', 'hotel_booking_tax_invoice', 'hotel_booking_tax_invoice_flexible', 'hotel_booking_tax_invoice_non_refundable', 'selling_or_renting_contract', 'list_property_sell_contract', 'list_property_rent_contract', 'basic_package_self_managed', 'basic_package_renting', 'premium_package_renting', 'vacation_homes_self_managed_basic_package', 'vacation_homes_ashome_managed_premium_package', 'hotel_booking', 'property_client_meeting', 'orientation_day_confirmation', 'inquiry_form', 'reservation_approval_payment', 'vacation_home_pending_approval', 'vacation_home_owner_booking_notification', 'flexible_reservation_confirmation', 'flexible_hotel_booking_approval', 'send_money_payment', 'refund_approval', 'refund_rejection', 'reservation_rejection', 'reservation_cancellation', 'checkout_reminder', 'payment_form_submission', 'feedback_request', 'payment_completion_owner', 'bank_payment_accepted', 'bank_payment_rejected', 'subscription_success', 'reservation_cancellation_owner');
         if (!in_array($type, $types)) {
             ResponseService::errorRedirectResponse("Type is invalid");
         }
@@ -1020,6 +1020,22 @@ The <strong>{app_name}</strong> Team</p>';
 </ul>
 <p>We will review your submission and notify you once it is approved.</p>
 <p>If you have any questions, please contact our support team.</p>
+<p>Best regards,<br>
+The <strong>{app_name}</strong> Team</p>';
+            } elseif ($type === 'reservation_cancellation_owner') {
+                // Default reservation cancellation owner template
+                $templateMailData = '<p>Dear <strong>{owner_name}</strong>,</p>
+<p>A reservation for your property has been cancelled.</p>
+<p><strong>Reservation Details:</strong></p>
+<ul>
+<li><strong>Guest Name:</strong> {customer_name}</li>
+<li><strong>Reservation ID:</strong> {reservation_id}</li>
+<li><strong>Property:</strong> {property_name}</li>
+<li><strong>Check-in Date:</strong> {check_in_date}</li>
+<li><strong>Check-out Date:</strong> {check_out_date}</li>
+<li><strong>Total Amount:</strong> {currency_symbol}{total_price}</li>
+</ul>
+<p>The dates for this reservation are now available for other bookings.</p>
 <p>Best regards,<br>
 The <strong>{app_name}</strong> Team</p>';
             }
