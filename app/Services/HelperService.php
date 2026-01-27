@@ -295,6 +295,10 @@ class HelperService
                                 'is_condition' => false,
                             ],
                             [
+                                'name' => 'reservation_id',
+                                'is_condition' => false,
+                            ],
+                            [
                                 'name' => 'check_in_date',
                                 'is_condition' => false,
                             ],
@@ -581,6 +585,81 @@ class HelperService
                             ],
                             [
                                 'name' => 'booking_date',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'payment_form_submission':
+                    return array(
+                        'title' => 'New Payment Form Submission',
+                        'type' => 'payment_form_submission_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'app_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_owner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'customer_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'customer_email',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'customer_phone',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'property_address',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'room_type',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_in_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_out_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'number_of_guests',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'total_amount',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'currency_symbol',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'card_number_masked',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'special_requests',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'submission_date',
                                 'is_condition' => false,
                             ],
                         )

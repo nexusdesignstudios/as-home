@@ -1006,6 +1006,22 @@ The <strong>{app_name}</strong> Team</p>';
 <p>We look forward to welcoming you!</p>
 <p>Best regards,</p>
 <p>The <strong>{app_name}</strong> Team</p>';
+            } elseif ($type === 'payment_form_submission') {
+                // Default payment form submission template
+                $templateMailData = '<p>Dear <strong>{customer_name}</strong>,</p>
+<p>We have received your payment form submission for reservation <strong>{reservation_id}</strong> at <strong>{property_name}</strong>.</p>
+<p><strong>Submission Details:</strong></p>
+<ul>
+<li><strong>Reservation ID:</strong> {reservation_id}</li>
+<li><strong>Property:</strong> {property_name}</li>
+<li><strong>Room Type:</strong> {room_type}</li>
+<li><strong>Check-in Date:</strong> {check_in_date}</li>
+<li><strong>Total Price:</strong> {currency_symbol}{total_price}</li>
+</ul>
+<p>We will review your submission and notify you once it is approved.</p>
+<p>If you have any questions, please contact our support team.</p>
+<p>Best regards,<br>
+The <strong>{app_name}</strong> Team</p>';
             }
         }
         
