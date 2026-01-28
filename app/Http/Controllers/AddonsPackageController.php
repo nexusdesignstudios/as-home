@@ -70,8 +70,7 @@ class AddonsPackageController extends Controller
             'addon_values' => 'required|array',
             'addon_values.*.hotel_addon_field_id' => 'required|exists:hotel_addon_fields,id',
             'addon_values.*.value' => 'required',
-            'addon_values.*.static_price' => 'nullable|numeric|min:0',
-            'addon_values.*.multiply_price' => 'nullable|numeric|min:0'
+            'addon_values.*.static_price' => 'nullable'
         ]);
 
         if ($validator->fails()) {
@@ -127,8 +126,8 @@ class AddonsPackageController extends Controller
                     'property_id' => $request->property_id,
                     'hotel_addon_field_id' => $addonValue['hotel_addon_field_id'],
                     'value' => $value,
-                    'static_price' => $addonValue['static_price'] ?? null,
-                    'multiply_price' => $addonValue['multiply_price'] ?? null,
+                    'static_price' => (isset($addonValue['static_price']) && is_numeric($addonValue['static_price'])) ? $addonValue['static_price'] : null,
+                    'multiply_price' => (isset($addonValue['multiply_price']) && is_numeric($addonValue['multiply_price'])) ? $addonValue['multiply_price'] : 1,
                     'package_id' => $package->id
                 ]);
             }
@@ -194,8 +193,7 @@ class AddonsPackageController extends Controller
             'addon_values.*.id' => 'nullable|exists:property_hotel_addon_values,id',
             'addon_values.*.hotel_addon_field_id' => 'required_with:addon_values|exists:hotel_addon_fields,id',
             'addon_values.*.value' => 'required_with:addon_values',
-            'addon_values.*.static_price' => 'nullable|numeric|min:0',
-            'addon_values.*.multiply_price' => 'nullable|numeric|min:0'
+            'addon_values.*.static_price' => 'nullable'
         ]);
 
         if ($validator->fails()) {
@@ -270,8 +268,8 @@ class AddonsPackageController extends Controller
                             $addonValueModel->update([
                                 'hotel_addon_field_id' => $addonValue['hotel_addon_field_id'],
                                 'value' => $value,
-                                'static_price' => $addonValue['static_price'] ?? $addonValueModel->static_price,
-                                'multiply_price' => $addonValue['multiply_price'] ?? $addonValueModel->multiply_price
+                                'static_price' => (isset($addonValue['static_price']) && is_numeric($addonValue['static_price'])) ? $addonValue['static_price'] : $addonValueModel->static_price,
+                                'multiply_price' => (isset($addonValue['multiply_price']) && is_numeric($addonValue['multiply_price'])) ? $addonValue['multiply_price'] : $addonValueModel->multiply_price
                             ]);
 
                             $processedAddonValueIds[] = $addonValueModel->id;
@@ -282,8 +280,8 @@ class AddonsPackageController extends Controller
                             'property_id' => $package->property_id,
                             'hotel_addon_field_id' => $addonValue['hotel_addon_field_id'],
                             'value' => $value,
-                            'static_price' => $addonValue['static_price'] ?? null,
-                            'multiply_price' => $addonValue['multiply_price'] ?? null,
+                            'static_price' => (isset($addonValue['static_price']) && is_numeric($addonValue['static_price'])) ? $addonValue['static_price'] : null,
+                            'multiply_price' => (isset($addonValue['multiply_price']) && is_numeric($addonValue['multiply_price'])) ? $addonValue['multiply_price'] : 1,
                             'package_id' => $package->id
                         ]);
 

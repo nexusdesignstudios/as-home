@@ -31,7 +31,6 @@ class HotelAddonFieldController extends Controller
             'field_type' => 'required|in:text,number,radio,checkbox,textarea,file,dropdown',
             'option_data.*' => 'required_if:field_type,radio|required_if:field_type,checkbox|required_if:field_type,dropdown',
             'option_data.*.static_price' => 'nullable|numeric',
-            'option_data.*.multiply_price' => 'nullable|numeric',
         ]);
         if ($validator->fails()) {
             ResponseService::validationError($validator->errors()->first());
@@ -55,7 +54,7 @@ class HotelAddonFieldController extends Controller
                             'hotel_addon_field_id'   => $hotelAddonField->id,
                             'value'                  => $option['option'],
                             'static_price'           => isset($option['static_price']) ? $option['static_price'] : null,
-                            'multiply_price'         => isset($option['multiply_price']) ? $option['multiply_price'] : null,
+                            'multiply_price'         => (isset($option['multiply_price']) && is_numeric($option['multiply_price'])) ? $option['multiply_price'] : 1,
                             'created_at'             => now(),
                             'updated_at'             => now()
                         );

@@ -1827,8 +1827,7 @@ class ApiController extends Controller
             'addons_packages.*.addon_values' => 'nullable|array',
             'addons_packages.*.addon_values.*.hotel_addon_field_id' => 'required|exists:hotel_addon_fields,id',
             'addons_packages.*.addon_values.*.value' => 'required',
-            'addons_packages.*.addon_values.*.static_price' => 'nullable|numeric|min:0',
-            'addons_packages.*.addon_values.*.multiply_price' => 'nullable|numeric|min:0',
+            'addons_packages.*.addon_values.*.static_price' => 'nullable',
             'price'             => ['required_unless:property_classification,5', 'nullable', 'numeric', 'min:0', 'max:9223372036854775807', function ($attribute, $value, $fail) {
                 if ($value !== null && $value >= 9223372036854775807) {
                     $fail("The Price must not exceed more than 9223372036854775807.");
@@ -2364,8 +2363,8 @@ class ApiController extends Controller
                                     'property_id' => $saveProperty->id,
                                     'hotel_addon_field_id' => $addon['hotel_addon_field_id'],
                                     'value' => $value,
-                                    'static_price' => isset($addon['static_price']) ? $addon['static_price'] : null,
-                                    'multiply_price' => isset($addon['multiply_price']) ? $addon['multiply_price'] : null,
+                                    'static_price' => (isset($addon['static_price']) && is_numeric($addon['static_price'])) ? $addon['static_price'] : null,
+                                    'multiply_price' => (isset($addon['multiply_price']) && is_numeric($addon['multiply_price'])) ? $addon['multiply_price'] : 1,
                                     'package_id' => $addonsPackage->id // Link to the package
                                 ]);
                             }
@@ -2661,8 +2660,7 @@ class ApiController extends Controller
             'addons_packages.*.addon_values.*.id' => 'nullable|exists:property_hotel_addon_values,id',
             'addons_packages.*.addon_values.*.hotel_addon_field_id' => 'required|exists:hotel_addon_fields,id',
             'addons_packages.*.addon_values.*.value' => 'required',
-            'addons_packages.*.addon_values.*.static_price' => 'nullable|numeric|min:0',
-            'addons_packages.*.addon_values.*.multiply_price' => 'nullable|numeric|min:0',
+            'addons_packages.*.addon_values.*.static_price' => 'nullable',
             'deleted_room_ids'      => 'nullable|array',
             'deleted_room_ids.*'    => 'exists:hotel_rooms,id',
             'deleted_package_ids'   => 'nullable|array',
@@ -3986,7 +3984,7 @@ class ApiController extends Controller
                                                         // Update the addon value
                                                         $addonValue->value = $value;
                                                         $addonValue->static_price = isset($addon['static_price']) ? $addon['static_price'] : null;
-                                                        $addonValue->multiply_price = isset($addon['multiply_price']) ? $addon['multiply_price'] : null;
+                                                        $addonValue->multiply_price = isset($addon['multiply_price']) ? $addon['multiply_price'] : 1;
                                                         $addonValue->save();
                                                     }
                                                 } else {
@@ -4013,8 +4011,8 @@ class ApiController extends Controller
                                                         'property_id' => $property->id,
                                                         'hotel_addon_field_id' => $addon['hotel_addon_field_id'],
                                                         'value' => $value,
-                                                        'static_price' => isset($addon['static_price']) ? $addon['static_price'] : null,
-                                                        'multiply_price' => isset($addon['multiply_price']) ? $addon['multiply_price'] : null,
+                                                        'static_price' => (isset($addon['static_price']) && is_numeric($addon['static_price'])) ? $addon['static_price'] : null,
+                                                        'multiply_price' => (isset($addon['multiply_price']) && is_numeric($addon['multiply_price'])) ? $addon['multiply_price'] : 1,
                                                         'package_id' => $addonsPackage->id
                                                     ]);
                                                 }
@@ -4057,8 +4055,8 @@ class ApiController extends Controller
                                                 'property_id' => $property->id,
                                                 'hotel_addon_field_id' => $addon['hotel_addon_field_id'],
                                                 'value' => $value,
-                                                'static_price' => isset($addon['static_price']) ? $addon['static_price'] : null,
-                                                'multiply_price' => isset($addon['multiply_price']) ? $addon['multiply_price'] : null,
+                                                'static_price' => (isset($addon['static_price']) && is_numeric($addon['static_price'])) ? $addon['static_price'] : null,
+                                                'multiply_price' => (isset($addon['multiply_price']) && is_numeric($addon['multiply_price'])) ? $addon['multiply_price'] : 1,
                                                 'package_id' => $addonsPackage->id
                                             ]);
                                         }

@@ -1025,14 +1025,15 @@ The <strong>{app_name}</strong> Team</p>';
             } elseif ($type === 'reservation_cancellation_owner') {
                 // Default reservation cancellation owner template
                 $templateMailData = '<p>Dear <strong>{owner_name}</strong>,</p>
-<p>The reservation cancellation has been completed successfully.</p>
-<p><strong>Reservation Details</strong></p>
+<p>This is to inform you that a reservation has been cancelled.</p>
+<p><strong>Reservation Details:</strong></p>
 <p><strong>Reservation ID:</strong> {reservation_id}<br>
 <strong>Property:</strong> {property_name}<br>
 <strong>Check-in Date:</strong> {check_in_date}<br>
-<strong>Check-out Date:</strong> {check_out_date}</p>
-<p>Thank you and best regards,</p>
-<p>Warm regards,<br>
+<strong>Check-out Date:</strong> {check_out_date}<br>
+<strong>Cancellation Date:</strong> {cancellation_date}</p>
+<p>If you have any questions, please contact our support team.</p>
+<p>Best regards,<br>
 <strong>{app_name} Asset Management Team</strong></p>';
             }
         }

@@ -2153,6 +2153,118 @@ Best regards,
     }
 
     /**
+     * Send reservation cancellation email to property owner
+     *
+     * @param \App\Models\Reservation $reservation
+     * @return void
+     */
+    public function sendReservationCancellationEmailToOwner($reservation)
+    {
+        try {
+            // Get property information and owner
+            $propertyName = 'Unknown Property';
+            $propertyOwner = null;
+
+            if ($reservation->reservable_type === 'App\\Models\\Property') {
+                $property = \App\Models\Property::find($reservation->reservable_id);
+                if ($property) {
+                    $propertyName = $property->title;
+                    $propertyOwner = $property->customer;
+                }
+            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                $hotelRoom = \App\Models\HotelRoom::find($reservation->reservable_id);
+                if ($hotelRoom && $hotelRoom->property) {
+                    $propertyName = $hotelRoom->property->title;
+                    $propertyOwner = $hotelRoom->property->customer;
+                }
+            }
+
+            if (!$propertyOwner || !$propertyOwner->email) {
+                \Illuminate\Support\Facades\Log::warning('Cannot send reservation cancellation email to owner: owner or email not found', [
+                    'reservation_id' => $reservation->id,
+                    'property_owner_id' => $propertyOwner ? $propertyOwner->id : 'null'
+                ]);
+                return;
+            }
+
+            $emailTitle = 'Reservation Cancelled - ' . $propertyName;
+            
+            // Get dates
+            $checkInDate = $reservation->check_in_date instanceof \Carbon\Carbon 
+                ? $reservation->check_in_date->format('d M Y') 
+                : \Carbon\Carbon::parse($reservation->check_in_date)->format('d M Y');
+                
+            $checkOutDate = $reservation->check_out_date instanceof \Carbon\Carbon 
+                ? $reservation->check_out_date->format('d M Y') 
+                : \Carbon\Carbon::parse($reservation->check_out_date)->format('d M Y');
+
+            // Get currency symbol
+            $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+            // Get customer info
+            $customerName = $reservation->customer ? $reservation->customer->name : 'Guest';
+
+            // Try to get template from settings, otherwise use default
+            $emailTemplateData = system_setting('reservation_cancellation_owner_mail_template');
+            
+            // Default template
+            $defaultTemplate = '<p>Dear <strong>{owner_name}</strong>,</p>
+<p>The reservation cancellation has been completed successfully.</p>
+<p><strong>Reservation Details</strong></p>
+<p><strong>Reservation ID:</strong> {reservation_id}<br>
+<strong>Property:</strong> {property_name}<br>
+<strong>Check-in Date:</strong> {check_in_date}<br>
+<strong>Check-out Date:</strong> {check_out_date}</p>
+<p>Thank you and best regards,</p>
+<p>Warm regards,<br>
+<strong>{app_name} Asset Management Team</strong></p>';
+
+            if (empty($emailTemplateData)) {
+                $emailTemplateData = $defaultTemplate;
+            }
+
+            // Prepare email variables
+            $variables = [
+                'app_name' => env("APP_NAME") ?? "eBroker",
+                'owner_name' => $propertyOwner->name,
+                'customer_name' => $customerName,
+                'reservation_id' => $reservation->id,
+                'property_name' => $propertyName,
+                'check_in_date' => $checkInDate,
+                'check_out_date' => $checkOutDate,
+                'total_price' => number_format($reservation->total_price, 2),
+                'currency_symbol' => $currencySymbol,
+                'cancellation_date' => now()->format('d M Y, h:i A'),
+                'current_date_today' => now()->format('d M Y, h:i A'),
+            ];
+
+            // Replace variables in template
+            $emailContent = \App\Services\HelperService::replaceEmailVariables($emailTemplateData, $variables);
+
+            // Send email
+            $data = [
+                'email' => $propertyOwner->email,
+                'title' => $emailTitle,
+                'email_template' => $emailContent
+            ];
+
+            \App\Services\HelperService::sendMail($data);
+
+            \Illuminate\Support\Facades\Log::info('Reservation cancellation email sent to property owner', [
+                'owner_id' => $propertyOwner->id,
+                'owner_email' => $propertyOwner->email,
+                'reservation_id' => $reservation->id,
+                'email_title' => $emailTitle
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send reservation cancellation email to owner: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'reservation_id' => $reservation->id
+            ]);
+        }
+    }
+
+    /**
      * Check if there's an existing reservation for the same room and overlapping dates
      *
      * @param string $reservableType

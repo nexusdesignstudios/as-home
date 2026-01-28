@@ -145,8 +145,7 @@ class PropertController extends Controller
                 'addons_packages.*.addon_values' => 'required_with:addons_packages|array',
                 'addons_packages.*.addon_values.*.hotel_addon_field_id' => 'required|exists:hotel_addon_fields,id',
                 'addons_packages.*.addon_values.*.value' => 'required',
-                'addons_packages.*.addon_values.*.static_price' => 'nullable|numeric|min:0',
-                'addons_packages.*.addon_values.*.multiply_price' => 'nullable|numeric|min:0',
+                'addons_packages.*.addon_values.*.static_price' => 'nullable',
                 'certificates'      => 'nullable|array',
                 'certificates.*.title' => 'required_with:certificates',
                 'certificates.*.description' => 'nullable|string',
@@ -302,12 +301,14 @@ class PropertController extends Controller
                     $saveProperty->fact_sheet = store_image($request->file('fact_sheet'), 'PROPERTY_FACT_SHEET_PATH');
                 }
 
+                // Set generic fields
+                $saveProperty->check_in = $request->check_in;
+                $saveProperty->check_out = $request->check_out;
+
                 // Set hotel specific fields if property classification is hotel (5)
                 if (isset($request->property_classification) && $request->property_classification == 5) {
                     $saveProperty->refund_policy = $request->refund_policy ?? 'flexible';
                     $saveProperty->hotel_apartment_type_id = $request->hotel_apartment_type_id;
-                    $saveProperty->check_in = $request->check_in;
-                    $saveProperty->check_out = $request->check_out;
                     $saveProperty->available_rooms = $request->available_rooms;
                     $saveProperty->rent_package = $request->rent_package;
                     $saveProperty->revenue_user_name = $request->revenue_user_name ?? null;
@@ -543,8 +544,8 @@ class PropertController extends Controller
                                         'property_id' => $saveProperty->id,
                                         'hotel_addon_field_id' => $addon['hotel_addon_field_id'],
                                         'value' => $value,
-                                        'static_price' => isset($addon['static_price']) ? $addon['static_price'] : null,
-                                        'multiply_price' => isset($addon['multiply_price']) ? $addon['multiply_price'] : null,
+                                        'static_price' => (isset($addon['static_price']) && is_numeric($addon['static_price'])) ? $addon['static_price'] : null,
+                                        'multiply_price' => (isset($addon['multiply_price']) && is_numeric($addon['multiply_price'])) ? $addon['multiply_price'] : 1,
                                         'package_id' => $addonsPackage->id // Link to the package
                                     ]);
                                 }
@@ -872,12 +873,14 @@ class PropertController extends Controller
                     }
                 }
 
+                // Set generic fields
+                $UpdateProperty->check_in = $request->check_in ?? null;
+                $UpdateProperty->check_out = $request->check_out ?? null;
+
                 // Set hotel specific fields if property classification is hotel_booking (5)
                 if (isset($request->property_classification) && $request->property_classification == 5) {
                     $UpdateProperty->refund_policy = $request->refund_policy ?? 'flexible';
                     $UpdateProperty->hotel_apartment_type_id = $request->hotel_apartment_type_id ?? null;
-                    $UpdateProperty->check_in = $request->check_in ?? null;
-                    $UpdateProperty->check_out = $request->check_out ?? null;
                     $UpdateProperty->available_rooms = $request->available_rooms ?? null;
                     $UpdateProperty->rent_package = $request->rent_package ?? null;
                     $UpdateProperty->revenue_user_name = $request->revenue_user_name ?? null;
@@ -1546,8 +1549,8 @@ class PropertController extends Controller
                                         'property_id' => $UpdateProperty->id,
                                         'hotel_addon_field_id' => $addon['hotel_addon_field_id'] ?? null,
                                         'value' => $value,
-                                        'static_price' => $addon['static_price'] ?? null,
-                                        'multiply_price' => $addon['multiply_price'] ?? null,
+                                        'static_price' => (isset($addon['static_price']) && is_numeric($addon['static_price'])) ? $addon['static_price'] : null,
+                                        'multiply_price' => (isset($addon['multiply_price']) && is_numeric($addon['multiply_price'])) ? $addon['multiply_price'] : 1,
                                         'package_id' => $addonsPackage->id
                                     ]);
                                 }
