@@ -330,6 +330,14 @@ class HelperService
                                 'name' => 'special_requests',
                                 'is_condition' => false,
                             ],
+                            [
+                                'name' => 'check_in_time',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_out_time',
+                                'is_condition' => false,
+                            ],
                         )
                     );
                 case 'flexible_reservation_confirmation':
@@ -388,6 +396,14 @@ class HelperService
                             ],
                             [
                                 'name' => 'special_requests',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_in_time',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_out_time',
                                 'is_condition' => false,
                             ],
                         )
@@ -510,6 +526,33 @@ class HelperService
                             ],
                             [
                                 'name' => 'special_requests',
+                                'is_condition' => false,
+                            ],
+                        )
+                    );
+                case 'hotel_owner_cancellation':
+                    return array(
+                        'title' => 'Hotel Owner Reservation Cancellation',
+                        'type' => 'hotel_owner_cancellation_mail_template',
+                        'required_fields' => array(
+                            [
+                                'name' => 'hotel_owner_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'reservation_id',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'hotel_name',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_in_date',
+                                'is_condition' => false,
+                            ],
+                            [
+                                'name' => 'check_out_date',
                                 'is_condition' => false,
                             ],
                         )

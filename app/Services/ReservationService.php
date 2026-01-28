@@ -1085,8 +1085,8 @@ class ReservationService
                 'room_type' => $roomType,
                 'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
                 'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
-                'check_in_time' => $reservation->check_in_time ?? 'N/A',
-                'check_out_time' => $reservation->check_out_time ?? 'N/A',
+                'check_in_time' => $property->check_in ?? $reservation->check_in_time ?? 'N/A',
+                'check_out_time' => $property->check_out ?? $reservation->check_out_time ?? 'N/A',
                 'number_of_guests' => $reservation->number_of_guests ?? 1,
                 'number_of_nights' => $numberOfNights,
                 'total_price' => number_format($reservation->total_price, 2),
@@ -1342,8 +1342,8 @@ Confirmation Date: {confirmation_date}
                 'room_number' => 'Multiple', // For flexible template
                 'check_in_date' => $firstReservation->check_in_date ? $firstReservation->check_in_date->format('d M Y') : 'N/A',
                 'check_out_date' => $firstReservation->check_out_date ? $firstReservation->check_out_date->format('d M Y') : 'N/A',
-                'check_in_time' => $firstReservation->check_in_time ?? 'N/A',
-                'check_out_time' => $firstReservation->check_out_time ?? 'N/A',
+                'check_in_time' => $property->check_in ?? $firstReservation->check_in_time ?? 'N/A',
+                'check_out_time' => $property->check_out ?? $firstReservation->check_out_time ?? 'N/A',
                 'number_of_guests' => $firstReservation->number_of_guests * count($reservations),
                 'number_of_nights' => $numberOfNights,
                 'total_price' => number_format($totalPrice, 2),
@@ -2205,38 +2205,40 @@ Best regards,
             $customerName = $reservation->customer ? $reservation->customer->name : 'Guest';
 
             // Try to get template from settings, otherwise use default
-            $emailTemplateData = system_setting('reservation_cancellation_owner_mail_template');
-            
-            // Default template
-            $defaultTemplate = '<p>Dear <strong>{owner_name}</strong>,</p>
+        $emailTemplateData = system_setting('hotel_owner_cancellation_mail_template');
+        
+        // Default template
+        $defaultTemplate = '<p>Dear {hotel_owner_name},</p>
 <p>The reservation cancellation has been completed successfully.</p>
 <p><strong>Reservation Details</strong></p>
 <p><strong>Reservation ID:</strong> {reservation_id}<br>
-<strong>Property:</strong> {property_name}<br>
+<strong>Property:</strong> {hotel_name}<br>
 <strong>Check-in Date:</strong> {check_in_date}<br>
 <strong>Check-out Date:</strong> {check_out_date}</p>
 <p>Thank you and best regards,</p>
 <p>Warm regards,<br>
-<strong>{app_name} Asset Management Team</strong></p>';
+<strong>As-home Asset Management Team</strong></p>';
 
-            if (empty($emailTemplateData)) {
-                $emailTemplateData = $defaultTemplate;
-            }
+        if (empty($emailTemplateData)) {
+            $emailTemplateData = $defaultTemplate;
+        }
 
-            // Prepare email variables
-            $variables = [
-                'app_name' => env("APP_NAME") ?? "eBroker",
-                'owner_name' => $propertyOwner->name,
-                'customer_name' => $customerName,
-                'reservation_id' => $reservation->id,
-                'property_name' => $propertyName,
-                'check_in_date' => $checkInDate,
-                'check_out_date' => $checkOutDate,
-                'total_price' => number_format($reservation->total_price, 2),
-                'currency_symbol' => $currencySymbol,
-                'cancellation_date' => now()->format('d M Y, h:i A'),
-                'current_date_today' => now()->format('d M Y, h:i A'),
-            ];
+        // Prepare email variables
+        $variables = [
+            'app_name' => env("APP_NAME") ?? "eBroker",
+            'hotel_owner_name' => $propertyOwner->name,
+            'owner_name' => $propertyOwner->name, // Keep for backward compatibility
+            'customer_name' => $customerName,
+            'reservation_id' => $reservation->id,
+            'hotel_name' => $propertyName,
+            'property_name' => $propertyName, // Keep for backward compatibility
+            'check_in_date' => $checkInDate,
+            'check_out_date' => $checkOutDate,
+            'total_price' => number_format($reservation->total_price, 2),
+            'currency_symbol' => $currencySymbol,
+            'cancellation_date' => now()->format('d M Y, h:i A'),
+            'current_date_today' => now()->format('d M Y, h:i A'),
+        ];
 
             // Replace variables in template
             $emailContent = \App\Services\HelperService::replaceEmailVariables($emailTemplateData, $variables);

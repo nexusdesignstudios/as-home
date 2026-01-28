@@ -133,7 +133,10 @@
                 <div class="col-md-2">
                     <div class="form-group">
                         <label>&nbsp;</label>
-                        <button type="button" class="btn btn-primary form-control" id="apply-filter">Apply Filters</button>
+                        <div class="d-flex">
+                            <button type="button" class="btn btn-primary me-1" id="apply-filter">Apply</button>
+                            <button type="button" class="btn btn-success" id="export-btn">Export</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -382,6 +385,22 @@ $(document).ready(function() {
 
         // Refresh all tables with the new filters
         refreshAllTables();
+    });
+
+    // Handle export button
+    $('#export-btn').on('click', function() {
+        const dFrom = $('#date-from').val();
+        const dTo = $('#date-to').val();
+        const stat = $('#status-filter').val() || 'all';
+        const pStat = $('#payment-status-filter').val() || 'all';
+        
+        let url = "{{ route('reservations.export') }}?type=" + currentTab;
+        if(dFrom) url += "&date_from=" + dFrom;
+        if(dTo) url += "&date_to=" + dTo;
+        if(stat !== 'all') url += "&status=" + stat;
+        if(pStat !== 'all') url += "&payment_status=" + pStat;
+        
+        window.location.href = url;
     });
 
     // Handle reset filter

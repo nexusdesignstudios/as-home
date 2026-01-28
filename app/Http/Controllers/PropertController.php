@@ -810,7 +810,9 @@ class PropertController extends Controller
                 $UpdateProperty->company_employee_phone_number = $request->company_employee_phone_number ?? null;
                 $UpdateProperty->address = $request->address;
                 $UpdateProperty->client_address = $request->client_address;
-                $UpdateProperty->setAttribute('propery_type', $request->property_type);
+                if ($request->has('property_type')) {
+                    $UpdateProperty->setAttribute('propery_type', $request->property_type);
+                }
                 $UpdateProperty->property_classification = $request->property_classification;
                 $UpdateProperty->price = $request->price;
                 $UpdateProperty->state = (isset($request->state)) ? $request->state : '';

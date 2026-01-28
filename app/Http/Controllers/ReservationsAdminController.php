@@ -70,6 +70,59 @@ class ReservationsAdminController extends Controller
         $status = $request->status ?? 'all'; // 'pending', 'approved', 'confirmed', 'cancelled', 'completed', 'all'
         $paymentStatus = $request->payment_status ?? 'all'; // 'paid', 'unpaid', 'partial', 'cash', 'all'
 
+        $query = $this->buildReservationsQuery($type, $refundPolicy, $dateFrom, $dateTo, $status, $paymentStatus, $search);
+
+        try {
+            $total = $query->count();
+            $reservations = $query->orderBy($sort, $order)
+                ->skip($offset)
+                ->take($limit)
+                ->get();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Reservations Query Error', [
+                'type' => $type,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'total' => 0,
+                'rows' => [],
+                'error' => 'An error occurred while fetching reservations: ' . $e->getMessage()
+            ], 500);
+        }
+
+        // Debug logging for troubleshooting
+        if (config('app.debug')) {
+            \Illuminate\Support\Facades\Log::info('Reservations Query Debug', [
+                'type' => $type,
+                'total' => $total,
+                'count' => $reservations->count(),
+                'status' => $status,
+                'payment_status' => $paymentStatus,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'search' => $search
+            ]);
+        }
+
+        $bulkData = [];
+        $bulkData['total'] = $total;
+        $rows = [];
+
+        foreach ($reservations as $reservation) {
+            $rows[] = $this->formatReservationRow($reservation);
+        }
+
+        $bulkData['rows'] = $rows;
+        return response()->json($bulkData);
+    }
+
+    /**
+     * Build the query for reservations.
+     */
+    private function buildReservationsQuery($type, $refundPolicy, $dateFrom, $dateTo, $status, $paymentStatus, $search)
+    {
         // Eager load all necessary relationships to avoid N+1 queries
         // Note: For Property reservations, reservable IS the property
         // For HotelRoom reservations, we need reservable.property and reservable.roomType
@@ -190,71 +243,166 @@ class ReservationsAdminController extends Controller
                 }
             });
         }
+        
+        return $query;
+    }
 
-        try {
-            $total = $query->count();
-            $reservations = $query->orderBy($sort, $order)
-                ->skip($offset)
-                ->take($limit)
-                ->get();
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Reservations Query Error', [
-                'type' => $type,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            
-            return response()->json([
-                'total' => 0,
-                'rows' => [],
-                'error' => 'An error occurred while fetching reservations: ' . $e->getMessage()
-            ], 500);
-        }
+    /**
+     * Format a single reservation row.
+     */
+    private function formatReservationRow($reservation)
+    {
+        $customer = $reservation->customer;
+        $reservable = $reservation->reservable;
 
-        // Debug logging for troubleshooting
-        if (config('app.debug')) {
-            \Illuminate\Support\Facades\Log::info('Reservations Query Debug', [
-                'type' => $type,
-                'total' => $total,
-                'count' => $reservations->count(),
-                'status' => $status,
-                'payment_status' => $paymentStatus,
-                'date_from' => $dateFrom,
-                'date_to' => $dateTo,
-                'search' => $search
-            ]);
-        }
+        // Skip if customer is missing (shouldn't happen but safety check)
+        // But for consistency we return basic info even if customer is missing, just with N/A
+        
+        // Get property name and type
+        $propertyName = 'N/A';
+        $propertyType = 'N/A';
 
-        $bulkData = [];
-        $bulkData['total'] = $total;
-        $rows = [];
-
-        foreach ($reservations as $reservation) {
-            $customer = $reservation->customer;
-            $reservable = $reservation->reservable;
-
-            // Skip if customer is missing (shouldn't happen but safety check)
-            if (!$customer) {
-                continue;
+        if ($reservation->reservable_type === 'App\\Models\\Property') {
+            if (!$reservable) {
+                // Handle missing reservable - show as orphaned reservation
+                $propertyName = 'Property (Missing)';
+                $propertyType = 'Orphaned';
+            } else {
+                $propertyName = $reservable->title ?? 'N/A';
+            // Check property classification to determine type
+            try {
+                $propertyClassification = $reservable->getRawOriginal('property_classification');
+            } catch (\Exception $e) {
+                // Fallback if getRawOriginal fails
+                $propertyClassification = $reservable->property_classification ?? null;
+                // If it's still null or a string, try to parse it
+                if (is_string($propertyClassification)) {
+                    $propertyClassification = match($propertyClassification) {
+                        'vacation_homes' => 4,
+                        'hotel_booking' => 5,
+                        'sell_rent' => 1,
+                        'commercial' => 2,
+                        'new_project' => 3,
+                        default => null
+                    };
+                }
             }
-
-            // Get property name and type
-            $propertyName = 'N/A';
-            $propertyType = 'N/A';
-
-            if ($reservation->reservable_type === 'App\\Models\\Property') {
-                if (!$reservable) {
-                    // Handle missing reservable - show as orphaned reservation
-                    $propertyName = 'Property (Missing)';
-                    $propertyType = 'Orphaned';
+            
+            if ($propertyClassification == 4) {
+                $propertyType = 'Vacation Home';
+            } elseif ($propertyClassification == 5) {
+                $propertyType = 'Hotel Property';
+            } else {
+                // Other classifications (1=Sell/Rent, 2=Commercial, 3=New Project)
+                $propertyType = 'Property';
+            }
+        }
+    } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+            if (!$reservable) {
+                // Handle missing reservable - show as orphaned reservation
+                $propertyName = 'Hotel Room (Missing)';
+                $propertyType = 'Orphaned';
+            } else {
+                // Load property relationship if not already loaded
+                if (!$reservable->relationLoaded('property')) {
+                    $reservable->load('property:id,title');
+                }
+                
+                $propertyName = $reservable->property->title ?? 'N/A';
+                $propertyType = 'Hotel Room';
+                
+                // Load roomType if not already loaded
+                if (!$reservable->relationLoaded('roomType') && $reservable->room_type_id) {
+                    $reservable->load('roomType:id,name');
+                }
+                
+                if ($reservable->roomType) {
+                    $propertyName .= ' - ' . $reservable->roomType->name;
+                }
+                
+                // Determine refund policy based on payment method
+                // Cash/Manual payment = Flexible
+                // Online/Paymob payment = Non-Refundable
+                if ($this->isFlexibleReservation($reservation)) {
+                    $propertyType .= ' (Flexible)';
                 } else {
-                    $propertyName = $reservable->title ?? 'N/A';
+                    $propertyType .= ' (Non-Refundable)';
+                }
+            }
+        } elseif ($reservation->reservable_type === 'hotel_room') {
+            // Handle case where resolvable_type is 'hotel_room' (lowercase)
+            if (!$reservable) {
+                // Try to load the hotel room manually since the polymorphic relationship might not work
+                $hotelRoom = \App\Models\HotelRoom::find($reservation->reservable_id);
+                if ($hotelRoom) {
+                    // Load property relationship
+                    $property = \App\Models\Property::find($hotelRoom->property_id);
+                    if ($property) {
+                        $propertyName = $property->title ?? 'N/A';
+                        $propertyType = 'Hotel Room';
+                        
+                        // Load room type if available
+                        if ($hotelRoom->room_type_id) {
+                            $roomType = \App\Models\RoomType::find($hotelRoom->room_type_id);
+                            if ($roomType) {
+                                $propertyName .= ' - ' . $roomType->name;
+                            }
+                        }
+                        
+                        // Determine refund policy based on payment method
+                        if ($this->isFlexibleReservation($reservation)) {
+                            $propertyType .= ' (Flexible)';
+                        } else {
+                            $propertyType .= ' (Non-Refundable)';
+                        }
+                    } else {
+                        $propertyName = 'Property (Missing)';
+                        $propertyType = 'Orphaned';
+                    }
+                } else {
+                    $propertyName = 'Hotel Room (Missing)';
+                    $propertyType = 'Orphaned';
+                }
+            } else {
+                // Fallback to standard HotelRoom logic if resolvable is loaded
+                // Load property relationship if not already loaded
+                if (!$reservable->relationLoaded('property')) {
+                    $reservable->load('property:id,title');
+                }
+                
+                $propertyName = $reservable->property->title ?? 'N/A';
+                $propertyType = 'Hotel Room';
+                
+                // Load roomType if not already loaded
+                if (!$reservable->relationLoaded('roomType') && $reservable->room_type_id) {
+                    $reservable->load('roomType:id,name');
+                }
+                
+                if ($reservable->roomType) {
+                    $propertyName .= ' - ' . $reservable->roomType->name;
+                }
+                
+                // Determine refund policy based on payment method
+                if ($this->isFlexibleReservation($reservation)) {
+                    $propertyType .= ' (Flexible)';
+                } else {
+                    $propertyType .= ' (Non-Refundable)';
+                }
+            }
+        }
+
+        // Handle property-level reservations (when resolvable_type is empty but property_id is set)
+        if (empty($reservation->reservable_type) && $reservation->property_id) {
+            $property = \App\Models\Property::find($reservation->property_id);
+            if ($property) {
+                $propertyName = $property->title ?? 'N/A';
+                
                 // Check property classification to determine type
                 try {
-                    $propertyClassification = $reservable->getRawOriginal('property_classification');
+                    $propertyClassification = $property->getRawOriginal('property_classification');
                 } catch (\Exception $e) {
                     // Fallback if getRawOriginal fails
-                    $propertyClassification = $reservable->property_classification ?? null;
+                    $propertyClassification = $property->property_classification ?? null;
                     // If it's still null or a string, try to parse it
                     if (is_string($propertyClassification)) {
                         $propertyClassification = match($propertyClassification) {
@@ -276,182 +424,125 @@ class ReservationsAdminController extends Controller
                     // Other classifications (1=Sell/Rent, 2=Commercial, 3=New Project)
                     $propertyType = 'Property';
                 }
-            }
-        } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
-                if (!$reservable) {
-                    // Handle missing reservable - show as orphaned reservation
-                    $propertyName = 'Hotel Room (Missing)';
-                    $propertyType = 'Orphaned';
+                
+                // Determine refund policy based on payment method
+                if ($this->isFlexibleReservation($reservation)) {
+                    $propertyType .= ' (Flexible)';
                 } else {
-                    // Load property relationship if not already loaded
-                    if (!$reservable->relationLoaded('property')) {
-                        $reservable->load('property:id,title');
-                    }
-                    
-                    $propertyName = $reservable->property->title ?? 'N/A';
-                    $propertyType = 'Hotel Room';
-                    
-                    // Load roomType if not already loaded
-                    if (!$reservable->relationLoaded('roomType') && $reservable->room_type_id) {
-                        $reservable->load('roomType:id,name');
-                    }
-                    
-                    if ($reservable->roomType) {
-                        $propertyName .= ' - ' . $reservable->roomType->name;
-                    }
-                    
-                    // Determine refund policy based on payment method
-                    // Cash/Manual payment = Flexible
-                    // Online/Paymob payment = Non-Refundable
-                    if ($this->isFlexibleReservation($reservation)) {
-                        $propertyType .= ' (Flexible)';
-                    } else {
-                        $propertyType .= ' (Non-Refundable)';
-                    }
+                    $propertyType .= ' (Non-Refundable)';
                 }
-            } elseif ($reservation->reservable_type === 'hotel_room') {
-                // Handle case where resolvable_type is 'hotel_room' (lowercase)
-                if (!$reservable) {
-                    // Try to load the hotel room manually since the polymorphic relationship might not work
-                    $hotelRoom = \App\Models\HotelRoom::find($reservation->reservable_id);
-                    if ($hotelRoom) {
-                        // Load property relationship
-                        $property = \App\Models\Property::find($hotelRoom->property_id);
-                        if ($property) {
-                            $propertyName = $property->title ?? 'N/A';
-                            $propertyType = 'Hotel Room';
-                            
-                            // Load room type if available
-                            if ($hotelRoom->room_type_id) {
-                                $roomType = \App\Models\RoomType::find($hotelRoom->room_type_id);
-                                if ($roomType) {
-                                    $propertyName .= ' - ' . $roomType->name;
-                                }
-                            }
-                            
-                            // Determine refund policy based on payment method
-                            if ($this->isFlexibleReservation($reservation)) {
-                                $propertyType .= ' (Flexible)';
-                            } else {
-                                $propertyType .= ' (Non-Refundable)';
-                            }
-                        } else {
-                            $propertyName = 'Property (Missing)';
-                            $propertyType = 'Orphaned';
-                        }
-                    } else {
-                        $propertyName = 'Hotel Room (Missing)';
-                        $propertyType = 'Orphaned';
-                    }
-                } else {
-                    // Fallback to standard HotelRoom logic if resolvable is loaded
-                    // Load property relationship if not already loaded
-                    if (!$reservable->relationLoaded('property')) {
-                        $reservable->load('property:id,title');
-                    }
-                    
-                    $propertyName = $reservable->property->title ?? 'N/A';
-                    $propertyType = 'Hotel Room';
-                    
-                    // Load roomType if not already loaded
-                    if (!$reservable->relationLoaded('roomType') && $reservable->room_type_id) {
-                        $reservable->load('roomType:id,name');
-                    }
-                    
-                    if ($reservable->roomType) {
-                        $propertyName .= ' - ' . $reservable->roomType->name;
-                    }
-                    
-                    // Determine refund policy based on payment method
-                    if ($this->isFlexibleReservation($reservation)) {
-                        $propertyType .= ' (Flexible)';
-                    } else {
-                        $propertyType .= ' (Non-Refundable)';
-                    }
-                }
+            } else {
+                $propertyName = 'Property (Missing)';
+                $propertyType = 'Orphaned';
             }
-
-            // Handle property-level reservations (when resolvable_type is empty but property_id is set)
-            if (empty($reservation->reservable_type) && $reservation->property_id) {
-                $property = \App\Models\Property::find($reservation->property_id);
-                if ($property) {
-                    $propertyName = $property->title ?? 'N/A';
-                    
-                    // Check property classification to determine type
-                    try {
-                        $propertyClassification = $property->getRawOriginal('property_classification');
-                    } catch (\Exception $e) {
-                        // Fallback if getRawOriginal fails
-                        $propertyClassification = $property->property_classification ?? null;
-                        // If it's still null or a string, try to parse it
-                        if (is_string($propertyClassification)) {
-                            $propertyClassification = match($propertyClassification) {
-                                'vacation_homes' => 4,
-                                'hotel_booking' => 5,
-                                'sell_rent' => 1,
-                                'commercial' => 2,
-                                'new_project' => 3,
-                                default => null
-                            };
-                        }
-                    }
-                    
-                    if ($propertyClassification == 4) {
-                        $propertyType = 'Vacation Home';
-                    } elseif ($propertyClassification == 5) {
-                        $propertyType = 'Hotel Property';
-                    } else {
-                        // Other classifications (1=Sell/Rent, 2=Commercial, 3=New Project)
-                        $propertyType = 'Property';
-                    }
-                    
-                    // Determine refund policy based on payment method
-                    if ($this->isFlexibleReservation($reservation)) {
-                        $propertyType .= ' (Flexible)';
-                    } else {
-                        $propertyType .= ' (Non-Refundable)';
-                    }
-                } else {
-                    $propertyName = 'Property (Missing)';
-                    $propertyType = 'Orphaned';
-                }
-            }
-
-            // Status badge
-            $statusBadge = $this->getStatusBadge($reservation->status, $reservation);
-            $paymentBadge = $this->getPaymentStatusBadge($reservation->payment_status);
-
-            // Handle date formatting safely
-            $checkInDate = $reservation->check_in_date ? $reservation->check_in_date->format('Y-m-d') : 'N/A';
-            $checkOutDate = $reservation->check_out_date ? $reservation->check_out_date->format('Y-m-d') : 'N/A';
-            $createdAt = $reservation->created_at ? $reservation->created_at->format('Y-m-d H:i:s') : 'N/A';
-            
-            // Determine payment method badge
-            $paymentMethod = $reservation->payment_method ?? 'cash';
-            $isOnlinePayment = ($paymentMethod === 'paymob' || $paymentMethod === 'online' || $reservation->payment);
-            $paymentMethodBadge = $this->getPaymentMethodBadge($paymentMethod, $isOnlinePayment);
-
-            $rows[] = [
-                'id' => $reservation->id,
-                'customer_name' => $customer->name ?? 'N/A',
-                'customer_email' => $customer->email ?? 'N/A',
-                'property_name' => $propertyName,
-                'property_type' => $propertyType,
-                'reservable_id' => $reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room' ? $reservation->reservable_id : null, // Show room ID for hotel reservations
-                'check_in_date' => $checkInDate,
-                'check_out_date' => $checkOutDate,
-                'number_of_guests' => $reservation->number_of_guests ?? 0,
-                'total_price' => number_format($reservation->total_price ?? 0, 2) . ' EGP',
-                'status' => $statusBadge,
-                'payment_status' => $paymentBadge,
-                'payment_method' => $paymentMethodBadge,
-                'created_at' => $createdAt,
-                'actions' => $this->getActionButtons($reservation)
-            ];
         }
 
-        $bulkData['rows'] = $rows;
-        return response()->json($bulkData);
+        // Status badge
+        $statusBadge = $this->getStatusBadge($reservation->status, $reservation);
+        $paymentBadge = $this->getPaymentStatusBadge($reservation->payment_status);
+
+        // Handle date formatting safely
+        $checkInDate = $reservation->check_in_date ? $reservation->check_in_date->format('Y-m-d') : 'N/A';
+        $checkOutDate = $reservation->check_out_date ? $reservation->check_out_date->format('Y-m-d') : 'N/A';
+        $createdAt = $reservation->created_at ? $reservation->created_at->format('Y-m-d H:i:s') : 'N/A';
+        
+        // Determine payment method badge
+        $paymentMethod = $reservation->payment_method ?? 'cash';
+        $isOnlinePayment = ($paymentMethod === 'paymob' || $paymentMethod === 'online' || $reservation->payment);
+        $paymentMethodBadge = $this->getPaymentMethodBadge($paymentMethod, $isOnlinePayment);
+
+        return [
+            'id' => $reservation->id,
+            'customer_name' => $customer->name ?? 'N/A',
+            'customer_email' => $customer->email ?? 'N/A',
+            'property_name' => $propertyName,
+            'property_type' => $propertyType,
+            'reservable_id' => $reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room' ? $reservation->reservable_id : null, // Show room ID for hotel reservations
+            'check_in_date' => $checkInDate,
+            'check_out_date' => $checkOutDate,
+            'number_of_guests' => $reservation->number_of_guests ?? 0,
+            'total_price' => number_format($reservation->total_price ?? 0, 2) . ' EGP',
+            'status' => $statusBadge,
+            'payment_status' => $paymentBadge,
+            'payment_method' => $paymentMethodBadge,
+            'created_at' => $createdAt,
+            'actions' => $this->getActionButtons($reservation),
+            // Raw data for export (optional, but good to have)
+            'raw_total_price' => $reservation->total_price ?? 0,
+            'raw_status' => $reservation->status,
+            'raw_payment_status' => $reservation->payment_status,
+            'raw_payment_method' => $paymentMethod
+        ];
+    }
+
+    /**
+     * Export reservations to CSV.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Symfony\Component\HttpFoundation\StreamedResponse
+     */
+    public function export(Request $request)
+    {
+        $type = $request->type ?? 'all';
+        $dateFrom = $request->date_from ?? null;
+        $dateTo = $request->date_to ?? null;
+        $refundPolicy = $request->refund_policy ?? 'all';
+        $status = $request->status ?? 'all';
+        $paymentStatus = $request->payment_status ?? 'all';
+        $search = $request->search ?? '';
+
+        $query = $this->buildReservationsQuery($type, $refundPolicy, $dateFrom, $dateTo, $status, $paymentStatus, $search);
+        
+        // No pagination for export, get all
+        $reservations = $query->orderBy('id', 'DESC')->get();
+
+        $headers = [
+            "Content-type" => "text/csv",
+            "Content-Disposition" => "attachment; filename=reservations_" . date('Y-m-d_H-i-s') . ".csv",
+            "Pragma" => "no-cache",
+            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
+            "Expires" => "0"
+        ];
+
+        $callback = function() use ($reservations) {
+            $file = fopen('php://output', 'w');
+            
+            // Add BOM for Excel compatibility
+            fputs($file, "\xEF\xBB\xBF");
+
+            // CSV Header
+            fputcsv($file, [
+                'ID', 'Customer Name', 'Customer Email', 'Customer Mobile', 
+                'Property Name', 'Property Type', 'Room ID', 
+                'Check In', 'Check Out', 'Guests', 
+                'Price (EGP)', 'Status', 'Payment Status', 'Payment Method', 'Created At'
+            ]);
+
+            foreach ($reservations as $reservation) {
+                $formatted = $this->formatReservationRow($reservation);
+                
+                fputcsv($file, [
+                    $formatted['id'],
+                    $formatted['customer_name'],
+                    $formatted['customer_email'],
+                    $reservation->customer->mobile ?? 'N/A',
+                    $formatted['property_name'],
+                    $formatted['property_type'],
+                    $formatted['reservable_id'] ?? '',
+                    $formatted['check_in_date'],
+                    $formatted['check_out_date'],
+                    $formatted['number_of_guests'],
+                    $formatted['raw_total_price'],
+                    $formatted['raw_status'],
+                    $formatted['raw_payment_status'],
+                    $formatted['raw_payment_method'],
+                    $formatted['created_at']
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     /**
@@ -708,6 +799,31 @@ class ReservationsAdminController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Reservation approved successfully. Approval email sent to customer.',
+                    'reservation' => $reservation
+                ]);
+            } elseif ($newStatus === 'cancelled') {
+                // Handle cancelled status - send cancellation email
+                $reservation->status = $newStatus;
+
+                if ($request->has('payment_status')) {
+                    $reservation->payment_status = $request->payment_status;
+                }
+
+                $reservation->save();
+
+                // Send cancellation email to the customer
+                $this->sendReservationCancellationEmail($reservation, 'cancellation');
+
+                // Send cancellation email to the property owner
+                $reservationService = app(\App\Services\ReservationService::class);
+                $reservationService->sendReservationCancellationEmailToOwner($reservation);
+
+                // Reload the reservation with updated data
+                $reservation->refresh();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Reservation cancelled successfully. Cancellation email sent to customer and owner.',
                     'reservation' => $reservation
                 ]);
             } else {
