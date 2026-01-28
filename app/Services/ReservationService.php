@@ -1870,6 +1870,8 @@ Best regards,
                 $roomType = '';
                 $roomNumber = '';
                 $hotelAddress = '';
+                $checkInTime = '3:00 PM';
+                $checkOutTime = '12:00 PM';
 
                 if ($reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room') {
                     $hotelRoom = $reservation->reservable;
@@ -1877,6 +1879,8 @@ Best regards,
                         $hotelName = $hotelRoom->property->title ?? 'Hotel';
                         $roomNumber = $hotelRoom->room_number ?? 'N/A';
                         $hotelAddress = $hotelRoom->property->address ?? 'N/A';
+                        $checkInTime = $hotelRoom->property->check_in ?? '3:00 PM';
+                        $checkOutTime = $hotelRoom->property->check_out ?? '12:00 PM';
                         
                         // Get room type name
                         if ($hotelRoom->roomType) {
@@ -1891,6 +1895,8 @@ Best regards,
                     $roomType = 'Property';
                     $roomNumber = 'N/A';
                     $hotelAddress = $reservation->property->address ?? 'N/A';
+                    $checkInTime = $reservation->property->check_in ?? '3:00 PM';
+                    $checkOutTime = $reservation->property->check_out ?? '12:00 PM';
                 }
 
                 // Get currency symbol
@@ -2006,6 +2012,8 @@ Best regards,
                     'currency_symbol' => $currencySymbol,
                     'payment_status' => ucfirst($reservation->payment_status),
                     'special_requests' => $reservation->special_requests ?? 'None',
+                    'check_in_time' => $checkInTime,
+                    'check_out_time' => $checkOutTime,
                 );
 
                 if (empty($emailTemplateData)) {
