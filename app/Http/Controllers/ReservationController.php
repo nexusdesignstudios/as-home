@@ -1975,6 +1975,13 @@ class ReservationController extends Controller
      */
     public function getPropertyOwnerReservations(Request $request, $customer_id)
     {
+        // Initialize metrics variables to avoid undefined variable errors
+        $totalReservationsCount = 0;
+        $pendingReservationsCount = 0;
+        $confirmedReservationsCount = 0;
+        $cancelledReservationsCount = 0;
+        $totalRevenue = 0;
+
         try {
             \Log::info('getPropertyOwnerReservations called', [
                 'customer_id' => $customer_id,
@@ -2013,6 +2020,13 @@ class ReservationController extends Controller
         if ($status && !empty(array_filter($status))) {
             $query->whereIn('status', array_filter($status));
         }
+
+        // Calculate metrics based on the filtered query
+        $totalReservationsCount = (clone $query)->count();
+        $pendingReservationsCount = (clone $query)->where('status', 'pending')->count();
+        $confirmedReservationsCount = (clone $query)->whereIn('status', ['confirmed', 'approved'])->count();
+        $cancelledReservationsCount = (clone $query)->whereIn('status', ['cancelled', 'rejected'])->count();
+        $totalRevenue = (clone $query)->whereIn('status', ['confirmed', 'approved', 'completed'])->sum('total_price');
 
         // Add relationships and pagination with proper handling of polymorphic relationships
         \Log::info('Executing reservations query', [
