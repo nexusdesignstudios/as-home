@@ -1023,7 +1023,10 @@ class ReservationsAdminController extends Controller
         $cancelledReservations = (clone $query)->where('status', 'cancelled')->count();
         $completedReservations = (clone $query)->where('status', 'completed')->count();
 
-        $totalRevenue = (clone $query)->where('payment_status', 'paid')->sum('total_price');
+        $totalRevenue = (clone $query)
+            ->whereIn('status', ['confirmed', 'completed'])
+            ->where('payment_status', 'paid')
+            ->sum('total_price');
         $unpaidAmount = (clone $query)->where('payment_status', 'unpaid')->sum('total_price');
 
         $vacationHomeReservations = (clone $query)->where('reservable_type', 'App\\Models\\Property')->count();

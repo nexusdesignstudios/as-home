@@ -732,6 +732,9 @@ function updateStatus(id, status) {
                     tables[currentTab].bootstrapTable('refresh');
                 }
 
+                // Refresh statistics to reflect changes
+                loadStatistics();
+
                 // Show success message
                 Swal.fire({
                     icon: 'success',
@@ -775,6 +778,9 @@ function updatePaymentStatus(id, paymentStatus) {
                 if (tables[currentTab]) {
                     tables[currentTab].bootstrapTable('refresh');
                 }
+
+                // Refresh statistics to reflect changes
+                loadStatistics();
 
                 // Show success message
                 Swal.fire({
