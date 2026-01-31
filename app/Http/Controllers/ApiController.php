@@ -601,6 +601,44 @@ class ApiController extends Controller
     }
     //* END :: get_category_classifications   *//
 
+    //* START :: change_password   *//
+    public function change_password(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'old_password' => 'required',
+            'new_password' => 'required|min:6|confirmed|regex:/^(?=.*[a-z])(?=.*[A-Z]).+$/',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['error' => true, 'message' => $validator->errors()->first()]);
+        }
+
+        try {
+            $user = Auth::user();
+            if(!$user){
+                 return response()->json(['error' => true, 'message' => 'User not authenticated']);
+            }
+            $customer = Customer::find($user->id);
+
+            if (!$customer) {
+                return response()->json(['error' => true, 'message' => 'User not found']);
+            }
+
+            // Check if user has a password set (social login users might not)
+            if ($customer->password && !Hash::check($request->old_password, $customer->password)) {
+                return response()->json(['error' => true, 'message' => 'Incorrect old password']);
+            }
+
+            $customer->password = Hash::make($request->new_password);
+            $customer->save();
+
+            return response()->json(['error' => false, 'message' => 'Password changed successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => true, 'message' => 'Something went wrong: ' . $e->getMessage()]);
+        }
+    }
+    //* END :: change_password   *//
+
     //* START :: about_meofile   *//
     public function update_profile(Request $request)
     {

@@ -1003,30 +1003,16 @@ class ReservationsAdminController extends Controller
      */
     public function getStatistics(Request $request)
     {
+        $type = $request->type ?? 'all';
+        $refundPolicy = $request->refund_policy ?? 'all';
         $dateFrom = $request->date_from ?? null;
         $dateTo = $request->date_to ?? null;
-        $status = $request->status ?? null;
-        $paymentStatus = $request->payment_status ?? null;
+        $status = $request->status ?? 'all';
+        $paymentStatus = $request->payment_status ?? 'all';
+        $search = $request->search ?? '';
 
-        $query = Reservation::query();
-
-        // Apply date filters if provided
-        if ($dateFrom) {
-            $query->where('check_in_date', '>=', $dateFrom);
-        }
-
-        if ($dateTo) {
-            $query->where('check_out_date', '<=', $dateTo);
-        }
-
-        // Apply status filters if provided
-        if ($status && $status !== 'all') {
-            $query->where('status', $status);
-        }
-
-        if ($paymentStatus && $paymentStatus !== 'all') {
-            $query->where('payment_status', $paymentStatus);
-        }
+        // Use the same query builder as the list to ensure consistency
+        $query = $this->buildReservationsQuery($type, $refundPolicy, $dateFrom, $dateTo, $status, $paymentStatus, $search);
 
         $totalReservations = (clone $query)->count();
         $pendingReservations = (clone $query)->where('status', 'pending')->count();
@@ -1038,6 +1024,14 @@ class ReservationsAdminController extends Controller
             ->whereIn('status', ['confirmed', 'completed'])
             ->where('payment_status', 'paid')
             ->sum('total_price');
+            
+        \Illuminate\Support\Facades\Log::info('Revenue Debug:', [
+            'request' => $request->all(),
+            'revenue' => $totalRevenue,
+            'sql' => (clone $query)->whereIn('status', ['confirmed', 'completed'])->where('payment_status', 'paid')->toSql(),
+            'bindings' => (clone $query)->whereIn('status', ['confirmed', 'completed'])->where('payment_status', 'paid')->getBindings()
+        ]);
+
         $unpaidAmount = (clone $query)->where('payment_status', 'unpaid')->sum('total_price');
 
         $vacationHomeReservations = (clone $query)->where('reservable_type', 'App\\Models\\Property')->count();

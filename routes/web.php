@@ -598,6 +598,25 @@ Route::get('/send-money/failed', function(\Illuminate\Http\Request $request) {
 // Test route for tax invoice PDF generation
 Route::get('/test-tax-invoice-pdf', [TaxInvoiceController::class, 'testPdf'])->name('test.tax.invoice.pdf');
 
+// Test route for SMTP email
+Route::get('/test-email', function () {
+    $email = request()->input('email');
+    
+    if (!$email) {
+        return "Please provide an email address using ?email=your@email.com";
+    }
+
+    try {
+        Illuminate\Support\Facades\Mail::raw('This is a test email from AS Home Dashboard to verify SMTP configuration.', function ($message) use ($email) {
+            $message->to($email)
+                ->subject('SMTP Test Email');
+        });
+        return "Test email sent successfully to {$email}!";
+    } catch (\Exception $e) {
+        return "Failed to send email: " . $e->getMessage();
+    }
+});
+
 Route::get('/invoices/download/{owner}/{month}/{type}', [InvoiceDownloadController::class, 'download'])
     ->name('invoices.download')
     ->middleware('signed');

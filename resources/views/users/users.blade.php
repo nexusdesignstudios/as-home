@@ -269,7 +269,7 @@
                 </div>
                 <div class="modal-body">
 
-                    <form action="{{ url('users-reset-password') }}" class="form-horizontal" role="form"
+                    <form action="{{ url('users-reset-password') }}" id="resetform" class="form-horizontal" role="form"
                         method="post">
                         {{ csrf_field() }}
 

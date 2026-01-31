@@ -99,6 +99,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
 
     /** Users */
     Route::post('update_profile', [ApiController::class, 'update_profile']);
+    Route::post('change_password', [ApiController::class, 'change_password']);
     Route::post('delete_user', [ApiController::class, 'delete_user']);
     Route::post('before-logout', [ApiController::class, 'beforeLogout']);
     Route::get('get-user-data', [ApiController::class, 'getUserData']);

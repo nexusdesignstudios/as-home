@@ -2223,7 +2223,14 @@ class ReservationController extends Controller
             ]);
 
             return ApiResponseService::successResponse('Property owner reservations retrieved successfully', [
-                'reservations' => $formattedReservations
+                'reservations' => $formattedReservations,
+                'metrics' => [
+                    'total_reservations' => $totalReservationsCount,
+                    'pending_reservations' => $pendingReservationsCount,
+                    'confirmed_reservations' => $confirmedReservationsCount,
+                    'cancelled_reservations' => $cancelledReservationsCount,
+                    'total_revenue' => $totalRevenue
+                ]
             ]);
         } catch (\Exception $e) {
             \Log::error('Error in getPropertyOwnerReservations', [

@@ -40,43 +40,65 @@ function setValue(id) {
 
 }
 
+// Validation logic moved outside to prevent duplicate listeners
+var allowsubmit = false;
 
+$('#confPassword').keyup(function (e) {
+    //get values
+    var pass = $('#newPassword').val();
+    var confpass = $(this).val();
 
-function setpasswordValue(id) {
-    var allowsubmit = false;
-    $("#pass_id").val(id);
-    $('#confPassword').keyup(function (e) {
-        //get values
-        var pass = $('#newPassword').val();
-        var confpass = $(this).val();
+    //check the strings
+    if (pass == confpass) {
+        //if both are same remove the error and allow to submit
+        $('.error').text('');
+        allowsubmit = true;
+    } else {
+        //if not matching show error and not allow to submit
+        $('.error').text('Password not matching');
+        allowsubmit = false;
+    }
+});
 
-        //check the strings
+$('#newPassword').keyup(function (e) {
+    // Also re-validate when newPassword changes if confPassword has value
+    var confpass = $('#confPassword').val();
+    if(confpass) {
+        var pass = $(this).val();
         if (pass == confpass) {
-            //if both are same remove the error and allow to submit
             $('.error').text('');
             allowsubmit = true;
         } else {
-            //if not matching show error and not allow to submit
             $('.error').text('Password not matching');
             allowsubmit = false;
         }
-    });
+    }
+});
 
-    //jquery form submit
-    $('#resetform').submit(function () {
+//jquery form submit
+$('#resetform').submit(function () {
 
-        var pass = $('#newPassword').val();
-        var confpass = $('#confPassword').val();
+    var pass = $('#newPassword').val();
+    var confpass = $('#confPassword').val();
 
-        //just to make sure once again during submit
-        //if both are true then only allow submit
-        if (pass == confpass) {
-            allowsubmit = true;
-        }
-        if (allowsubmit) {
-            return true;
-        } else {
-            return false;
-        }
-    });
+    //just to make sure once again during submit
+    //if both are true then only allow submit
+    if (pass == confpass) {
+        allowsubmit = true;
+    }
+    
+    if (allowsubmit) {
+        return true;
+    } else {
+        $('.error').text('Password not matching');
+        return false;
+    }
+});
+
+function setpasswordValue(id) {
+    $("#pass_id").val(id);
+    // Clear previous values
+    $('#newPassword').val('');
+    $('#confPassword').val('');
+    $('.error').text('');
 }
