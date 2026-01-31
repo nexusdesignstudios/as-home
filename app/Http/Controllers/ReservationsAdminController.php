@@ -1005,6 +1005,8 @@ class ReservationsAdminController extends Controller
     {
         $dateFrom = $request->date_from ?? null;
         $dateTo = $request->date_to ?? null;
+        $status = $request->status ?? null;
+        $paymentStatus = $request->payment_status ?? null;
 
         $query = Reservation::query();
 
@@ -1015,6 +1017,15 @@ class ReservationsAdminController extends Controller
 
         if ($dateTo) {
             $query->where('check_out_date', '<=', $dateTo);
+        }
+
+        // Apply status filters if provided
+        if ($status && $status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        if ($paymentStatus && $paymentStatus !== 'all') {
+            $query->where('payment_status', $paymentStatus);
         }
 
         $totalReservations = (clone $query)->count();

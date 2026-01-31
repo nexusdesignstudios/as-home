@@ -635,6 +635,8 @@ function loadStatistics() {
     let data = {};
     if (dateFrom) data.date_from = dateFrom;
     if (dateTo) data.date_to = dateTo;
+    if (status && status !== 'all') data.status = status;
+    if (paymentStatus && paymentStatus !== 'all') data.payment_status = paymentStatus;
 
     $.ajax({
         url: '{{ route("reservations.statistics") }}',
