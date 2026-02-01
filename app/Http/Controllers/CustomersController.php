@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Exception;
 use App\Models\Customer;
+use App\Models\NumberOtp;
 use App\Models\Usertokens;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
@@ -231,6 +232,29 @@ class CustomersController extends Controller
         }
 
         return ResponseService::successResponse('Customer details retrieved successfully', $customer);
+    }
+
+    public function verifyEmail(Request $request)
+    {
+        if (!has_permissions('update', 'customer')) {
+            return ResponseService::errorResponse(PERMISSION_ERROR_MSG);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|exists:customers,id',
+            'status' => 'required|in:0,1'
+        ]);
+
+        if ($validator->fails()) {
+            return ResponseService::validationError($validator->errors()->first());
+        }
+
+        $customer = Customer::find($request->id);
+        $customer->is_email_verified = $request->status;
+        $customer->save();
+
+        $message = $request->status == 1 ? "Email Verified Successfully" : "Email Verification Rejected";
+        return ResponseService::successResponse($message);
     }
 
     public function customerList(Request $request)

@@ -85,5 +85,52 @@
                 search: p.search
             };
         }
+
+        $(document).ready(function() {
+            $(document).on('click', '.verify-email-btn', function(e) {
+                e.preventDefault();
+                var id = $(this).data('id');
+                var status = $(this).data('status');
+                var action = status == 1 ? 'Approve' : 'Reject';
+                
+                if(confirm('Are you sure you want to ' + action + ' email verification?')) {
+                    $.ajax({
+                        url: "{{ route('customer.verify-email') }}",
+                        type: "POST",
+                        data: {
+                            id: id,
+                            status: status,
+                            _token: "{{ csrf_token() }}"
+                        },
+                        success: function(result) {
+                            if (!result.error) {
+                                Toastify({
+                                    text: result.message,
+                                    duration: 3000,
+                                    close: true,
+                                    backgroundColor: "#4fbe87",
+                                }).showToast();
+                                $('#table_list').bootstrapTable('refresh');
+                            } else {
+                                Toastify({
+                                    text: result.message,
+                                    duration: 3000,
+                                    close: true,
+                                    backgroundColor: "#dc3545",
+                                }).showToast();
+                            }
+                        },
+                        error: function(xhr) {
+                            Toastify({
+                                text: "An error occurred",
+                                duration: 3000,
+                                close: true,
+                                backgroundColor: "#dc3545",
+                            }).showToast();
+                        }
+                    });
+                }
+            });
+        });
     </script>
 @endsection

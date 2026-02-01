@@ -209,6 +209,7 @@ Route::middleware(['language'])->group(function () {
         Route::resource('customer', CustomersController::class);
         Route::get('customerList', [CustomersController::class, 'customerList']);
         Route::post('customerstatus', [CustomersController::class, 'update'])->name('customer.customerstatus');
+        Route::post('customer/verify-email', [CustomersController::class, 'verifyEmail'])->name('customer.verify-email');
         /// END :: CUSTOMER ROUTE
 
         /// START :: SLIDER ROUTE
