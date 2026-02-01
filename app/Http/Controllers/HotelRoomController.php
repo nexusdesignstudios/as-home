@@ -125,6 +125,100 @@ class HotelRoomController extends Controller
     }
 
     /**
+     * Update the availability of the specified room.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function updateAvailability(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'room_id' => 'required|exists:hotel_rooms,id',
+            'property_id' => 'required|exists:propertys,id',
+            'available_dates' => 'nullable', // Can be array or JSON string
+            'availability_type' => 'nullable|integer|in:1,2',
+            'price_per_night' => 'nullable|numeric|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'error' => true,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $room = HotelRoom::findOrFail($request->room_id);
+            
+            $updateData = [];
+            if ($request->has('availability_type')) {
+                $updateData['availability_type'] = $request->availability_type;
+            }
+            if ($request->has('price_per_night')) {
+                $updateData['price_per_night'] = $request->price_per_night;
+            }
+            
+            // Handle available_dates
+            if ($request->has('available_dates')) {
+                $availableDates = $request->available_dates;
+                if (is_string($availableDates)) {
+                    $availableDates = json_decode($availableDates, true);
+                }
+                
+                if (!is_array($availableDates)) {
+                    return response()->json([
+                        'error' => true,
+                        'message' => 'Invalid available_dates format'
+                    ], 422);
+                }
+
+                // Update legacy column
+                $updateData['available_dates'] = $availableDates;
+
+                // Sync with available_dates_hotel_rooms table
+                // First, delete existing entries for this room
+                \App\Models\AvailableDatesHotelRoom::where('hotel_room_id', $room->id)->delete();
+
+                // Insert new entries
+                foreach ($availableDates as $dateInfo) {
+                    // Map frontend keys to DB columns
+                    $fromDate = $dateInfo['from'] ?? $dateInfo['from_date'] ?? $dateInfo['start_date'] ?? null;
+                    $toDate = $dateInfo['to'] ?? $dateInfo['to_date'] ?? $dateInfo['end_date'] ?? null;
+                    
+                    if ($fromDate && $toDate) {
+                        \App\Models\AvailableDatesHotelRoom::create([
+                            'property_id' => $request->property_id,
+                            'hotel_room_id' => $room->id,
+                            'from_date' => $fromDate,
+                            'to_date' => $toDate,
+                            'price' => $dateInfo['price'] ?? 0,
+                            'type' => $dateInfo['type'] ?? 'open',
+                            'nonrefundable_percentage' => $dateInfo['nonrefundable_percentage'] ?? 0,
+                        ]);
+                    }
+                }
+            }
+            
+            if (!empty($updateData)) {
+                $room->update($updateData);
+            }
+
+            return response()->json([
+                'error' => false,
+                'message' => 'Hotel room availability updated successfully',
+                'data' => $room->fresh()
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => true,
+                'message' => 'Something went wrong: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Display a listing of the resource.
      *
      * @param  \Illuminate\Http\Request  $request

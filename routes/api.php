@@ -222,6 +222,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::apiResource('hotel-room-types', HotelRoomTypeController::class);
 
     /** Hotel Rooms */
+    Route::put('hotel-rooms/update-availability', [HotelRoomController::class, 'updateAvailability']);
     Route::apiResource('hotel-rooms', HotelRoomController::class);
 
     /** Addons Packages */
