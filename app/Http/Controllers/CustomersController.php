@@ -6,6 +6,8 @@ use Exception;
 use App\Models\Customer;
 use App\Models\NumberOtp;
 use App\Models\Usertokens;
+use App\Models\Reservation;
+use App\Models\Property;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Models\InterestedUser;
@@ -257,6 +259,42 @@ class CustomersController extends Controller
         return ResponseService::successResponse($message);
     }
 
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function destroy($id)
+    {
+        if (!has_permissions('delete', 'customer')) {
+            return ResponseService::errorResponse(PERMISSION_ERROR_MSG);
+        }
+
+        $customer = Customer::find($id);
+        if (!$customer) {
+            return ResponseService::errorResponse('Customer not found');
+        }
+
+        // Check for properties
+        $propertyCount = Property::where('added_by', $id)->count();
+        if ($propertyCount > 0) {
+            return ResponseService::errorResponse('Cannot delete customer. They have listed properties.');
+        }
+
+        // Check for reservations
+        $reservationCount = Reservation::where('customer_id', $id)->count();
+        if ($reservationCount > 0) {
+            return ResponseService::errorResponse('Cannot delete customer. They have existing reservations.');
+        }
+
+        if ($customer->delete()) {
+            return ResponseService::successResponse('Customer Deleted Successfully');
+        } else {
+            return ResponseService::errorResponse('Something Went Wrong');
+        }
+    }
+
     public function customerList(Request $request)
     {
         if (!has_permissions('read', 'customer')) {
@@ -331,6 +369,32 @@ class CustomersController extends Controller
             // Add management type and agent type information
             $tempRow['management_type'] = $row->management_type ?? 'Not specified';
             $tempRow['agent_type'] = $row->company_id ? 'Company Agent' : 'Individual Agent';
+
+            // Action Buttons
+            $approveBtn = '<button class="btn btn-icon btn-sm btn-success verify-email-btn mr-1" data-id="' . $row->id . '" data-status="1" title="Approve Email Verification"><i class="fa fa-check"></i></button>';
+            $rejectBtn = '<button class="btn btn-icon btn-sm btn-danger verify-email-btn mr-1" data-id="' . $row->id . '" data-status="0" title="Reject Email Verification"><i class="fa fa-times"></i></button>';
+            
+            // Delete Button Logic
+            $hasProperties = Property::where('added_by', $row->id)->count() > 0;
+            $hasReservations = Reservation::where('customer_id', $row->id)->count() > 0;
+            $deleteBtn = '';
+            
+            if (!$hasProperties && !$hasReservations) {
+                $deleteBtn = '<button class="btn btn-icon btn-sm btn-danger delete-customer-btn" data-id="' . $row->id . '" title="Delete Customer"><i class="fa fa-trash"></i></button>';
+            }
+
+            $operate = '<div class="d-flex justify-content-center">';
+            if ($row->is_email_verified == 0) {
+                $operate .= $approveBtn;
+            }
+            if ($row->is_email_verified == 1) {
+                $operate .= $rejectBtn;
+            }
+            
+            // Append Delete Button
+            $operate .= $deleteBtn;
+            
+            $operate .= '</div>';
 
             $tempRow['edit_status_url'] = 'customerstatus';
             $tempRow['total_properties'] =  $row->total_properties;

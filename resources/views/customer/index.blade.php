@@ -131,6 +131,48 @@
                     });
                 }
             });
+
+            // Delete Customer
+            $(document).on('click', '.delete-customer-btn', function(e) {
+                e.preventDefault();
+                var id = $(this).data('id');
+                
+                if(confirm('Are you sure you want to delete this customer? This action cannot be undone.')) {
+                    $.ajax({
+                        url: "{{ url('customer') }}/" + id,
+                        type: "DELETE",
+                        data: {
+                            _token: "{{ csrf_token() }}"
+                        },
+                        success: function(result) {
+                            if (!result.error) {
+                                Toastify({
+                                    text: result.message,
+                                    duration: 3000,
+                                    close: true,
+                                    backgroundColor: "#4fbe87",
+                                }).showToast();
+                                $('#table_list').bootstrapTable('refresh');
+                            } else {
+                                Toastify({
+                                    text: result.message,
+                                    duration: 3000,
+                                    close: true,
+                                    backgroundColor: "#dc3545",
+                                }).showToast();
+                            }
+                        },
+                        error: function(xhr) {
+                            Toastify({
+                                text: "An error occurred",
+                                duration: 3000,
+                                close: true,
+                                backgroundColor: "#dc3545",
+                            }).showToast();
+                        }
+                    });
+                }
+            });
         });
     </script>
 @endsection
