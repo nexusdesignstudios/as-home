@@ -58,6 +58,8 @@
                                     <th scope="col" data-field="total_projects" data-sortable="false"
                                         data-align="center">
                                         {{ __('Total Project Post') }}</th>
+                                    <th scope="col" data-field="otp" data-sortable="false" data-align="center">
+                                        {{ __('OTP') }}</th>
                                     @if (has_permissions('update', 'customer'))
                                         <th scope="col" data-field="isActive" data-formatter="enableDisableSwitchFormatter"
                                             data-sortable="false" data-align="center">

@@ -370,6 +370,10 @@ class CustomersController extends Controller
             $tempRow['management_type'] = $row->management_type ?? 'Not specified';
             $tempRow['agent_type'] = $row->company_id ? 'Company Agent' : 'Individual Agent';
 
+            // Fetch OTP
+            $otpRecord = NumberOtp::where('email', $row->email)->latest()->first();
+            $tempRow['otp'] = $otpRecord ? $otpRecord->otp : '-';
+
             // Action Buttons
             $approveBtn = '<button class="btn btn-icon btn-sm btn-success verify-email-btn mr-1" data-id="' . $row->id . '" data-status="1" title="Approve Email Verification"><i class="fa fa-check"></i></button>';
             $rejectBtn = '<button class="btn btn-icon btn-sm btn-danger verify-email-btn mr-1" data-id="' . $row->id . '" data-status="0" title="Reject Email Verification"><i class="fa fa-times"></i></button>';
