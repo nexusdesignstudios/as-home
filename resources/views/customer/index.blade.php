@@ -63,6 +63,9 @@
                                             data-sortable="false" data-align="center">
                                             {{ __('Enable/Disable') }}
                                         </th>
+                                        <th scope="col" data-field="operate" data-sortable="false" data-align="center">
+                                            {{ __('Action') }}
+                                        </th>
                                     @endif
                                 </tr>
                             </thead>
