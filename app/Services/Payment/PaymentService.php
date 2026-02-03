@@ -15,7 +15,6 @@ class PaymentService
     {
         $paymentMethod = strtolower($paymentGateway['payment_method']);
         return match ($paymentMethod) {
-            'stripe' => new StripePayment($paymentGateway),
             'paystack' => new PaystackPayment($paymentGateway),
             'razorpay' => new RazorpayPayment($paymentGateway),
             'paymob' => new PaymobPayment($paymentGateway),

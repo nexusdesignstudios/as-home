@@ -119,7 +119,7 @@ class ApiController extends Controller
         foreach ($result as $row) {
 
 
-            if ($row->type == "place_api_key" || $row->type == "stripe_secret_key") {
+            if ($row->type == "place_api_key") {
 
                 $publicKey = file_get_contents(base_path('public_key.pem')); // Load the public key
                 $encryptedData = '';
@@ -5154,16 +5154,7 @@ class ApiController extends Controller
     }
     public function get_payment_settings(Request $request)
     {
-        $payment_settings = Setting::select('type', 'data')->whereIn('type', ['paypal_business_id', 'sandbox_mode', 'paypal_gateway', 'razor_key', 'razor_secret', 'razorpay_gateway', 'paystack_public_key', 'paystack_secret_key', 'paystack_currency', 'paystack_gateway', 'stripe_publishable_key', 'stripe_currency', 'stripe_gateway', 'stripe_secret_key', 'flutterwave_status', 'paymob_gateway', 'bank_transfer_status'])->get();
-        foreach ($payment_settings as $setting) {
-            if ($setting->type === 'stripe_secret_key') {
-                $publicKey = file_get_contents(base_path('public_key.pem')); // Load the public key
-                $encryptedData = '';
-                if (openssl_public_encrypt($setting->data, $encryptedData, $publicKey)) {
-                    $setting->data = base64_encode($encryptedData);
-                }
-            }
-        }
+        $payment_settings = Setting::select('type', 'data')->whereIn('type', ['paypal_business_id', 'sandbox_mode', 'paypal_gateway', 'razor_key', 'razor_secret', 'razorpay_gateway', 'paystack_public_key', 'paystack_secret_key', 'paystack_currency', 'paystack_gateway', 'flutterwave_status', 'paymob_gateway', 'bank_transfer_status'])->get();
 
         if (count($payment_settings)) {
             $response['error'] = false;

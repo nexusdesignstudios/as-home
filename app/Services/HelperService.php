@@ -2960,11 +2960,6 @@ class HelperService
         try {
             $getActivePaymentName = self::getActivePaymentGateway();
             switch ($getActivePaymentName) {
-                case 'stripe_gateway':
-                    $types = array('stripe_currency', 'stripe_gateway', 'stripe_publishable_key', 'stripe_secret_key');
-                    $data = array('payment_method' => 'stripe');
-                    return array_merge($data, self::getMultipleSettingData($types));
-                    break;
                 case 'razorpay_gateway':
                     $types = array('razorpay_gateway', 'razor_key', 'razor_secret', 'razorpay_webhook_url', 'razor_webhook_secret');
                     $data = array('payment_method' => 'razorpay');

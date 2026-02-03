@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    'allowed_origins' => ['https://ashome-eg.com', 'https://www.ashome-eg.com'],
 
     'allowed_origins_patterns' => [],
 

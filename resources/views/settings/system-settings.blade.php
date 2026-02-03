@@ -482,62 +482,6 @@
 
                     </div>
 
-                    {{-- Stripe Setting --}}
-                    <div class="divider pt-3 mt-3">
-                        <h6 class="divider-text">{{ __('Stripe Setting') }}</h6>
-                    </div>
-
-                    <div class="form-group row">
-                        {{-- Stripe publishable key --}}
-                        <div class="col-sm-12 col-md-6 mt-2">
-                            <label class="form-label">{{ __('Stripe publishable key') }}</label>
-                            <input name="stripe_publishable_key" type="text" class="form-control" placeholder="{{ __('Stripe publishable key') }}" value="{{ (env('DEMO_MODE') ? ( env('DEMO_MODE') == true && Auth::user()->email == 'superadmin@gmail.com' ? ( isset($systemSettings['stripe_publishable_key']) && $systemSettings['stripe_publishable_key'] != '' ? $systemSettings['stripe_publishable_key'] : '' ) : '****************************' ) : ( isset($systemSettings['stripe_publishable_key']) && $systemSettings['stripe_publishable_key'] != '' ? $systemSettings['stripe_publishable_key'] : '' ))}}">
-                        </div>
-
-                        {{-- Stripe Webhook URL --}}
-                        <div class="col-sm-12 col-md-6 mt-2">
-                            <label class="form-label">{{ __('Stripe Webhook URL') }}</label>
-                            <input name="stripe_webhook_url" type="text" class="form-control" placeholder="{{ __('Stripe Webhook URL') }}" value="{{ (env('DEMO_MODE') ? ( env('DEMO_MODE') == true && Auth::user()->email == 'superadmin@gmail.com' ? ( isset($systemSettings['stripe_webhook_url']) && $systemSettings['stripe_webhook_url'] != '' ? $systemSettings['stripe_webhook_url'] : '' ) : '****************************' ) : ( isset($systemSettings['stripe_webhook_url']) && $systemSettings['stripe_webhook_url'] != '' ? $systemSettings['stripe_webhook_url'] : '' ))}}">
-                        </div>
-
-                        {{-- Stripe Currency Symbol --}}
-                        <div class="col-sm-12 col-md-6 mt-2">
-                            <label class="form-check-label">{{ __('Stripe Currency Symbol') }}</label>
-                            <select name="stripe_currency" id="stripe_currency" class="choosen-select form-select form-control-sm">
-                                @foreach ($stripe_currencies as $value)
-                                <option value={{ $value }}
-                                {{ isset($systemSettings['stripe_currency']) && $systemSettings['stripe_currency'] == $value ? 'selected' : '' }}>
-                                {{ $value }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        {{-- Status --}}
-                        <div class="col-sm-12 col-md-6 mt-2">
-                            <label class="form-check-label" id='lbl_stripe'>{{ __('Enable') }}</label>
-                            <div>
-                                <div class="form-check form-switch ">
-                                    <input type="hidden" name="stripe_gateway" id="stripe_gateway" value="{{ isset($systemSettings['stripe_gateway']) && $systemSettings['stripe_gateway'] != '' ? $systemSettings['stripe_gateway'] : 0 }}">
-                                    <input class="form-check-input" type="checkbox" role="switch" class="switch-input" name='op' {{ isset($systemSettings['stripe_gateway']) && $systemSettings['stripe_gateway'] == '1' ? 'checked' : '' }} id="switch_stripe_gateway">
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Stripe Secret key --}}
-                        <div class="col-sm-12 col-md-6 mt-2">
-                            <label class="form-check-label-mandatory">{{ __('Stripe Secret key') }}</label>
-                            <input name="stripe_secret_key" type="text" class="form-control" placeholder="{{ __('Stripe Secret key') }}" value="{{ (env('DEMO_MODE') ? ( env('DEMO_MODE') == true && Auth::user()->email == 'superadmin@gmail.com' ? ( isset($systemSettings['stripe_secret_key']) && $systemSettings['stripe_secret_key'] != '' ? $systemSettings['stripe_secret_key'] : '' ) : '****************************' ) : ( isset($systemSettings['stripe_secret_key']) && $systemSettings['stripe_secret_key'] != '' ? $systemSettings['stripe_secret_key'] : '' ))}}">
-                        </div>
-
-                        {{-- Stripe Secret key --}}
-                        <div class="col-sm-12 col-md-6 mt-2">
-                            <label class="form-check-label-mandatory">{{ __('Stripe Webhook Secret key') }}</label>
-                            <input name="stripe_webhook_secret_key" type="text" class="form-control" placeholder="{{ __('Stripe Webhook Secret key') }}" value="{{ (env('DEMO_MODE') ? ( env('DEMO_MODE') == true && Auth::user()->email == 'superadmin@gmail.com' ? ( isset($systemSettings['stripe_webhook_secret_key']) && $systemSettings['stripe_webhook_secret_key'] != '' ? $systemSettings['stripe_webhook_secret_key'] : '' ) : '****************************' ) : ( isset($systemSettings['stripe_webhook_secret_key']) && $systemSettings['stripe_webhook_secret_key'] != '' ? $systemSettings['stripe_webhook_secret_key'] : '' ))}}">
-                        </div>
-
-                    </div>
-
-
                     {{-- Flutterwave Setting --}}
                     <div class="divider pt-3 mt-3">
                         <h6 class="divider-text">{{ __('Flutterwave Setting') }}</h6>

@@ -170,12 +170,6 @@ class SettingController extends Controller
             'paystack_currency',
             'paystack_gateway',
             'paystack_public_key',
-            'stripe_publishable_key',
-            'stripe_webhook_url',
-            'stripe_currency',
-            'stripe_gateway',
-            'stripe_secret_key',
-            'stripe_webhook_secret_key',
             'flutterwave_public_key',
             'flutterwave_secret_key',
             'flutterwave_encryption_key',
@@ -205,7 +199,7 @@ class SettingController extends Controller
             DB::beginTransaction();
             $input = $request->except(['_token', 'btnAdd', 'bank_details_fields']);
 
-            if (($request->has('bank_transfer_status') && $request->bank_transfer_status == 0) && $request->razorpay_gateway == 0 && $request->paystack_gateway == 0 && $request->flutterwave_status == 0 && $request->stripe_gateway == 0 && $request->paypal_gateway == 0 && (!isset($request->paymob_gateway) || $request->paymob_gateway == 0)) {
+            if (($request->has('bank_transfer_status') && $request->bank_transfer_status == 0) && $request->razorpay_gateway == 0 && $request->paystack_gateway == 0 && $request->flutterwave_status == 0 && $request->paypal_gateway == 0 && (!isset($request->paymob_gateway) || $request->paymob_gateway == 0)) {
                 ResponseService::errorResponse("Please enable at least one payment gateway");
             }
 
