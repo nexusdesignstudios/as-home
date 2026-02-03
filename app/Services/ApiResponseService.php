@@ -114,13 +114,30 @@ class ApiResponseService
      */
     public static function successResponse(string $message = "Success", $data = null, array $customData = array(), $code = null)
     {
-        response()->json(array_merge([
+        $response = response()->json(array_merge([
             'error'   => false,
             'message' => $message,
             'data'    => $data,
             'code'    => $code ?? config('constants.RESPONSE_CODE.SUCCESS')
-        ], $customData), $code ?? config('constants.RESPONSE_CODE.SUCCESS'))->send();
+        ], $customData), $code ?? config('constants.RESPONSE_CODE.SUCCESS'));
+
+        self::addCorsHeaders($response);
+        $response->send();
         exit();
+    }
+
+    private static function addCorsHeaders($response)
+    {
+        $origin = request()->header('Origin');
+        if ($origin) {
+            $allowedOrigins = config('cors.allowed_origins', []);
+            if (in_array($origin, $allowedOrigins) || in_array('*', $allowedOrigins)) {
+                $response->header('Access-Control-Allow-Origin', $origin);
+                $response->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+                $response->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, token');
+                $response->header('Access-Control-Allow-Credentials', 'true');
+            }
+        }
     }
 
     /**
@@ -160,13 +177,16 @@ class ApiResponseService
      */
     public static function errorResponse(string $message = 'Something Went Wrong', $data = null, $code = null, $e = null)
     {
-        response()->json([
+        $response = response()->json([
             'error'   => true,
             'message' => $message,
             'data'    => $data,
             'code'    => $code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'),
             'details' => (!empty($e) && is_object($e)) ? $e->getMessage() . ' --> ' . $e->getFile() . ' At Line : ' . $e->getLine() : ''
-        ], $code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'))->send();
+        ], $code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'));
+
+        self::addCorsHeaders($response);
+        $response->send();
         exit();
     }
 
@@ -190,13 +210,16 @@ class ApiResponseService
      */
     public static function warningResponse(string $message = 'Error Occurred', $data = null, $code = null)
     {
-        response()->json([
+        $response = response()->json([
             'error'   => false,
             'warning' => true,
             'code'    => $code,
             'message' => $message,
             'data'    => $data,
-        ], $code)->send();
+        ], $code);
+
+        self::addCorsHeaders($response);
+        $response->send();
         exit();
     }
 

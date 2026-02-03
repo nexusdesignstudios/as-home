@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['https://ashome-eg.com', 'https://www.ashome-eg.com'],
+    'allowed_origins' => ['https://ashome-eg.com', 'https://www.ashome-eg.com', 'http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000'],
 
     'allowed_origins_patterns' => [],
 
@@ -29,6 +29,6 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => false,
+    'supports_credentials' => true,
 
 ];
