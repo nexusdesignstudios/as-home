@@ -114,12 +114,33 @@ class ResponseService
      */
     public static function successResponse(string $message = "Success", $data = null, array $customData = array(), $code = null)
     {
+        // Add headers for CORS
+        $headers = [
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers' => 'Content-Type, Accept, Authorization, X-Requested-With, Application'
+        ];
+        
+        // Attempt to respect config/cors.php origin if available
+        if (request()->headers->has('Origin')) {
+             $origin = request()->headers->get('Origin');
+             if (in_array($origin, config('cors.allowed_origins', [])) || 
+                 count(preg_grep('/'.preg_quote(parse_url($origin, PHP_URL_HOST), '/').'/', config('cors.allowed_origins_patterns', []))) > 0 ||
+                 // Basic wildcard check for development/specific domains
+                 preg_match('/https?:\/\/.*ashome-eg\.com/', $origin)
+             ) {
+                 $headers['Access-Control-Allow-Origin'] = $origin;
+             }
+        }
+
         response()->json(array_merge([
             'error'   => false,
             'message' => trans($message),
             'data'    => $data,
             'code'    => $code ?? config('constants.RESPONSE_CODE.SUCCESS')
-        ], $customData), $code ?? config('constants.RESPONSE_CODE.SUCCESS'))->send();
+        ], $customData), $code ?? config('constants.RESPONSE_CODE.SUCCESS'))
+        ->withHeaders($headers)
+        ->send();
         exit();
     }
 
@@ -149,13 +170,33 @@ class ResponseService
      */
     public static function errorResponse(string $message = 'Error Occurred', $data = null, $code = null, $e = null)
     {
+        // Add headers for CORS
+        $headers = [
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers' => 'Content-Type, Accept, Authorization, X-Requested-With, Application'
+        ];
+        
+        // Attempt to respect config/cors.php origin if available
+        if (request()->headers->has('Origin')) {
+             $origin = request()->headers->get('Origin');
+             if (in_array($origin, config('cors.allowed_origins', [])) || 
+                 count(preg_grep('/'.preg_quote(parse_url($origin, PHP_URL_HOST), '/').'/', config('cors.allowed_origins_patterns', []))) > 0 ||
+                 preg_match('/https?:\/\/.*ashome-eg\.com/', $origin)
+             ) {
+                 $headers['Access-Control-Allow-Origin'] = $origin;
+             }
+        }
+
         response()->json([
             'error'   => true,
             'message' => trans($message),
             'data'    => $data,
             'code'    => $code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'),
             'details' => (!empty($e) && is_object($e)) ? $e->getMessage() . ' --> ' . $e->getFile() . ' At Line : ' . $e->getLine() : ''
-        ],$code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'))->send();
+        ],$code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'))
+        ->withHeaders($headers)
+        ->send();
         exit();
     }
 

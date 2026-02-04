@@ -62,6 +62,15 @@ use App\Http\Controllers\InvoiceDownloadController;
 
 Route::get('customer-privacy-policy', [SettingController::class, 'show_privacy_policy'])->name('customer-privacy-policy');
 
+// Route to clear cache for CORS settings update
+Route::get('/clear-cache-all', function() {
+    Artisan::call('config:clear');
+    Artisan::call('config:cache');
+    Artisan::call('route:clear');
+    Artisan::call('view:clear');
+    return 'Cache cleared successfully';
+});
+
 
 Route::get('customer-terms-conditions', [SettingController::class, 'show_terms_conditions'])->name('customer-terms-conditions');
 
