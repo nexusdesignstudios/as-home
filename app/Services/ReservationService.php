@@ -1885,14 +1885,19 @@ Best regards,
                         // Get room type name
                         $roomType = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->roomType)->name ?? 'Standard Room');
                     }
-                } else {
+                } elseif ($reservation->reservable_type === 'App\\Models\\Property' || $reservation->reservable_type === 'property') {
                     // For property reservations, use property details
                     $hotelName = $reservation->property->title ?? 'Property';
-                    $roomType = 'Property';
+                    $roomType = $reservation->property->title ?? 'Property';
                     $roomNumber = 'N/A';
                     $hotelAddress = $reservation->property->address ?? 'N/A';
                     $checkInTime = $reservation->property->check_in ?? '3:00 PM';
                     $checkOutTime = $reservation->property->check_out ?? '12:00 PM';
+                }
+
+                // Fallback for room type
+                if (empty($roomType)) {
+                    $roomType = 'Standard Room';
                 }
 
                 // Get currency symbol
