@@ -756,7 +756,7 @@ function handleFileUpload($request, $key, $destinationPath, $filename, $database
                 $s3Client = new \Aws\S3\S3Client([
                     'key' => env('AWS_ACCESS_KEY_ID'),
                     'secret' => env('AWS_SECRET_ACCESS_KEY'),
-                    'region' => env('AWS_DEFAULT_REGION'),
+                    'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
                     'version' => 'latest',
                     'http' => ['verify' => false],
                 ]);
@@ -933,7 +933,7 @@ function store_image($file, $path, $subdir = null)
                 $s3Client = new \Aws\S3\S3Client([
                     'key' => env('AWS_ACCESS_KEY_ID'),
                     'secret' => env('AWS_SECRET_ACCESS_KEY'),
-                    'region' => env('AWS_DEFAULT_REGION'),
+                    'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
                     'version' => 'latest',
                     'http' => ['verify' => false],
                 ]);
