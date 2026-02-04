@@ -43,6 +43,60 @@ class HotelRoom extends Model
     protected $appends = ['available_dates'];
 
     /**
+     * The "booted" method of the model.
+     *
+     * @return void
+     */
+    protected static function booted()
+    {
+        static::saved(function ($room) {
+            // Only sync if available_dates was changed or if it's a new room
+            // We check attributes directly because available_dates accessor/setter logic might interfere with isDirty()
+            if ($room->wasRecentlyCreated || $room->isDirty('available_dates')) {
+                try {
+                    // Sync with available_dates_hotel_rooms table
+                    // First, delete existing entries for this room
+                    \DB::table('available_dates_hotel_rooms')->where('hotel_room_id', $room->id)->delete();
+
+                    // Get the raw attribute value (JSON string) and decode it
+                    $availableDates = $room->getAttributes()['available_dates'] ?? null;
+                    if (is_string($availableDates)) {
+                        $availableDates = json_decode($availableDates, true);
+                    }
+
+                    if (is_array($availableDates)) {
+                        foreach ($availableDates as $dateInfo) {
+                            $fromDate = $dateInfo['from'] ?? $dateInfo['from_date'] ?? null;
+                            $toDate = $dateInfo['to'] ?? $dateInfo['to_date'] ?? null;
+
+                            if ($fromDate && $toDate) {
+                                \DB::table('available_dates_hotel_rooms')->insert([
+                                    'property_id' => $room->property_id,
+                                    'hotel_room_id' => $room->id,
+                                    'from_date' => $fromDate,
+                                    'to_date' => $toDate,
+                                    'price' => $dateInfo['price'] ?? 0,
+                                    'type' => $dateInfo['type'] ?? 'open',
+                                    'nonrefundable_percentage' => $dateInfo['nonrefundable_percentage'] ?? $room->nonrefundable_percentage ?? 0,
+                                    'created_at' => now(),
+                                    'updated_at' => now(),
+                                ]);
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Failed to sync hotel room available dates: ' . $e->getMessage());
+                }
+            }
+        });
+
+        static::deleted(function ($room) {
+            // Clean up available dates when room is deleted
+            \DB::table('available_dates_hotel_rooms')->where('hotel_room_id', $room->id)->delete();
+        });
+    }
+
+    /**
      * Get the property that owns the room.
      */
     public function property()
@@ -236,9 +290,14 @@ class HotelRoom extends Model
                             $value[$key]['type'] = 'open';
                         }
                     } else {
+                        // Map 'closed' to 'dead' for consistency with getter
+                        if ($dateInfo['type'] === 'closed') {
+                            $value[$key]['type'] = 'dead';
+                        }
+
                         // Ensure type is one of the allowed values
                         $allowedTypes = ['dead', 'open', 'reserved'];
-                        if (!in_array($dateInfo['type'], $allowedTypes)) {
+                        if (!in_array($value[$key]['type'], $allowedTypes)) {
                             // For busy_days type, default to dead, otherwise open
                             if ($this->availability_type === 'busy_days') {
                                 $value[$key]['type'] = 'dead';
@@ -248,7 +307,7 @@ class HotelRoom extends Model
                         }
 
                         // If type is reserved, ensure reservation_id exists
-                        if ($dateInfo['type'] === 'reserved' && !isset($dateInfo['reservation_id'])) {
+                        if ($value[$key]['type'] === 'reserved' && !isset($dateInfo['reservation_id'])) {
                             $value[$key]['reservation_id'] = null;
                         }
                     }
