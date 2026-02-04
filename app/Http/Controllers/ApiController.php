@@ -12961,7 +12961,8 @@ Best regards,
                     if (in_array($res->reservable_type, ['App\Models\HotelRoom', 'hotel_room'])) {
                         $hotelRoom = $res->reservable;
                         if ($hotelRoom) {
-                             $roomType = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->roomType)->name ?? 'Standard Room');
+                             $customRoomType = trim($hotelRoom->custom_room_type ?? '');
+                             $roomType = !empty($customRoomType) ? $customRoomType : (optional($hotelRoom->roomType)->name ?? 'Standard Room');
                         }
                     } elseif (in_array($res->reservable_type, ['App\Models\Property', 'property'])) {
                         $roomType = $res->reservable->title ?? 'Property';
@@ -12994,7 +12995,8 @@ Best regards,
                         
                         if (in_array($res->reservable_type, ['App\Models\HotelRoom', 'hotel_room'])) {
                              $hotelRoom = $res->reservable;
-                             $resName = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->roomType)->name ?? 'Standard Room');
+                             $customRoomType = trim($hotelRoom->custom_room_type ?? '');
+                             $resName = !empty($customRoomType) ? $customRoomType : (optional($hotelRoom->roomType)->name ?? 'Standard Room');
                              
                              // Extract package info from reservable_data
                              $reservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;

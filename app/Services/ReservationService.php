@@ -1883,7 +1883,8 @@ Best regards,
                         $checkOutTime = $hotelRoom->property->check_out ?? '12:00 PM';
                         
                         // Get room type name
-                        $roomType = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->roomType)->name ?? 'Standard Room');
+                        $customRoomType = trim($hotelRoom->custom_room_type ?? '');
+                        $roomType = !empty($customRoomType) ? $customRoomType : (optional($hotelRoom->roomType)->name ?? 'Standard Room');
                     }
                 } elseif ($reservation->reservable_type === 'App\\Models\\Property' || $reservation->reservable_type === 'property') {
                     // For property reservations, use property details
@@ -1928,7 +1929,8 @@ Best regards,
                         
                         if ($res->reservable_type === 'App\\Models\\HotelRoom' || $res->reservable_type === 'hotel_room') {
                              $hRoom = $res->reservable;
-                             $resName = !empty($hRoom->custom_room_type) ? $hRoom->custom_room_type : (optional($hRoom->roomType)->name ?? 'Standard Room');
+                             $customRoomType = trim($hRoom->custom_room_type ?? '');
+                             $resName = !empty($customRoomType) ? $customRoomType : (optional($hRoom->roomType)->name ?? 'Standard Room');
                              
                              // Extract package info from reservable_data
                              $reservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;
