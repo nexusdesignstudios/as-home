@@ -12953,7 +12953,26 @@ Best regards,
                 $templateData = system_setting('payment_form_submission_mail_template');
                 
                 // Prepare Room Type or Table for Multi-Room
-                $roomType = $request->room_type ?? 'Standard';
+                $roomType = $request->room_type;
+                
+                // If room type not provided in request and it's a single reservation, try to fetch from reservation
+                if (empty($roomType) && count($createdReservations) === 1) {
+                    $res = $createdReservations[0];
+                    if (in_array($res->reservable_type, ['App\Models\HotelRoom', 'hotel_room'])) {
+                        $hotelRoom = $res->reservable;
+                        if ($hotelRoom) {
+                             $roomType = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->roomType)->name ?? 'Standard Room');
+                        }
+                    } elseif (in_array($res->reservable_type, ['App\Models\Property', 'property'])) {
+                        $roomType = $res->reservable->title ?? 'Property';
+                    }
+                }
+                
+                // Fallback
+                if (empty($roomType)) {
+                    $roomType = 'Standard';
+                }
+
                 $currencySymbol = $request->currency ?? 'EGP';
                 
                 if (count($createdReservations) > 1) {

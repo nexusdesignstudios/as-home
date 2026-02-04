@@ -1883,11 +1883,7 @@ Best regards,
                         $checkOutTime = $hotelRoom->property->check_out ?? '12:00 PM';
                         
                         // Get room type name
-                        if ($hotelRoom->roomType) {
-                            $roomType = $hotelRoom->roomType->name ?? 'Standard Room';
-                        } else {
-                            $roomType = 'Standard Room';
-                        }
+                        $roomType = !empty($hotelRoom->custom_room_type) ? $hotelRoom->custom_room_type : (optional($hotelRoom->roomType)->name ?? 'Standard Room');
                     }
                 } else {
                     // For property reservations, use property details

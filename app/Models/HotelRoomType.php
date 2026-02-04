@@ -12,7 +12,8 @@ class HotelRoomType extends Model
     protected $fillable = [
         'name',
         'description',
-        'status'
+        'status',
+        'base_price'
     ];
 
     /**
