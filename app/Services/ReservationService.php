@@ -1847,9 +1847,11 @@ Best regards,
      * Send flexible hotel booking confirmation email to customer.
      *
      * @param \App\Models\Reservation $reservation
+     * @param array $siblings
+     * @param string|null $roomTypeOverride
      * @return void
      */
-    public function sendFlexibleHotelBookingConfirmationEmail($reservation, $siblings = [])
+    public function sendFlexibleHotelBookingConfirmationEmail($reservation, $siblings = [], $roomTypeOverride = null)
     {
         try {
             $customer = $reservation->customer;

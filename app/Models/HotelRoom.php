@@ -24,6 +24,7 @@ class HotelRoom extends Model
         'weekend_commission',
         'nonrefundable_percentage',
         'max_guests',
+        'min_guests',
         'available_rooms'
     ];
 
@@ -35,6 +36,7 @@ class HotelRoom extends Model
         'weekend_commission' => 'float',
         'nonrefundable_percentage' => 'float',
         'max_guests' => 'integer',
+        'min_guests' => 'integer',
         'available_rooms' => 'integer',
         'available_dates' => 'array'
     ];
