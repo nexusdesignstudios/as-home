@@ -1854,6 +1854,7 @@ class ApiController extends Controller
             'hotel_rooms.*.available_dates' => 'nullable|json',
             'hotel_rooms.*.weekend_commission' => 'nullable|numeric|min:0|max:100',
             'hotel_rooms.*.max_guests' => 'nullable|integer|min:1',
+            'hotel_rooms.*.min_guests' => 'nullable|integer|min:1',
             'hotel_apartment_type_id' => 'nullable|exists:hotel_apartment_types,id',
             'rent_package' => 'nullable|in:basic,premium',
             'addons_packages'       => 'nullable|array',
@@ -2297,7 +2298,8 @@ class ApiController extends Controller
                                 'weekend_commission' => isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : null,
                                 'description' => $room['description'] ?? null,
                                 'status' => $room['status'] ?? 1,
-                                'max_guests' => isset($room['max_guests']) ? (int)$room['max_guests'] : null
+                                'max_guests' => isset($room['max_guests']) ? (int)$room['max_guests'] : null,
+                                'min_guests' => isset($room['min_guests']) ? (int)$room['min_guests'] : null
                             ]);
                         } catch (\Exception $roomEx) {
                             throw $roomEx;
@@ -2680,6 +2682,7 @@ class ApiController extends Controller
             'hotel_rooms.*.discount_percentage' => 'nullable|numeric|min:0|max:100',
             'hotel_rooms.*.nonrefundable_percentage' => 'nullable|numeric|min:0|max:100',
             'hotel_rooms.*.max_guests' => 'nullable|integer|min:0',
+            'hotel_rooms.*.min_guests' => 'nullable|integer|min:1',
             'hotel_rooms.*.refund_policy' => 'nullable|in:flexible,non-refundable',
             'hotel_rooms.*.availability_type' => 'nullable|integer|in:1,2',
             'hotel_rooms.*.available_dates' => 'nullable|json',
@@ -3860,6 +3863,7 @@ class ApiController extends Controller
                                         $hotelRoom->description = $room['description'] ?? $hotelRoom->description;
                                         $hotelRoom->status = isset($room['status']) ? (bool)$room['status'] : $hotelRoom->status;
                                         $hotelRoom->max_guests = isset($room['max_guests']) ? (int)$room['max_guests'] : $hotelRoom->max_guests;
+                                        $hotelRoom->min_guests = isset($room['min_guests']) ? (int)$room['min_guests'] : $hotelRoom->min_guests;
                                         if (isset($room['available_rooms'])) {
                                             $hotelRoom->available_rooms = (int)$room['available_rooms'];
                                         }
@@ -3906,6 +3910,7 @@ class ApiController extends Controller
                                             'description' => $room['description'] ?? "",
                                             'status' => isset($room['status']) ? (bool)$room['status'] : true,
                                             'max_guests' => isset($room['max_guests']) ? (int)$room['max_guests'] : 1,
+                                            'min_guests' => isset($room['min_guests']) ? (int)$room['min_guests'] : 1,
                                             'available_rooms' => isset($room['available_rooms']) ? (int)$room['available_rooms'] : 1
                                         ]);
                                         \Log::info('New hotel room created successfully', [

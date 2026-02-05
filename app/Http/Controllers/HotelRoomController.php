@@ -263,7 +263,8 @@ class HotelRoomController extends Controller
             'availability_type' => 'required|integer|in:1,2',
             'available_dates' => 'required|array',
             'weekend_commission' => 'nullable|numeric|min:0|max:100',
-            'max_guests' => 'nullable|integer|min:1'
+            'max_guests' => 'nullable|integer|min:1',
+            'min_guests' => 'nullable|integer|min:1'
         ]);
 
         if ($validator->fails()) {
@@ -336,7 +337,8 @@ class HotelRoomController extends Controller
             'availability_type' => 'nullable|integer|in:1,2',
             'available_dates' => 'nullable|array',
             'weekend_commission' => 'nullable|numeric|min:0|max:100',
-            'max_guests' => 'nullable|integer|min:1'
+            'max_guests' => 'nullable|integer|min:1',
+            'min_guests' => 'nullable|integer|min:1'
         ]);
 
         if ($validator->fails()) {
