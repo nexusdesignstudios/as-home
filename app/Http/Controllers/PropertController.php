@@ -136,6 +136,8 @@ class PropertController extends Controller
                 'hotel_rooms.*.available_dates' => 'nullable|json',
                 'hotel_rooms.*.weekend_commission' => 'nullable|numeric|min:0|max:100',
                 'hotel_rooms.*.description' => 'nullable|string',
+                'hotel_rooms.*.min_guests' => 'nullable|integer|min:1',
+                'hotel_rooms.*.max_guests' => 'nullable|integer|min:1',
                 'addons_packages'       => 'nullable|array',
                 'addons_packages.*.name' => 'required_with:addons_packages',
                 'addons_packages.*.description' => 'nullable|string',
@@ -459,9 +461,11 @@ class PropertController extends Controller
                                 'availability_type' => isset($room['availability_type']) ? (int)$room['availability_type'] : null,
                                 'available_dates' => isset($room['available_dates']) ? $room['available_dates'] : null,
                                 'weekend_commission' => isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : null,
-                                'description' => $room['description'] ?? null,
-                                'status' => $room['status'] ?? 1
-                            ]);
+                            'description' => $room['description'] ?? null,
+                            'status' => $room['status'] ?? 1,
+                            'max_guests' => isset($room['max_guests']) ? (int)$room['max_guests'] : 4,
+                            'min_guests' => isset($room['min_guests']) ? (int)$room['min_guests'] : 1
+                        ]);
                         }
                     } catch (\Exception $e) {
                         throw $e;
@@ -737,6 +741,8 @@ class PropertController extends Controller
                     'hotel_rooms.*.custom_room_type' => 'nullable|string',
                     'hotel_rooms.*.price_per_night' => 'nullable|numeric|min:0',
                     'hotel_rooms.*.description' => 'nullable|string',
+                    'hotel_rooms.*.min_guests' => 'nullable|integer|min:1',
+                    'hotel_rooms.*.max_guests' => 'nullable|integer|min:1',
                     'video_link' => ['nullable', function ($attribute, $value, $fail) {
                         if (!empty($value) && !filter_var($value, FILTER_VALIDATE_URL)) {
                             $youtubePattern = '/^(https?\:\/\/)?(www\.youtube\.com|youtu\.be)\/.+$/';
@@ -1354,6 +1360,8 @@ class PropertController extends Controller
                                         $hotelRoom->available_dates = $room['available_dates'] ?? $hotelRoom->available_dates;
                                         $hotelRoom->weekend_commission = isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : $hotelRoom->weekend_commission;
                                         $hotelRoom->status = $room['status'] ?? $hotelRoom->status;
+                                        $hotelRoom->max_guests = isset($room['max_guests']) ? (int)$room['max_guests'] : $hotelRoom->max_guests;
+                                        $hotelRoom->min_guests = isset($room['min_guests']) ? (int)$room['min_guests'] : $hotelRoom->min_guests;
                                         // Keep original description
                                         if (isset($revertDescriptionsMap[$room['id']])) {
                                             $hotelRoom->description = $revertDescriptionsMap[$room['id']];
@@ -1399,7 +1407,9 @@ class PropertController extends Controller
                                     'available_dates' => $room['available_dates'] ?? null,
                                     'weekend_commission' => isset($room['weekend_commission']) ? (float)$room['weekend_commission'] : null,
                                     'description' => $room['description'] ?? null,
-                                    'status' => $room['status'] ?? 1
+                                    'status' => $room['status'] ?? 1,
+                                    'max_guests' => isset($room['max_guests']) ? (int)$room['max_guests'] : 4,
+                                    'min_guests' => isset($room['min_guests']) ? (int)$room['min_guests'] : 1
                                 ]);
                             }
                         }
