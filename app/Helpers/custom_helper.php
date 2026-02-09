@@ -121,13 +121,13 @@ if (!function_exists('_attributes_to_string')) {
 }
 
 function send_push_notification($registrationIDs = array(), $fcmMsg = '')
-{
-    try {
-        if (!count($registrationIDs)) {
-            return false;
-        }
-        $client = new GuzzleClient();
-        $access_token = getAccessToken(); // Get Access Token
+    {
+        try {
+            if (!count($registrationIDs)) {
+                return false;
+            }
+            $client = new GuzzleClient(['verify' => false]);
+            $access_token = getAccessToken(); // Get Access Token
         
         if (!$access_token) {
             Log::error("send_push_notification: Failed to get access token");
@@ -1118,17 +1118,54 @@ if (!function_exists('getAccessToken')) {
                 return null;
             }
 
-            $client = new Client();
-            $client->setAuthConfig($file_path);
-            $client->setScopes(['https://www.googleapis.com/auth/firebase.messaging']);
+            // Manual JWT Generation to bypass Google Client SSL issues
+            $json = json_decode(file_get_contents($file_path), true);
+            if (!isset($json['client_email']) || !isset($json['private_key'])) {
+                Log::error('getAccessToken: Invalid JSON structure');
+                return null;
+            }
+
+            $client_email = $json['client_email'];
+            $private_key = $json['private_key'];
             
-            $accessTokenData = $client->fetchAccessTokenWithAssertion();
-            
-            if (isset($accessTokenData['access_token'])) {
-                return $accessTokenData['access_token'];
+            $now = time();
+            $token = [
+                'iss' => $client_email,
+                'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
+                'aud' => 'https://oauth2.googleapis.com/token',
+                'exp' => $now + 3600,
+                'iat' => $now,
+            ];
+
+            // JWT Header
+            $header = ['alg' => 'RS256', 'typ' => 'JWT'];
+            $base64UrlHeader = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(json_encode($header)));
+            $base64UrlToken = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(json_encode($token)));
+
+            $signature = '';
+            $success = openssl_sign($base64UrlHeader . "." . $base64UrlToken, $signature, $private_key, 'SHA256');
+            if (!$success) {
+                 Log::error('getAccessToken: OpenSSL sign failed');
+                 return null;
+            }
+            $base64UrlSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
+            $jwt = $base64UrlHeader . "." . $base64UrlToken . "." . $base64UrlSignature;
+
+            // Exchange JWT for Access Token
+            $client = new \GuzzleHttp\Client(['verify' => false]); // FORCE verify false
+            $response = $client->post('https://oauth2.googleapis.com/token', [
+                'form_params' => [
+                    'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                    'assertion' => $jwt
+                ]
+            ]);
+
+            $body = json_decode((string)$response->getBody(), true);
+            if (isset($body['access_token'])) {
+                return $body['access_token'];
             }
             
-            Log::error('getAccessToken: Failed to retrieve access token from response', ['data' => $accessTokenData]);
+            Log::error('getAccessToken: Failed to retrieve access token from response', ['data' => $body]);
             return null;
             
         } catch (\Throwable $e) {

@@ -7,6 +7,7 @@ use App\Http\Controllers\HotelRoomController;
 use App\Http\Controllers\AddonsPackageController;
 use App\Http\Controllers\HotelApartmentTypeController;
 use App\Http\Controllers\PaymobController;
+use App\Http\Controllers\PaypalCallbackController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -68,6 +69,9 @@ Route::match(array('GET', 'POST'), 'flutterwave-payment-status', [ApiController:
 Route::post('payments/paymob/callback', [PaymobController::class, 'handleCallback']);
 Route::get('payments/paymob/return', [PaymobController::class, 'handleReturn'])->name('payments.paymob.return');
 Route::post('payments/paymob/webhook', [PaymobController::class, 'handleWebhook']);
+
+// PayPal Payment Routes
+Route::get('payments/paypal/return', [PaypalCallbackController::class, 'handleReturn']);
 /*********************************************************************** */
 
 /** Confirmation needed */

@@ -138,84 +138,7 @@ class WebhookController extends Controller
         }
     }
 
-    /**
-     * Handle PayPal IPN for Reservations
-     */
-    public function paypalReservationIpn(Request $request)
-    {
-        Log::info("PayPal Reservation IPN Received", $request->all());
 
-        $transactionId = $request->custom;
-        $paymentStatus = $request->payment_status;
-        
-        // Find the payment record
-        $payment = PaymobPayment::where('transaction_id', $transactionId)->first();
-        
-        if (!$payment) {
-            Log::error("PayPal IPN: Payment not found for transaction ID: " . $transactionId);
-            return response()->json(['status' => 'error', 'message' => 'Payment not found'], 404);
-        }
-
-        // Check if already processed
-        if ($payment->status === 'success') {
-            Log::info("PayPal IPN: Payment already processed for transaction ID: " . $transactionId);
-            return response()->json(['status' => 'success', 'message' => 'Already processed']);
-        }
-
-        if ($paymentStatus == 'Completed') {
-            try {
-                DB::beginTransaction();
-
-                // Update Payment Record
-                $payment->status = 'success';
-                $payment->paymob_transaction_id = $request->txn_id; // Store PayPal Transaction ID
-                $payment->save();
-
-                // Update Reservation Record
-                $reservation = Reservation::find($payment->reservation_id);
-                if ($reservation) {
-                    $reservation->payment_status = 'paid';
-                    
-                    // Update reservation status based on property type and settings
-                    $property = $reservation->property;
-                    if ($property) {
-                        if ($property->property_classification == 5 || $property->instant_booking) {
-                            $reservation->status = 'confirmed';
-                        }
-                        // For vacation homes (classification 4) without instant booking, it might remain pending approval
-                    }
-                    
-                    $reservation->save();
-                    
-                    // Log success
-                    Log::info("PayPal IPN: Payment confirmed for reservation " . $reservation->id);
-                    
-                    // Trigger email notifications via ReservationService
-                        try {
-                            $reservationService = app(\App\Services\ReservationService::class);
-                            $reservationService->sendReservationApprovalEmail($reservation);
-                            Log::info("PayPal IPN: Confirmation email sent for reservation " . $reservation->id);
-                        } catch (\Exception $e) {
-                            Log::error("PayPal IPN: Failed to send confirmation email: " . $e->getMessage());
-                        }
-                }
-
-                DB::commit();
-                return response()->json(['status' => 'success']);
-
-            } catch (\Exception $e) {
-                DB::rollBack();
-                Log::error("PayPal IPN Error: " . $e->getMessage());
-                return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
-            }
-        } elseif ($paymentStatus == 'Denied' || $paymentStatus == 'Failed') {
-            $payment->status = 'failed';
-            $payment->save();
-            Log::info("PayPal IPN: Payment failed for transaction ID: " . $transactionId);
-        }
-
-        return response()->json(['status' => 'success']);
-    }
 
 
     public function paypal(Request $request)
@@ -487,6 +410,61 @@ class WebhookController extends Controller
         }
     }
 
+
+    public function paypalReservationIpn(Request $request)
+    {
+        Log::info('PayPal IPN Received');
+        $payload = $request->all();
+        Log::info('PayPal IPN Payload: ' . json_encode($payload));
+
+        $eventType = $payload['event_type'] ?? null;
+        $resource = $payload['resource'] ?? null;
+
+        if (!$eventType || !$resource) {
+            Log::error('PayPal IPN: Invalid Payload');
+            return response()->json(['status' => 'invalid_payload'], 400);
+        }
+
+        if ($eventType === 'PAYMENT.CAPTURE.COMPLETED') {
+            $customId = $resource['custom_id'] ?? null;
+            $captureId = $resource['id'] ?? null;
+            $orderId = $resource['supplementary_data']['related_ids']['order_id'] ?? null;
+
+            if ($customId) {
+                $reservation = Reservation::where('transaction_id', $customId)->first();
+                if ($reservation && $reservation->payment_status !== 'paid') {
+                    Log::info("PayPal IPN: Updating reservation $reservation->id for transaction $customId");
+                    
+                    try {
+                            DB::beginTransaction();
+                            
+                            // Update Payment Record
+                            PaymobPayment::where('transaction_id', $customId)->update([
+                                'status' => 'successful',
+                                'payment_method' => 'paypal',
+                                'paymob_order_id' => $orderId,
+                                'paymob_transaction_id' => $captureId,
+                                'transaction_data' => json_encode($resource)
+                            ]);
+
+                            // Use ReservationService to handle confirmation (updates status, payment_status, available_dates, and sends email)
+                            $reservationService = app(\App\Services\ReservationService::class);
+                            $reservationService->handleReservationConfirmation($reservation, 'paid');
+
+                            DB::commit();
+                            Log::info("PayPal IPN: Reservation updated and email sent.");
+                        } catch (\Exception $e) {
+                            DB::rollBack();
+                            Log::error("PayPal IPN Error: " . $e->getMessage());
+                        }
+                } else {
+                    Log::info("PayPal IPN: Reservation already paid or not found for $customId");
+                }
+            }
+        }
+
+        return response()->json(['status' => 'success']);
+    }
 
     /**
      * Failed Business Logic

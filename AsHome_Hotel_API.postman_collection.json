@@ -1,0 +1,146 @@
+{
+	"info": {
+		"_postman_id": "b5a9c8f2-1e3d-4b5c-9a7f-2e1d3c4b5a6f",
+		"name": "As Home Hotel API",
+		"description": "API Collection for Hotel Booking features including guest limit validation, flexible/non-refundable booking types, and PayPal/Paymob integration.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Search Available Rooms",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/search-available-rooms?property_id=517&from_date=2026-02-15&to_date=2026-02-20",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"search-available-rooms"
+					],
+					"query": [
+						{
+							"key": "property_id",
+							"value": "517",
+							"description": "ID of the hotel property"
+						},
+						{
+							"key": "from_date",
+							"value": "2026-02-15",
+							"description": "Check-in date (YYYY-MM-DD)"
+						},
+						{
+							"key": "to_date",
+							"value": "2026-02-20",
+							"description": "Check-out date (YYYY-MM-DD)"
+						},
+						{
+							"key": "room_type_id",
+							"value": "19",
+							"description": "(Optional) Filter by specific room type ID",
+							"disabled": true
+						}
+					]
+				},
+				"description": "Returns available rooms with `min_guests` and `max_guests` fields for validation."
+			},
+			"response": []
+		},
+		{
+			"name": "2. Create Reservation (Manual)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"property_id\": 517,\n    \"reservable_type\": \"hotel_room\",\n    \"check_in_date\": \"2026-02-15\",\n    \"check_out_date\": \"2026-02-20\",\n    \"number_of_guests\": 2,\n    \"booking_type\": \"flexible\",\n    \"reservable_id\": [\n        {\n            \"id\": 978,\n            \"amount\": 1600\n        }\n    ]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/reservations",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"reservations"
+					]
+				},
+				"description": "Creates a reservation without immediate payment. \n\nFields:\n- `number_of_guests`: Must be between min/max limits.\n- `booking_type`: 'flexible' or 'non_refundable'."
+			},
+			"response": []
+		},
+		{
+			"name": "3. Create Reservation with Payment",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"property_id\": 517,\n    \"reservable_type\": \"hotel_room\",\n    \"check_in_date\": \"2026-02-15\",\n    \"check_out_date\": \"2026-02-20\",\n    \"number_of_guests\": 3,\n    \"booking_type\": \"non_refundable\",\n    \"payment_gateway\": \"paymob\",\n    \"reservable_id\": [\n        {\n            \"id\": 978,\n            \"amount\": 1600\n        }\n    ]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/reservations/with-payment",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"reservations",
+						"with-payment"
+					]
+				},
+				"description": "Creates reservation and generates payment URL.\n\n- `payment_gateway`: 'paymob' (default) or 'paypal'."
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://ashome-eg.com/api",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "YOUR_ACCESS_TOKEN_HERE",
+			"type": "string"
+		}
+	]
+}

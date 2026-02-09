@@ -22,6 +22,7 @@
         "laravelcollective/html": "^6.3",
         "nesbot/carbon": "^2.72",
         "opcodesio/log-viewer": "^3.10",
+        "paypal/paypal-server-sdk": "2.0.0",
         "php-webdriver/webdriver": "^1.14",
         "razorpay/razorpay": "2.*",
         "spatie/image": "^2.2",

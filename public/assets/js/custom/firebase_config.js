@@ -57,16 +57,57 @@ if (firebaseConfig.apiKey && !firebase.apps.length) {
         }
 
         messaging.onMessage(function (payload) {
-            notificationTitle = payload.data.title;
+            console.log('Message received. ', payload);
+            
+            const title = payload.data.title || (payload.notification ? payload.notification.title : 'Notification');
+            const body = payload.data.body || (payload.notification ? payload.notification.body : '');
+            const icon = payload.data.icon || '/assets/images/logo/logo.png';
+
+            // 1. Show Toastify Alert (In-App)
+            if (typeof Toastify !== 'undefined') {
+                Toastify({
+                    text: title + "\n" + body,
+                    duration: 5000,
+                    close: true,
+                    gravity: "top", 
+                    position: "right", 
+                    backgroundColor: "linear-gradient(to right, #4facfe 0%, #00f2fe 100%)",
+                    stopOnFocus: true,
+                    onClick: function() {
+                        if(payload.data.click_action && payload.data.click_action !== 'FLUTTER_NOTIFICATION_CLICK') {
+                            window.location.href = payload.data.click_action;
+                        }
+                    }
+                }).showToast();
+            }
+
+            // 2. Play Sound
+            try {
+                const audio = new Audio('/assets/audio/notification.mp3');
+                audio.play().catch(e => console.log('Audio play failed (interaction required):', e));
+            } catch (e) {
+                console.error("Error playing sound", e);
+            }
+
+            notificationTitle = title;
             notificationOptions = {
-                body: payload.data.body,
-                icon: payload.data.icon,
+                body: body,
+                icon: icon,
                 // image:  payload.data.image,
                 data: {
                     time: new Date(Date.now()).toString(),
+                    click_action: payload.data.click_action
                 }
             };
             var notification = new Notification(notificationTitle, notificationOptions);
+            
+            notification.onclick = function(event) {
+                event.preventDefault();
+                if(payload.data.click_action && payload.data.click_action !== 'FLUTTER_NOTIFICATION_CLICK') {
+                     window.location.href = payload.data.click_action;
+                }
+                notification.close();
+            }
         });
     } catch (error) {
         console.error("Firebase initialization error:", error);

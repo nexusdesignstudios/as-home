@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use App\Services\ReservationService;
 use App\Services\ApiResponseService;
 use App\Services\HelperService;
+use App\Models\Usertokens;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -747,6 +748,15 @@ class ReservationController extends Controller
                     if (!$isAvailable) {
                         ApiResponseService::errorResponse("Room {$roomId} is not available for the selected dates");
                     }
+
+                    // Validate Guest Limits
+                    $guests = $request->number_of_guests ?? 1;
+                    if ($room->min_guests && $guests < $room->min_guests) {
+                        ApiResponseService::errorResponse("Room {$roomId} requires minimum {$room->min_guests} guests", null, 400);
+                    }
+                    if ($room->max_guests && $guests > $room->max_guests) {
+                        ApiResponseService::errorResponse("Room {$roomId} allows maximum {$room->max_guests} guests", null, 400);
+                    }
                 }
 
                 // Get the property to check refund policy for hotel rooms
@@ -755,8 +765,15 @@ class ReservationController extends Controller
                     ApiResponseService::errorResponse('Property not found for hotel rooms');
                 }
                 
-                // Check if property has flexible refund policy for flexible reservation behavior
-                $isFlexible = $property->refund_policy === 'flexible';
+                // Determine booking type (Flexible vs Non-refundable)
+                $bookingType = $request->booking_type ?? null;
+                if ($bookingType === 'flexible') {
+                    $isFlexible = true;
+                } elseif ($bookingType === 'non_refundable') {
+                    $isFlexible = false;
+                } else {
+                    $isFlexible = $property->refund_policy === 'flexible';
+                }
                 
                 // All validations passed, create reservations for each room
                 foreach ($roomObjects as $roomObject) {
@@ -764,10 +781,12 @@ class ReservationController extends Controller
                     $roomAmount = $roomObject['amount'];
                     $totalAmount += $roomAmount;
 
-                    // Check individual room refund policy (can override property policy)
+                    // Check individual room refund policy (can override property policy if booking_type not explicit)
                     $room = HotelRoom::find($roomId);
                     $roomIsFlexible = $isFlexible;
-                    if ($room && $room->refund_policy) {
+                    
+                    // Only apply room-specific policy if booking_type was NOT explicitly provided
+                    if (!$bookingType && $room && $room->refund_policy) {
                         $roomIsFlexible = $room->refund_policy === 'flexible';
                     }
 
@@ -1571,6 +1590,15 @@ class ReservationController extends Controller
                         // If hasAvailableRooms is true, we've already updated the room to use an available one
                         // Continue with the booking process
                     }
+                    
+                    // Validate Guest Limits
+                    $guests = $request->number_of_guests ?? 1;
+                    if ($room->min_guests && $guests < $room->min_guests) {
+                        return ApiResponseService::errorResponse("Room {$roomId} requires minimum {$room->min_guests} guests", null, 400);
+                    }
+                    if ($room->max_guests && $guests > $room->max_guests) {
+                        return ApiResponseService::errorResponse("Room {$roomId} allows maximum {$room->max_guests} guests", null, 400);
+                    }
                 }
 
                 unset($roomObject);
@@ -1581,6 +1609,19 @@ class ReservationController extends Controller
                     $modelType,
                     $request->payment['amount']
                 );
+
+                // Determine booking type (Flexible vs Non-refundable)
+                $property = Property::find($request->property_id);
+                $bookingType = $request->booking_type ?? null;
+                $isFlexible = false;
+                
+                if ($bookingType === 'flexible') {
+                    $isFlexible = true;
+                } elseif ($bookingType === 'non_refundable') {
+                    $isFlexible = false;
+                } else {
+                    $isFlexible = $property && $property->refund_policy === 'flexible';
+                }
 
                 // Validate discount info
                 if (!isset($discountInfo['final_amount']) || $discountInfo['final_amount'] <= 0) {
@@ -1635,11 +1676,21 @@ class ReservationController extends Controller
                 $mainReservation = null; // This will be the first reservation, linked to the payment
                 $reservations = []; // Initialize reservations array
 
-                DB::transaction(function () use ($request, $modelType, $roomObjects, $discountInfo, $transactionId, &$reservations, &$payment, &$mainReservation, $paymentMethod) {
+                DB::transaction(function () use ($request, $modelType, $roomObjects, $discountInfo, $transactionId, &$reservations, &$payment, &$mainReservation, $paymentMethod, $isFlexible, $bookingType) {
                     // Create reservations for each room
                     foreach ($roomObjects as $index => $roomObject) {
                         $roomId = $roomObject['id'];
                         $roomAmount = $roomObject['amount'];
+
+                        // Determine refund policy for this room
+                        $room = HotelRoom::find($roomId);
+                        $roomIsFlexible = $isFlexible;
+                        
+                        // Only apply room-specific policy if booking_type was NOT explicitly provided
+                        if (!$bookingType && $room && $room->refund_policy) {
+                            $roomIsFlexible = $room->refund_policy === 'flexible';
+                        }
+                        $refundPolicy = $roomIsFlexible ? 'flexible' : 'non-refundable';
 
                         // For the first room, create a reservation that will be linked to the payment
                         if ($index === 0) {
@@ -1671,6 +1722,7 @@ class ReservationController extends Controller
                                 'payment_method' => $paymentMethod,
                                 'transaction_id' => $transactionId,
                                 'review_url' => $request->review_url,
+                                'refund_policy' => $refundPolicy,
                             ]);
 
                             $reservations[] = $mainReservation;
@@ -1725,6 +1777,7 @@ class ReservationController extends Controller
                                 'payment_method' => $paymentMethod,
                                 'transaction_id' => $transactionId, // Same transaction ID for all reservations
                                 'review_url' => $request->review_url,
+                                'refund_policy' => $refundPolicy,
                             ]);
 
                             $reservations[] = $reservation;
@@ -1765,23 +1818,39 @@ class ReservationController extends Controller
             $paymentUrl = null;
 
             if ($paymentMethod === 'paypal') {
-                // PayPal Logic
-                $paypal = new Paypal();
-                $paypal->add_field('return', 'https://ashome-eg.com/');
-                $paypal->add_field('cancel_return', 'https://ashome-eg.com/');
-                $paypal->add_field('notify_url', 'https://maroon-fox-767665.hostingersite.com/api/payments/paypal/ipn');
-                $paypal->add_field('item_name', 'Reservation ' . $transactionId);
-                $paypal->add_field('amount', $discountInfo['final_amount']);
-                $paypal->add_field('custom', $transactionId);
-                $paypal->add_field('currency_code', env('PAYPAL_CURRENCY', 'USD'));
-
-                if (isset($request->payment['email'])) {
-                    $paypal->add_field('email', $request->payment['email']);
+                // PayPal Logic (SDK)
+                $paypalSdk = new \App\Libraries\PaypalServerSdk();
+                
+                $currency = system_setting('paypal_currency_code');
+                if (empty($currency)) {
+                     $currency = env('PAYPAL_CURRENCY', 'USD');
                 }
 
-                $paymentUrl = $paypal->get_payment_url();
+                // Return URL points to our backend callback to capture payment
+                $returnUrl = 'https://maroon-fox-767665.hostingersite.com/api/payments/paypal/return';
+                $cancelUrl = 'https://ashome-eg.com/'; 
 
-                Log::info('PayPal payment URL generated', ['url' => $paymentUrl]);
+                $orderData = $paypalSdk->createOrder(
+                    $discountInfo['final_amount'],
+                    $currency,
+                    $returnUrl,
+                    $cancelUrl,
+                    $transactionId
+                );
+
+                if (isset($orderData['success']) && $orderData['success']) {
+                    $paymentUrl = $orderData['approve_link'];
+                    
+                    if (isset($payment)) {
+                         $payment->paymob_order_id = $orderData['id']; // Store PayPal Order ID
+                         $payment->save();
+                    }
+                    Log::info('PayPal Order Created', ['id' => $orderData['id'], 'url' => $paymentUrl]);
+                } else {
+                     Log::error('PayPal Order Creation Failed', ['result' => $orderData]);
+                     // Fallback or error
+                     throw new \Exception('Failed to initiate PayPal payment: ' . ($orderData['message'] ?? 'Unknown error'));
+                }
             } else {
                 // Log before creating payment intent
                 Log::info('About to create payment intent with Paymob', [
@@ -3111,6 +3180,22 @@ As-home Asset Management Team
 
             \App\Services\HelperService::sendMail($data);
 
+            // Send Push Notification to Owner
+            $owner_tokens = Usertokens::where('customer_id', $propertyOwner->id)->pluck('fcm_id')->toArray();
+            if (!empty($owner_tokens)) {
+                $fcmMsg = array(
+                    'title' => $emailTypeData['title'] ?? 'New Booking Request',
+                    'message' => "New booking request for {$propertyName} from {$customer->name}",
+                    'type' => 'vacation_home_booking_request', 
+                    'body' => "New booking request for {$propertyName} from {$customer->name}",
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    'sound' => 'default',
+                    'id' => (string)$reservation->id,
+                    'booking_type' => 'vacation_home_booking_request'
+                );
+                send_push_notification($owner_tokens, $fcmMsg);
+            }
+
             Log::info('Vacation home booking request notification sent to property owner', [
                 'reservation_id' => $reservation->id,
                 'property_owner_email' => $propertyOwner->email,
@@ -3146,6 +3231,13 @@ As-home Asset Management Team
                 ]);
                 return;
             }
+
+            // Determine notification type based on status
+            $isConfirmed = in_array($reservation->status, ['confirmed', 'approved']);
+            $notificationTitle = $isConfirmed ? 'New Booking Confirmed' : 'New Booking Request';
+            $notificationBody = $isConfirmed 
+                ? "New confirmed booking for {$property->title} from {$customer->name}" 
+                : "New booking request for {$property->title} from {$customer->name}";
 
             // Get email template data
             $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes('new_booking_notification');
@@ -3202,16 +3294,33 @@ As-home Asset Management Team
             $data = array(
                 'email_template' => $emailTemplate,
                 'email' => $propertyOwner->email,
-                'title' => $emailTypeData['title'] ?? 'New Flexible Booking Request - Approval Required',
+                'title' => $emailTypeData['title'] ?? ($isConfirmed ? 'New Booking Confirmed' : 'New Flexible Booking Request - Approval Required'),
             );
 
             \App\Services\HelperService::sendMail($data);
+
+            // Send Push Notification to Owner
+            $owner_tokens = Usertokens::where('customer_id', $propertyOwner->id)->pluck('fcm_id')->toArray();
+            if (!empty($owner_tokens)) {
+                $fcmMsg = array(
+                    'title' => $notificationTitle,
+                    'message' => $notificationBody,
+                    'type' => 'reservation_request', 
+                    'body' => $notificationBody,
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    'sound' => 'default',
+                    'id' => (string)$reservation->id,
+                    'booking_type' => 'flexible_booking'
+                );
+                send_push_notification($owner_tokens, $fcmMsg);
+            }
 
             Log::info('New booking notification sent to property owner', [
                 'reservation_id' => $reservation->id,
                 'property_owner_email' => $propertyOwner->email,
                 'property_id' => $property->id,
-                'booking_type' => 'flexible'
+                'booking_type' => 'flexible',
+                'status' => $reservation->status
             ]);
 
         } catch (\Exception $e) {

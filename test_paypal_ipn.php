@@ -10,22 +10,39 @@ $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 
 echo "Starting PayPal IPN Test...\n";
 
-// Transaction ID from the previous test run
-$transactionId = 'RES_1770626758_65_5476';  
+// IDs from the successful reservation test
+$transactionId = 'RES_1770639410_65_3005'; 
+$orderId = 'TEST_ORDER_' . time();
 
-// Simulate PayPal IPN data
+// Simulate PayPal IPN data (PAYMENT.CAPTURE.COMPLETED event)
 $data = [
-    'custom' => $transactionId,
-    'payment_status' => 'Completed',
-    'txn_id' => 'PAYPAL_TEST_TXN_' . time(),
-    'payer_email' => 'sb-test-payer@personal.example.com',
-    'receiver_email' => 'sb-qznyx49181595@business.example.com',
-    'mc_gross' => '100.00',
-    'mc_currency' => 'USD',
+    'event_type' => 'PAYMENT.CAPTURE.COMPLETED',
+    'resource' => [
+        'id' => 'CAPTURE_ID_' . time(),
+        'custom_id' => $transactionId,
+        'amount' => [
+            'value' => '100.00',
+            'currency_code' => 'USD'
+        ],
+        'supplementary_data' => [
+            'related_ids' => [
+                'order_id' => $orderId
+            ]
+        ]
+    ]
 ];
 
 try {
-    $request = Request::create('/api/payments/paypal/ipn', 'POST', $data);
+    // Create a request with JSON content
+    $request = Request::create(
+        '/api/payments/paypal/ipn', 
+        'POST', 
+        [], 
+        [], 
+        [], 
+        ['CONTENT_TYPE' => 'application/json'], 
+        json_encode($data)
+    );
     
     $controller = app(WebhookController::class);
     
