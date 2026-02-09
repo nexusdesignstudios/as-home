@@ -98,10 +98,20 @@ class Paypal
         foreach ($this->fields as $name => $value)
             $str .= form_hidden($name, $value) . "\n";
         $str .= '<p><img src="' . url('assets/images/loader.gif') . '" alt="Please wait.. Loading" title="Please wait.. Loading.." width="140px" /></p>';
-        $str .= '<p>' . $this->submit_btn . '</p>';
-        $str .= form_close() . "\n";
-
+        $str .= '<p style="text-align:center; font-size:20px;">Please wait, your order is being processed and you will be redirected to the paypal website.</p>';
+        $str .= "</form>\n";
         return $str;
+    }
+
+    /**
+     * Get the PayPal payment URL with query parameters
+     * 
+     * @return string
+     */
+    function get_payment_url()
+    {
+        $query = http_build_query($this->fields);
+        return $this->paypal_url . '?' . $query;
     }
 
     function validate_ipn($paypalReturn)

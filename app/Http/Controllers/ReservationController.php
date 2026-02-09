@@ -8,6 +8,7 @@ use App\Models\HotelRoom;
 use App\Models\AvailableDatesHotelRoom;
 use App\Models\Reservation;
 use App\Models\PaymobPayment;
+use App\Libraries\Paypal;
 use Illuminate\Http\Request;
 use App\Services\ReservationService;
 use App\Services\ApiResponseService;
@@ -1252,6 +1253,7 @@ class ReservationController extends Controller
 
         try {
             $customerId = Auth::guard('sanctum')->user()->id;
+            $paymentMethod = $request->payment_method ?? 'paymob';
 
             // Generate a unique transaction ID that's compatible with Paymob
             // Paymob expects merchant_order_id to be a string, so we'll use a timestamp-based ID
@@ -1379,7 +1381,7 @@ class ReservationController extends Controller
                 }
                 // For hotels and single-unit vacation homes, apartment_id and apartment_quantity remain NULL
 
-                DB::transaction(function () use ($request, $modelType, $discountInfo, $transactionId, &$reservation, &$payment, $specialRequests, $apartmentIdForReservation, $apartmentQuantityForReservation) {
+                DB::transaction(function () use ($request, $modelType, $discountInfo, $transactionId, &$reservation, &$payment, $specialRequests, $apartmentIdForReservation, $apartmentQuantityForReservation, $paymentMethod) {
                     // Create temporary reservation to hold the details
                     $reservationData = [
                         'customer_id' => Auth::guard('sanctum')->user()->id,
@@ -1396,7 +1398,7 @@ class ReservationController extends Controller
                         'special_requests' => $specialRequests,
                         'status' => 'pending',
                         'payment_status' => 'unpaid',
-                        'payment_method' => 'paymob',
+                        'payment_method' => $paymentMethod,
                         'transaction_id' => $transactionId,
                         'review_url' => $request->review_url,
                     ];
@@ -1416,7 +1418,7 @@ class ReservationController extends Controller
                         'amount' => $discountInfo['final_amount'],
                         'currency' => config('paymob.currency', 'EGP'),
                         'status' => 'pending',
-                        'payment_method' => 'paymob',
+                        'payment_method' => $paymentMethod,
                         'reservable_id' => $request->reservable_id,
                         'reservable_type' => $modelType,
                         'reservation_id' => $reservation->id,
@@ -1633,7 +1635,7 @@ class ReservationController extends Controller
                 $mainReservation = null; // This will be the first reservation, linked to the payment
                 $reservations = []; // Initialize reservations array
 
-                DB::transaction(function () use ($request, $modelType, $roomObjects, $discountInfo, $transactionId, &$reservations, &$payment, &$mainReservation) {
+                DB::transaction(function () use ($request, $modelType, $roomObjects, $discountInfo, $transactionId, &$reservations, &$payment, &$mainReservation, $paymentMethod) {
                     // Create reservations for each room
                     foreach ($roomObjects as $index => $roomObject) {
                         $roomId = $roomObject['id'];
@@ -1666,7 +1668,7 @@ class ReservationController extends Controller
                                 'special_requests' => $request->special_requests,
                                 'status' => $request->status ?? 'pending',
                                 'payment_status' => $request->payment_status ?? 'unpaid',
-                                'payment_method' => 'paymob',
+                                'payment_method' => $paymentMethod,
                                 'transaction_id' => $transactionId,
                                 'review_url' => $request->review_url,
                             ]);
@@ -1680,7 +1682,7 @@ class ReservationController extends Controller
                                 'amount' => $discountInfo['final_amount'], // Use the total discounted amount
                                 'currency' => config('paymob.currency', 'EGP'),
                                 'status' => 'pending',
-                                'payment_method' => 'paymob',
+                                'payment_method' => $paymentMethod,
                                 'reservable_id' => $roomId,
                                 'reservable_type' => $modelType,
                                 'reservation_id' => $mainReservation->id,
@@ -1720,7 +1722,7 @@ class ReservationController extends Controller
                                 'special_requests' => $request->special_requests,
                                 'status' => $request->status ?? 'pending',
                                 'payment_status' => $request->payment_status ?? 'unpaid',
-                                'payment_method' => 'paymob',
+                                'payment_method' => $paymentMethod,
                                 'transaction_id' => $transactionId, // Same transaction ID for all reservations
                                 'review_url' => $request->review_url,
                             ]);
@@ -1759,63 +1761,86 @@ class ReservationController extends Controller
                 $reservation = $mainReservation;
             }
 
-            // Log before creating payment intent
-            Log::info('About to create payment intent with Paymob', [
-                'transaction_id' => $transactionId,
-                'amount' => $discountInfo['final_amount']
-            ]);
+            $paymentIntent = null;
+            $paymentUrl = null;
 
-            // Create the payment intent outside of the transaction (external API call)
-            $paymentData = [
-                'payment_method' => 'paymob',
-                'paymob_api_key' => config('paymob.api_key'),
-                'paymob_integration_id' => config('paymob.integration_id'),
-                'paymob_iframe_id' => config('paymob.iframe_id'),
-                'paymob_currency' => config('paymob.currency'),
-            ];
+            if ($paymentMethod === 'paypal') {
+                // PayPal Logic
+                $paypal = new Paypal();
+                $paypal->add_field('return', 'https://ashome-eg.com/');
+                $paypal->add_field('cancel_return', 'https://ashome-eg.com/');
+                $paypal->add_field('notify_url', 'https://maroon-fox-767665.hostingersite.com/api/payments/paypal/ipn');
+                $paypal->add_field('item_name', 'Reservation ' . $transactionId);
+                $paypal->add_field('amount', $discountInfo['final_amount']);
+                $paypal->add_field('custom', $transactionId);
+                $paypal->add_field('currency_code', env('PAYPAL_CURRENCY', 'USD'));
 
-            $metadata = [
-                'email' => $request->payment['email'],
-                'first_name' => $request->payment['first_name'],
-                'last_name' => $request->payment['last_name'],
-                'phone' => $request->payment['phone'],
-                'payment_transaction_id' => $transactionId,
-            ];
+                if (isset($request->payment['email'])) {
+                    $paypal->add_field('email', $request->payment['email']);
+                }
 
-            // Create payment service
-            $paymentService = app(\App\Services\Payment\PaymentService::class)->create($paymentData);
+                $paymentUrl = $paypal->get_payment_url();
 
-            // Create payment intent
-            try {
-                $paymentIntent = $paymentService->createAndFormatPaymentIntent($discountInfo['final_amount'], $metadata);
-            } catch (\Exception $paymentIntentException) {
-                Log::error('Failed to create payment intent in createReservationWithPayment', [
-                    'error' => $paymentIntentException->getMessage(),
-                    'trace' => $paymentIntentException->getTraceAsString(),
-                    'amount' => $discountInfo['final_amount'],
-                    'transaction_id' => $transactionId
+                Log::info('PayPal payment URL generated', ['url' => $paymentUrl]);
+            } else {
+                // Log before creating payment intent
+                Log::info('About to create payment intent with Paymob', [
+                    'transaction_id' => $transactionId,
+                    'amount' => $discountInfo['final_amount']
                 ]);
-                throw $paymentIntentException;
-            }
 
-            // Update payment record with Paymob order ID
-            if (isset($payment) && isset($paymentIntent['id'])) {
-                $payment->paymob_order_id = $paymentIntent['id'];
-                $payment->save();
+                // Create the payment intent outside of the transaction (external API call)
+                $paymentData = [
+                    'payment_method' => 'paymob',
+                    'paymob_api_key' => config('paymob.api_key'),
+                    'paymob_integration_id' => config('paymob.integration_id'),
+                    'paymob_iframe_id' => config('paymob.iframe_id'),
+                    'paymob_currency' => config('paymob.currency'),
+                ];
 
-                Log::info('Payment record updated with Paymob order ID', [
-                    'payment_id' => $payment->id,
-                    'transaction_id' => $payment->transaction_id,
-                    'paymob_order_id' => $payment->paymob_order_id,
-                    'reservation_id' => $payment->reservation_id
+                $metadata = [
+                    'email' => $request->payment['email'],
+                    'first_name' => $request->payment['first_name'],
+                    'last_name' => $request->payment['last_name'],
+                    'phone' => $request->payment['phone'],
+                    'payment_transaction_id' => $transactionId,
+                ];
+
+                // Create payment service
+                $paymentService = app(\App\Services\Payment\PaymentService::class)->create($paymentData);
+
+                // Create payment intent
+                try {
+                    $paymentIntent = $paymentService->createAndFormatPaymentIntent($discountInfo['final_amount'], $metadata);
+                } catch (\Exception $paymentIntentException) {
+                    Log::error('Failed to create payment intent in createReservationWithPayment', [
+                        'error' => $paymentIntentException->getMessage(),
+                        'trace' => $paymentIntentException->getTraceAsString(),
+                        'amount' => $discountInfo['final_amount'],
+                        'transaction_id' => $transactionId
+                    ]);
+                    throw $paymentIntentException;
+                }
+
+                // Update payment record with Paymob order ID
+                if (isset($payment) && isset($paymentIntent['id'])) {
+                    $payment->paymob_order_id = $paymentIntent['id'];
+                    $payment->save();
+
+                    Log::info('Payment record updated with Paymob order ID', [
+                        'payment_id' => $payment->id,
+                        'transaction_id' => $payment->transaction_id,
+                        'paymob_order_id' => $payment->paymob_order_id,
+                        'reservation_id' => $payment->reservation_id
+                    ]);
+                }
+
+                // Log after payment intent is created
+                Log::info('Payment intent created with Paymob', [
+                    'transaction_id' => $transactionId,
+                    'payment_intent' => $paymentIntent
                 ]);
             }
-
-            // Log after payment intent is created
-            Log::info('Payment intent created with Paymob', [
-                'transaction_id' => $transactionId,
-                'payment_intent' => $paymentIntent
-            ]);
 
             // Send flexible hotel booking approval email to customer if this is a flexible booking
             // (instant_booking = false for hotel properties)
@@ -1880,6 +1905,7 @@ class ReservationController extends Controller
                 return ApiResponseService::successResponse('Reservation and payment intent created successfully', [
                     'reservation' => $reservation,
                     'payment_intent' => $paymentIntent,
+                    'payment_url' => $paymentUrl,
                     'transaction_id' => $transactionId,
                     'discount_info' => $discountInfo,
                 ]);
@@ -1897,6 +1923,7 @@ class ReservationController extends Controller
                     'reservations' => $reservations ?? [],
                     'main_reservation_id' => $mainReservation->id,
                     'payment_intent' => $paymentIntent,
+                    'payment_url' => $paymentUrl,
                     'transaction_id' => $transactionId,
                     'discount_info' => $discountInfo,
                     'rooms_count' => isset($reservations) ? count($reservations) : 0

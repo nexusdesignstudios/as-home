@@ -12951,6 +12951,30 @@ Best regards,
             
             Log::info('Created reservations count: ' . count($createdReservations));
 
+            // Generate PayPal URL if payment method is paypal
+            $paymentUrl = null;
+            if ($request->payment_method === 'paypal') {
+                try {
+                    $paypal = new Paypal();
+                    $paypal->add_field('return', 'https://ashome-eg.com/');
+                    $paypal->add_field('cancel_return', 'https://ashome-eg.com/');
+                    $paypal->add_field('notify_url', 'https://maroon-fox-767665.hostingersite.com/api/payments/paypal/ipn');
+                    $paypal->add_field('item_name', 'Reservation ' . $transactionId);
+                    $paypal->add_field('amount', $request->amount);
+                    $paypal->add_field('custom', $transactionId);
+                    $paypal->add_field('currency_code', env('PAYPAL_CURRENCY', 'USD'));
+                    
+                    if ($request->customer_email) {
+                        $paypal->add_field('email', $request->customer_email);
+                    }
+                    
+                    $paymentUrl = $paypal->get_payment_url();
+                    Log::info('PayPal payment URL generated in submitPaymentForm', ['url' => $paymentUrl]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to generate PayPal URL in submitPaymentForm', ['error' => $e->getMessage()]);
+                }
+            }
+
             // Send emails to both property owner and customer (if flexible booking)
             try {
                 // 1. Send Payment Form Submission Notification to Property Owner
@@ -13159,7 +13183,8 @@ Best regards,
                     'submission_id' => $submission->id,
                     'reservation_id' => $reservation->id,
                     'status' => $submission->status,
-                    'approval_status' => $reservation->approval_status ?? 'pending'
+                    'approval_status' => $reservation->approval_status ?? 'pending',
+                    'payment_url' => $paymentUrl
                 ]
             ]);
         } catch (Exception $e) {

@@ -19,6 +19,8 @@ use App\Services\HelperService;
 use App\Models\UserPackageLimit;
 use App\Services\ResponseService;
 use App\Models\PaymentTransaction;
+use App\Models\Reservation;
+use App\Models\PaymobPayment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
@@ -128,12 +130,94 @@ class WebhookController extends Controller
             } else {
                 Log::error("Razorpay Signature Not Matched Payment Failed !!!!!!");
             }
+
         } catch (Exception $e) {
             Log::error("Razorpay Webhook : Error occurred", [$e->getMessage() . ' --> ' . $e->getFile() . ' At Line : ' . $e->getLine()]);
             http_response_code(400);
             exit();
         }
     }
+
+    /**
+     * Handle PayPal IPN for Reservations
+     */
+    public function paypalReservationIpn(Request $request)
+    {
+        Log::info("PayPal Reservation IPN Received", $request->all());
+
+        $transactionId = $request->custom;
+        $paymentStatus = $request->payment_status;
+        
+        // Find the payment record
+        $payment = PaymobPayment::where('transaction_id', $transactionId)->first();
+        
+        if (!$payment) {
+            Log::error("PayPal IPN: Payment not found for transaction ID: " . $transactionId);
+            return response()->json(['status' => 'error', 'message' => 'Payment not found'], 404);
+        }
+
+        // Check if already processed
+        if ($payment->status === 'success') {
+            Log::info("PayPal IPN: Payment already processed for transaction ID: " . $transactionId);
+            return response()->json(['status' => 'success', 'message' => 'Already processed']);
+        }
+
+        if ($paymentStatus == 'Completed') {
+            try {
+                DB::beginTransaction();
+
+                // Update Payment Record
+                $payment->status = 'success';
+                $payment->paymob_transaction_id = $request->txn_id; // Store PayPal Transaction ID
+                $payment->save();
+
+                // Update Reservation Record
+                $reservation = Reservation::find($payment->reservation_id);
+                if ($reservation) {
+                    $reservation->payment_status = 'paid';
+                    
+                    // Update reservation status based on property type and settings
+                    $property = $reservation->property;
+                    if ($property) {
+                        if ($property->property_classification == 5 || $property->instant_booking) {
+                            $reservation->status = 'confirmed';
+                        }
+                        // For vacation homes (classification 4) without instant booking, it might remain pending approval
+                    }
+                    
+                    $reservation->save();
+                    
+                    // Log success
+                    Log::info("PayPal IPN: Payment confirmed for reservation " . $reservation->id);
+                    
+                    // Trigger email notifications via ReservationService
+                        try {
+                            $reservationService = app(\App\Services\ReservationService::class);
+                            $reservationService->sendReservationApprovalEmail($reservation);
+                            Log::info("PayPal IPN: Confirmation email sent for reservation " . $reservation->id);
+                        } catch (\Exception $e) {
+                            Log::error("PayPal IPN: Failed to send confirmation email: " . $e->getMessage());
+                        }
+                }
+
+                DB::commit();
+                return response()->json(['status' => 'success']);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error("PayPal IPN Error: " . $e->getMessage());
+                return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+            }
+        } elseif ($paymentStatus == 'Denied' || $paymentStatus == 'Failed') {
+            $payment->status = 'failed';
+            $payment->save();
+            Log::info("PayPal IPN: Payment failed for transaction ID: " . $transactionId);
+        }
+
+        return response()->json(['status' => 'success']);
+    }
+
+
     public function paypal(Request $request)
     {
         Log::info('Paypal Webhook Called');

@@ -323,6 +323,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 /* Reservation Payment Routes */
 Route::post('/payments/paymob/callback', [App\Http\Controllers\PaymobController::class, 'handleCallback']);
+Route::post('/payments/paypal/ipn', [App\Http\Controllers\WebhookController::class, 'paypalReservationIpn']);
 Route::get('/payments/paymob/return', [App\Http\Controllers\PaymobController::class, 'handleReturn']);
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/reservations/{id}/payment', [App\Http\Controllers\ReservationController::class, 'getReservationPayment']);
@@ -369,3 +370,6 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/send-money', [App\Http\Controllers\SendMoneyController::class, 'getAllSendMoney']);
     Route::put('/send-money/{id}/status', [App\Http\Controllers\SendMoneyController::class, 'updateSendMoneyStatus']);
 });
+
+// Test Route for PayPal Reservation
+Route::get('/test-paypal-reservation', [App\Http\Controllers\TestPayPalController::class, 'test']);
