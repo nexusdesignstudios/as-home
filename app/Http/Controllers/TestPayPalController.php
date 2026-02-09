@@ -30,8 +30,8 @@ class TestPayPalController extends Controller
 
         // Prepare request data
         // We use dates far in the future to avoid availability conflicts
-        $checkIn = date('Y-m-d', strtotime('+60 days'));
-        $checkOut = date('Y-m-d', strtotime('+65 days'));
+        $checkIn = date('Y-m-d', strtotime('+120 days'));
+        $checkOut = date('Y-m-d', strtotime('+125 days'));
 
         \Log::info("Testing PayPal with dates: $checkIn to $checkOut");
 

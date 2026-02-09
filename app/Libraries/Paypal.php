@@ -36,7 +36,8 @@ class Paypal
 
     function __construct()
     {
-        $sanbox = env("PAYPAL_SANDBOX") == "1" ? TRUE : FALSE;
+        $sandbox_setting = system_setting('paypal_test_mode');
+        $sanbox = ($sandbox_setting !== '' ? $sandbox_setting : env("PAYPAL_SANDBOX")) == "1" ? TRUE : FALSE;
         $this->paypal_url = ($sanbox == TRUE) ? 'https://www.sandbox.paypal.com/cgi-bin/webscr' : 'https://www.paypal.com/cgi-bin/webscr';
 
         $this->last_error = '';
@@ -47,12 +48,20 @@ class Paypal
 
         $this->button_path = config('paypal_lib_button_path');
 
-        $businessEmail = env('BUSINESS');
+        $businessEmail = system_setting('paypal_business_id');
+        if (empty($businessEmail)) {
+            $businessEmail = env('BUSINESS');
+        }
+        
         $this->add_field('business', $businessEmail);
         $this->add_field('rm', '2');
         $this->add_field('cmd', '_xclick');
 
-        $this->add_field('currency_code', str_replace('"','',env('PAYPAL_CURRENCY')));
+        $currency = system_setting('paypal_currency_code');
+        if (empty($currency)) {
+            $currency = str_replace('"','',env('PAYPAL_CURRENCY'));
+        }
+        $this->add_field('currency_code', $currency);
         $this->add_field('quantity', '1');
         $this->button('Pay Now!');
     }
