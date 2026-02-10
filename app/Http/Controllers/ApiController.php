@@ -5356,6 +5356,17 @@ class ApiController extends Controller
             'unread_messages_count' => (string)$unreadMessagesCount
         );
 
+        // Save Notification to Database
+        Notifications::create([
+            'title' => "New message sent from {$senderName}",
+            'message' => !empty($request->message) ? $request->message : ($chat_message_type == 'audio' ? 'Audio message' : 'File sent'),
+            'type' => 1, // 1 seems to be generic/standard type based on other logic
+            'send_type' => 0, // Specific user
+            'customers_id' => $request->receiver_id,
+            'propertys_id' => $request->property_id,
+            'image' => '' 
+        ]);
+
         $send = send_push_notification($fcm_id, $fcmMsg);
         $response['error'] = false;
         $response['message'] = "Data Store Successfully";
