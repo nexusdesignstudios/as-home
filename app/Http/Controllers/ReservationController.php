@@ -699,6 +699,9 @@ class ReservationController extends Controller
                 } elseif ($propertyClassification == 5) {
                     // Hotel booking - send flexible hotel booking confirmation email
                     $this->reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation);
+                    
+                    // Send notification to property owner
+                    $this->sendNewBookingNotificationToOwner($reservation);
                 }
 
                 ApiResponseService::successResponse('Reservation created successfully', [
@@ -852,6 +855,11 @@ class ReservationController extends Controller
                     // Send aggregated email for flexible reservations
                     if (!empty($flexibleReservations)) {
                         $this->reservationService->sendAggregatedReservationConfirmationEmail($flexibleReservations);
+
+                        // Send notifications for each flexible reservation
+                        foreach ($flexibleReservations as $res) {
+                            $this->sendNewBookingNotificationToOwner($res);
+                        }
                     }
 
                     // Send individual approval emails for non-flexible reservations
