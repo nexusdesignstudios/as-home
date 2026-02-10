@@ -3185,9 +3185,9 @@ As-home Asset Management Team
             if (!empty($owner_tokens)) {
                 $fcmMsg = array(
                     'title' => $emailTypeData['title'] ?? 'New Booking Request',
-                    'message' => "New booking request for {$propertyName} from {$customer->name}",
+                    'message' => "{$customer->name} have just made reservation for {$propertyName}",
                     'type' => 'vacation_home_booking_request', 
-                    'body' => "New booking request for {$propertyName} from {$customer->name}",
+                    'body' => "{$customer->name} have just made reservation for {$propertyName}",
                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                     'sound' => 'default',
                     'id' => (string)$reservation->id,
@@ -3236,8 +3236,8 @@ As-home Asset Management Team
             $isConfirmed = in_array($reservation->status, ['confirmed', 'approved']);
             $notificationTitle = $isConfirmed ? 'New Booking Confirmed' : 'New Booking Request';
             $notificationBody = $isConfirmed 
-                ? "New confirmed booking for {$property->title} from {$customer->name}" 
-                : "New booking request for {$property->title} from {$customer->name}";
+                ? "{$customer->name} have just confirmed booking for {$property->title}" 
+                : "{$customer->name} have just made reservation for {$property->title}";
 
             // Get email template data
             $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes('new_booking_notification');
