@@ -206,6 +206,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::post('delete_inquiry', [ApiController::class, 'delete_inquiry']);
     Route::post('user_interested_property', [ApiController::class, 'user_interested_property']);
     Route::post('add_reports', [ApiController::class, 'add_reports']);
+    Route::post('update_fcm_token', [ApiController::class, 'update_fcm_token']);
     Route::post('add_edit_user_interest', [ApiController::class, 'add_edit_user_interest']);
     /*********************************************************************** */
 
