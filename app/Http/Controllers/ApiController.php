@@ -5201,6 +5201,7 @@ class ApiController extends Controller
     }
     public function send_message(Request $request)
     {
+        Log::info("DEBUG: send_message called with request: " . json_encode($request->all()));
         $validator = Validator::make($request->all(), [
             'sender_id' => 'required',
             'receiver_id' => 'required',

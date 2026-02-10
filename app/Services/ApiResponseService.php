@@ -123,7 +123,9 @@ class ApiResponseService
 
         self::addCorsHeaders($response);
         $response->send();
-        exit();
+        if (!app()->runningInConsole()) {
+            exit();
+        }
     }
 
     private static function addCorsHeaders($response)
@@ -187,7 +189,9 @@ class ApiResponseService
 
         self::addCorsHeaders($response);
         $response->send();
-        exit();
+        if (!app()->runningInConsole()) {
+            exit();
+        }
     }
 
     /**

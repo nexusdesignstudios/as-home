@@ -43,6 +43,7 @@ if (!function_exists('has_permissions')) {
             }
             return true; //User has permission
         }
+        return true; // If user not found in users table (e.g. Customer), allow access
     }
 
 }

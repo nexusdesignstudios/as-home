@@ -123,6 +123,15 @@ if (!function_exists('_attributes_to_string')) {
 function send_push_notification($registrationIDs = array(), $fcmMsg = '')
     {
         try {
+            Log::info('send_push_notification called', [
+                    'count_ids' => count($registrationIDs),
+                    'msg_title' => $fcmMsg['title'] ?? 'N/A',
+                    'msg_type' => $fcmMsg['type'] ?? 'N/A'
+                ]);
+                // TEMP: Print to stderr for CLI testing
+                if (php_sapi_name() === 'cli') {
+                    fwrite(STDERR, "\n[FCM Notification] Title: " . ($fcmMsg['title'] ?? 'N/A') . " | Body: " . ($fcmMsg['body'] ?? 'N/A') . "\n");
+                }
             if (!count($registrationIDs)) {
                 return false;
             }

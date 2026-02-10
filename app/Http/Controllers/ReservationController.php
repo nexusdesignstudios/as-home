@@ -668,6 +668,11 @@ class ReservationController extends Controller
                 
                 // Send appropriate email based on property classification
                 $propertyClassification = $property->getRawOriginal('property_classification');
+
+                if (app()->runningInConsole()) {
+                    echo "\n[Debug] Classification: $propertyClassification, Status: $status, Instant: {$property->instant_booking}\n";
+                }
+
                 if ($propertyClassification == 4) {
                     if ($status === 'confirmed') {
                         // Vacation home with Instant Booking (Cash) - send confirmation email
@@ -695,6 +700,10 @@ class ReservationController extends Controller
                                 'trace' => $e->getTraceAsString()
                             ]);
                         }
+                    } else {
+                        // Instant booking enabled but pending (e.g. awaiting payment)
+                        // Notify owner about the new booking attempt
+                        $this->sendNewBookingNotificationToOwner($reservation);
                     }
                 } elseif ($propertyClassification == 5) {
                     // Hotel booking - send flexible hotel booking confirmation email
@@ -702,6 +711,15 @@ class ReservationController extends Controller
                     
                     // Send notification to property owner
                     $this->sendNewBookingNotificationToOwner($reservation);
+                } else {
+                    if (app()->runningInConsole()) { echo "\n[Debug] Entering generic fallback for Classification $propertyClassification\n"; }
+                    // Generic fallback for other classifications (1, 2, 3, etc.)
+                    // Send notification to property owner
+                    try {
+                        $this->sendNewBookingNotificationToOwner($reservation);
+                    } catch (\Exception $e) {
+                         if (app()->runningInConsole()) { echo "\n[Debug] Exception calling notification: " . $e->getMessage() . "\n"; }
+                    }
                 }
 
                 ApiResponseService::successResponse('Reservation created successfully', [
@@ -866,9 +884,14 @@ class ReservationController extends Controller
                     if (!empty($otherReservations)) {
                         if (count($otherReservations) > 1) {
                             $this->reservationService->sendAggregatedReservationConfirmationEmail($otherReservations);
+                            // Send notifications for each non-flexible reservation
+                            foreach ($otherReservations as $res) {
+                                $this->sendNewBookingNotificationToOwner($res);
+                            }
                         } else {
                             foreach ($otherReservations as $res) {
                                 $this->reservationService->sendReservationApprovalEmail($res);
+                                $this->sendNewBookingNotificationToOwner($res);
                             }
                         }
                     }
@@ -1936,10 +1959,9 @@ class ReservationController extends Controller
                         // Send flexible booking approval email to customer
                         $this->reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);
                         
-                        // Also send notification to property owner about the new booking
-                        $this->sendNewBookingNotificationToOwner($reservation);
+                        // Notification to property owner will be sent below for all reservation types
                         
-                        Log::info('Both emails sent during payment checkout: Flexible booking approval to customer and notification to property owner', [
+                        Log::info('Flexible booking approval email sent during payment checkout', [
                             'reservation_id' => $reservation->id,
                             'customer_id' => $reservation->customer_id,
                             'property_id' => $property->id,
@@ -1948,7 +1970,7 @@ class ReservationController extends Controller
                         ]);
                     } catch (\Exception $e) {
                         // Log email error but don't fail the transaction
-                        Log::error('Failed to send flexible hotel booking emails during payment checkout: ' . $e->getMessage(), [
+                        Log::error('Failed to send flexible hotel booking email during payment checkout: ' . $e->getMessage(), [
                             'reservation_id' => $reservation->id,
                             'property_id' => $property->id,
                             'trace' => $e->getTraceAsString()
@@ -1979,6 +2001,11 @@ class ReservationController extends Controller
 
             // Prepare response based on reservation type
             if ($request->reservable_type === 'property') {
+                // Send notification for Property reservation
+                if (isset($reservation)) {
+                     $this->sendNewBookingNotificationToOwner($reservation);
+                }
+
                 return ApiResponseService::successResponse('Reservation and payment intent created successfully', [
                     'reservation' => $reservation,
                     'payment_intent' => $paymentIntent,
@@ -1996,6 +2023,13 @@ class ReservationController extends Controller
                     throw new \Exception('Failed to create main reservation for hotel room booking');
                 }
                 
+                // Send notifications for all created reservations (Hotel Rooms)
+                if (isset($reservations) && !empty($reservations)) {
+                    foreach ($reservations as $res) {
+                        $this->sendNewBookingNotificationToOwner($res);
+                    }
+                }
+
                 return ApiResponseService::successResponse('Multiple room reservations and payment intent created successfully', [
                     'reservations' => $reservations ?? [],
                     'main_reservation_id' => $mainReservation->id,
@@ -3059,6 +3093,18 @@ The {app_name} Team';
             $propertyOwner = $property->customer;
             $customer = $reservation->customer;
 
+            Log::info('Debug Notification', [
+                'property_id' => $property->id,
+                'owner_id' => $propertyOwner ? $propertyOwner->id : 'null',
+                'customer_id' => $customer ? $customer->id : 'null'
+            ]);
+
+            if (app()->runningInConsole()) {
+                 fwrite(STDERR, "\n[Debug] Vacation Home Request Owner ID: " . ($propertyOwner ? $propertyOwner->id : 'null') . "\n");
+                 $count = $propertyOwner ? Usertokens::where('customer_id', $propertyOwner->id)->count() : 0;
+                 fwrite(STDERR, "[Debug] Owner Tokens Count: " . $count . "\n");
+            }
+
             if (!$propertyOwner || !$propertyOwner->email) {
                 Log::warning('Cannot send vacation home booking request notification: property owner or email not found', [
                     'reservation_id' => $reservation->id,
@@ -3227,10 +3273,24 @@ As-home Asset Management Team
      */
     private function sendNewBookingNotificationToOwner($reservation)
     {
+        if (app()->runningInConsole()) { fwrite(STDERR, "\n[Debug] Start sendNewBookingNotificationToOwner\n"); }
         try {
             $property = $reservation->property;
             $propertyOwner = $property->customer;
             $customer = $reservation->customer;
+
+            if (app()->runningInConsole()) {
+                 fwrite(STDERR, "\n[Debug] Owner ID: " . ($propertyOwner ? $propertyOwner->id : 'null') . "\n");
+                 $count = $propertyOwner ? Usertokens::where('customer_id', $propertyOwner->id)->count() : 0;
+                 fwrite(STDERR, "[Debug] Owner Tokens Count: " . $count . "\n");
+            }
+
+            Log::info('Debug NewBookingNotification', [
+                'property_id' => $property->id,
+                'owner_id' => $propertyOwner ? $propertyOwner->id : 'null',
+                'customer_id' => $customer ? $customer->id : 'null',
+                'owner_tokens_count' => $propertyOwner ? Usertokens::where('customer_id', $propertyOwner->id)->count() : 0
+            ]);
 
             if (!$propertyOwner || !$propertyOwner->email) {
                 Log::warning('Cannot send new booking notification: property owner or email not found', [
@@ -3243,9 +3303,7 @@ As-home Asset Management Team
             // Determine notification type based on status
             $isConfirmed = in_array($reservation->status, ['confirmed', 'approved']);
             $notificationTitle = $isConfirmed ? 'New Booking Confirmed' : 'New Booking Request';
-            $notificationBody = $isConfirmed 
-                ? "{$customer->name} have just confirmed booking for {$property->title}" 
-                : "{$customer->name} have just made reservation for {$property->title}";
+            $notificationBody = "{$customer->name} have just made reservation for {$property->title}";
 
             // Get email template data
             $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes('new_booking_notification');
