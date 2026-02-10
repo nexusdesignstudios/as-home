@@ -23,14 +23,22 @@ class PaypalServerSdk
         // Ensure boolean
         $isSandbox = ($sandbox == '1' || $sandbox === true || $sandbox === 'true');
 
-        $this->clientId = system_setting('paypal_client_id');
+        $this->clientId = trim(system_setting('paypal_client_id'));
         if (empty($this->clientId)) {
             $this->clientId = config('services.paypal.client_id');
         }
+        // Fallback for deployment issues
+        if (empty($this->clientId)) {
+             $this->clientId = 'ASq2qzxzzPMM3uRoN_Res9K84KTeRpOjH34SFqFEs0NJ78VQ4NsQ0htkpStdcWVujti2D6szBRQk8Axe';
+        }
 
-        $this->clientSecret = system_setting('paypal_secret');
+        $this->clientSecret = trim(system_setting('paypal_secret'));
         if (empty($this->clientSecret)) {
             $this->clientSecret = config('services.paypal.secret');
+        }
+        // Fallback for deployment issues
+        if (empty($this->clientSecret)) {
+             $this->clientSecret = 'EApqSoBOhArcqxkcio-flwz2Po1niOvwO3__IW1UNo41KIOOrYbsvcOfAQYe1kYuHFjrFgqooO1BZZyq';
         }
         
         $this->baseUrl = $isSandbox 
