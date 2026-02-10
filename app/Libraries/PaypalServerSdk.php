@@ -11,6 +11,7 @@ class PaypalServerSdk
     protected $clientSecret;
     protected $baseUrl;
     protected $accessToken;
+    public $lastError = null;
 
     public function __construct()
     {
@@ -44,7 +45,8 @@ class PaypalServerSdk
         }
 
         if (empty($this->clientId) || empty($this->clientSecret)) {
-            Log::error('PayPal Auth Failed: Missing Client ID or Secret. Please check your settings or .env configuration.');
+            $this->lastError = 'Missing Client ID or Secret. Please check your settings or .env configuration.';
+            Log::error('PayPal Auth Failed: ' . $this->lastError);
             return null;
         }
 
@@ -61,10 +63,12 @@ class PaypalServerSdk
                 $this->accessToken = $data['access_token'];
                 return $this->accessToken;
             } else {
+                $this->lastError = 'PayPal Auth Response: ' . $response->body();
                 Log::error('PayPal Auth Failed: ' . $response->body());
                 return null;
             }
         } catch (\Exception $e) {
+            $this->lastError = 'Exception: ' . $e->getMessage();
             Log::error('PayPal Auth Exception: ' . $e->getMessage());
             return null;
         }
@@ -74,7 +78,7 @@ class PaypalServerSdk
     {
         $token = $this->getAccessToken();
         if (!$token) {
-            return ['error' => true, 'message' => 'Could not authenticate with PayPal'];
+            return ['error' => true, 'message' => 'Could not authenticate with PayPal: ' . ($this->lastError ?? 'Unknown error')];
         }
 
         $body = [
