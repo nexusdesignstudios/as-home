@@ -137,7 +137,7 @@ class ChatController extends Controller
         }
 
         $fcmMsg = array(
-            'title' => 'Message',
+            'title' => "New message sent from {$username}",
             'message' => $request->message,
             'type' => 'chat',
             'body' => $request->message,

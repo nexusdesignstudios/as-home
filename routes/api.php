@@ -108,6 +108,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::post('before-logout', [ApiController::class, 'beforeLogout']);
     Route::get('get-user-data', [ApiController::class, 'getUserData']);
     Route::get('get_user_recommendation', [ApiController::class, 'get_user_recommendation']);
+    Route::post('update_fcm_token', [ApiController::class, 'update_fcm_token']);
     /*********************************************************************** */
 
     /** Chat */

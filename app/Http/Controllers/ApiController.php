@@ -111,6 +111,33 @@ use App\Models\PropertyCertificate;
 class ApiController extends Controller
 {
 
+    public function update_fcm_token(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'fcm_id' => 'required',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['error' => true, 'message' => $validator->errors()->first()]);
+        }
+
+        try {
+            $user = Auth::guard('sanctum')->user();
+            if (!$user) {
+                return response()->json(['error' => true, 'message' => 'Unauthorized']);
+            }
+
+            Usertokens::updateOrCreate(
+                ['fcm_id' => $request->fcm_id],
+                ['customer_id' => $user->id]
+            );
+
+            return response()->json(['error' => false, 'message' => 'FCM Token Updated Successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => true, 'message' => $e->getMessage()]);
+        }
+    }
+
     //* START :: get_system_settings   *//
     public function get_system_settings(Request $request)
     {
@@ -5303,8 +5330,9 @@ class ApiController extends Controller
         $unreadMessagesCount = Chats::where(['conversation_id' => $conversationId, 'receiver_id' => $request->sender_id, 'is_read' => false])->count();
 
 
+        $senderName = $senderUser ? $senderUser->name : "Admin";
         $fcmMsg = array(
-            'title' => 'Message',
+            'title' => "New message sent from {$senderName}",
             'message' => $request->message,
             'type' => 'chat',
             'body' => $request->message,
