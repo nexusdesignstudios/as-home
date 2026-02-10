@@ -16,7 +16,7 @@ class PaypalServerSdk
     {
         $sandbox = system_setting('paypal_test_mode');
         if ($sandbox === '') {
-            $sandbox = env("PAYPAL_SANDBOX", true);
+            $sandbox = config('services.paypal.sandbox', true);
         }
         
         // Ensure boolean
@@ -24,12 +24,12 @@ class PaypalServerSdk
 
         $this->clientId = system_setting('paypal_client_id');
         if (empty($this->clientId)) {
-            $this->clientId = env('PAYPAL_CLIENT_ID');
+            $this->clientId = config('services.paypal.client_id');
         }
 
         $this->clientSecret = system_setting('paypal_secret');
         if (empty($this->clientSecret)) {
-            $this->clientSecret = env('PAYPAL_SECRET');
+            $this->clientSecret = config('services.paypal.secret');
         }
         
         $this->baseUrl = $isSandbox 
@@ -41,6 +41,11 @@ class PaypalServerSdk
     {
         if ($this->accessToken) {
             return $this->accessToken;
+        }
+
+        if (empty($this->clientId) || empty($this->clientSecret)) {
+            Log::error('PayPal Auth Failed: Missing Client ID or Secret. Please check your settings or .env configuration.');
+            return null;
         }
 
         try {
