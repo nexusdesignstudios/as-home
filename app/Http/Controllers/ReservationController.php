@@ -1857,12 +1857,32 @@ class ReservationController extends Controller
                      $currency = env('PAYPAL_CURRENCY', 'USD');
                 }
 
+                $amount = $discountInfo['final_amount'];
+                
+                // Currency Conversion (EGP to USD)
+                // If the target currency is USD but the system is EGP (implied by amount), convert it.
+                // We assume the amount passed in $discountInfo['final_amount'] is in the system's default currency (EGP).
+                if (strtoupper($currency) === 'USD') {
+                    $systemCurrency = system_setting('currency_code') ?? 'EGP';
+                    if (strtoupper($systemCurrency) !== 'USD') {
+                        $exchangeRate = (float)system_setting('usd_exchange_rate');
+                        if (!$exchangeRate || $exchangeRate <= 0) {
+                            $exchangeRate = 50.0; // Default fallback if not set
+                            Log::warning('USD Exchange Rate not set in system settings, using default: ' . $exchangeRate);
+                        }
+                        $amount = $amount / $exchangeRate;
+                        $amount = round($amount, 2); // Ensure 2 decimal places
+                        Log::info("Converted payment amount: {$discountInfo['final_amount']} $systemCurrency to $amount USD (Rate: $exchangeRate)");
+                    }
+                }
+
                 // Return URL points to our backend callback to capture payment
-                $returnUrl = 'https://maroon-fox-767665.hostingersite.com/api/payments/paypal/return';
-                $cancelUrl = 'https://ashome-eg.com/'; 
+                // Using url() helper to ensure correct domain
+                $returnUrl = url('/api/payments/paypal/return');
+                $cancelUrl = url('/'); 
 
                 $orderData = $paypalSdk->createOrder(
-                    $discountInfo['final_amount'],
+                    $amount,
                     $currency,
                     $returnUrl,
                     $cancelUrl,
