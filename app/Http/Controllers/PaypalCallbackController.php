@@ -144,7 +144,8 @@ class PaypalCallbackController extends Controller
             
             DB::commit();
 
-            return redirect()->to(url('/booking-success?reservation_id=' . $reservation->id));
+            // Redirect to the home page as requested
+            return redirect()->away('https://ashome-eg.com/');
 
         } catch (\Exception $e) {
             DB::rollBack();
