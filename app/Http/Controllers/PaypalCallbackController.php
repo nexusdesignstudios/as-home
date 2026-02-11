@@ -37,7 +37,45 @@ class PaypalCallbackController extends Controller
 
         if (isset($captureResult['error']) && $captureResult['error']) {
             Log::error("PayPal Capture Failed: " . json_encode($captureResult));
-            return redirect()->to(url('/booking-failure?message=Payment Capture Failed'));
+            
+            $errorMessage = "Payment Capture Failed";
+            
+            // Extract detailed error info
+            if (isset($captureResult['details'])) {
+                $details = $captureResult['details'];
+                
+                // Handle JSON object details
+                if (is_array($details)) {
+                    if (isset($details['message'])) {
+                        $errorMessage .= ": " . $details['message'];
+                    }
+                    
+                    // Check for specific issues
+                    if (isset($details['details']) && is_array($details['details'])) {
+                        foreach ($details['details'] as $issue) {
+                            if (isset($issue['issue'])) {
+                                $errorMessage .= " (" . $issue['issue'] . ")";
+                            }
+                            if (isset($issue['description'])) {
+                                $errorMessage .= " - " . $issue['description'];
+                            }
+                        }
+                    }
+                    
+                    // Check for name (e.g. UNPROCESSABLE_ENTITY)
+                    if (isset($details['name'])) {
+                         $errorMessage .= " [" . $details['name'] . "]";
+                    }
+                } 
+                // Handle string details
+                elseif (is_string($details)) {
+                     $errorMessage .= ": " . substr($details, 0, 150);
+                }
+            } elseif (isset($captureResult['message'])) {
+                $errorMessage .= ": " . $captureResult['message'];
+            }
+            
+            return redirect()->to(url('/booking-failure?message=' . urlencode($errorMessage)));
         }
 
         // Success
