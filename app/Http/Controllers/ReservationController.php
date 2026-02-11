@@ -1308,6 +1308,13 @@ class ReservationController extends Controller
             // Generate a unique transaction ID that's compatible with Paymob
             // Paymob expects merchant_order_id to be a string, so we'll use a timestamp-based ID
             $transactionId = 'RES_' . time() . '_' . $customerId . '_' . rand(1000, 9999);
+            
+            if (empty($transactionId)) {
+                Log::error('Failed to generate transaction ID for reservation', ['customer_id' => $customerId]);
+                return ApiResponseService::errorResponse('System error: Failed to generate transaction ID', null, 500);
+            }
+            
+            Log::info('Generated Transaction ID for new reservation', ['transaction_id' => $transactionId, 'customer_id' => $customerId]);
 
             // Handle property reservations
             if ($request->reservable_type === 'property') {
@@ -1755,6 +1762,16 @@ class ReservationController extends Controller
                                 'review_url' => $request->review_url,
                                 'refund_policy' => $refundPolicy,
                             ]);
+
+                            if (!$mainReservation->transaction_id) {
+                                Log::error('Reservation created with empty transaction_id', [
+                                    'reservation_id' => $mainReservation->id,
+                                    'expected_transaction_id' => $transactionId
+                                ]);
+                                // Force update if needed, but this shouldn't happen if fillable is correct
+                                $mainReservation->transaction_id = $transactionId;
+                                $mainReservation->save();
+                            }
 
                             $reservations[] = $mainReservation;
 
