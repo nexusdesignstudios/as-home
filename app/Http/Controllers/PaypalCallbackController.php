@@ -42,7 +42,9 @@ class PaypalCallbackController extends Controller
 
         // Success
         $captureData = $captureResult['data'];
-        $customId = $captureData['purchase_units'][0]['payments']['captures'][0]['custom_id'] ?? null;
+        $customId = $captureData['purchase_units'][0]['payments']['captures'][0]['custom_id'] ?? 
+                    $captureData['purchase_units'][0]['custom_id'] ?? 
+                    null;
         $captureId = $captureData['purchase_units'][0]['payments']['captures'][0]['id'] ?? null;
         
         if (!$customId) {
@@ -77,12 +79,12 @@ class PaypalCallbackController extends Controller
             
             DB::commit();
 
-            return redirect()->to(url('https://ashome-eg.com/booking-success?reservation_id=' . $reservation->id));
+            return redirect()->to(url('/booking-success?reservation_id=' . $reservation->id));
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error("PayPal Callback Exception: " . $e->getMessage());
-            return redirect()->to(url('https://ashome-eg.com/booking-failure?message=System Error'));
+            return redirect()->to(url('/booking-failure?message=System Error'));
         }
     }
 }

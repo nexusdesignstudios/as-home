@@ -138,6 +138,31 @@ class PaypalServerSdk
         }
     }
 
+    public function getOrderDetails($orderId)
+    {
+        $token = $this->getAccessToken();
+        if (!$token) {
+            return ['error' => true, 'message' => 'Could not authenticate with PayPal'];
+        }
+
+        try {
+            $response = Http::withoutVerifying()
+                ->withToken($token)
+                ->withHeaders(['Content-Type' => 'application/json'])
+                ->get("{$this->baseUrl}/v2/checkout/orders/{$orderId}");
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            } else {
+                Log::error('PayPal Get Order Details Failed: ' . $response->body());
+                return ['error' => true, 'message' => 'Failed to get PayPal order details', 'details' => $response->json()];
+            }
+        } catch (\Exception $e) {
+            Log::error('PayPal Get Order Details Exception: ' . $e->getMessage());
+            return ['error' => true, 'message' => 'Exception getting PayPal order details'];
+        }
+    }
+
     public function captureOrder($orderId)
     {
         $token = $this->getAccessToken();
@@ -154,6 +179,27 @@ class PaypalServerSdk
             if ($response->successful()) {
                 return ['success' => true, 'data' => $response->json()];
             } else {
+                // Check if order is already captured
+                $errorData = $response->json();
+                $isAlreadyCaptured = false;
+                
+                if (isset($errorData['details']) && is_array($errorData['details'])) {
+                    foreach ($errorData['details'] as $detail) {
+                        if (isset($detail['issue']) && $detail['issue'] === 'ORDER_ALREADY_CAPTURED') {
+                            $isAlreadyCaptured = true;
+                            break;
+                        }
+                    }
+                }
+
+                if ($isAlreadyCaptured) {
+                    Log::info('PayPal Order Already Captured, fetching details: ' . $orderId);
+                    $orderDetails = $this->getOrderDetails($orderId);
+                    if (isset($orderDetails['success']) && $orderDetails['success'] && $orderDetails['data']['status'] === 'COMPLETED') {
+                         return ['success' => true, 'data' => $orderDetails['data']];
+                    }
+                }
+
                 Log::error('PayPal Capture Failed: ' . $response->body());
                 return ['error' => true, 'message' => 'Failed to capture PayPal order', 'details' => $response->json()];
             }
