@@ -174,7 +174,7 @@ class PaypalServerSdk
             $response = Http::withoutVerifying()
                 ->withToken($token)
                 ->withHeaders(['Content-Type' => 'application/json'])
-                ->post("{$this->baseUrl}/v2/checkout/orders/{$orderId}/capture");
+                ->post("{$this->baseUrl}/v2/checkout/orders/{$orderId}/capture", []);
 
             if ($response->successful()) {
                 return ['success' => true, 'data' => $response->json()];
