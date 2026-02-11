@@ -57,8 +57,35 @@ class PaypalCallbackController extends Controller
         $reservation = Reservation::where('transaction_id', $customId)->first();
 
         if (!$reservation) {
+             Log::warning("PayPal Capture: Reservation not found by transaction_id: $customId. Attempting fallback...");
+             
+             // Fallback: Try to find by parsing custom_id (RES_Timestamp_CustomerID_Random)
+             $parts = explode('_', $customId);
+             if (count($parts) >= 3 && $parts[0] === 'RES') {
+                 $timestamp = $parts[1];
+                 $customerId = $parts[2];
+                 
+                 // Search for a recent pending reservation for this customer
+                 // We look for reservations created within +/- 1 hour of the timestamp
+                 $reservation = Reservation::where('customer_id', $customerId)
+                    ->where('status', 'pending')
+                    ->where('payment_status', 'unpaid')
+                    ->where('created_at', '>=', \Carbon\Carbon::createFromTimestamp($timestamp)->subHour())
+                    ->where('created_at', '<=', \Carbon\Carbon::createFromTimestamp($timestamp)->addHour())
+                    ->latest()
+                    ->first();
+                    
+                 if ($reservation) {
+                     Log::info("PayPal Capture: Found orphan reservation via fallback. ID: " . $reservation->id . ". Linking to transaction: $customId");
+                     $reservation->transaction_id = $customId;
+                     $reservation->save();
+                 }
+             }
+        }
+
+        if (!$reservation) {
              Log::error("PayPal Capture: Reservation not found for transaction: $customId");
-             return redirect()->to(url('/booking-failure?message=Reservation not found'));
+             return redirect()->to(url('/booking-failure?message=Reservation not found. Order ID: ' . $orderId));
         }
 
         // Update Reservation Status
