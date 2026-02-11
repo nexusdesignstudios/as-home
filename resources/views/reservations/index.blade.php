@@ -300,6 +300,7 @@
                         <h6>Status Information</h6>
                         <p><strong>Status:</strong> <span id="modal-status"></span></p>
                         <p><strong>Payment Status:</strong> <span id="modal-payment-status"></span></p>
+                        <p><strong>Payment Method:</strong> <span id="modal-payment-method"></span></p>
                         <p><strong>Created:</strong> <span id="modal-created"></span></p>
                         <p><strong>Updated:</strong> <span id="modal-updated"></span></p>
                     </div>

@@ -140,13 +140,13 @@ class ReservationsAdminController extends Controller
             $query->with([
                 'reservable.property:id,title,property_classification',
                 'reservable.roomType:id,name',
-                'payment:id,reservation_id,status' // Load payment to check if it's online payment
+                'payment:id,reservation_id,status,payment_method' // Load payment to check if it's online payment
             ]);
         } elseif ($type === 'all') {
             // For 'all' type, we need to be more careful with relationship loading
             // Load only the base relationships that exist for all types
             $query->with([
-                'payment:id,reservation_id,status' // Load payment to check if it's online payment
+                'payment:id,reservation_id,status,payment_method' // Load payment to check if it's online payment
             ]);
             // We'll load the specific relationships later based on reservable_type
         }
@@ -448,7 +448,13 @@ class ReservationsAdminController extends Controller
         
         // Determine payment method badge
         $paymentMethod = $reservation->payment_method ?? 'cash';
-        $isOnlinePayment = ($paymentMethod === 'paymob' || $paymentMethod === 'online' || $reservation->payment);
+        
+        // Try to get more specific payment method from PaymobPayment relation if it exists
+        if ($reservation->payment && $reservation->payment->payment_method) {
+             $paymentMethod = $reservation->payment->payment_method;
+        }
+
+        $isOnlinePayment = ($paymentMethod === 'paymob' || $paymentMethod === 'online' || $paymentMethod === 'paypal' || $reservation->payment);
         $paymentMethodBadge = $this->getPaymentMethodBadge($paymentMethod, $isOnlinePayment);
 
         return [
@@ -610,8 +616,19 @@ class ReservationsAdminController extends Controller
      */
     private function getPaymentMethodBadge($paymentMethod, $isOnlinePayment)
     {
+        // Normalize payment method string
+        $method = strtolower($paymentMethod);
+
+        if ($method === 'paypal') {
+            return '<span class="badge bg-primary" style="background-color: #003087 !important;" title="PayPal Payment"><i class="bi bi-paypal"></i> PayPal</span>';
+        }
+        
+        if ($method === 'paymob' || $method === 'online') {
+            return '<span class="badge bg-primary" style="background-color: #0056b3 !important;" title="Paymob Payment"><i class="bi bi-credit-card"></i> Paymob</span>';
+        }
+
         if ($isOnlinePayment) {
-            return '<span class="badge bg-primary" title="Online Payment (Paymob/Gateway)"><i class="bi bi-credit-card"></i> Online</span>';
+            return '<span class="badge bg-primary" title="Online Payment"><i class="bi bi-credit-card"></i> Online</span>';
         } else {
             return '<span class="badge bg-secondary" title="Manual/Cash Payment"><i class="bi bi-cash"></i> Manual</span>';
         }
@@ -971,6 +988,17 @@ class ReservationsAdminController extends Controller
              }
         }
 
+        // Determine payment method badge
+        $paymentMethod = $reservation->payment_method ?? 'cash';
+        
+        // Try to get more specific payment method from PaymobPayment relation if it exists
+        if ($reservation->payment && $reservation->payment->payment_method) {
+             $paymentMethod = $reservation->payment->payment_method;
+        }
+
+        $isOnlinePayment = ($paymentMethod === 'paymob' || $paymentMethod === 'online' || $paymentMethod === 'paypal' || $reservation->payment);
+        $paymentMethodBadge = $this->getPaymentMethodBadge($paymentMethod, $isOnlinePayment);
+
         return response()->json([
             'reservation' => [
                 'id' => $reservation->id,
@@ -985,6 +1013,7 @@ class ReservationsAdminController extends Controller
                 'total_price' => number_format($reservation->total_price, 2) . ' EGP',
                 'status' => $reservation->status,
                 'payment_status' => $reservation->payment_status,
+                'payment_method' => $paymentMethodBadge,
                 'special_requests' => $reservation->special_requests,
                 'transaction_id' => $reservation->transaction_id,
                 'created_at' => $reservation->created_at->format('Y-m-d H:i:s'),
