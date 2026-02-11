@@ -480,6 +480,10 @@ class ReservationController extends Controller
             : 'App\\Models\\HotelRoom';
 
         try {
+            // Generate a unique transaction ID for this booking batch
+            $customerId = Auth::guard('sanctum')->user()->id;
+            $transactionId = 'RES_' . time() . '_' . $customerId . '_' . rand(1000, 9999);
+
             // Handle property reservations
             if ($request->reservable_type === 'property') {
                 // Get the property model
@@ -619,6 +623,7 @@ class ReservationController extends Controller
                     'payment_status' => $isFlexible ? 'unpaid' : 'unpaid', // Keep unpaid for flexible until manual update
                     'payment_method' => $isFlexible ? 'cash' : ($request->payment_method ?? 'online'), // Cash only for flexible reservations
                     'refund_policy' => $isFlexible ? 'flexible' : 'non-refundable', // Store the refund policy
+                    'transaction_id' => $transactionId,
                 ];
 
                 // SAFETY: Only populate apartment_id and apartment_quantity for MULTI-UNIT vacation homes
@@ -825,6 +830,7 @@ class ReservationController extends Controller
                         'payment_status' => $request->payment_status ?? ($roomIsFlexible ? 'unpaid' : 'unpaid'), // Use request payment status if provided
                         'payment_method' => $request->payment_method ?? ($roomIsFlexible ? 'cash' : ($request->payment_method ?? 'online')), // Use request payment method if provided
                         'refund_policy' => $roomIsFlexible ? 'flexible' : 'non-refundable', // Store the refund policy
+                        'transaction_id' => $transactionId,
                     ];
 
                     $reservation = $this->reservationService->createReservation($reservationData, true);
@@ -1991,7 +1997,7 @@ class ReservationController extends Controller
                     ]);
                     $property = null;
                 }
-                if ($property && $property->property_classification == 5 && !$property->instant_booking && $reservation->payment_status !== 'paid') {
+                if ($property && $property->property_classification == 5 && !$property->instant_booking && $reservation->payment_status !== 'paid' && $reservation->refund_policy === 'flexible') {
                     try {
                         // Send flexible booking approval email to customer
                         $this->reservationService->sendFlexibleHotelBookingApprovalEmail($reservation);

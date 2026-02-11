@@ -71,8 +71,7 @@ Route::get('payments/paymob/return', [PaymobController::class, 'handleReturn'])-
 Route::post('payments/paymob/webhook', [PaymobController::class, 'handleWebhook']);
 
 // PayPal Payment Routes
-// Moved to authenticated group
-// Route::get('payments/paypal/return', [PaypalCallbackController::class, 'handleReturn']);
+Route::get('payments/paypal/return', [PaypalCallbackController::class, 'handleReturn']);
 /*********************************************************************** */
 
 /** Confirmation needed */
@@ -84,9 +83,6 @@ Route::get('get_app_settings', [ApiController::class, 'get_app_settings']);
 
 /** Authenticated APIS */
 Route::group(['middleware' => ['auth:sanctum']], function () {
-    // PayPal Return Route (Secured)
-    Route::get('payments/paypal/return', [PaypalCallbackController::class, 'handleReturn']);
-
     Route::post('save-property-question-answers', [ApiController::class, 'savePropertyQuestionAnswers']);
     // Route::post('submit-payment-form', [ApiController::class, 'submitPaymentForm']);
     Route::get('check-user-review-status', [ApiController::class, 'checkUserReviewStatus']);
