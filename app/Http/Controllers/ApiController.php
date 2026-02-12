@@ -850,13 +850,6 @@ class ApiController extends Controller
             
             // Log property classification filter for vacation homes and hotel bookings
             if ($propertyClassification == 4 || $propertyClassification == 5) {
-                // Add reservations for Hotel properties to show in app
-                if ($propertyClassification == 5) {
-                    $property = $property->with(['allReservations' => function($q) {
-                        $q->select('id', 'property_id', 'check_in_date', 'check_out_date', 'status', 'room_id', 'customer_id');
-                    }]);
-                }
-
                 \Log::info('🔍 Property Classification Filter Applied', [
                     'property_classification' => $propertyClassification,
                     'type' => $propertyClassification == 4 ? 'Vacation Homes' : 'Hotel Bookings',
@@ -1488,13 +1481,6 @@ class ApiController extends Controller
             ]);
         }
         
-        // Always load reservations for single property view (by ID or Slug)
-        if (($request->has('id') && !empty($request->id)) || ($request->has('slug_id') && !empty($request->slug_id))) {
-            $property = $property->with(['allReservations' => function($q) {
-                $q->select('id', 'property_id', 'check_in_date', 'check_out_date', 'status', 'room_id', 'customer_id');
-            }]);
-        }
-
         $total = $property->count();
         
                 // Log bedroom filter query results for all bedroom values (not just Studio)
