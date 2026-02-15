@@ -13170,14 +13170,23 @@ Best regards,
                     $isFlexibleBooking = $reservation->booking_type === 'flexible_booking';
                     
                     if ($isFlexibleBooking) {
-                        // Flexible booking - send confirmation email (no approval needed)
-                        $reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation, $siblings);
-                        Log::info('Flexible booking confirmation email sent to customer', [
-                            'reservation_id' => $reservation->id,
-                            'customer_email' => $customer->email,
-                            'booking_type' => 'flexible_booking',
-                            'siblings_count' => count($siblings)
-                        ]);
+                        try {
+                            $reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation, $siblings);
+                            Log::info('Flexible booking confirmation email sent to customer', [
+                                'reservation_id' => $reservation->id,
+                                'customer_email' => $customer->email,
+                                'booking_type' => 'flexible_booking',
+                                'siblings_count' => count($siblings)
+                            ]);
+                        } catch (\Exception $e) {
+                            Log::error('Flexible booking confirmation email failed: ' . $e->getMessage(), [
+                                'reservation_id' => $reservation->id,
+                                'customer_email' => $customer->email,
+                                'booking_type' => 'flexible_booking',
+                                'siblings_count' => count($siblings),
+                                'trace' => $e->getTraceAsString()
+                            ]);
+                        }
                     } elseif ($propertyClassification == 4) {
                         // Vacation home - send pending approval email
                         $reservationService->sendVacationHomePendingApprovalEmail($reservation);
