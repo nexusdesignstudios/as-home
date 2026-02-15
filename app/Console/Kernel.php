@@ -30,6 +30,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\GuaranteedFeedbackRequests::class,
         \App\Console\Commands\GuaranteedCheckoutReminders::class,
         \App\Console\Commands\GuaranteedTaxInvoices::class,
+        \App\Console\Commands\TestFlexibleHotelBookingEmail::class,
         CheckTodayCheckouts::class,
     ];
 
