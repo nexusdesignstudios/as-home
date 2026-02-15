@@ -898,6 +898,11 @@ class PaymobController extends Controller
         return true;
     }
 
+    public function handleWebhook(Request $request)
+    {
+        return $this->handleCallback($request);
+    }
+
     /**
      * Create a payment intent with Paymob for a reservation
      *
@@ -984,7 +989,16 @@ class PaymobController extends Controller
             ApiResponseService::successResponse('Payment intent created successfully', [
                 'payment_intent' => $paymentIntent,
                 'transaction_id' => $transactionId,
-                'reservation_id' => $reservation->id
+                'reservation_id' => $reservation->id,
+                'mobile_payment' => [
+                    'order_id' => $paymentIntent['id'] ?? null,
+                    'payment_key' => $paymentIntent['payment_gateway_response']['data']['payment_key'] ?? null,
+                    'integration_id' => config('paymob.integration_id'),
+                    'amount_cents' => (int) round(($request->amount ?? 0) * 100, 0),
+                    'currency' => config('paymob.currency'),
+                    'callback_url' => config('paymob.callback_url'),
+                    'return_url' => config('paymob.return_url')
+                ]
             ]);
             return;
         } catch (\Exception $e) {
