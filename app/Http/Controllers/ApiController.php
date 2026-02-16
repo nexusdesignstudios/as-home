@@ -10247,9 +10247,16 @@ class ApiController extends Controller
                 $token = HelperService::generateToken();
                 HelperService::storeToken($request->email, $token);
 
-                $rootAdminUrl = env("APP_URL") ?? FacadesRequest::root();
-                $trimmedEmail = ltrim($rootAdminUrl, '/'); // remove / from starting if exists
-                $link = $trimmedEmail . "/reset-password?token=" . $token;
+                // Use FRONTEND_URL if available, otherwise fallback to APP_URL
+                // Ideally, FRONTEND_URL should be set in .env to point to the Next.js app (e.g. http://localhost:3000)
+                $rootUrl = env("FRONTEND_URL");
+                if (empty($rootUrl)) {
+                    $rootUrl = env("APP_URL") ?? FacadesRequest::root();
+                }
+                
+                $trimmedUrl = rtrim($rootUrl, '/'); // remove / from end if exists (fixed from ltrim)
+                $link = $trimmedUrl . "/reset-password?token=" . $token;
+                
                 $data = array(
                     'email' => $request->email,
                     'link' => $link
@@ -10275,7 +10282,8 @@ class ApiController extends Controller
                     'email' => $request->email,
                     'title' => $emailTypeData['title'],
                 );
-                HelperService::sendMail($data);
+                // Send mail with skipPdf = true (3rd argument) as PDF is not needed for password reset
+                HelperService::sendMail($data, false, true);
                 ApiResponseService::successResponse('Reset link sent to your mail successfully');
             } else {
                 ApiResponseService::validationError("No User Found");

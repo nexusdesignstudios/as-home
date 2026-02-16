@@ -154,8 +154,13 @@
                                 {{-- Hotel Specific Fields --}}
             <div class="col-md-12 hotel-fields" style="display: none;">
                 <div class="form-group">
-                    {{ Form::label('refund_policy', __('Refund Policy'), ['class' => 'form-label col-12']) }}
-                    {{ Form::select('refund_policy', ['flexible' => __('Flexible'), 'non-refundable' => __('Non-Refundable')], null, ['class' => 'form-control select2', 'placeholder' => __('Select Refund Policy')]) }}
+                    {{ Form::label('refund_policy_type', __('Refund Policy'), ['class' => 'form-label col-12']) }}
+                    <select name="refund_policy_type" id="refund_policy_type" class="form-select form-control-sm">
+                        <option value="both" selected>{{ __('Both (Flexible & Non-Refundable)') }}</option>
+                        <option value="flexible">{{ __('Flexible Booking') }}</option>
+                        <option value="non-refundable">{{ __('Non-Refundable') }}</option>
+                    </select>
+                    <input type="hidden" name="refund_policy" id="refund_policy_input" value="flexible">
                 </div>
                 <div class="form-group">
                     {{ Form::label('hotel_apartment_type_id', __('Hotel Apartment Type'), ['class' => 'form-label col-12']) }}
@@ -232,8 +237,8 @@
                                     <th>{{ __('Room Type') }}</th>
                                     <th>{{ __('Price/Night') }}</th>
                                     <th>{{ __('Discount %') }}</th>
-                                    <th>{{ __('Non-Refundable %') }}</th>
-                                    <th>{{ __('Refund Policy') }}</th>
+                                    <th class="non-ref-col">{{ __('Non-Refundable %') }}</th>
+                                    <th class="ref-policy-col">{{ __('Refund Policy') }}</th>
                                     <th>{{ __('Weekend Commission') }}</th>
                                     <th>{{ __('Availability Type') }}</th>
                                     <th>{{ __('Description') }}</th>
@@ -974,8 +979,53 @@
             }
         });
 
+        // Handle refund policy type change
+        $('#refund_policy_type').on('change', function() {
+            var type = $(this).val();
+            var refundPolicyInput = $('#refund_policy_input');
+            
+            console.log("Refund Policy Type changed to:", type);
+
+            if (type === 'both') {
+                refundPolicyInput.val('flexible');
+                $('.non-ref-col').show();
+                $('.ref-policy-col').hide(); // Hide per-room policy select as it's implied
+                
+                // Update all existing room rows
+                $('#rooms-container tr').each(function() {
+                    $(this).find('.room-refund-policy').val('flexible');
+                    $(this).find('.non-ref-input').show();
+                });
+            } else if (type === 'flexible') {
+                refundPolicyInput.val('flexible');
+                $('.non-ref-col').hide();
+                $('.ref-policy-col').hide();
+                
+                $('#rooms-container tr').each(function() {
+                    $(this).find('.room-refund-policy').val('flexible');
+                    $(this).find('.non-ref-input').val('').hide();
+                });
+            } else if (type === 'non-refundable') {
+                refundPolicyInput.val('non-refundable');
+                $('.non-ref-col').hide();
+                $('.ref-policy-col').hide();
+                
+                $('#rooms-container tr').each(function() {
+                    $(this).find('.room-refund-policy').val('non-refundable');
+                    $(this).find('.non-ref-input').val('').hide();
+                });
+            }
+        });
+
         // Add new room
         $('#add-room-btn').on('click', function() {
+            var currentPolicyType = $('#refund_policy_type').val();
+            var nonRefDisplay = (currentPolicyType === 'both') ? '' : 'display:none;';
+            var policyDisplay = 'display:none;'; // Always hide policy select in rows now, controlled by global
+            
+            // Determine initial values for the new row
+            var initialPolicy = (currentPolicyType === 'non-refundable') ? 'non-refundable' : 'flexible';
+            
             var newRow = `
                 <tr class="room-row">
                     <td>
@@ -996,13 +1046,13 @@
                     <td>
                         <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][discount_percentage]" value="0" min="0" max="100" step="0.01">
                     </td>
-                    <td>
-                        <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][nonrefundable_percentage]" value="0" min="0" max="100" step="0.01">
+                    <td class="non-ref-col" style="${nonRefDisplay}">
+                        <input type="number" class="form-control non-ref-input" name="hotel_rooms[${roomIndex}][nonrefundable_percentage]" value="" min="0" max="100" step="0.01" placeholder="%" style="${nonRefDisplay}">
                     </td>
-                    <td>
-                        <select class="form-control" name="hotel_rooms[${roomIndex}][refund_policy]">
-                            <option value="flexible">{{ __('Flexible') }}</option>
-                            <option value="non-refundable">{{ __('Non-Refundable') }}</option>
+                    <td class="ref-policy-col" style="${policyDisplay}">
+                        <select class="form-control room-refund-policy" name="hotel_rooms[${roomIndex}][refund_policy]">
+                            <option value="flexible" ${initialPolicy === 'flexible' ? 'selected' : ''}>{{ __('Flexible') }}</option>
+                            <option value="non-refundable" ${initialPolicy === 'non-refundable' ? 'selected' : ''}>{{ __('Non-Refundable') }}</option>
                         </select>
                     </td>
                     <td>
@@ -1040,6 +1090,7 @@
             $('#rooms-container').append(newRow);
             roomIndex++;
         });
+
 
         // Remove room
         $(document).on('click', '.remove-room', function() {

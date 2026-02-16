@@ -257,11 +257,22 @@
                     {{-- Hotel Specific Fields --}}
                     <div class="col-md-12 hotel-fields" style="display: none;">
                         <div class="form-group mandatory">
-                            {{ Form::label('refund_policy', __('Refund Policy'), ['class' => 'form-label col-12']) }}
-                            <select name="refund_policy" class="form-select form-control-sm">
-                                <option value="flexible" {{ isset($list->refund_policy) && $list->refund_policy == 'flexible' ? 'selected' : '' }}>{{ __('Flexible Booking') }}</option>
-                                <option value="non-refundable" {{ isset($list->refund_policy) && $list->refund_policy == 'non-refundable' ? 'selected' : '' }}>{{ __('Non-Refundable') }}</option>
+                            {{ Form::label('refund_policy_type', __('Refund Policy'), ['class' => 'form-label col-12']) }}
+                            @php
+                                $currentPolicy = isset($list->refund_policy) ? $list->refund_policy : 'flexible';
+                                $refundPolicyType = 'both';
+                                if ($currentPolicy == 'non-refundable') {
+                                    $refundPolicyType = 'non-refundable';
+                                } elseif ($currentPolicy == 'flexible') {
+                                     $refundPolicyType = 'both';
+                                }
+                            @endphp
+                            <select name="refund_policy_type" id="refund_policy_type" class="form-select form-control-sm">
+                                <option value="both" {{ $refundPolicyType == 'both' ? 'selected' : '' }}>{{ __('Both (Flexible & Non-Refundable)') }}</option>
+                                <option value="flexible" {{ $refundPolicyType == 'flexible' ? 'selected' : '' }}>{{ __('Flexible Booking') }}</option>
+                                <option value="non-refundable" {{ $refundPolicyType == 'non-refundable' ? 'selected' : '' }}>{{ __('Non-Refundable') }}</option>
                             </select>
+                            <input type="hidden" name="refund_policy" id="refund_policy_input" value="{{ $currentPolicy }}">
                         </div>
                         <div class="form-group">
                             {{ Form::label('hotel_apartment_type_id', __('Hotel Apartment Type'), ['class' => 'form-label col-12']) }}
@@ -558,8 +569,9 @@
                                     <th>{{ __('Room Type') }}</th>
                                     <th>{{ __('Price/Night') }}</th>
                                     <th>{{ __('Discount %') }}</th>
+                                    <th class="non-ref-col" style="{{ $refundPolicyType == 'both' ? '' : 'display:none;' }}">{{ __('Non-Refundable %') }}</th>
                                     <th>{{ __('Availability') }}</th>
-                                    <th>{{ __('Refund Policy') }}</th>
+                                    <th class="ref-policy-col" style="{{ $refundPolicyType == 'both' ? '' : 'display:none;' }}">{{ __('Refund Policy') }}</th>
                                     <th>{{ __('Active') }}</th>
                                     <th>{{ __('Actions') }}</th>
                                 </tr>
@@ -587,6 +599,9 @@
                                             <td>
                                                 <input type="number" class="form-control" name="hotel_rooms[{{ $index }}][discount_percentage]" value="{{ $room->discount_percentage }}" min="0" max="100" step="0.01">
                                             </td>
+                                            <td class="non-ref-col" style="{{ $refundPolicyType == 'both' ? '' : 'display:none;' }}">
+                                                <input type="number" class="form-control non-ref-input" name="hotel_rooms[{{ $index }}][nonrefundable_percentage]" value="{{ $room->nonrefundable_percentage }}" min="0" max="100" step="0.01">
+                                            </td>
                                             <td>
                                                 <select class="form-control availability-type-select" data-index="{{ $index }}">
                                                     <option value="">{{ __('None') }}</option>
@@ -599,8 +614,8 @@
                                                     <i class="bi bi-calendar"></i> {{ __('Select Dates') }}
                                                 </button>
                                             </td>
-                                            <td>
-                                                <select class="form-control" name="hotel_rooms[{{ $index }}][refund_policy]">
+                                            <td class="ref-policy-col" style="{{ $refundPolicyType == 'both' ? '' : 'display:none;' }}">
+                                                <select class="form-control room-refund-policy" name="hotel_rooms[{{ $index }}][refund_policy]">
                                                     <option value="flexible" {{ $room->refund_policy == 'flexible' ? 'selected' : '' }}>{{ __('Flexible') }}</option>
                                                     <option value="non-refundable" {{ $room->refund_policy == 'non-refundable' ? 'selected' : '' }}>{{ __('Non-Refundable') }}</option>
                                                 </select>
@@ -1598,8 +1613,49 @@
                 }
             });
 
+            // Handle Refund Policy Type Change
+            $('#refund_policy_type').on('change', function() {
+                var type = $(this).val();
+                var refundPolicyInput = $('#refund_policy_input');
+                
+                if (type === 'both') {
+                    refundPolicyInput.val('flexible'); // Default for backend compatibility
+                    $('.non-ref-col').show();
+                    $('.ref-policy-col').show();
+                    
+                    // Show inputs in existing rows
+                    $('.non-ref-input').show();
+                    $('.room-refund-policy').closest('td').show();
+                } else if (type === 'flexible') {
+                    refundPolicyInput.val('flexible');
+                    $('.non-ref-col').hide();
+                    $('.ref-policy-col').hide();
+                    
+                    // Update existing rows
+                    $('.room-refund-policy').val('flexible');
+                    $('.non-ref-input').val('').hide();
+                    $('.room-refund-policy').closest('td').hide();
+                } else if (type === 'non-refundable') {
+                    refundPolicyInput.val('non-refundable');
+                    $('.non-ref-col').hide();
+                    $('.ref-policy-col').hide();
+                    
+                    // Update existing rows
+                    $('.room-refund-policy').val('non-refundable');
+                    $('.non-ref-input').val('').hide();
+                    $('.room-refund-policy').closest('td').hide();
+                }
+            });
+
             // Add new room
             $('#add-room-btn').on('click', function() {
+                var refundPolicyType = $('#refund_policy_type').val();
+                var displayStyle = refundPolicyType === 'both' ? '' : 'display:none;';
+                var defaultRefundPolicy = 'flexible';
+                if (refundPolicyType === 'non-refundable') {
+                    defaultRefundPolicy = 'non-refundable';
+                }
+
                 var newRow = `
                     <tr class="room-row">
                         <td>
@@ -1620,6 +1676,9 @@
                         <td>
                             <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][discount_percentage]" value="0" min="0" max="100" step="0.01">
                         </td>
+                        <td class="non-ref-col" style="${displayStyle}">
+                            <input type="number" class="form-control non-ref-input" name="hotel_rooms[${roomIndex}][nonrefundable_percentage]" min="0" max="100" step="0.01" style="${displayStyle}">
+                        </td>
                         <td>
                             <select class="form-control availability-type-select" data-index="${roomIndex}">
                                 <option value="">{{ __('None') }}</option>
@@ -1632,10 +1691,10 @@
                                 <i class="bi bi-calendar"></i> {{ __('Select Dates') }}
                             </button>
                         </td>
-                        <td>
-                            <select class="form-control" name="hotel_rooms[${roomIndex}][refund_policy]">
-                                <option value="flexible">{{ __('Flexible') }}</option>
-                                <option value="non-refundable">{{ __('Non-Refundable') }}</option>
+                        <td class="ref-policy-col" style="${displayStyle}">
+                            <select class="form-control room-refund-policy" name="hotel_rooms[${roomIndex}][refund_policy]">
+                                <option value="flexible" ${defaultRefundPolicy == 'flexible' ? 'selected' : ''}>{{ __('Flexible') }}</option>
+                                <option value="non-refundable" ${defaultRefundPolicy == 'non-refundable' ? 'selected' : ''}>{{ __('Non-Refundable') }}</option>
                             </select>
                         </td>
                         <td class="text-center">
