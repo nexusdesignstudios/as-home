@@ -129,7 +129,10 @@ class ApiController extends Controller
 
             Usertokens::updateOrCreate(
                 ['fcm_id' => $request->fcm_id],
-                ['customer_id' => $user->id]
+                [
+                    'customer_id' => $user->id,
+                    'api_token' => $request->header('Authorization') ?? 'N/A'
+                ]
             );
 
             return response()->json(['error' => false, 'message' => 'FCM Token Updated Successfully']);
@@ -10299,6 +10302,33 @@ class ApiController extends Controller
             } else {
                 ApiResponseService::errorResponse();
             }
+        }
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'token' => 'required',
+            'password' => 'required|confirmed|min:6',
+        ]);
+
+        if ($validator->fails()) {
+            ApiResponseService::validationError($validator->errors()->first());
+        }
+
+        $email = HelperService::verifyToken($request->token);
+        if ($email) {
+            $user = Customer::where('email', $email)->where('logintype', 3)->first();
+            if ($user) {
+                $user->password = Hash::make($request->password);
+                $user->save();
+                HelperService::expireToken($email);
+                ApiResponseService::successResponse('Password reset successfully');
+            } else {
+                ApiResponseService::validationError('User not found');
+            }
+        } else {
+            ApiResponseService::validationError('Invalid or expired token');
         }
     }
 

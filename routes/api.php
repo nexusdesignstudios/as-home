@@ -36,6 +36,7 @@ Route::post('user_signup', [ApiController::class, 'user_signup']);
 Route::post('user-register', [ApiController::class, 'userRegister']);
 
 Route::get('forgot-password', [ApiController::class, 'forgotPassword']);
+Route::post('reset-password', [ApiController::class, 'resetPassword']);
 /*********************************************************************** */
 
 /** Others */
