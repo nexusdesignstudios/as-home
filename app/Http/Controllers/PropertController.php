@@ -1269,7 +1269,7 @@ class PropertController extends Controller
 
                 if ($request->hasfile('gallery_images')) {
                     foreach ($request->file('gallery_images') as $file) {
-                        $name = microtime(true) . '.' . $file->extension();
+                        $name = microtime(true) . '_' . uniqid() . '.' . $file->extension();
                         $file->move($destinationPath, $name);
 
                         PropertyImages::create([

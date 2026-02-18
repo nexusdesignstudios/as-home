@@ -1412,6 +1412,20 @@
                 storeAsFile: true,
 
             });
+
+            $('#filepond2').filepond({
+                credits: null,
+                allowFileSizeValidation: "true",
+                maxFileSize: '5000KB',
+                labelMaxFileSizeExceeded: 'File is too large',
+                labelMaxFileSize: 'Maximum file size is {filesize}',
+                allowFileTypeValidation: true,
+                acceptedFileTypes: ['image/*'],
+                labelFileTypeNotAllowed: 'File of invalid type',
+                fileValidateTypeLabelExpectedTypes: 'Expects {allButLastType} or {lastType}',
+                storeAsFile: true,
+                allowMultiple: true,
+            });
         });
         $("#title").on('keyup',function(e){
             let title = $(this).val();
