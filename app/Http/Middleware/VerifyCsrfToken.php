@@ -16,7 +16,6 @@ class VerifyCsrfToken extends Middleware
         '/webhook/razorpay',
         '/webhook/paystack',
         '/webhook/paypal',
-        '/webhook/stripe',
         '/webhook/flutterwave',
                 '/InApp/Appstore',
 

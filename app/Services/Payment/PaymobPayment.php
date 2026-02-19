@@ -5,6 +5,7 @@ namespace App\Services\Payment;
 use Throwable;
 use RuntimeException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class PaymobPayment implements PaymentInterface
 {
@@ -66,17 +67,17 @@ class PaymobPayment implements PaymentInterface
             $data = [
                 'auth_token' => $token,
                 'delivery_needed' => false,
-                'amount_cents' => $amountCents,
+                'amount_cents' => (string)$amountCents,
                 'currency' => $this->currencyCode,
                 'merchant_order_id' => (string) ($metadata['payment_transaction_id'] ?? time()),
                 'items' => []
             ];
 
-            file_put_contents(storage_path('logs/paymob_debug.log'), "Create Order Request: " . print_r($data, true) . PHP_EOL, FILE_APPEND);
+            Log::info("Paymob Create Order Request:", $data);
 
             $response = Http::post($this->baseUrl . '/ecommerce/orders', $data);
 
-            file_put_contents(storage_path('logs/paymob_debug.log'), "Create Order Response: " . $response->body() . PHP_EOL, FILE_APPEND);
+            Log::info("Paymob Create Order Response: " . $response->body());
 
             if ($response->successful()) {
                 return $response->json();

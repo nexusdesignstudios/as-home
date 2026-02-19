@@ -968,30 +968,6 @@ function store_image($file, $path, $subdir = null)
                     's3Key' => $s3Key,
                     'objectUrl' => $result['ObjectURL'],
                 ]);
-                $s3Key = trim($relativeDir, '/') . '/' . $filename;
-                $exists = null;
-                try {
-                    $exists = Storage::disk('s3')->exists($s3Key);
-                } catch (\Throwable $e) {
-                    Log::warning('store_image: S3 exists check failed', [
-                        'key' => $s3Key,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-                $sampleList = null;
-                try {
-                    $sampleList = array_slice(Storage::disk('s3')->files(trim($relativeDir, '/')), 0, 5);
-                } catch (\Throwable $e) {
-                    Log::warning('store_image: S3 list files failed', [
-                        'prefix' => trim($relativeDir, '/'),
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-                Log::info('store_image: S3 upload complete', [
-                    'key' => $s3Key,
-                    'exists' => $exists,
-                    'sampleList' => $sampleList,
-                ]);
             } catch (\Throwable $e) {
                 Log::error('S3 upload failed in store_image', [
                     'relativeDir' => $relativeDir,
@@ -1001,7 +977,24 @@ function store_image($file, $path, $subdir = null)
                 throw $e;
             }
         } else {
-            throw new Exception('S3 disk is required for file uploads');
+            // Local storage fallback
+            try {
+                $destinationPath = public_path($relativeDir);
+                if (!file_exists($destinationPath)) {
+                    mkdir($destinationPath, 0755, true);
+                }
+                $file->move($destinationPath, $filename);
+                Log::info('store_image: local upload complete', [
+                    'path' => $destinationPath . '/' . $filename,
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('Local upload failed in store_image', [
+                    'directory' => $relativeDir,
+                    'filename' => $filename,
+                    'error' => $e->getMessage(),
+                ]);
+                throw $e;
+            }
         }
 
         return $filename;

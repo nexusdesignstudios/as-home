@@ -392,7 +392,7 @@
   "Enter Your Email": "Enter Your Email",
   "Enter Your Number": "Enter Your Number",
   "Enter address": "Enter address",
-  "Stripe:": "Stripe:",
+
   "payment": "Payment",
   "pay": "Pay",
   "free": "Free",
@@ -679,7 +679,7 @@
   "resendVerificationCode": "Resend Verification Code",
   "upcomingOrUnderConstruction": "Upcoming/Under Construction",
   "yourProjectHasBeenAdded": "Your project has been added and is pending review. The admin will enable it once the review is complete.",
-  "pay_with_stripe": "Pay With Stripe",
+
   "processing": "Processing...",
   "rejectReason": "Reject Reason",
   "premiumProperty": "Premium Property",
@@ -741,7 +741,7 @@
   "loadMore": "Load More",
   "selectPaymentMethod": "Select Payment Method",
   "chooseYourPreferredPaymentMethod": "Choose your preferred payment method",
-  "payWithStripe": "Pay securely with Stripe",
+
   "payWithRazorpay": "Pay with Razorpay",
   "payWithPaypal": "Pay with PayPal",
   "payWithPaystack": "Pay with Paystack",

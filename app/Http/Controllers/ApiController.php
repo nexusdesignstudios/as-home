@@ -7476,7 +7476,7 @@ class ApiController extends Controller
     {
         try {
             // Types for web requirement only
-            $types = array('company_name', 'currency_symbol', 'default_language', 'number_with_suffix', 'web_maintenance_mode', 'company_tel', 'company_tel2', 'system_version', 'web_favicon', 'web_logo', 'web_footer_logo', 'web_placeholder_logo', 'company_email', 'latitude', 'longitude', 'company_address', 'system_color', 'svg_clr', 'iframe_link', 'facebook_id', 'instagram_id', 'twitter_id', 'youtube_id', 'playstore_id', 'sell_background', 'appstore_id', 'category_background', 'web_maintenance_mod', 'seo_settings', 'company_tel1', 'place_api_key', 'stripe_publishable_key', 'paystack_public_key', 'sell_web_color', 'sell_web_background_color', 'rent_web_color', 'rent_web_background_color', 'about_us', 'terms_conditions', 'privacy_policy', 'number_with_otp_login', 'social_login', 'distance_option', 'otp_service_provider', 'text_property_submission', 'auto_approve', 'verification_required_for_user', 'allow_cookies', 'currency_code', 'bank_details', 'schema_for_deeplink', 'min_radius_range', 'max_radius_range', 'google_analytics_id');
+            $types = array('company_name', 'currency_symbol', 'default_language', 'number_with_suffix', 'web_maintenance_mode', 'company_tel', 'company_tel2', 'system_version', 'web_favicon', 'web_logo', 'web_footer_logo', 'web_placeholder_logo', 'company_email', 'latitude', 'longitude', 'company_address', 'system_color', 'svg_clr', 'iframe_link', 'facebook_id', 'instagram_id', 'twitter_id', 'youtube_id', 'playstore_id', 'sell_background', 'appstore_id', 'category_background', 'web_maintenance_mod', 'seo_settings', 'company_tel1', 'place_api_key', 'paystack_public_key', 'sell_web_color', 'sell_web_background_color', 'rent_web_color', 'rent_web_background_color', 'about_us', 'terms_conditions', 'privacy_policy', 'number_with_otp_login', 'social_login', 'distance_option', 'otp_service_provider', 'text_property_submission', 'auto_approve', 'verification_required_for_user', 'allow_cookies', 'currency_code', 'bank_details', 'schema_for_deeplink', 'min_radius_range', 'max_radius_range', 'google_analytics_id');
 
             // Query the Types to Settings Table to get its data
             $result =  Setting::select('type', 'data')->whereIn('type', $types)->get();
@@ -10673,7 +10673,9 @@ class ApiController extends Controller
 
         try {
             $validator = Validator::make($request->all(), [
-                'package_id' => 'required|exists:packages,id',
+                'package_id'        => 'required_without:package_ids',
+                'package_ids'       => 'required_without:package_id|array|min:1',
+                'package_ids.*'     => 'required|exists:packages,id',
                 'file' => 'required|file|mimes:jpeg,png,jpg,pdf,doc,docx',
             ]);
 
@@ -10684,49 +10686,70 @@ class ApiController extends Controller
 
             DB::beginTransaction();
             $loggedInUserId = Auth::user()->id;
-            $packageData = Package::findOrFail($request->package_id);
 
-            // Check for free packages to not allowed
-            if ($packageData->package_type == 'free') {
-                ApiResponseService::validationError("No paid package found");
+            // Determine package IDs
+            $packageIds = [];
+            if ($request->has('package_ids') && is_array($request->package_ids)) {
+                $packageIds = $request->package_ids;
+            } elseif ($request->has('package_id')) {
+                $packageIds = [$request->package_id];
             }
 
-            // Check if user has already paid for this package
-            $paymentTransaction = PaymentTransaction::where(['user_id' => $loggedInUserId, 'package_id' => $packageData->id])->first();
-            if (!empty($paymentTransaction) && ($paymentTransaction->payment_status == 'pending' || $paymentTransaction->payment_status == 'rejected' || $paymentTransaction->payment_status == 'review')) {
-                Log::warning("Pending transaction found for user $loggedInUserId and package $packageData->id. Status: $paymentTransaction->payment_status");
-                // Temporarily bypassing this check for debugging if requested, but logic seems sound. 
-                // However, user might want to retry a rejected one? The condition includes 'rejected'.
-                // If rejected, they should be able to try again. 
-                // CHANGED: Removed 'rejected' from the block condition to allow retries.
-            }
-            if (!empty($paymentTransaction) && ($paymentTransaction->payment_status == 'pending' || $paymentTransaction->payment_status == 'review')) {
-                 ApiResponseService::validationError("Transaction is currently in progress (Status: " . $paymentTransaction->payment_status . ")");
+            $packages = Package::whereIn('id', $packageIds)->get();
+
+            if ($packages->isEmpty()) {
+                 ApiResponseService::validationError("No packages found");
             }
 
-            $paymentTransactionData = PaymentTransaction::create([
-                'user_id'         => $loggedInUserId,
-                'package_id'      => $packageData->id,
-                'amount'          => $packageData->price,
-                'payment_gateway' => null,
-                'payment_status'  => 'review',
-                'order_id'        => Str::uuid(),
-                'payment_type'    => 'bank transfer'
-            ]);
+            // Shared Order ID
+            $sharedOrderId = Str::uuid();
 
             // Upload File
-            $file = $request->file('file');
-            $file = store_image($file, 'BANK_RECEIPT_FILE_PATH');
-            if (empty($file)) {
-                ApiResponseService::validationError("File Upload Failed");
+            $uploadedFile = null;
+            if ($request->hasFile('file')) {
+                $file = $request->file('file');
+                $uploadedFile = store_image($file, 'BANK_RECEIPT_FILE_PATH');
+                if (empty($uploadedFile)) {
+                    ApiResponseService::validationError("File Upload Failed");
+                }
             }
 
-            // Create Bank Receipt File
-            $bankReceiptFile = BankReceiptFile::create([
-                'payment_transaction_id' => $paymentTransactionData->id,
-                'file' => $file,
-            ]);
-            $paymentTransactionData['bank_receipt_file'] = $bankReceiptFile->file;
+            $createdTransactions = [];
+
+            foreach ($packages as $packageData) {
+                // Check for free packages
+                if ($packageData->package_type == 'free') {
+                    ApiResponseService::validationError("Package {$packageData->name} is free and cannot be paid for.");
+                }
+
+                // Check if user has already paid for this package
+                $paymentTransaction = PaymentTransaction::where(['user_id' => $loggedInUserId, 'package_id' => $packageData->id])->first();
+                
+                if (!empty($paymentTransaction) && ($paymentTransaction->payment_status == 'pending' || $paymentTransaction->payment_status == 'review')) {
+                     ApiResponseService::validationError("Transaction is currently in progress for package {$packageData->name} (Status: " . $paymentTransaction->payment_status . ")");
+                }
+
+                $paymentTransactionData = PaymentTransaction::create([
+                    'user_id'         => $loggedInUserId,
+                    'package_id'      => $packageData->id,
+                    'amount'          => $packageData->price,
+                    'payment_gateway' => null,
+                    'payment_status'  => 'review',
+                    'order_id'        => $sharedOrderId,
+                    'payment_type'    => 'bank transfer'
+                ]);
+
+                // Create Bank Receipt File
+                if ($uploadedFile) {
+                    BankReceiptFile::create([
+                        'payment_transaction_id' => $paymentTransactionData->id,
+                        'file' => $uploadedFile,
+                    ]);
+                    $paymentTransactionData['bank_receipt_file'] = $uploadedFile;
+                }
+                
+                $createdTransactions[] = $paymentTransactionData;
+            }
 
             // Get Bank Details
             $bankDetailsFieldsQuery = system_setting('bank_details');
@@ -10737,10 +10760,14 @@ class ApiController extends Controller
             }
             DB::commit();
 
-            ResponseService::successResponse('Transaction Initiated Successfully', $paymentTransactionData, array('bank_details' => $bankDetailsFields));
-        } catch (Exception $e) {
+            ResponseService::successResponse('Transaction Initiated Successfully', $createdTransactions, array('bank_details' => $bankDetailsFields));
+        } catch (\Throwable $e) {
             DB::rollback();
-            ApiResponseService::errorResponse();
+            Log::error("Bank Transfer Error: " . $e->getMessage());
+            if ($e instanceof \Illuminate\Http\Exceptions\HttpResponseException) {
+                throw $e;
+            }
+            ApiResponseService::validationError($e->getMessage());
         }
     }
 

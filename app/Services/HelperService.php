@@ -2940,7 +2940,7 @@ class HelperService
     public static function getActivePaymentGateway()
     {
         try {
-            $paymentMethodTypes = array('stripe_gateway', 'razorpay_gateway', 'paystack_gateway', 'paypal_gateway', 'flutterwave_status', 'paymob_gateway');
+            $paymentMethodTypes = array('razorpay_gateway', 'paystack_gateway', 'paypal_gateway', 'flutterwave_status', 'paymob_gateway');
             $settingsData = Setting::whereIn('type', $paymentMethodTypes)->get();
             foreach ($settingsData as $key => $setting) {
                 if ($setting->data == 1) {
