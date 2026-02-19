@@ -10455,7 +10455,8 @@ class ApiController extends Controller
             'package_id'        => 'required_without:package_ids',
             'package_ids'       => 'required_without:package_id|array|min:1',
             'package_ids.*'     => 'required|exists:packages,id',
-            'platform_type'     => 'required|in:app,web'
+            'platform_type'     => 'required|in:app,web',
+            'payment_method'    => 'nullable|string'
         ]);
         
         if ($validator->fails()) {
@@ -10464,9 +10465,20 @@ class ApiController extends Controller
         
         try {
             DB::beginTransaction();
-            $paymentSettings = HelperService::getActivePaymentDetails();
+            
+            $preferredMethod = $request->input('payment_method');
+            $paymentSettings = HelperService::getActivePaymentDetails($preferredMethod);
+            
             if (empty($paymentSettings)) {
+                if ($preferredMethod) {
+                    ApiResponseService::validationError("Payment method '{$preferredMethod}' is not available or disabled.");
+                }
                 ApiResponseService::validationError("None of payment method is activated");
+            }
+
+            // Check for missing credentials for Paymob to provide better error message
+            if ($paymentSettings['payment_method'] == 'paymob' && empty($paymentSettings['paymob_api_key'])) {
+                ApiResponseService::validationError("Paymob configuration is missing API Key. Please check your settings or .env file.");
             }
 
             // Determine package IDs (support both single and multiple)

@@ -2937,10 +2937,36 @@ class HelperService
         return null;
     }
 
-    public static function getActivePaymentGateway()
+    public static function getActivePaymentGateway($preferred_method = null)
     {
         try {
             $paymentMethodTypes = array('razorpay_gateway', 'paystack_gateway', 'paypal_gateway', 'flutterwave_status', 'paymob_gateway');
+
+            if ($preferred_method) {
+                // Map preferred method to gateway key
+                $gatewayKey = match ($preferred_method) {
+                    'paymob' => 'paymob_gateway',
+                    'razorpay' => 'razorpay_gateway',
+                    'paystack' => 'paystack_gateway',
+                    'paypal' => 'paypal_gateway',
+                    'flutterwave' => 'flutterwave_status',
+                    default => $preferred_method . '_gateway'
+                };
+
+                // Check if this specific gateway is enabled
+                $setting = Setting::where('type', $gatewayKey)->first();
+                if ($setting && $setting->data == 1) {
+                    return $gatewayKey;
+                }
+                // If preferred is not enabled, we might want to return 'none' or fallback.
+                // For strict payment method selection (like from frontend), we should probably fail if not found?
+                // But keeping fallback for now to minimize disruption, or maybe just return 'none' if preferred was requested but not active?
+                // Let's stick to returning 'none' if preferred is requested but not active, to avoid using a wrong gateway.
+                // However, the original code fell back to "first active". 
+                // If I return 'none', ApiController will say "None of payment method is activated". This is correct.
+                return 'none';
+            }
+
             $settingsData = Setting::whereIn('type', $paymentMethodTypes)->get();
             foreach ($settingsData as $key => $setting) {
                 if ($setting->data == 1) {
@@ -2955,10 +2981,10 @@ class HelperService
     }
 
 
-    public static function getActivePaymentDetails()
+    public static function getActivePaymentDetails($preferred_method = null)
     {
         try {
-            $getActivePaymentName = self::getActivePaymentGateway();
+            $getActivePaymentName = self::getActivePaymentGateway($preferred_method);
             switch ($getActivePaymentName) {
                 case 'razorpay_gateway':
                     $types = array('razorpay_gateway', 'razor_key', 'razor_secret', 'razorpay_webhook_url', 'razor_webhook_secret');
@@ -2981,7 +3007,21 @@ class HelperService
                     return array_merge($data, self::getMultipleSettingData($types));
                     break;
                 case 'paymob_gateway':
-                    // Get Paymob settings from config file (since they're stored in .env)
+                    // Try to get from DB first
+                    $types = array('paymob_api_key', 'paymob_integration_id', 'paymob_iframe_id', 'paymob_currency');
+                    $dbSettings = self::getMultipleSettingData($types);
+                    
+                    // If we found DB settings and at least api_key is present, use them
+                    if (!empty($dbSettings) && !empty($dbSettings['paymob_api_key'])) {
+                        $data = array('payment_method' => 'paymob');
+                        // Ensure currency defaults to EGP if missing in DB
+                        if (empty($dbSettings['paymob_currency'])) {
+                            $dbSettings['paymob_currency'] = 'EGP';
+                        }
+                        return array_merge($data, $dbSettings);
+                    }
+
+                    // Fallback to config file (legacy behavior)
                     $data = array(
                         'payment_method' => 'paymob',
                         'paymob_api_key' => config('paymob.api_key'),
