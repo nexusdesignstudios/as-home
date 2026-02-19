@@ -10723,11 +10723,11 @@ class ApiController extends Controller
                 }
 
                 // Check if user has already paid for this package
-                $paymentTransaction = PaymentTransaction::where(['user_id' => $loggedInUserId, 'package_id' => $packageData->id])->first();
+                // $paymentTransaction = PaymentTransaction::where(['user_id' => $loggedInUserId, 'package_id' => $packageData->id])->first();
                 
-                if (!empty($paymentTransaction) && ($paymentTransaction->payment_status == 'pending' || $paymentTransaction->payment_status == 'review')) {
-                     ApiResponseService::validationError("Transaction is currently in progress for package {$packageData->name} (Status: " . $paymentTransaction->payment_status . ")");
-                }
+                // if (!empty($paymentTransaction) && ($paymentTransaction->payment_status == 'pending' || $paymentTransaction->payment_status == 'review')) {
+                //      ApiResponseService::validationError("Transaction is currently in progress for package {$packageData->name} (Status: " . $paymentTransaction->payment_status . ")");
+                // }
 
                 $paymentTransactionData = PaymentTransaction::create([
                     'user_id'         => $loggedInUserId,
