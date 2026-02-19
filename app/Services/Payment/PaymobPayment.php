@@ -63,14 +63,20 @@ class PaymobPayment implements PaymentInterface
             // Round to 2 decimal places first to handle floating point precision issues
             $amountCents = (int) round($amount * 100, 0);
             
-            $response = Http::post($this->baseUrl . '/ecommerce/orders', [
+            $data = [
                 'auth_token' => $token,
                 'delivery_needed' => false,
-                'amount_cents' => (string) $amountCents,
+                'amount_cents' => $amountCents,
                 'currency' => $this->currencyCode,
                 'merchant_order_id' => (string) ($metadata['payment_transaction_id'] ?? time()),
                 'items' => []
-            ]);
+            ];
+
+            file_put_contents(storage_path('logs/paymob_debug.log'), "Create Order Request: " . print_r($data, true) . PHP_EOL, FILE_APPEND);
+
+            $response = Http::post($this->baseUrl . '/ecommerce/orders', $data);
+
+            file_put_contents(storage_path('logs/paymob_debug.log'), "Create Order Response: " . $response->body() . PHP_EOL, FILE_APPEND);
 
             if ($response->successful()) {
                 return $response->json();
@@ -114,16 +120,22 @@ class PaymobPayment implements PaymentInterface
             // Round to 2 decimal places first to handle floating point precision issues
             $amountCents = (int) round($amount * 100, 0);
             
-            $response = Http::post($this->baseUrl . '/acceptance/payment_keys', [
+            $data = [
                 'auth_token' => $token,
-                'amount_cents' => (string) $amountCents,
+                'amount_cents' => $amountCents,
                 'expiration' => 3600,
                 'order_id' => (string) $orderId,
                 'billing_data' => $billingData,
                 'currency' => $this->currencyCode,
                 'integration_id' => $this->integrationId,
                 'lock_order_when_paid' => true
-            ]);
+            ];
+
+            file_put_contents(storage_path('logs/paymob_debug.log'), "Get Payment Key Request: " . print_r($data, true) . PHP_EOL, FILE_APPEND);
+
+            $response = Http::post($this->baseUrl . '/acceptance/payment_keys', $data);
+
+            file_put_contents(storage_path('logs/paymob_debug.log'), "Get Payment Key Response: " . $response->body() . PHP_EOL, FILE_APPEND);
 
             if ($response->successful()) {
                 return $response->json('token');
