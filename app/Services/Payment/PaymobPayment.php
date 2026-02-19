@@ -66,9 +66,9 @@ class PaymobPayment implements PaymentInterface
             $response = Http::post($this->baseUrl . '/ecommerce/orders', [
                 'auth_token' => $token,
                 'delivery_needed' => false,
-                'amount_cents' => $amountCents,
+                'amount_cents' => (string) $amountCents,
                 'currency' => $this->currencyCode,
-                'merchant_order_id' => $metadata['payment_transaction_id'] ?? time(),
+                'merchant_order_id' => (string) ($metadata['payment_transaction_id'] ?? time()),
                 'items' => []
             ]);
 
@@ -116,9 +116,9 @@ class PaymobPayment implements PaymentInterface
             
             $response = Http::post($this->baseUrl . '/acceptance/payment_keys', [
                 'auth_token' => $token,
-                'amount_cents' => $amountCents,
+                'amount_cents' => (string) $amountCents,
                 'expiration' => 3600,
-                'order_id' => $orderId,
+                'order_id' => (string) $orderId,
                 'billing_data' => $billingData,
                 'currency' => $this->currencyCode,
                 'integration_id' => $this->integrationId,

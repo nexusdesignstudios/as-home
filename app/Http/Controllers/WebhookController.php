@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Throwable;
 use Carbon\Carbon;
-use Stripe\Webhook;
 use Razorpay\Api\Api;
 use App\Models\Package;
 use App\Models\Customer;
@@ -182,50 +181,6 @@ class WebhookController extends Controller
             }
         } else {
             Log::debug('input is empty');
-        }
-    }
-    public function stripe(Request $request)
-    {
-        Log::info('Stripe Webhook Called');
-        // Get File Contents
-        $payload = $request->getContent();
-        // Get Webhook Secret From Webhook
-        $secret = system_setting('stripe_webhook_secret_key');
-        // Get Signature from Header
-        $signatureHeader = $_SERVER['HTTP_STRIPE_SIGNATURE'];
-        try {
-            // Create A Event
-            $event = Webhook::constructEvent($payload, $signatureHeader, $secret);
-            // Get Transaction ID
-            $transactionID = $event->data->object->id;
-            // Get Payment Transaction ID
-            $paymentTransactionId = $event->data->object->metadata->payment_transaction_id;
-            switch ($event->type) {
-                case "payment_intent.succeeded":
-                    $response = $this->assignPackage($paymentTransactionId,$transactionID);
-                    if ($response['error']) {
-                        Log::error("Stripe Webhook : ", [$response['message']]);
-                    }
-                    http_response_code(200);
-                    break;
-                case 'payment_intent.payment_failed':
-                    $response = $this->failedTransaction($paymentTransactionId);
-                    if ($response['error']) {
-                        Log::error("Stripe Webhook : ", [$response['message']]);
-                    }
-                    http_response_code(200);
-                    break;
-                default:
-                    Log::error('Stripe Webhook : Received unknown event type');
-                    break;
-            }
-            Log::info('Stripe Webhook received Successfully');
-        } catch (\Stripe\Exception\SignatureVerificationException $e) {
-            // Invalid Signature Log
-            return Log::error('Stripe Webhook verification failed');
-        } catch (\Exception $e) {
-            // Other Error Exception
-            return Log::error('Stripe Webhook failed');
         }
     }
     public function flutterwave(Request $request){

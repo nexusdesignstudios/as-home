@@ -81,7 +81,6 @@ Route::get('privacypolicy', [HomeController::class, 'privacy_policy']);
 Route::post('/webhook/razorpay', [WebhookController::class, 'razorpay']);
 Route::post('/webhook/paystack', [WebhookController::class, 'paystack']);
 Route::post('/webhook/paypal', [WebhookController::class, 'paypal']);
-Route::post('/webhook/stripe', [WebhookController::class, 'stripe']);
 Route::post('/webhook/flutterwave', [WebhookController::class, 'flutterwave'])->name('webhook.flutterwave');
 
 Route::get('response/paystack/success', [WebhookController::class, 'paystackSuccessCallback'])->name('paystack.success');
