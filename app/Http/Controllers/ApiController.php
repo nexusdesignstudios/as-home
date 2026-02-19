@@ -8825,9 +8825,31 @@ class ApiController extends Controller
             }
 
             // Sort properties based on the promoted attribute
-            $propertiesData = $expandedProperties->sortByDesc(function ($property) {
-                return $property->promoted;
-            })->values()->filter();
+            if ($request->has('sort_by') && !empty($request->sort_by) && $request->sort_by != 'featured') {
+                $sortBy = $request->sort_by;
+                if ($sortBy == 'price_asc') {
+                    $propertiesData = $expandedProperties->sortBy(function ($property) {
+                        return (float)$property->price;
+                    })->values();
+                } else if ($sortBy == 'price_desc') {
+                    $propertiesData = $expandedProperties->sortByDesc(function ($property) {
+                        return (float)$property->price;
+                    })->values();
+                } else if ($sortBy == 'newest') {
+                    $propertiesData = $expandedProperties->sortByDesc('created_at')->values();
+                } else if ($sortBy == 'oldest') {
+                    $propertiesData = $expandedProperties->sortBy('created_at')->values();
+                } else {
+                    $propertiesData = $expandedProperties->values();
+                }
+            } else {
+                // Default or Featured: Sort by promoted first
+                $propertiesData = $expandedProperties->sortByDesc(function ($property) {
+                    return $property->promoted;
+                })->values();
+            }
+
+            $propertiesData = $propertiesData->filter();
 
             // Adjust total count - count vacation homes with apartments before expansion
             // Use the base query (before ordering/pagination) to count all vacation homes matching filters
