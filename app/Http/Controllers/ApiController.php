@@ -8681,8 +8681,28 @@ class ApiController extends Controller
             // Get total properties
             $totalProperties = $baseQueryForCount->count();
 
+            // Sort By Parameter
+            if ($request->has('sort_by') && !empty($request->sort_by)) {
+                $sortBy = $request->sort_by;
+                if ($sortBy == 'price_asc') {
+                    $propertyQuery = $propertyQuery->clone()->orderBy('price', 'ASC');
+                } else if ($sortBy == 'price_desc') {
+                    $propertyQuery = $propertyQuery->clone()->orderBy('price', 'DESC');
+                } else if ($sortBy == 'newest') {
+                    $propertyQuery = $propertyQuery->clone()->orderBy('created_at', 'DESC');
+                } else if ($sortBy == 'oldest') {
+                    $propertyQuery = $propertyQuery->clone()->orderBy('created_at', 'ASC');
+                } else if ($sortBy == 'featured') {
+                    $propertyQuery = $propertyQuery->clone()
+                        ->withCount(['advertisement' => function ($query) {
+                            $query->where(['status' => 0, 'is_enable' => 1]);
+                        }])
+                        ->orderBy('advertisement_count', 'DESC')
+                        ->orderBy('created_at', 'DESC');
+                }
+            }
             // If Most Viewed Passed then show the property data with Order by on Total Click Descending
-            if ($request->has('most_viewed') && $request->most_viewed == 1) {
+            else if ($request->has('most_viewed') && $request->most_viewed == 1) {
                 $propertyQuery = $propertyQuery->clone()->orderBy('total_click', 'DESC');
             }
             // If Most Liked Passed then show the property data with Order by on Total Click Descending
@@ -13118,6 +13138,81 @@ Best regards,
                     ";
                 }
                 
+                // Calculate Payment Breakdown for Hotel Reservations
+                $paymentBreakdown = '';
+                // Check if property is a hotel (classification 5)
+                // We use getRawOriginal because accessors might transform it
+                $propClassification = $property->getRawOriginal('property_classification');
+                
+                if ($propClassification == 5) {
+                    $taxModel = \App\Models\PropertyTax::where('property_classification', 5)->first();
+                    $taxPercentage = $taxModel ? $taxModel->total_tax_percentage : 0;
+                    
+                    // Individual Tax Components
+                    $serviceChargeRate = $taxModel ? $taxModel->service_charge : 0;
+                    $salesTaxRate = $taxModel ? $taxModel->sales_tax : 0;
+                    $cityTaxRate = $taxModel ? $taxModel->city_tax : 0;
+                    
+                    // Platform commission is 15% for hotels (as per PropertyTax logic)
+                    $platformCommissionRate = 15; 
+                    
+                    $totalGuestPayment = $request->amount;
+                    
+                    // Base Room Revenue = Total / (1 + Tax%)
+                    // Assuming Total Amount includes Tax
+                    if ($taxPercentage > 0) {
+                        $baseRoomRevenue = $totalGuestPayment / (1 + ($taxPercentage / 100));
+                    } else {
+                        $baseRoomRevenue = $totalGuestPayment;
+                    }
+                    
+                    // Calculate individual tax amounts based on Base Room Revenue
+                    $serviceChargeAmount = $baseRoomRevenue * ($serviceChargeRate / 100);
+                    $salesTaxAmount = $baseRoomRevenue * ($salesTaxRate / 100);
+                    $cityTaxAmount = $baseRoomRevenue * ($cityTaxRate / 100);
+                    
+                    $platformCommission = $baseRoomRevenue * ($platformCommissionRate / 100);
+                    $totalNetPayout = $baseRoomRevenue - $platformCommission;
+                    
+                    $paymentBreakdown = "
+                        <div style='margin-top: 20px; margin-bottom: 15px; border-top: 1px solid #eee; padding-top: 15px;'>
+                            <h3 style='font-size: 16px; margin-bottom: 10px; color: #333;'>Payment Breakdown</h3>
+                            <table style='width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 14px;'>
+                                <tbody>
+                                    <tr>
+                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>Total Guest Payment</td>
+                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: right; font-weight: bold;'>" . number_format($totalGuestPayment, 2) . " {$currencySymbol}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>Base Room Revenue</td>
+                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: right;'>" . number_format($baseRoomRevenue, 2) . " {$currencySymbol}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>Platform Commission (15%)</td>
+                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: right; color: #dc3545;'>-" . number_format($platformCommission, 2) . " {$currencySymbol}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>Service Charge ({$serviceChargeRate}%)</td>
+                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: right; color: #dc3545;'>-" . number_format($serviceChargeAmount, 2) . " {$currencySymbol}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>Sales Tax ({$salesTaxRate}%)</td>
+                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: right; color: #dc3545;'>-" . number_format($salesTaxAmount, 2) . " {$currencySymbol}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>City Tax ({$cityTaxRate}%)</td>
+                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: right; color: #dc3545;'>-" . number_format($cityTaxAmount, 2) . " {$currencySymbol}</td>
+                                    </tr>
+                                    <tr style='font-weight: bold; background-color: #f9f9f9;'>
+                                        <td style='padding: 10px; border-top: 2px solid #ddd;'>Net Room Revenue</td>
+                                        <td style='padding: 10px; border-top: 2px solid #ddd; text-align: right; color: #28a745; font-size: 16px;'>" . number_format($totalNetPayout, 2) . " {$currencySymbol}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    ";
+                }
+                
                 $variables = array(
                     'app_name' => env('APP_NAME') ?? 'As-home',
                     'property_owner_name' => $property->customer->name,
@@ -13127,6 +13222,7 @@ Best regards,
                     'property_name' => $property->title,
                     'property_address' => $property->address,
                     'room_type' => $roomType,
+                    'payment_breakdown' => $paymentBreakdown,
                     'check_in_date' => $request->check_in_date,
                     'check_out_date' => $request->check_out_date,
                     'number_of_guests' => $request->number_of_guests,

@@ -705,6 +705,10 @@ class HelperService
                                 'name' => 'submission_date',
                                 'is_condition' => false,
                             ],
+                            [
+                                'name' => 'payment_breakdown',
+                                'is_condition' => true,
+                            ],
                         )
                     );
                 case 'flexible_hotel_booking_approval':
