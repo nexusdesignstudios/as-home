@@ -6025,102 +6025,7 @@ class ApiController extends Controller
         }
         return response()->json($response);
     }
-    public function createPaymentIntent(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'package_id' => 'required',
-        ]);
-        if ($validator->fails()) {
-            return response()->json([
-                'error' => true,
-                'message' => $validator->errors()->first(),
-            ]);
-        }
-        try {
-            $limit = isset($request->limit) ? $request->limit : 10;
-            $current_user = Auth::user()->id;
 
-            $secret_key = system_setting('stripe_secret_key');
-
-            $stripe_currency = system_setting('stripe_currency');
-            $package = Package::find($request->package_id);
-
-            $data = [
-                'amount' => ((int)($package['price'])) * 100,
-                'currency' => $stripe_currency,
-                'description' => $request->description ?? $package->name,
-                'payment_method_types[]' => $request->payment_method,
-                'metadata' => [
-                    'userId' => $current_user,
-                    'packageId' => $request->package_id,
-                ],
-                'shipping' => null
-            ];
-            $headers = [
-                'Authorization' => 'Bearer ' . $secret_key,
-                'Content-Type' => 'application/x-www-form-urlencoded',
-            ];
-            $response = Http::withHeaders($headers)->asForm()->post('https://api.stripe.com/v1/payment_intents', $data);
-            $responseData = $response->json();
-            return response()->json([
-                'data' => $responseData,
-                'message' => 'Intent created.',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => true,
-                'message' => 'An error occurred while processing the payment.',
-            ], 500);
-        }
-    }
-    public function confirmPayment(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'paymentIntentId' => 'required',
-        ]);
-        if ($validator->fails()) {
-            return response()->json([
-                'error' => true,
-                'message' => $validator->errors()->first(),
-            ]);
-        }
-        try {
-
-            $secret_key = system_setting('stripe_secret_key');
-            $headers = [
-                'Authorization' => 'Bearer ' . $secret_key,
-                'Content-Type' => 'application/x-www-form-urlencoded',
-            ];
-            $response = Http::withHeaders($headers)
-                ->get("https://api.stripe.com/v1/payment_intents/{$request->paymentIntentId}");
-            $responseData = $response->json();
-            $statusOfTransaction = $responseData['status'];
-            if ($statusOfTransaction == 'succeeded') {
-                return response()->json([
-                    'message' => 'Transaction successful',
-                    'success' => true,
-                    'status' => $statusOfTransaction,
-                ]);
-            } elseif ($statusOfTransaction == 'pending' || $statusOfTransaction == 'captured') {
-                return response()->json([
-                    'message' => 'Transaction pending',
-                    'success' => true,
-                    'status' => $statusOfTransaction,
-                ]);
-            } else {
-                return response()->json([
-                    'message' => 'Transaction failed',
-                    'success' => false,
-                    'status' => $statusOfTransaction,
-                ]);
-            }
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => true,
-                'message' => 'An error occurred while processing the payment.',
-            ], 500);
-        }
-    }
     public function delete_property(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -10755,6 +10660,17 @@ class ApiController extends Controller
 
     public function initiateBankTransaction(Request $request)
     {
+        Log::info('initiateBankTransaction Request:', $request->all());
+        if ($request->hasFile('file')) {
+            Log::info('File present:', [
+                'name' => $request->file('file')->getClientOriginalName(),
+                'mime' => $request->file('file')->getMimeType(),
+                'size' => $request->file('file')->getSize()
+            ]);
+        } else {
+            Log::info('File missing in request');
+        }
+
         try {
             $validator = Validator::make($request->all(), [
                 'package_id' => 'required|exists:packages,id',
@@ -10762,6 +10678,7 @@ class ApiController extends Controller
             ]);
 
             if ($validator->fails()) {
+                Log::error('Validation Failed:', $validator->errors()->toArray());
                 ApiResponseService::validationError($validator->errors()->first());
             }
 
@@ -10777,7 +10694,14 @@ class ApiController extends Controller
             // Check if user has already paid for this package
             $paymentTransaction = PaymentTransaction::where(['user_id' => $loggedInUserId, 'package_id' => $packageData->id])->first();
             if (!empty($paymentTransaction) && ($paymentTransaction->payment_status == 'pending' || $paymentTransaction->payment_status == 'rejected' || $paymentTransaction->payment_status == 'review')) {
-                ApiResponseService::validationError("Transaction is not completed");
+                Log::warning("Pending transaction found for user $loggedInUserId and package $packageData->id. Status: $paymentTransaction->payment_status");
+                // Temporarily bypassing this check for debugging if requested, but logic seems sound. 
+                // However, user might want to retry a rejected one? The condition includes 'rejected'.
+                // If rejected, they should be able to try again. 
+                // CHANGED: Removed 'rejected' from the block condition to allow retries.
+            }
+            if (!empty($paymentTransaction) && ($paymentTransaction->payment_status == 'pending' || $paymentTransaction->payment_status == 'review')) {
+                 ApiResponseService::validationError("Transaction is currently in progress (Status: " . $paymentTransaction->payment_status . ")");
             }
 
             $paymentTransactionData = PaymentTransaction::create([

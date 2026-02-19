@@ -147,8 +147,6 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
 
     // Payment
     Route::post('flutterwave', [ApiController::class, 'flutterwave']);
-    Route::post('createPaymentIntent', [ApiController::class, 'createPaymentIntent']);
-    Route::post('confirmPayment', [ApiController::class, 'confirmPayment']);
     Route::get('get_payment_settings', [ApiController::class, 'get_payment_settings']);
     Route::get('get_payment_details', [ApiController::class, 'getPaymentTransactionDetails']);
     Route::get('paypal', [ApiController::class, 'paypal']);
