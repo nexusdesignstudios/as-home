@@ -25,6 +25,9 @@ class HotelRoom extends Model
         'nonrefundable_percentage',
         'max_guests',
         'min_guests',
+        'base_guests',
+        'max_guests',
+        'guest_pricing_rules',
         'available_rooms'
     ];
 
@@ -37,6 +40,8 @@ class HotelRoom extends Model
         'nonrefundable_percentage' => 'float',
         'max_guests' => 'integer',
         'min_guests' => 'integer',
+        'base_guests' => 'integer',
+        'guest_pricing_rules' => 'array',
         'available_rooms' => 'integer',
         'available_dates' => 'array'
     ];
@@ -342,5 +347,34 @@ class HotelRoom extends Model
     public function availableDates()
     {
         return $this->hasMany(AvailableDatesHotelRoom::class, 'hotel_room_id');
+    }
+
+    /**
+     * Calculate price based on guest count and pricing rules.
+     * 
+     * @param int $guests
+     * @param float|null $currentBasePrice Optional base price to use instead of model's price_per_night
+     * @return float
+     */
+    public function calculatePrice(int $guests, ?float $currentBasePrice = null): float
+    {
+        $basePrice = $currentBasePrice ?? $this->price_per_night;
+        $baseGuests = $this->base_guests ?? 2;
+        
+        if ($guests == $baseGuests) {
+            return $basePrice;
+        }
+
+        $rules = $this->guest_pricing_rules ?? [];
+        
+        // Rules is array [guest_count => percentage]
+        // e.g. [1 => 90, 3 => 110]
+        
+        if (isset($rules[$guests])) {
+            $percentage = (float) $rules[$guests];
+            return round($basePrice * ($percentage / 100), 2);
+        }
+        
+        return $basePrice;
     }
 }

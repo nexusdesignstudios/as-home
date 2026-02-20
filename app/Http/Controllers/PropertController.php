@@ -138,7 +138,9 @@ class PropertController extends Controller
                 'hotel_rooms.*.weekend_commission' => 'nullable|numeric|min:0|max:100',
                 'hotel_rooms.*.description' => 'nullable|string',
                 'hotel_rooms.*.min_guests' => 'nullable|integer|min:1',
+                'hotel_rooms.*.base_guests' => 'nullable|integer|min:1',
                 'hotel_rooms.*.max_guests' => 'nullable|integer|min:1',
+                'hotel_rooms.*.guest_pricing_rules' => 'nullable|json',
                 'addons_packages'       => 'nullable|array',
                 'addons_packages.*.name' => 'required_with:addons_packages',
                 'addons_packages.*.description' => 'nullable|string',
@@ -465,7 +467,9 @@ class PropertController extends Controller
                             'description' => $room['description'] ?? null,
                             'status' => $room['status'] ?? 1,
                             'max_guests' => isset($room['max_guests']) ? (int)$room['max_guests'] : 4,
-                            'min_guests' => isset($room['min_guests']) ? (int)$room['min_guests'] : 1
+                            'min_guests' => isset($room['min_guests']) ? (int)$room['min_guests'] : 1,
+                            'base_guests' => isset($room['base_guests']) ? (int)$room['base_guests'] : 2,
+                            'guest_pricing_rules' => isset($room['guest_pricing_rules']) ? $room['guest_pricing_rules'] : null
                         ]);
                         }
                     } catch (\Exception $e) {
@@ -747,7 +751,9 @@ class PropertController extends Controller
                     'hotel_rooms.*.nonrefundable_percentage' => 'nullable|numeric|min:0|max:100',
                     'hotel_rooms.*.description' => 'nullable|string',
                     'hotel_rooms.*.min_guests' => 'nullable|integer|min:1',
+                    'hotel_rooms.*.base_guests' => 'nullable|integer|min:1',
                     'hotel_rooms.*.max_guests' => 'nullable|integer|min:1',
+                    'hotel_rooms.*.guest_pricing_rules' => 'nullable|json',
                     'video_link' => ['nullable', function ($attribute, $value, $fail) {
                         if (!empty($value) && !filter_var($value, FILTER_VALIDATE_URL)) {
                             $youtubePattern = '/^(https?\:\/\/)?(www\.youtube\.com|youtu\.be)\/.+$/';
@@ -1367,6 +1373,15 @@ class PropertController extends Controller
                                         $hotelRoom->status = $room['status'] ?? $hotelRoom->status;
                                         $hotelRoom->max_guests = isset($room['max_guests']) ? (int)$room['max_guests'] : $hotelRoom->max_guests;
                                         $hotelRoom->min_guests = isset($room['min_guests']) ? (int)$room['min_guests'] : $hotelRoom->min_guests;
+                                        $hotelRoom->base_guests = isset($room['base_guests']) ? (int)$room['base_guests'] : $hotelRoom->base_guests;
+                                        $guestPricingRules = isset($room['guest_pricing_rules']) ? $room['guest_pricing_rules'] : $hotelRoom->guest_pricing_rules;
+                                        if (is_string($guestPricingRules)) {
+                                            $decoded = json_decode($guestPricingRules, true);
+                                            if (json_last_error() === JSON_ERROR_NONE) {
+                                                $guestPricingRules = $decoded;
+                                            }
+                                        }
+                                        $hotelRoom->guest_pricing_rules = $guestPricingRules;
                                         // Keep original description
                                         if (isset($revertDescriptionsMap[$room['id']])) {
                                             $hotelRoom->description = $revertDescriptionsMap[$room['id']];
@@ -1414,7 +1429,16 @@ class PropertController extends Controller
                                     'description' => $room['description'] ?? null,
                                     'status' => $room['status'] ?? 1,
                                     'max_guests' => isset($room['max_guests']) ? (int)$room['max_guests'] : 4,
-                                    'min_guests' => isset($room['min_guests']) ? (int)$room['min_guests'] : 1
+                                    'min_guests' => isset($room['min_guests']) ? (int)$room['min_guests'] : 1,
+                                    'base_guests' => isset($room['base_guests']) ? (int)$room['base_guests'] : 2,
+                                    'guest_pricing_rules' => (function() use ($room) {
+                                        $rules = isset($room['guest_pricing_rules']) ? $room['guest_pricing_rules'] : null;
+                                        if (is_string($rules)) {
+                                            $decoded = json_decode($rules, true);
+                                            return (json_last_error() === JSON_ERROR_NONE) ? $decoded : $rules;
+                                        }
+                                        return $rules;
+                                    })()
                                 ]);
                             }
                         }

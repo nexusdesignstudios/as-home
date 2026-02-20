@@ -613,9 +613,118 @@
     {!! Form::close() !!}
 @endsection
 @section('script')
+    <!-- Guest Pricing Modal -->
+    <div class="modal fade" id="guestPricingModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ __('Configure Guest Pricing') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="current-room-index">
+                    <div class="alert alert-info">
+                        {{ __('Base Price is set for') }} <span id="modal-base-guests">2</span> {{ __('guests') }}.
+                        {{ __('Set percentage for other guest counts (e.g., 90% for 1 guest, 110% for 3 guests).') }}
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>{{ __('Guest Count') }}</th>
+                                    <th>{{ __('Percentage of Base Price (%)') }}</th>
+                                    <th>{{ __('Estimated Price') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody id="guest-pricing-rows">
+                                <!-- Rows generated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Close') }}</button>
+                    <button type="button" class="btn btn-primary" id="save-guest-pricing">{{ __('Save Changes') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=places&key={{ env('PLACE_API_KEY') }}&callback=initMap" async defer></script>
     <script type="text/javascript">
         $(document).ready(function() {
+            // Guest Pricing Modal Logic
+            $(document).on('click', '.configure-pricing-btn', function() {
+                var index = $(this).data('index');
+                $('#current-room-index').val(index);
+                
+                var row = $(this).closest('tr');
+                var minGuests = parseInt(row.find('input[name="hotel_rooms[' + index + '][min_guests]"]').val()) || 1;
+                var maxGuests = parseInt(row.find('input[name="hotel_rooms[' + index + '][max_guests]"]').val()) || 2;
+                var baseGuests = parseInt(row.find('input[name="hotel_rooms[' + index + '][base_guests]"]').val()) || 2;
+                var basePrice = parseFloat(row.find('input[name="hotel_rooms[' + index + '][price_per_night]"]').val()) || 0;
+                var existingRules = row.find('.guest-pricing-rules-input').val();
+                
+                try {
+                    existingRules = existingRules ? JSON.parse(existingRules) : {};
+                } catch(e) {
+                    existingRules = {};
+                }
+
+                $('#modal-base-guests').text(baseGuests);
+                var tbody = $('#guest-pricing-rows');
+                tbody.empty();
+
+                for (var i = minGuests; i <= maxGuests; i++) {
+                    if (i === baseGuests) continue;
+
+                    var percentage = existingRules[i] || 100;
+                    var price = (basePrice * percentage / 100).toFixed(2);
+
+                    var tr = `
+                        <tr>
+                            <td>${i} {{ __('Guest(s)') }}</td>
+                            <td>
+                                <input type="number" class="form-control pricing-percentage" data-guests="${i}" value="${percentage}" min="0" step="0.01">
+                            </td>
+                            <td>
+                                <span class="estimated-price">${price}</span>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.append(tr);
+                }
+                
+                // Live calculation
+                tbody.on('input', '.pricing-percentage', function() {
+                    var pct = parseFloat($(this).val()) || 0;
+                    var est = (basePrice * pct / 100).toFixed(2);
+                    $(this).closest('tr').find('.estimated-price').text(est);
+                });
+
+                var modal = new bootstrap.Modal(document.getElementById('guestPricingModal'));
+                modal.show();
+            });
+
+            $('#save-guest-pricing').click(function() {
+                var index = $('#current-room-index').val();
+                var rules = {};
+                
+                $('#guest-pricing-rows .pricing-percentage').each(function() {
+                    var guests = $(this).data('guests');
+                    var pct = $(this).val();
+                    rules[guests] = pct;
+                });
+
+                var jsonRules = JSON.stringify(rules);
+                $('input[name="hotel_rooms[' + index + '][guest_pricing_rules]"]').val(jsonRules);
+                
+                // Hide modal
+                var modalEl = document.getElementById('guestPricingModal');
+                var modal = bootstrap.Modal.getInstance(modalEl);
+                modal.hide();
+            });
+
             // $("#category").val($("#category option:first").val()).trigger('change');
 
             $('#facility').hide();
@@ -1041,7 +1150,22 @@
                         <input type="text" class="form-control mt-2 custom-room-type-input" name="hotel_rooms[${roomIndex}][custom_room_type]" style="display:none;" placeholder="{{ __('Enter Room Type Name') }}">
                     </td>
                     <td>
+                        <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][min_guests]" value="1" min="1" required>
+                    </td>
+                    <td>
+                        <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][max_guests]" value="2" min="1" required>
+                    </td>
+                    <td>
+                        <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][base_guests]" value="2" min="1" required>
+                    </td>
+                    <td>
                         <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][price_per_night]" min="0" step="0.01" required>
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-info btn-sm configure-pricing-btn" data-index="${roomIndex}">
+                            <i class="bi bi-gear"></i> {{ __('Configure') }}
+                        </button>
+                        <input type="hidden" name="hotel_rooms[${roomIndex}][guest_pricing_rules]" class="guest-pricing-rules-input">
                     </td>
                     <td>
                         <input type="number" class="form-control" name="hotel_rooms[${roomIndex}][discount_percentage]" value="0" min="0" max="100" step="0.01">

@@ -23,7 +23,8 @@ class HotelRoomController extends Controller
             'room_type_id' => 'nullable|exists:hotel_room_types,id',
             'from_date' => 'required|date_format:Y-m-d',
             'to_date' => 'required|date_format:Y-m-d|after_or_equal:from_date',
-            'property_id' => 'nullable|exists:propertys,id'
+            'property_id' => 'nullable|exists:propertys,id',
+            'guests' => 'nullable|integer|min:1'
         ]);
 
         if ($validator->fails()) {
@@ -57,6 +58,7 @@ class HotelRoomController extends Controller
         $rooms = $query->get();
 
         // Filter rooms based on availability
+        $guests = $request->guests ?? 1;
         $availableRooms = $rooms->filter(function ($room) use ($fromDate, $toDate) {
             // First check if the room has any existing reservations that conflict with the requested dates
             // Check both possible reservable_type values: 'App\\Models\\HotelRoom' and 'hotel_room'
@@ -115,6 +117,52 @@ class HotelRoomController extends Controller
             }
 
             return false;
+        });
+
+        // Calculate dynamic prices for available rooms
+        $availableRooms = $availableRooms->map(function ($room) use ($fromDate, $toDate, $guests) {
+            $totalPrice = 0;
+            $currentDate = $fromDate->copy();
+            $endDate = $toDate->copy();
+            $days = $currentDate->diffInDays($endDate);
+            
+            $roomAvailableDates = $room->available_dates ?? [];
+
+            while ($currentDate->lt($endDate)) {
+                $dateStr = $currentDate->format('Y-m-d');
+                $dailyBasePrice = $room->price_per_night;
+
+                // Check specific date price
+                if (is_array($roomAvailableDates)) {
+                    foreach ($roomAvailableDates as $range) {
+                        if (isset($range['from'], $range['to']) && 
+                            $dateStr >= $range['from'] && 
+                            $dateStr <= $range['to']) {
+                            if (isset($range['price'])) {
+                                $dailyBasePrice = (float)$range['price'];
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // Apply guest pricing
+                if (method_exists($room, 'calculatePrice')) {
+                    $dailyFinalPrice = $room->calculatePrice($guests, $dailyBasePrice);
+                } else {
+                    $dailyFinalPrice = $dailyBasePrice;
+                }
+                
+                $totalPrice += $dailyFinalPrice;
+                $currentDate->addDay();
+            }
+
+            // Update room price information
+            $room->total_price = $totalPrice;
+            $room->calculated_price = $totalPrice;
+            $room->price_per_night = $days > 0 ? round($totalPrice / $days, 2) : $totalPrice;
+            
+            return $room;
         });
 
         return response()->json([
@@ -264,7 +312,9 @@ class HotelRoomController extends Controller
             'available_dates' => 'required|array',
             'weekend_commission' => 'nullable|numeric|min:0|max:100',
             'max_guests' => 'nullable|integer|min:1',
-            'min_guests' => 'nullable|integer|min:1'
+            'min_guests' => 'nullable|integer|min:1',
+            'base_guests' => 'nullable|integer|min:1',
+            'guest_pricing_rules' => 'nullable|array'
         ]);
 
         if ($validator->fails()) {
@@ -338,7 +388,9 @@ class HotelRoomController extends Controller
             'available_dates' => 'nullable|array',
             'weekend_commission' => 'nullable|numeric|min:0|max:100',
             'max_guests' => 'nullable|integer|min:1',
-            'min_guests' => 'nullable|integer|min:1'
+            'min_guests' => 'nullable|integer|min:1',
+            'base_guests' => 'nullable|integer|min:1',
+            'guest_pricing_rules' => 'nullable|array'
         ]);
 
         if ($validator->fails()) {

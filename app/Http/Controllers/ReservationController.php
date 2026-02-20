@@ -804,11 +804,47 @@ class ReservationController extends Controller
                 // All validations passed, create reservations for each room
                 foreach ($roomObjects as $roomObject) {
                     $roomId = $roomObject['id'];
-                    $roomAmount = $roomObject['amount'];
-                    $totalAmount += $roomAmount;
-
+                    
                     // Check individual room refund policy (can override property policy if booking_type not explicit)
                     $room = HotelRoom::find($roomId);
+                    
+                    // Calculate dynamic price based on guests and dates
+                    $calculatedRoomAmount = 0;
+                    $guests = $request->number_of_guests ?? 1;
+                    $currentLoopDate = Carbon::parse($request->check_in_date);
+                    $loopEndDate = Carbon::parse($request->check_out_date);
+                    // Access available_dates via the model accessor which handles DB/JSON merging
+                    $roomAvailableDates = $room->available_dates ?? [];
+
+                    while ($currentLoopDate->lt($loopEndDate)) {
+                        $dateStr = $currentLoopDate->format('Y-m-d');
+                        $dailyBasePrice = $room->price_per_night; // Default fallback
+
+                        // Check if this date falls into any specific price range
+                        if (is_array($roomAvailableDates)) {
+                            foreach ($roomAvailableDates as $range) {
+                                if (isset($range['from'], $range['to']) && 
+                                    $dateStr >= $range['from'] && 
+                                    $dateStr <= $range['to']) {
+                                    if (isset($range['price'])) {
+                                        $dailyBasePrice = (float)$range['price'];
+                                    }
+                                    break; // Found the range for this date
+                                }
+                            }
+                        }
+
+                        // Apply guest pricing rules to the daily base price
+                        $dailyFinalPrice = $room->calculatePrice($guests, $dailyBasePrice);
+                        $calculatedRoomAmount += $dailyFinalPrice;
+
+                        $currentLoopDate->addDay();
+                    }
+                    
+                    // Use the calculated amount instead of client-provided amount
+                    $roomAmount = $calculatedRoomAmount;
+                    $totalAmount += $roomAmount;
+
                     $roomIsFlexible = $isFlexible;
                     
                     // Only apply room-specific policy if booking_type was NOT explicitly provided

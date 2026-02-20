@@ -8334,6 +8334,26 @@ class ApiController extends Controller
                 $propertyQuery = $propertyQuery->clone()->where('city', $request->city);
             }
 
+            // If Min Area and Max Area are passed (Backend Filtering)
+            if (($request->has('min_area') && !empty($request->min_area)) || ($request->has('max_area') && !empty($request->max_area))) {
+                $minArea = $request->has('min_area') && is_numeric($request->min_area) ? (float)$request->min_area : 0;
+                $maxArea = $request->has('max_area') && is_numeric($request->max_area) ? (float)$request->max_area : 999999999;
+
+                $propertyQuery = $propertyQuery->clone()->whereHas('assignParameter', function ($query) use ($minArea, $maxArea) {
+                    $query->whereHas('parameter', function ($q) {
+                        $q->where('name', 'LIKE', '%size%')
+                          ->orWhere('name', 'LIKE', '%area%')
+                          ->orWhere('name', 'LIKE', '%sqm%')
+                          ->orWhere('name', 'LIKE', '%square%');
+                    })
+                    ->where(function($valQuery) use ($minArea, $maxArea) {
+                        // Handle comma-separated values and ensure numeric comparison
+                        $valQuery->whereRaw('CAST(REPLACE(value, ",", "") AS DECIMAL(10,2)) >= ?', [$minArea])
+                                 ->whereRaw('CAST(REPLACE(value, ",", "") AS DECIMAL(10,2)) <= ?', [$maxArea]);
+                    });
+                });
+            }
+
             // If Max Price And Min Price passed
             if ($request->has('min_price') && !empty($request->min_price) && isset($request->max_price) && !empty($request->max_price)) {
                 $minPrice = $request->min_price;
@@ -8685,9 +8705,11 @@ class ApiController extends Controller
             if ($request->has('sort_by') && !empty($request->sort_by)) {
                 $sortBy = $request->sort_by;
                 if ($sortBy == 'price_asc') {
-                    $propertyQuery = $propertyQuery->clone()->orderBy('price', 'ASC');
+                    // Force numeric sorting for price
+                    $propertyQuery = $propertyQuery->clone()->orderByRaw('CAST(price AS DECIMAL(15,2)) ASC');
                 } else if ($sortBy == 'price_desc') {
-                    $propertyQuery = $propertyQuery->clone()->orderBy('price', 'DESC');
+                    // Force numeric sorting for price
+                    $propertyQuery = $propertyQuery->clone()->orderByRaw('CAST(price AS DECIMAL(15,2)) DESC');
                 } else if ($sortBy == 'newest') {
                     $propertyQuery = $propertyQuery->clone()->orderBy('created_at', 'DESC');
                 } else if ($sortBy == 'oldest') {
@@ -8899,6 +8921,7 @@ class ApiController extends Controller
                 'limit' => 'nullable|numeric',
                 'check_in_date' => 'required|date',
                 'check_out_date' => 'required|date',
+                'number_of_guests' => 'nullable|integer|min:1',
                 'category_id' => 'nullable|numeric',
                 'category_slug_id' => 'nullable|string',
                 'country' => 'nullable|string',
@@ -9144,13 +9167,65 @@ class ApiController extends Controller
                 ->get();
 
             // Format properties similar to getPropertyList
-            $formattedProperties = $propertiesData->map(function ($property) {
+            $checkInDateObj = $checkInDate;
+            $checkOutDateObj = $checkOutDate;
+            $guests = $request->number_of_guests ?? 1;
+
+            $formattedProperties = $propertiesData->map(function ($property) use ($checkInDateObj, $checkOutDateObj, $guests) {
                 $property->promoted = $property->is_promoted;
                 $property->is_premium = $property->is_premium == 1 ? true : false;
                 $property->property_type = $property->propery_type;
                 $property->assign_facilities = $property->assign_facilities;
                 $property->is_apartment = false;
                 unset($property->propery_type);
+
+                // Calculate dynamic prices for hotel rooms
+                if ($property->hotelRooms && $property->hotelRooms->count() > 0) {
+                    foreach ($property->hotelRooms as $room) {
+                        $totalPrice = 0;
+                        $currentDate = $checkInDateObj->copy();
+                        $endDate = $checkOutDateObj->copy();
+                        $days = $currentDate->diffInDays($endDate);
+                        
+                        $roomAvailableDates = $room->available_dates ?? [];
+
+                        while ($currentDate->lt($endDate)) {
+                            $dateStr = $currentDate->format('Y-m-d');
+                            $dailyBasePrice = $room->price_per_night;
+
+                            // Check specific date price
+                            if (is_array($roomAvailableDates)) {
+                                foreach ($roomAvailableDates as $range) {
+                                    if (isset($range['from'], $range['to']) && 
+                                        $dateStr >= $range['from'] && 
+                                        $dateStr <= $range['to']) {
+                                        if (isset($range['price'])) {
+                                            $dailyBasePrice = (float)$range['price'];
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // Apply guest pricing
+                            if (method_exists($room, 'calculatePrice')) {
+                                $dailyFinalPrice = $room->calculatePrice($guests, $dailyBasePrice);
+                            } else {
+                                $dailyFinalPrice = $dailyBasePrice;
+                            }
+                            
+                            $totalPrice += $dailyFinalPrice;
+                            $currentDate->addDay();
+                        }
+
+                        // Update room price information
+                        $room->total_price = $totalPrice;
+                        // Update price_per_night to reflect the average daily rate for this specific search
+                        $room->price_per_night = $days > 0 ? round($totalPrice / $days, 2) : $totalPrice;
+                        $room->calculated_price = $totalPrice;
+                    }
+                }
+
                 return $property;
             });
 
