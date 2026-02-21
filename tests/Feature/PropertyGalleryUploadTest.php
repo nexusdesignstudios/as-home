@@ -27,28 +27,33 @@ class PropertyGalleryUploadTest extends TestCase
         Log::shouldReceive('debug')->withAnyArgs()->andReturnNull();
         // 1. Authenticate as Admin
         // Assuming user ID 1 is an admin. If not, we might need to find an admin user.
-        $admin = User::find(1);
+        $admin = User::where('type', 0)->first(); // Explicitly get an admin
         if (!$admin) {
-            $this->markTestSkipped('Admin user with ID 1 not found.');
+             $admin = User::find(1); // Fallback
+        }
+        if (!$admin) {
+            $this->markTestSkipped('Admin user not found.');
         }
         $this->actingAs($admin);
 
-        // 2. Find an existing property or create a temporary one
-        $property = Property::first();
+        // 2. Find an existing property that is NOT added by admin (to test admin edit on user property)
+        // or create one
+        $property = Property::where('added_by', '!=', 0)->first();
         if (!$property) {
              // Create a dummy category if needed
              $category = Category::first();
              if (!$category) {
-                 $category = Category::create(['category' => 'Test Category', 'status' => '1']);
+                 $category = Category::create(['category' => 'Test Category', 'status' => '1', 'parameter_types' => '']);
              }
              
              $property = Property::create([
-                'title' => 'Test Property',
+                'title' => 'Test User Property',
                 'description' => 'Test Description',
                 'category_id' => $category->id,
                 'address' => 'Test Address',
                 'price' => 100,
                 'propery_type' => 0, // Sell
+                'added_by' => 999, // Simulate user ID
              ]);
         }
 

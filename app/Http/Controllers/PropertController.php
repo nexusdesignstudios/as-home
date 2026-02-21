@@ -797,7 +797,10 @@ class PropertController extends Controller
                 
                 // Check if this is an owner edit (not admin)
                 // 0 means admin, non-zero means owner/customer
-                $isOwnerEdit = $UpdateProperty->added_by != 0;
+                // Also check if current user is admin, if so, it is NOT an owner edit regardless of property owner
+                // Assuming type 0 is admin (from User migration: 0:Admin 1:Users)
+                $isAdminUser = \Auth::check() && \Auth::user()->type == 0; 
+                $isOwnerEdit = !$isAdminUser && $UpdateProperty->added_by != 0;
                 
                 // Check auto-approve setting for edited listings
                 $autoApproveEdited = HelperService::getSettingData('auto_approve_edited_listings') == 1;
