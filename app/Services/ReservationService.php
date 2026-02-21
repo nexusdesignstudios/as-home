@@ -1933,6 +1933,13 @@ Best regards,
                     $roomType = 'Standard Room';
                 }
 
+                // Get package name
+                $packageName = 'N/A';
+                $reservableData = is_string($reservation->reservable_data) ? json_decode($reservation->reservable_data, true) : $reservation->reservable_data;
+                if (!empty($reservableData) && isset($reservableData[0]['package_name'])) {
+                    $packageName = $reservableData[0]['package_name'];
+                }
+
                 // Get currency symbol
                 $currencySymbol = system_setting('currency_symbol') ?? '$';
 
@@ -2036,6 +2043,8 @@ Best regards,
                     'hotel_name' => $hotelName, // Keep both for compatibility
                     'reservation_id' => $reservation->id,
                     'room_type' => $roomType,
+                    'package_name' => $packageName,
+                    'package_selected' => $packageName,
                     'room_number' => $roomNumber,
                     'hotel_address' => $hotelAddress,
                     'property_address' => $hotelAddress, // Add property_address for template compatibility

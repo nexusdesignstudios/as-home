@@ -62,6 +62,7 @@ class TestFlexibleHotelBookingEmail extends Command
             'hotel_name' => 'Test Hotel',
             'property_name' => 'Test Hotel',
             'room_type' => 'Deluxe Room',
+            'package_selected' => 'Premium Package',
             'room_number' => '101',
             'hotel_address' => '123 Test Street, Cairo',
             'property_address' => '123 Test Street, Cairo',
