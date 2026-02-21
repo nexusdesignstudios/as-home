@@ -381,6 +381,7 @@ class PropertController extends Controller
                     mkdir($destinationPath, 0777, true);
                 }
                 if ($request->hasfile('gallery_images')) {
+                    \Illuminate\Support\Facades\Log::info('Gallery images found: ' . count($request->file('gallery_images')));
                     foreach ($request->file('gallery_images') as $file) {
                         $name = microtime(true) . '.' . $file->extension();
                         $file->move($destinationPath, $name);
@@ -816,15 +817,29 @@ class PropertController extends Controller
                 }
                 $UpdateProperty->category_id = $request->category;
                 $UpdateProperty->title = $request->title;
-                $UpdateProperty->title_ar = $request->title_ar ?? null;
+                if (\Schema::hasColumn('propertys', 'title_ar')) {
+                    $UpdateProperty->title_ar = $request->title_ar ?? null;
+                }
                 $UpdateProperty->slug_id = $request->slug ?? generateUniqueSlug($request->title, 1, null, $id);
                 $UpdateProperty->description = $request->description;
-                $UpdateProperty->description_ar = $request->description_ar ?? null;
-                $UpdateProperty->area_description = $request->area_description ?? null;
-                $UpdateProperty->area_description_ar = $request->area_description_ar ?? null;
-                $UpdateProperty->company_employee_username = $request->company_employee_username ?? null;
-                $UpdateProperty->company_employee_email = $request->company_employee_email ?? null;
-                $UpdateProperty->company_employee_phone_number = $request->company_employee_phone_number ?? null;
+                if (\Schema::hasColumn('propertys', 'description_ar')) {
+                    $UpdateProperty->description_ar = $request->description_ar ?? null;
+                }
+                if (\Schema::hasColumn('propertys', 'area_description')) {
+                    $UpdateProperty->area_description = $request->area_description ?? null;
+                }
+                if (\Schema::hasColumn('propertys', 'area_description_ar')) {
+                    $UpdateProperty->area_description_ar = $request->area_description_ar ?? null;
+                }
+                if (\Schema::hasColumn('propertys', 'company_employee_username')) {
+                    $UpdateProperty->company_employee_username = $request->company_employee_username ?? null;
+                }
+                if (\Schema::hasColumn('propertys', 'company_employee_email')) {
+                    $UpdateProperty->company_employee_email = $request->company_employee_email ?? null;
+                }
+                if (\Schema::hasColumn('propertys', 'company_employee_phone_number')) {
+                    $UpdateProperty->company_employee_phone_number = $request->company_employee_phone_number ?? null;
+                }
                 $UpdateProperty->address = $request->address;
                 $UpdateProperty->client_address = $request->client_address;
                 if ($request->has('property_type')) {
@@ -846,19 +861,21 @@ class PropertController extends Controller
                 $UpdateProperty->rentduration = $request->price_duration;
 
                 // Handle corresponding_day field
-                if ($request->has('corresponding_day') && !empty($request->corresponding_day)) {
-                    $correspondingDay = $request->corresponding_day;
-                    // If it's already a JSON string, validate it
-                    if (is_string($correspondingDay)) {
-                        $decoded = json_decode($correspondingDay, true);
-                        if (json_last_error() === JSON_ERROR_NONE) {
+                if (\Schema::hasColumn('propertys', 'corresponding_day')) {
+                    if ($request->has('corresponding_day') && !empty($request->corresponding_day)) {
+                        $correspondingDay = $request->corresponding_day;
+                        // If it's already a JSON string, validate it
+                        if (is_string($correspondingDay)) {
+                            $decoded = json_decode($correspondingDay, true);
+                            if (json_last_error() === JSON_ERROR_NONE) {
+                                $UpdateProperty->corresponding_day = $correspondingDay;
+                            }
+                        } else {
                             $UpdateProperty->corresponding_day = $correspondingDay;
                         }
                     } else {
-                        $UpdateProperty->corresponding_day = $correspondingDay;
+                        $UpdateProperty->corresponding_day = null;
                     }
-                } else {
-                    $UpdateProperty->corresponding_day = null;
                 }
 
                 // Set vacation home specific fields if property classification is vacation_homes (4)
@@ -893,8 +910,12 @@ class PropertController extends Controller
                 }
 
                 // Set generic fields
-                $UpdateProperty->check_in = $request->check_in ?? null;
-                $UpdateProperty->check_out = $request->check_out ?? null;
+                if (\Schema::hasColumn('propertys', 'check_in')) {
+                    $UpdateProperty->check_in = $request->check_in ?? null;
+                }
+                if (\Schema::hasColumn('propertys', 'check_out')) {
+                    $UpdateProperty->check_out = $request->check_out ?? null;
+                }
 
                 // Set hotel specific fields if property classification is hotel_booking (5)
                 if (isset($request->property_classification) && $request->property_classification == 5) {
@@ -902,29 +923,43 @@ class PropertController extends Controller
                     $UpdateProperty->hotel_apartment_type_id = $request->hotel_apartment_type_id ?? null;
                     $UpdateProperty->available_rooms = $request->available_rooms ?? null;
                     $UpdateProperty->rent_package = $request->rent_package ?? null;
-                    $UpdateProperty->revenue_user_name = $request->revenue_user_name ?? null;
-                    $UpdateProperty->revenue_phone_number = $request->revenue_phone_number ?? null;
-                    $UpdateProperty->revenue_email = $request->revenue_email ?? null;
-                    $UpdateProperty->reservation_user_name = $request->reservation_user_name ?? null;
-                    $UpdateProperty->reservation_phone_number = $request->reservation_phone_number ?? null;
-                    $UpdateProperty->reservation_email = $request->reservation_email ?? null;
+                    if (\Schema::hasColumn('propertys', 'revenue_user_name')) {
+                        $UpdateProperty->revenue_user_name = $request->revenue_user_name ?? null;
+                    }
+                    if (\Schema::hasColumn('propertys', 'revenue_phone_number')) {
+                        $UpdateProperty->revenue_phone_number = $request->revenue_phone_number ?? null;
+                    }
+                    if (\Schema::hasColumn('propertys', 'revenue_email')) {
+                        $UpdateProperty->revenue_email = $request->revenue_email ?? null;
+                    }
+                    if (\Schema::hasColumn('propertys', 'reservation_user_name')) {
+                        $UpdateProperty->reservation_user_name = $request->reservation_user_name ?? null;
+                    }
+                    if (\Schema::hasColumn('propertys', 'reservation_phone_number')) {
+                        $UpdateProperty->reservation_phone_number = $request->reservation_phone_number ?? null;
+                    }
+                    if (\Schema::hasColumn('propertys', 'reservation_email')) {
+                        $UpdateProperty->reservation_email = $request->reservation_email ?? null;
+                    }
                     $UpdateProperty->hotel_vat = $request->hotel_vat ?? null;
                 }
 
                 // Handle agent_addons field (available for all property types)
-                if ($request->has('agent_addons') && !empty($request->agent_addons)) {
-                    $agentAddons = $request->agent_addons;
-                    // If it's already a JSON string, validate it
-                    if (is_string($agentAddons)) {
-                        $decoded = json_decode($agentAddons, true);
-                        if (json_last_error() === JSON_ERROR_NONE) {
+                if (\Schema::hasColumn('propertys', 'agent_addons')) {
+                    if ($request->has('agent_addons') && !empty($request->agent_addons)) {
+                        $agentAddons = $request->agent_addons;
+                        // If it's already a JSON string, validate it
+                        if (is_string($agentAddons)) {
+                            $decoded = json_decode($agentAddons, true);
+                            if (json_last_error() === JSON_ERROR_NONE) {
+                                $UpdateProperty->agent_addons = $agentAddons;
+                            }
+                        } else {
                             $UpdateProperty->agent_addons = $agentAddons;
                         }
                     } else {
-                        $UpdateProperty->agent_addons = $agentAddons;
+                        $UpdateProperty->agent_addons = null;
                     }
-                } else {
-                    $UpdateProperty->agent_addons = null;
                 }
 
                 if ($request->hasFile('title_image')) {
@@ -1274,7 +1309,9 @@ class PropertController extends Controller
                 }
 
                 if ($request->hasfile('gallery_images')) {
+                    \Illuminate\Support\Facades\Log::info('Gallery images found in update: ' . count($request->file('gallery_images')));
                     foreach ($request->file('gallery_images') as $file) {
+                        // dd('Inside gallery loop');
                         $name = microtime(true) . '_' . uniqid() . '.' . $file->extension();
                         $file->move($destinationPath, $name);
 
