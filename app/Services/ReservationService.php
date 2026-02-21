@@ -1898,21 +1898,6 @@ Best regards,
                     $allReservations = array_merge([$reservation], $siblings);
                     $isMultiRoom = count($allReservations) > 1;
 
-                    // Send Push Notification to Customer
-                    $user_token = \App\Models\Usertokens::where('customer_id', $customer->id)->pluck('fcm_id')->toArray();
-                    if (!empty($user_token)) {
-                        $fcmMsg = array(
-                            'title' => 'Reservation Confirmed',
-                            'message' => 'Your reservation for ' . ($hotelName ?: 'Hotel') . ' has been confirmed!',
-                            'type' => 'reservation', 
-                            'body' => 'Your reservation for ' . ($hotelName ?: 'Hotel') . ' has been confirmed!',
-                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                            'sound' => 'default',
-                            'id' => (string)$reservation->id,
-                        );
-                        send_push_notification($user_token, $fcmMsg);
-                    }
-
                     // Get hotel and room information
                 $hotelName = '';
                 $roomType = '';
@@ -1942,6 +1927,21 @@ Best regards,
                     $hotelAddress = $reservation->property->address ?? 'N/A';
                     $checkInTime = $reservation->property->check_in ?? '3:00 PM';
                     $checkOutTime = $reservation->property->check_out ?? '12:00 PM';
+                }
+
+                // Send Push Notification to Customer
+                $user_token = \App\Models\Usertokens::where('customer_id', $customer->id)->pluck('fcm_id')->toArray();
+                if (!empty($user_token)) {
+                    $fcmMsg = array(
+                        'title' => 'Reservation Confirmed',
+                        'message' => 'Your reservation for ' . ($hotelName ?: 'Hotel') . ' has been confirmed!',
+                        'type' => 'reservation', 
+                        'body' => 'Your reservation for ' . ($hotelName ?: 'Hotel') . ' has been confirmed!',
+                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                        'sound' => 'default',
+                        'id' => (string)$reservation->id,
+                    );
+                    send_push_notification($user_token, $fcmMsg);
                 }
 
                 // Fallback for room type

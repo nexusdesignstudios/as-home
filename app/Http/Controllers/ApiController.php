@@ -13012,7 +13012,14 @@ Best regards,
 
             if (trim($request->reservable_type) === 'hotel_room' && !empty($reservableData) && is_array($reservableData)) {
                 $isFlexibleBooking = $request->has('booking_type') && $request->booking_type === 'flexible_booking';
-                $reservationService = new \App\Services\ReservationService();
+            
+            Log::info('SubmitPaymentForm: Flexible Booking Check', [
+                'has_booking_type' => $request->has('booking_type'),
+                'booking_type_value' => $request->booking_type,
+                'is_flexible_booking_flag' => $isFlexibleBooking
+            ]);
+
+            $reservationService = new \App\Services\ReservationService();
                 
                 foreach ($reservableData as $roomData) {
                     $reservableId = $roomData['id'] ?? $roomData['roomId'];
@@ -13067,6 +13074,13 @@ Best regards,
                     // Create Reservation for this room
                     $reservationData = $baseReservationData;
                     $reservationData['reservable_id'] = $reservableId;
+                    
+                    Log::info('SubmitPaymentForm: Creating Reservation', [
+                        'reservable_id' => $reservableId,
+                        'booking_type' => $reservationData['booking_type'] ?? 'MISSING',
+                        'is_flexible_booking' => $reservationData['is_flexible_booking'] ?? 'MISSING',
+                        'refund_policy' => $reservationData['refund_policy'] ?? 'MISSING'
+                    ]);
                     // Use individual room amount
                     $reservationData['total_price'] = $roomData['amount'] ?? 0;
                     // Fallback for original amount
@@ -13366,8 +13380,14 @@ Best regards,
                     
                     // Check if this is a flexible booking
                     $isFlexibleBooking = $reservation->booking_type === 'flexible_booking';
-                    
-                    if ($isFlexibleBooking) {
+                        
+                        Log::info('SubmitPaymentForm: Email Logic', [
+                            'reservation_id' => $reservation->id,
+                            'booking_type' => $reservation->booking_type,
+                            'is_flexible_booking_flag' => $isFlexibleBooking
+                        ]);
+
+                        if ($isFlexibleBooking) {
                         try {
                             $reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation, $siblings);
                             Log::info('Flexible booking confirmation email sent to customer', [
