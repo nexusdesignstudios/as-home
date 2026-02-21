@@ -68,6 +68,7 @@ class ReservationService
             }
             
             // Create the reservation
+            \Illuminate\Support\Facades\Log::info('Creating reservation with data', ['data' => $data]);
             $reservation = Reservation::create([
                 'customer_id' => $data['customer_id'],
                 'reservable_id' => $data['reservable_id'],
@@ -83,6 +84,8 @@ class ReservationService
                 'payment_method' => $data['payment_method'] ?? null,
                 'transaction_id' => $data['transaction_id'] ?? null,
                 'booking_type' => $data['booking_type'] ?? null,
+                'refund_policy' => $data['refund_policy'] ?? null,
+                'is_flexible_booking' => $data['is_flexible_booking'] ?? false,
             ]);
 
             // Update available dates based on booking type and payment status
@@ -1326,10 +1329,21 @@ Confirmation Date: {confirmation_date}
 
             // Format Room Type String (Summary) - kept for reference or specific templates
             $roomTypeParts = [];
+            $mainPackageName = 'N/A';
+            
             foreach ($roomDetails as $name => $count) {
                 $roomTypeParts[] = "{$count}x {$name}";
             }
             $roomTypeSummary = implode(', ', $roomTypeParts);
+            
+            // Get main package name from first reservation with a package
+            foreach ($reservations as $res) {
+                 $reservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;
+                 if (!empty($reservableData) && isset($reservableData[0]['package_name'])) {
+                     $mainPackageName = $reservableData[0]['package_name'];
+                     break;
+                 }
+            }
             
             // Use table as the primary display for 'room_type' to ensure visibility in default templates
             $roomTypeDisplay = $roomDetailsTable;
@@ -1354,6 +1368,8 @@ Confirmation Date: {confirmation_date}
                 'hotel_address' => $property->address ?? 'N/A', // Alias for flexible template
                 'room_type' => $roomTypeDisplay, // Aggregated Room Types as Table
                 'room_type_summary' => $roomTypeSummary,
+                'package_selected' => $mainPackageName,
+                'package_name' => $mainPackageName,
                 'room_number' => 'Multiple', // For flexible template
                 'check_in_date' => $firstReservation->check_in_date ? $firstReservation->check_in_date->format('d M Y') : 'N/A',
                 'check_out_date' => $firstReservation->check_out_date ? $firstReservation->check_out_date->format('d M Y') : 'N/A',

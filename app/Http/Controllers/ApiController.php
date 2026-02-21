@@ -12980,6 +12980,12 @@ Best regards,
                 $baseReservationData['payment_method'] = 'cash';
                 $baseReservationData['approval_status'] = 'approved';
                 $baseReservationData['requires_approval'] = false;
+                $baseReservationData['is_flexible_booking'] = true;
+                
+                // For flexible bookings, default refund policy to flexible/refundable if not provided
+                if (!$request->has('refund_policy')) {
+                    $baseReservationData['refund_policy'] = 'flexible';
+                }
             }
 
             // Add property details if provided
