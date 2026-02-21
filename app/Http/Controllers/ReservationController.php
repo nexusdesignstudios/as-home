@@ -866,6 +866,8 @@ class ReservationController extends Controller
                         'payment_status' => $request->payment_status ?? ($roomIsFlexible ? 'unpaid' : 'unpaid'), // Use request payment status if provided
                         'payment_method' => $request->payment_method ?? ($roomIsFlexible ? 'cash' : ($request->payment_method ?? 'online')), // Use request payment method if provided
                         'refund_policy' => $roomIsFlexible ? 'flexible' : 'non-refundable', // Store the refund policy
+                        'booking_type' => $roomIsFlexible ? 'flexible_booking' : 'reservation',
+                        'is_flexible_booking' => $roomIsFlexible,
                         'transaction_id' => $transactionId,
                     ];
 

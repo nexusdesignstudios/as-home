@@ -587,6 +587,11 @@ function get_property_details($result, $current_user = NULL, $skipLimitCheck = f
             $roomData['available_dates'] = $room->available_dates;
             // Explicitly include availability_type to ensure it's in the response
             $roomData['availability_type'] = $room->availability_type;
+            // Explicitly include dynamic pricing fields
+            $roomData['guest_pricing_rules'] = $room->guest_pricing_rules;
+            $roomData['base_guests'] = $room->base_guests;
+            $roomData['min_guests'] = $room->min_guests;
+            $roomData['max_guests'] = $room->max_guests;
             return $roomData;
         })->toArray() : [];
             $tempRow['hotel_apartment_type'] = $row->hotel_apartment_type;

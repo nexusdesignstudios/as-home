@@ -102,7 +102,6 @@
 </style>
 @endsection
 
-<script src="https://unpkg.com/filepond/dist/filepond.js"></script>
 @section('page-title')
     <div class="page-title">
         <div class="row">
@@ -737,7 +736,7 @@
                 <div class="card-body">
                     <div class="row">
                         {{-- Title Image --}}
-                        <div class="col-md-3 col-sm-12 form-group mandatory card title_card">
+                        <div class="col-md-6 col-sm-12 form-group mandatory card title_card">
                             {{ Form::label('filepond_title', __('Title Image'), ['class' => 'form-label col-12 ']) }}
                             <input type="file" class="filepond" id="filepond_title" name="title_image" accept="image/png,image/jpg,image/jpeg">
                             @if ($list->title_image)
@@ -748,7 +747,7 @@
                         </div>
 
                         {{-- 3D Image --}}
-                        <div class="col-md-3 col-sm-12 card">
+                        <div class="col-md-6 col-sm-12 card">
                             {{ Form::label('filepond_3d', __('3D Image'), ['class' => 'form-label col-12 ']) }}
                             <input type="file" class="filepond" id="filepond_3d" name="3d_image">
                             @if ($list->three_d_image)
@@ -760,14 +759,14 @@
                         </div>
 
                         {{-- Gallary Images --}}
-                        <div class="col-md-3 col-sm-12 card">
+                        <div class="col-md-12 col-sm-12 card">
                             {{ Form::label('filepond2', __('Gallary Images'), ['class' => 'form-label col-12 ']) }}
                             <input type="file" class="filepond" accept="image/jpg,image/png,image/jpeg" id="filepond2" name="gallery_images[]" multiple>
                             <div class="row mt-0">
                                 <?php $i = 0; ?>
                                 @if (!empty($list->gallery))
                                     @foreach ($list->gallery as $row)
-                                        <div class="col-md-6 col-sm-12" id='{{ $row->id }}'>
+                                        <div class="col-md-2 col-sm-12" id='{{ $row->id }}'>
                                             <div class="card1" style="height:10vh;">
                                                 <img src="{{ url('') . config('global.IMG_PATH') . config('global.PROPERTY_GALLERY_IMG_PATH') . $list->id . '/' . $row->image }}"
                                                     alt="Image" class="card1-img">
@@ -1444,6 +1443,7 @@
                 fileValidateTypeLabelExpectedTypes: 'Expects {allButLastType} or {lastType}',
                 storeAsFile: true,
                 allowMultiple: true,
+                maxFiles: null, // Unlimited files
             });
         });
         $("#title").on('keyup',function(e){
@@ -1667,7 +1667,6 @@
                 modal.hide();
             });
         });
-    </script>
         $(document).ready(function() {
             // Handle property classification change
             function handlePropertyClassification() {
@@ -2118,6 +2117,32 @@
                 // Show modal
                 const previewModal = new bootstrap.Modal(document.getElementById('documentPreviewModal'));
                 previewModal.show();
+
+                // Helper to create unsupported message
+                const showUnsupported = () => {
+                    previewBody.html('<div class="document-preview-unsupported"><i class="bi bi-file-earmark"></i><p>Preview not available for this file type.</p><p class="text-muted">Please use "Download" or "Open in New Tab" to view this document.</p></div>');
+                };
+
+                // Helper to create image with error handler
+                const showImage = () => {
+                     var img = $('<img>', {
+                        src: documentUrl,
+                        class: 'document-preview-image',
+                        alt: documentName
+                    }).on('error', function() {
+                        $(this).parent().html('<div class="document-preview-unsupported"><i class="bi bi-file-earmark"></i><p>Unable to load image. Please download to view.</p></div>');
+                    });
+                    previewBody.empty().append(img);
+                };
+
+                // Helper to create iframe
+                const showIframe = () => {
+                    var iframe = $('<iframe>', {
+                        src: documentUrl,
+                        class: 'document-preview-iframe'
+                    }).on('error', showUnsupported);
+                    previewBody.empty().append(iframe);
+                };
                 
                 // Determine preview method based on file type
                 // Try to detect file type from Content-Type header if extension is not available
@@ -2125,10 +2150,10 @@
                     // We have an extension, use it
                     if (['pdf'].includes(fileExtension)) {
                         // PDF Preview
-                        previewBody.html('<iframe src="' + documentUrl + '" class="document-preview-iframe"></iframe>');
+                        showIframe();
                     } else if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExtension)) {
                         // Image Preview
-                        previewBody.html('<img src="' + documentUrl + '" class="document-preview-image" alt="' + documentName + '" onerror="this.parentElement.innerHTML=\'<div class=\\\'document-preview-unsupported\\\'><i class=\\\'bi bi-file-earmark\\\'></i><p>Unable to load image. Please download to view.</p></div>\'">');
+                        showImage();
                     } else if (['txt', 'csv'].includes(fileExtension)) {
                         // Text file - try to load as text
                         fetch(documentUrl)
@@ -2141,7 +2166,7 @@
                             });
                     } else {
                         // Unsupported file type (Word, Excel, etc.)
-                        previewBody.html('<div class="document-preview-unsupported"><i class="bi bi-file-earmark"></i><p>Preview not available for this file type.</p><p class="text-muted">Please use "Download" or "Open in New Tab" to view this document.</p></div>');
+                        showUnsupported();
                     }
                 } else {
                     // No extension in URL - try to detect from Content-Type header
@@ -2150,9 +2175,9 @@
                         .then(response => {
                             const contentType = response.headers.get('content-type') || '';
                             if (contentType.includes('application/pdf')) {
-                                previewBody.html('<iframe src="' + documentUrl + '" class="document-preview-iframe"></iframe>');
+                                showIframe();
                             } else if (contentType.startsWith('image/')) {
-                                previewBody.html('<img src="' + documentUrl + '" class="document-preview-image" alt="' + documentName + '" onerror="this.parentElement.innerHTML=\'<div class=\\\'document-preview-unsupported\\\'><i class=\\\'bi bi-file-earmark\\\'></i><p>Unable to load image. Please download to view.</p></div>\'">');
+                                showImage();
                             } else if (contentType.includes('text/')) {
                                 fetch(documentUrl)
                                     .then(response => response.text())
@@ -2164,12 +2189,12 @@
                                     });
                             } else {
                                 // Default: try PDF (most common document type)
-                                previewBody.html('<iframe src="' + documentUrl + '" class="document-preview-iframe" onerror="this.parentElement.innerHTML=\'<div class=\\\'document-preview-unsupported\\\'><i class=\\\'bi bi-file-earmark\\\'></i><p>Preview not available for this file type.</p><p class=\\\'text-muted\\\'>Please use \\\"Download\\\" or \\\"Open in New Tab\\\" to view this document.</p></div>\'"></iframe>');
+                                showIframe();
                             }
                         })
                         .catch(error => {
                             // If HEAD request fails, try PDF as default (most common)
-                            previewBody.html('<iframe src="' + documentUrl + '" class="document-preview-iframe" onerror="this.parentElement.innerHTML=\'<div class=\\\'document-preview-unsupported\\\'><i class=\\\'bi bi-file-earmark\\\'></i><p>Preview not available for this file type.</p><p class=\\\'text-muted\\\'>Please use \\\"Download\\\" or \\\"Open in New Tab\\\" to view this document.</p></div>\'"></iframe>');
+                            showIframe();
                         });
                 }
             });
