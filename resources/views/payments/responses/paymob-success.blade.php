@@ -20,6 +20,11 @@
                             <p class="mb-0"><strong>Transaction ID:</strong> {{ request('transaction_id') }}</p>
                         </div>
                     @endif
+                    
+                    <!-- Event snippet for Subscribe conversion page -->
+                    <script>
+                      gtag('event', 'conversion', {'send_to': 'AW-17844407850/6KwsCNuXotobEKqc8LxC'});
+                    </script>
             </div>
         </div>
     </div>

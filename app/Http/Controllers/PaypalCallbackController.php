@@ -144,8 +144,8 @@ class PaypalCallbackController extends Controller
             
             DB::commit();
 
-            // Redirect to the home page as requested
-            return redirect()->away('https://ashome-eg.com/');
+            // Return success view with tracking pixel instead of direct redirect
+            return view('payments.responses.success', ['transaction_id' => $customId]);
 
         } catch (\Exception $e) {
             DB::rollBack();

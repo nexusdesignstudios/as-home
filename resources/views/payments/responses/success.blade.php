@@ -19,6 +19,11 @@
                     <div class="mt-4">
                         <a href="{{ url('/') }}" class="btn btn-primary">Back to Home</a>
                     </div>
+                    
+                    <!-- Event snippet for Subscribe conversion page -->
+                    <script>
+                      gtag('event', 'conversion', {'send_to': 'AW-17844407850/6KwsCNuXotobEKqc8LxC'});
+                    </script>
                 </div>
             </div>
         </div>
