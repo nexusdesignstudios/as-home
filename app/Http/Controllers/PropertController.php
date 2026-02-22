@@ -2088,22 +2088,29 @@ class PropertController extends Controller
 
             $getImage = PropertyImages::where('id', $id)->first();
 
+            if (!$getImage) {
+                return response()->json(['error' => true, 'message' => 'Image not found']);
+            }
 
             $image = $getImage->image;
             $propertys_id =  $getImage->propertys_id;
 
             if (PropertyImages::where('id', $id)->delete()) {
-                if (file_exists(public_path('images') . config('global.PROPERTY_GALLERY_IMG_PATH') . $propertys_id . "/" . $image)) {
-                    unlink(public_path('images') . config('global.PROPERTY_GALLERY_IMG_PATH') . $propertys_id . "/" . $image);
+                $imagePath = public_path('images') . config('global.PROPERTY_GALLERY_IMG_PATH') . $propertys_id . "/" . $image;
+                if (file_exists($imagePath)) {
+                    unlink($imagePath);
                 }
                 $response['error'] = false;
             } else {
                 $response['error'] = true;
             }
 
-            $countImage = PropertyImages::where('propertys_id', $propertys_id)->get();
-            if ($countImage->count() == 0) {
-                rmdir(public_path('images') . config('global.PROPERTY_GALLERY_IMG_PATH') . $propertys_id);
+            $countImage = PropertyImages::where('propertys_id', $propertys_id)->count();
+            if ($countImage == 0) {
+                $dirPath = public_path('images') . config('global.PROPERTY_GALLERY_IMG_PATH') . $propertys_id;
+                if (is_dir($dirPath)) {
+                    rmdir($dirPath);
+                }
             }
             return response()->json($response);
         }

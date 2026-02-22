@@ -103,7 +103,7 @@ class SendTestPaymentEmail extends Command
                     'customer_phone' => '+1234567890',
                     'property_name' => 'Luxury Villa in Cairo',
                     'property_address' => '123 Nile View, Cairo, Egypt',
-                    'room_type' => 'Deluxe Suite',
+                    'room_type' => 'Deluxe Suite (Package: Breakfast Included)',
                     'payment_breakdown' => $paymentBreakdown,
                     'check_in_date' => now()->addDays(5)->format('Y-m-d'),
                 'check_out_date' => now()->addDays(10)->format('Y-m-d'),
