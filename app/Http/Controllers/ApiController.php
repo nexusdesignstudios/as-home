@@ -13253,6 +13253,18 @@ Best regards,
                             </table>
                         </div>
                     ";
+                } elseif (count($createdReservations) === 1) {
+                    // Single reservation logic for package display
+                    $res = $createdReservations[0];
+                    $reservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;
+                    
+                    if (!empty($reservableData) && isset($reservableData[0]['package_name']) && $reservableData[0]['package_name'] !== 'Room Only') {
+                        $packageName = $reservableData[0]['package_name'];
+                        // Append package name to room type if it exists and is not just "Room Only"
+                        if ($packageName && $packageName !== '-') {
+                            $roomType .= " (Package: {$packageName})";
+                        }
+                    }
                 }
                 
                 // Calculate Payment Breakdown for Hotel Reservations
