@@ -39,7 +39,7 @@ class PaymobController extends Controller
             // Validate HMAC if provided
             // if (config('paymob.hmac_secret')) {
             //     $this->validateHmac($request);
-            // }
+            // 
             $data = $request->all();
             Log::info('Paymob callback received - Parsed to json:', ['data' => json_encode($data)]);
 
@@ -2791,6 +2791,109 @@ www.ashome-eg.com';
                 'refund_approvals' => [],
                 'total' => 0
             ], 500);
+        }
+    }
+
+    /**
+     * Verify payment status
+     *
+     * @param string $token
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function verifyPayment($token)
+    {
+        try {
+            Log::info('Verifying Paymob payment', ['token' => $token]);
+
+            // 1. Try to find by Paymob Transaction ID
+            $payment = PaymobPayment::where('paymob_transaction_id', $token)->first();
+
+            // 2. If not found, try by Order ID
+            if (!$payment) {
+                $payment = PaymobPayment::where('paymob_order_id', $token)->first();
+            }
+
+            // 3. If not found, try by Local Transaction ID
+            if (!$payment) {
+                $payment = PaymobPayment::where('transaction_id', $token)->first();
+            }
+
+            // If found locally, check if we need to update status
+            if ($payment) {
+                if ($payment->status === 'pending') {
+                    try {
+                        // Refresh from Paymob
+                        $config = HelperService::getActivePaymentDetails('paymob');
+                        
+                        // Use paymob_transaction_id if available, otherwise try the token if it looks like one
+                        $paymobId = $payment->paymob_transaction_id ?? (is_numeric($token) ? $token : null);
+                        
+                        if ($paymobId) {
+                            $service = new \App\Services\Payment\PaymobPayment($config);
+                            $paymobData = $service->retrievePaymentIntent($paymobId);
+                            
+                            if ($paymobData && isset($paymobData['status'])) {
+                                $newStatus = $paymobData['status'] ? 'succeed' : 'failed';
+                                
+                                if ($newStatus !== $payment->status) {
+                                    $payment->status = $newStatus;
+                                    $payment->save();
+                                    
+                                    // Also update reservation if needed
+                                    if ($newStatus === 'succeed' && $payment->reservation_id) {
+                                        $reservation = Reservation::find($payment->reservation_id);
+                                        if ($reservation) {
+                                            $reservationService = app(\App\Services\ReservationService::class);
+                                            $reservationService->handleReservationConfirmation($reservation, 'paid');
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Error refreshing payment status: ' . $e->getMessage());
+                    }
+                }
+
+                return ApiResponseService::successResponse('Payment status retrieved', [
+                    'status' => $payment->status,
+                    'amount' => $payment->amount,
+                    'currency' => $payment->currency,
+                    'transaction_id' => $payment->transaction_id,
+                    'paymob_transaction_id' => $payment->paymob_transaction_id,
+                    'paymob_order_id' => $payment->paymob_order_id,
+                    'reservation_id' => $payment->reservation_id
+                ]);
+            }
+
+            // If still not found locally, we might want to query Paymob directly if it looks like a Paymob ID
+            if (is_numeric($token)) {
+                try {
+                    // Create service instance with default config
+                    $config = HelperService::getActivePaymentDetails('paymob');
+                    $service = new \App\Services\Payment\PaymobPayment($config);
+                    
+                    $paymobData = $service->retrievePaymentIntent($token);
+                    
+                    if ($paymobData && isset($paymobData['status'])) {
+                        return ApiResponseService::successResponse('Payment found on Paymob', [
+                            'status' => $paymobData['status'] ? 'succeed' : 'failed',
+                            'amount' => $paymobData['amount'] ?? 0,
+                            'currency' => $paymobData['currency'] ?? 'EGP',
+                            'transaction_id' => $token,
+                            'source' => 'paymob_direct'
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to retrieve from Paymob directly: ' . $e->getMessage());
+                }
+            }
+            
+            return ApiResponseService::errorResponse('Payment not found');
+
+        } catch (\Exception $e) {
+            Log::error('Error verifying payment: ' . $e->getMessage());
+            return ApiResponseService::errorResponse('Failed to verify payment');
         }
     }
 }

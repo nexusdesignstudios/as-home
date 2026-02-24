@@ -54,7 +54,7 @@ class SendTestPaymentEmail extends Command
                 $salesTaxAmount = $baseRoomRevenue * ($salesTaxRate / 100);
                 $cityTaxAmount = $baseRoomRevenue * ($cityTaxRate / 100);
 
-                $platformCommission = $baseRoomRevenue * 0.15;
+                $platformCommission = $baseRoomRevenue * 0.12;
                 $totalNetPayout = $baseRoomRevenue - $platformCommission;
 
                 $paymentBreakdown = "
@@ -71,7 +71,7 @@ class SendTestPaymentEmail extends Command
                                     <td style='padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: right;'>" . number_format($baseRoomRevenue, 2) . " {$currencySymbol}</td>
                                 </tr>
                                 <tr>
-                                    <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>Platform Commission (15%)</td>
+                                    <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>Platform Commission (12%)</td>
                                     <td style='padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: right; color: #dc3545;'>-" . number_format($platformCommission, 2) . " {$currencySymbol}</td>
                                 </tr>
                                 <tr>

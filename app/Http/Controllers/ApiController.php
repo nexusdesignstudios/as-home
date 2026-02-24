@@ -13283,7 +13283,7 @@ Best regards,
                     $cityTaxRate = $taxModel ? $taxModel->city_tax : 0;
                     
                     // Platform commission is 15% for hotels (as per PropertyTax logic)
-                    $platformCommissionRate = 15; 
+                    $platformCommissionRate = 12; 
                     
                     $totalGuestPayment = $request->amount;
                     
@@ -13317,7 +13317,7 @@ Best regards,
                                         <td style='padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: right;'>" . number_format($baseRoomRevenue, 2) . " {$currencySymbol}</td>
                                     </tr>
                                     <tr>
-                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>Platform Commission (15%)</td>
+                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>Platform Commission (12%)</td>
                                         <td style='padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: right; color: #dc3545;'>-" . number_format($platformCommission, 2) . " {$currencySymbol}</td>
                                     </tr>
                                     <tr>

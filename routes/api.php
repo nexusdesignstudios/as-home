@@ -158,6 +158,8 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
 
     // Paymob Payment
     Route::post('create-paymob-payment', [PaymobController::class, 'createPaymentIntent']);
+    Route::get('paymob-config', [PaymobController::class, 'getMobileConfig']);
+    Route::get('payments/paymob/verify/{token}', [PaymobController::class, 'verifyPayment']);
 
     // Paymob Refund
     Route::post('paymob-refund', [PaymobController::class, 'processRefund']);
