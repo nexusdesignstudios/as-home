@@ -1,4 +1,2 @@
 User-agent: *
-Allow: /api/
-Allow: /
-Sitemap: https://ashome-eg.com/sitemap.xml
+Disallow:
