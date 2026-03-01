@@ -2805,6 +2805,21 @@ www.ashome-eg.com';
         try {
             Log::info('Verifying Paymob payment', ['token' => $token]);
 
+            // Check if token is a JWT (Payment Key) and extract order_id
+            if (!is_numeric($token) && substr_count($token, '.') === 2) {
+                try {
+                    $parts = explode('.', $token);
+                    // JWT uses Base64Url encoding
+                    $payload = json_decode(base64_decode(str_replace(['-', '_'], ['+', '/'], $parts[1])), true);
+                    if (isset($payload['order_id'])) {
+                        $token = $payload['order_id'];
+                        Log::info('Extracted Order ID from Payment Key', ['order_id' => $token]);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to parse token as JWT: ' . $e->getMessage());
+                }
+            }
+
             // 1. Try to find by Paymob Transaction ID
             $payment = PaymobPayment::where('paymob_transaction_id', $token)->first();
 
