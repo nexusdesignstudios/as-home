@@ -1,6 +1,2 @@
-User-agent: Googlebot
-Allow: /
-Allow: /api/
-
 User-agent: *
 Allow: /
