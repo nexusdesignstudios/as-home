@@ -65,18 +65,6 @@ class ResponseService
         return true;
     }
 
-    //    /**
-    //     * @param $role
-    //     * @return true
-    //     */
-    //    public static function noRoleThenSendJson($role)
-    //    {
-    //        if (!Auth::user()->hasRole($role)) {
-    //            self::errorResponse("You Don't have enough permissions");
-    //        }
-    //        return true;
-    //    }
-
     /**
      * If User don't have any of the permission that is specified in Array then Redirect will happen
      * @param array $permissions
@@ -114,24 +102,8 @@ class ResponseService
      */
     public static function successResponse(string $message = "Success", $data = null, array $customData = array(), $code = null)
     {
-        // Add headers for CORS
-        $headers = [
-            'Access-Control-Allow-Origin' => '*',
-            'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers' => 'Content-Type, Accept, Authorization, X-Requested-With, Application'
-        ];
-        
-        // Attempt to respect config/cors.php origin if available
-        if (request()->headers->has('Origin')) {
-             $origin = request()->headers->get('Origin');
-             if (in_array($origin, config('cors.allowed_origins', [])) || 
-                 count(preg_grep('/'.preg_quote(parse_url($origin, PHP_URL_HOST), '/').'/', config('cors.allowed_origins_patterns', []))) > 0 ||
-                 // Basic wildcard check for development/specific domains
-                 preg_match('/https?:\/\/.*ashome-eg\.com/', $origin)
-             ) {
-                 $headers['Access-Control-Allow-Origin'] = $origin;
-             }
-        }
+        // Headers removed to rely on standard Laravel CORS middleware (HandleCors)
+        // and config/cors.php to prevent duplicate headers.
 
         response()->json(array_merge([
             'error'   => false,
@@ -139,7 +111,7 @@ class ResponseService
             'data'    => $data,
             'code'    => $code ?? config('constants.RESPONSE_CODE.SUCCESS')
         ], $customData), $code ?? config('constants.RESPONSE_CODE.SUCCESS'))
-        ->withHeaders($headers)
+        // ->withHeaders($headers) // Removed
         ->send();
         exit();
     }
@@ -170,23 +142,8 @@ class ResponseService
      */
     public static function errorResponse(string $message = 'Error Occurred', $data = null, $code = null, $e = null)
     {
-        // Add headers for CORS
-        $headers = [
-            'Access-Control-Allow-Origin' => '*',
-            'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers' => 'Content-Type, Accept, Authorization, X-Requested-With, Application'
-        ];
-        
-        // Attempt to respect config/cors.php origin if available
-        if (request()->headers->has('Origin')) {
-             $origin = request()->headers->get('Origin');
-             if (in_array($origin, config('cors.allowed_origins', [])) || 
-                 count(preg_grep('/'.preg_quote(parse_url($origin, PHP_URL_HOST), '/').'/', config('cors.allowed_origins_patterns', []))) > 0 ||
-                 preg_match('/https?:\/\/.*ashome-eg\.com/', $origin)
-             ) {
-                 $headers['Access-Control-Allow-Origin'] = $origin;
-             }
-        }
+        // Headers removed to rely on standard Laravel CORS middleware (HandleCors)
+        // and config/cors.php to prevent duplicate headers.
 
         response()->json([
             'error'   => true,
@@ -195,7 +152,7 @@ class ResponseService
             'code'    => $code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'),
             'details' => (!empty($e) && is_object($e)) ? $e->getMessage() . ' --> ' . $e->getFile() . ' At Line : ' . $e->getLine() : ''
         ],$code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'))
-        ->withHeaders($headers)
+        // ->withHeaders($headers) // Removed
         ->send();
         exit();
     }
