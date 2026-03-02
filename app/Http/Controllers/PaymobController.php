@@ -2805,6 +2805,20 @@ www.ashome-eg.com';
         try {
             Log::info('Verifying Paymob payment', ['token' => $token]);
 
+            // Check if token is Base64 encoded (likely from mobile app)
+            if (!is_numeric($token) && substr_count($token, '.') === 0) {
+                try {
+                    $decoded = base64_decode($token, true);
+                    // Check if the decoded string looks like a JWT (3 parts separated by dots)
+                    if ($decoded && substr_count($decoded, '.') === 2) {
+                        $token = $decoded;
+                        Log::info('Decoded Base64 token to JWT');
+                    }
+                } catch (\Exception $e) {
+                    // Ignore, proceed as is
+                }
+            }
+
             // Check if token is a JWT (Payment Key) and extract order_id
             if (!is_numeric($token) && substr_count($token, '.') === 2) {
                 try {
@@ -2904,7 +2918,7 @@ www.ashome-eg.com';
                 }
             }
             
-            return ApiResponseService::errorResponse('Payment not found');
+            return ApiResponseService::errorResponse('Payment not found', null, 404);
 
         } catch (\Exception $e) {
             Log::error('Error verifying payment: ' . $e->getMessage());
