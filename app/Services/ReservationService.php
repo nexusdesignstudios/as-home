@@ -2233,13 +2233,31 @@ Best regards,
             $propertyName = 'Unknown Property';
             $propertyOwner = null;
 
-            if ($reservation->reservable_type === 'App\\Models\\Property') {
+            // Load reservable if not already loaded
+            if (!$reservation->relationLoaded('reservable')) {
+                $reservation->load('reservable');
+            }
+            $reservable = $reservation->reservable;
+
+            if ($reservable instanceof \App\Models\Property) {
+                $property = $reservable;
+                $propertyName = $property->title;
+                $propertyOwner = $property->customer;
+            } elseif ($reservable instanceof \App\Models\HotelRoom) {
+                $hotelRoom = $reservable;
+                if ($hotelRoom->property) {
+                    $propertyName = $hotelRoom->property->title;
+                    $propertyOwner = $hotelRoom->property->customer;
+                }
+            } elseif ($reservation->reservable_type === 'property' || $reservation->reservable_type === 'App\\Models\\Property') {
+                // Fallback for when morph relationship might fail or type string usage
                 $property = \App\Models\Property::find($reservation->reservable_id);
                 if ($property) {
                     $propertyName = $property->title;
                     $propertyOwner = $property->customer;
                 }
-            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+            } elseif ($reservation->reservable_type === 'hotel_room' || $reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                // Fallback for when morph relationship might fail or type string usage
                 $hotelRoom = \App\Models\HotelRoom::find($reservation->reservable_id);
                 if ($hotelRoom && $hotelRoom->property) {
                     $propertyName = $hotelRoom->property->title;

@@ -1178,7 +1178,7 @@ class ReservationController extends Controller
                 $this->sendReservationCancellationEmail($reservation, 'cancellation');
 
                 // Send cancellation email to the property owner
-                $this->sendReservationCancellationEmailToOwner($reservation);
+                $this->reservationService->sendReservationCancellationEmailToOwner($reservation);
             } elseif ($newStatus === 'approved') {
                 // Handle approved status - send approval email
                 $reservation->status = $newStatus;
@@ -2643,12 +2643,27 @@ class ReservationController extends Controller
 
             // Get property information
             $propertyName = 'Unknown Property';
-            if ($reservation->reservable_type === 'App\\Models\\Property') {
+
+            // Load reservable if not already loaded
+            if (!$reservation->relationLoaded('reservable')) {
+                $reservation->load('reservable');
+            }
+            $reservable = $reservation->reservable;
+
+            if ($reservable instanceof \App\Models\Property) {
+                $property = $reservable;
+                $propertyName = $property->title;
+            } elseif ($reservable instanceof \App\Models\HotelRoom) {
+                $hotelRoom = $reservable;
+                if ($hotelRoom->property) {
+                    $propertyName = $hotelRoom->property->title;
+                }
+            } elseif ($reservation->reservable_type === 'property' || $reservation->reservable_type === 'App\\Models\\Property') {
                 $property = Property::find($reservation->reservable_id);
                 if ($property) {
                     $propertyName = $property->title;
                 }
-            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+            } elseif ($reservation->reservable_type === 'hotel_room' || $reservation->reservable_type === 'App\\Models\\HotelRoom') {
                 $hotelRoom = HotelRoom::find($reservation->reservable_id);
                 if ($hotelRoom && $hotelRoom->property) {
                     $propertyName = $hotelRoom->property->title;
@@ -3397,8 +3412,20 @@ As-home Asset Management Team
             $roomNumber = 'N/A';
             $hotelAddress = $property->address ?? 'N/A';
 
-            if ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
-                $hotelRoom = $reservation->reservable;
+            // Load reservable if not already loaded
+            if (!$reservation->relationLoaded('reservable')) {
+                $reservation->load('reservable');
+            }
+            $reservable = $reservation->reservable;
+
+            if ($reservable instanceof \App\Models\HotelRoom) {
+                $hotelRoom = $reservable;
+                $roomNumber = $hotelRoom->room_number ?? 'N/A';
+                if ($hotelRoom->roomType) {
+                    $roomType = $hotelRoom->roomType->name ?? 'Standard Room';
+                }
+            } elseif ($reservation->reservable_type === 'hotel_room' || $reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                $hotelRoom = HotelRoom::find($reservation->reservable_id);
                 if ($hotelRoom) {
                     $roomNumber = $hotelRoom->room_number ?? 'N/A';
                     if ($hotelRoom->roomType) {

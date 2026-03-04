@@ -1420,12 +1420,27 @@ class ReservationsAdminController extends Controller
 
             // Get property information
             $propertyName = 'Unknown Property';
-            if ($reservation->reservable_type === 'App\\Models\\Property') {
+
+            // Load reservable if not already loaded
+            if (!$reservation->relationLoaded('reservable')) {
+                $reservation->load('reservable');
+            }
+            $reservable = $reservation->reservable;
+
+            if ($reservable instanceof \App\Models\Property) {
+                $property = $reservable;
+                $propertyName = $property->title;
+            } elseif ($reservable instanceof \App\Models\HotelRoom) {
+                $hotelRoom = $reservable;
+                if ($hotelRoom->property) {
+                    $propertyName = $hotelRoom->property->title;
+                }
+            } elseif ($reservation->reservable_type === 'property' || $reservation->reservable_type === 'App\\Models\\Property') {
                 $property = \App\Models\Property::find($reservation->reservable_id);
                 if ($property) {
                     $propertyName = $property->title;
                 }
-            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+            } elseif ($reservation->reservable_type === 'hotel_room' || $reservation->reservable_type === 'App\\Models\\HotelRoom') {
                 $hotelRoom = \App\Models\HotelRoom::find($reservation->reservable_id);
                 if ($hotelRoom && $hotelRoom->property) {
                     $propertyName = $hotelRoom->property->title;
