@@ -91,6 +91,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     /** Property */
     Route::post('post_property', [ApiController::class, 'post_property']);
     Route::post('update_post_property', [ApiController::class, 'update_post_property']);
+    Route::post('remove_gallery_image', [PropertController::class, 'removeGalleryImage']);
     Route::post('update_property_status', [ApiController::class, 'update_property_status']);
     Route::post('delete_property', [ApiController::class, 'delete_property']);
     Route::post('interested_users', [ApiController::class, 'interested_users']);

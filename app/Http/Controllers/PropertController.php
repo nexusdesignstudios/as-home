@@ -1088,6 +1088,26 @@ class PropertController extends Controller
                     // Filter to only include allowed editable fields
                     $filteredEditedData = \App\Services\PropertyEditRequestService::filterAllowedFields($editedData, $UpdateProperty);
                     
+                    // Handle gallery images for approval (Upload and add to filteredEditedData)
+                    if ($request->hasFile('gallery_images')) {
+                        $galleryImageNames = [];
+                        $destinationPath = public_path('images') . config('global.PROPERTY_GALLERY_IMG_PATH') . "/" . $UpdateProperty->id;
+                        if (!is_dir($destinationPath)) {
+                            mkdir($destinationPath, 0777, true);
+                        }
+                        
+                        foreach ($request->file('gallery_images') as $file) {
+                            $name = microtime(true) . '_' . uniqid() . '.' . $file->extension();
+                            $file->move($destinationPath, $name);
+                            $galleryImageNames[] = $name;
+                        }
+                        
+                        if (!empty($galleryImageNames)) {
+                            $filteredEditedData['gallery_images'] = $galleryImageNames;
+                            // We set hasChanges later, but let's ensure it's tracked
+                        }
+                    }
+
                     // Remove single image fields from edited data if no files were actually uploaded
                     // This prevents false positive change detection when users edit other fields
                     // Gallery images are handled separately through PropertyImages table and should not be in allowed fields
@@ -1155,6 +1175,15 @@ class PropertController extends Controller
                         }
                     }
                     
+                    // Check gallery images changes
+                    if (isset($filteredEditedData['gallery_images'])) {
+                        $hasChanges = true;
+                        $changeDetails['gallery_images'] = [
+                            'original' => 'count: ' . PropertyImages::where('propertys_id', $id)->count(),
+                            'new' => 'adding ' . count($filteredEditedData['gallery_images']) . ' images'
+                        ];
+                    }
+
                     // Also check hotel rooms for changes
                     if (!$hasChanges && isset($filteredEditedData['hotel_rooms']) && isset($originalPropertyData['hotel_rooms'])) {
                         $originalRoomsMap = [];
@@ -1312,16 +1341,20 @@ class PropertController extends Controller
                 }
 
                 if ($request->hasfile('gallery_images')) {
-                    \Illuminate\Support\Facades\Log::info('Gallery images found in update: ' . count($request->file('gallery_images')));
-                    foreach ($request->file('gallery_images') as $file) {
-                        // dd('Inside gallery loop');
-                        $name = microtime(true) . '_' . uniqid() . '.' . $file->extension();
-                        $file->move($destinationPath, $name);
+                    // Only process here if NOT handled by edit request (i.e. admin or auto-approve)
+                    // If isOwnerEdit && !autoApproveEdited, images were already moved in the approval block above
+                    if (!($isOwnerEdit && !$autoApproveEdited)) {
+                        \Illuminate\Support\Facades\Log::info('Gallery images found in update: ' . count($request->file('gallery_images')));
+                        foreach ($request->file('gallery_images') as $file) {
+                            // dd('Inside gallery loop');
+                            $name = microtime(true) . '_' . uniqid() . '.' . $file->extension();
+                            $file->move($destinationPath, $name);
 
-                        PropertyImages::create([
-                            'image' => $name,
-                            'propertys_id' => $UpdateProperty->id
-                        ]);
+                            PropertyImages::create([
+                                'image' => $name,
+                                'propertys_id' => $UpdateProperty->id
+                            ]);
+                        }
                     }
                 }
                 /// END :: UPLOAD GALLERY IMAGE
@@ -2094,6 +2127,37 @@ class PropertController extends Controller
 
             $image = $getImage->image;
             $propertys_id =  $getImage->propertys_id;
+
+            // Check for edit approval requirement
+            $property = Property::find($propertys_id);
+            if ($property) {
+                $isAdminUser = \Auth::check() && \Auth::user()->type == 0; 
+                $isOwnerEdit = !$isAdminUser && $property->added_by != 0;
+                $autoApproveEdited = HelperService::getSettingData('auto_approve_edited_listings') == 1;
+                
+                if ($isOwnerEdit && !$autoApproveEdited) {
+                    // Create/Update edit request for removal
+                    try {
+                        $editRequestService = new \App\Services\PropertyEditRequestService();
+                        $editRequestService->saveEditRequest(
+                            $property, 
+                            ['removed_gallery_images' => [$id]], 
+                            $property->added_by
+                        );
+                        
+                        // Set request status to pending
+                        $property->request_status = 'pending';
+                        $property->save();
+                        
+                        return response()->json([
+                            'error' => false, 
+                            'message' => trans('Image removal requested. Pending admin approval.')
+                        ]);
+                    } catch (\Exception $e) {
+                        return response()->json(['error' => true, 'message' => 'Failed to create removal request']);
+                    }
+                }
+            }
 
             if (PropertyImages::where('id', $id)->delete()) {
                 $imagePath = public_path('images') . config('global.PROPERTY_GALLERY_IMG_PATH') . $propertys_id . "/" . $image;

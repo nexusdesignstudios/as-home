@@ -26,6 +26,8 @@ class PropertyEditRequestService
             'title_image',
             'three_d_image',
             'hotel_rooms', // Special handling for hotel room descriptions
+            'gallery_images', // New gallery images
+            'removed_gallery_images', // IDs of gallery images to remove
         ];
     }
 
