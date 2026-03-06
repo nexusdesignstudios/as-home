@@ -470,7 +470,14 @@ class PropertController extends Controller
                             'max_guests' => isset($room['max_guests']) ? (int)$room['max_guests'] : 4,
                             'min_guests' => isset($room['min_guests']) ? (int)$room['min_guests'] : 1,
                             'base_guests' => isset($room['base_guests']) ? (int)$room['base_guests'] : 2,
-                            'guest_pricing_rules' => isset($room['guest_pricing_rules']) ? $room['guest_pricing_rules'] : null
+                            'guest_pricing_rules' => (function() use ($room) {
+                                $rules = isset($room['guest_pricing_rules']) ? $room['guest_pricing_rules'] : null;
+                                if (is_string($rules)) {
+                                    $decoded = json_decode($rules, true);
+                                    return (json_last_error() === JSON_ERROR_NONE) ? $decoded : $rules;
+                                }
+                                return $rules;
+                            })()
                         ]);
                         }
                     } catch (\Exception $e) {
