@@ -571,8 +571,11 @@ class ReservationService
                     ]);
                 }
 
-                // Send payment completion email to property owner
-                $this->sendPaymentCompletionEmailToOwner($reservation);
+                if ($bookingType === 'flexible_booking' && $reservation->payment_status !== 'paid') {
+                    $this->sendPaymentFormSubmissionEmailToOwner($reservation);
+                } else {
+                    $this->sendPaymentCompletionEmailToOwner($reservation);
+                }
                 
                 // Send reservation confirmation email to customer (unless skipped)
                 if (!$skipEmail) {
@@ -1856,6 +1859,84 @@ Best regards,
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Failed to send payment completion email to property owner: ' . $e->getMessage(), [
+                'reservation_id' => $reservation->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    public function sendPaymentFormSubmissionEmailToOwner($reservation)
+    {
+        try {
+            $property = null;
+            $propertyOwner = null;
+            if ($reservation->reservable_type === 'App\Models\Property') {
+                $property = $reservation->reservable;
+                $propertyOwner = $property->customer;
+            } elseif ($reservation->reservable_type === 'App\Models\HotelRoom') {
+                $hotelRoom = $reservation->reservable;
+                $property = $hotelRoom->property;
+                $propertyOwner = $property->customer;
+            }
+            if (!$property || !$propertyOwner || !$propertyOwner->email) {
+                return;
+            }
+            $customer = $reservation->customer;
+            if (!$customer) {
+                return;
+            }
+            $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes('payment_form_submission');
+            $templateData = system_setting('payment_form_submission_mail_template');
+            $roomType = '';
+            if ($reservation->reservable_type === 'App\Models\HotelRoom') {
+                $hotelRoom = $reservation->reservable;
+                $customRoomType = trim($hotelRoom->custom_room_type ?? '');
+                $roomType = !empty($customRoomType) ? $customRoomType : (optional($hotelRoom->room_type)->name ?? 'Standard Room');
+            } else {
+                $roomType = $property->title ?? 'Property';
+            }
+            $currencySymbol = system_setting('currency_symbol') ?? 'EGP';
+            $variables = array(
+                'app_name' => env('APP_NAME') ?? 'As-home',
+                'property_owner_name' => $propertyOwner->name,
+                'customer_name' => $customer->name,
+                'customer_email' => $customer->email,
+                'customer_phone' => $customer->mobile ?? $reservation->customer_phone,
+                'property_name' => $property->title,
+                'property_address' => $property->address,
+                'room_type' => $roomType,
+                'payment_breakdown' => '',
+                'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('Y-m-d') : null,
+                'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('Y-m-d') : null,
+                'number_of_guests' => $reservation->number_of_guests ?? 1,
+                'total_amount' => number_format($reservation->total_price, 2),
+                'currency_symbol' => $currencySymbol,
+                'card_number_masked' => '**** **** **** 0000',
+                'special_requests' => $reservation->special_requests ?? 'None',
+                'submission_date' => now()->format('Y-m-d H:i:s'),
+                'current_date_today' => now()->format('d M Y, h:i A'),
+                'reservation_id' => $reservation->id,
+                'transaction_id' => $reservation->transaction_id,
+                'approval_status' => $reservation->approval_status ?? 'approved',
+                'booking_type' => $reservation->booking_type ?? 'flexible_booking'
+            );
+            if (empty($templateData)) {
+                $templateData = 'New reservation request received for property "{property_name}" from {customer_name} ({customer_email}). Room Type: {room_type}. Amount: {total_amount} {currency_symbol}. Check-in: {check_in_date}, Check-out: {check_out_date}. Reservation ID: {reservation_id}. Please review and approve this booking in your dashboard.';
+            }
+            $emailTemplate = \App\Services\HelperService::replaceEmailVariables($templateData, $variables);
+            $data = array(
+                'email_template' => $emailTemplate,
+                'email' => $propertyOwner->email,
+                'title' => $emailTypeData['title'],
+            );
+            \App\Services\HelperService::sendMail($data);
+            \Illuminate\Support\Facades\Log::info('Payment form submission email sent to property owner from confirmation flow', [
+                'reservation_id' => $reservation->id,
+                'property_owner_email' => $propertyOwner->email
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send payment form submission email to owner', [
                 'reservation_id' => $reservation->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()

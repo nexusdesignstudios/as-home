@@ -6,6 +6,7 @@ use App\Http\Controllers\HotelRoomTypeController;
 use App\Http\Controllers\HotelRoomController;
 use App\Http\Controllers\AddonsPackageController;
 use App\Http\Controllers\HotelApartmentTypeController;
+use App\Http\Controllers\PropertController;
 use App\Http\Controllers\PaymobController;
 use App\Http\Controllers\PaypalCallbackController;
 use Illuminate\Support\Facades\Route;
