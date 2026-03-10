@@ -23,6 +23,34 @@ use Illuminate\Support\Facades\Route;
 */
 
 /*********************************************************************** */
+Route::get('internal/routes', function () {
+    $token = request()->header('X-Docs-Token');
+    if (!$token || $token !== env('DOCS_TOKEN')) {
+        return response()->json(['message' => 'Forbidden'], 403);
+    }
+
+    $result = [];
+    foreach (app('router')->getRoutes() as $route) {
+        $uri = ltrim($route->uri(), '/');
+        if (!str_starts_with($uri, 'api/')) {
+            continue;
+        }
+
+        $result[] = [
+            'domain' => $route->domain(),
+            'method' => implode('|', $route->methods()),
+            'uri' => $uri,
+            'name' => $route->getName(),
+            'action' => $route->getActionName(),
+            'middleware' => $route->gatherMiddleware(),
+        ];
+    }
+
+    return response()->json($result);
+});
+/*********************************************************************** */
+
+/*********************************************************************** */
 /** Property */
 Route::post('set_property_total_click', [ApiController::class, 'set_property_total_click']);
 Route::get('get_nearby_properties', [ApiController::class, 'get_nearby_properties']);
