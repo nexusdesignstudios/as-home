@@ -1861,7 +1861,7 @@ class ApiController extends Controller
             'power_of_attorney' => 'nullable|file|max:10240', // Accept all file types, max 10MB
             'availability_type' => 'nullable|integer|in:1,2|required_if:property_classification,4',
             'available_dates'   => 'nullable|json|required_if:property_classification,4',
-            'refund_policy'     => 'nullable|in:flexible,non-refundable',
+            'refund_policy'     => 'nullable|in:flexible,non-refundable,non_refundable,both',
             'corresponding_day' => 'nullable|json',
             'check_in'          => 'nullable|string',
             'check_out'         => 'nullable|string',
@@ -2711,11 +2711,13 @@ class ApiController extends Controller
             'hotel_rooms.*.nonrefundable_percentage' => 'nullable|numeric|min:0|max:100',
             'hotel_rooms.*.max_guests' => 'nullable|integer|min:0',
             'hotel_rooms.*.min_guests' => 'nullable|integer|min:1',
-            'hotel_rooms.*.refund_policy' => 'nullable|in:flexible,non-refundable',
+            'hotel_rooms.*.refund_policy' => 'nullable|in:flexible,non-refundable,non_refundable,both',
             'hotel_rooms.*.availability_type' => 'nullable|integer|in:1,2',
             'hotel_rooms.*.available_dates' => 'nullable|json',
             'hotel_rooms.*.weekend_commission' => 'nullable|numeric|min:0|max:100',
             'hotel_rooms.*.available_rooms' => 'nullable|integer|min:0',
+            'hotel_rooms.*.base_guests' => 'nullable|integer|min:1',
+            'hotel_rooms.*.guest_pricing_rules' => 'nullable',
             'hotel_apartment_type_id' => 'nullable|exists:hotel_apartment_types,id',
             'rent_package' => 'nullable|in:basic,premium',
             'addons_packages'       => 'nullable|array',
@@ -3892,6 +3894,23 @@ class ApiController extends Controller
                                         $hotelRoom->status = isset($room['status']) ? (bool)$room['status'] : $hotelRoom->status;
                                         $hotelRoom->max_guests = isset($room['max_guests']) ? (int)$room['max_guests'] : $hotelRoom->max_guests;
                                         $hotelRoom->min_guests = isset($room['min_guests']) ? (int)$room['min_guests'] : $hotelRoom->min_guests;
+                                        if (isset($room['base_guests'])) {
+                                            $hotelRoom->base_guests = (int)$room['base_guests'];
+                                        }
+                                        if (array_key_exists('guest_pricing_rules', $room) || array_key_exists('guestPricingRules', $room)) {
+                                            $rawRules = $room['guest_pricing_rules'] ?? $room['guestPricingRules'] ?? null;
+                                            if ($rawRules === '' || $rawRules === null) {
+                                                $hotelRoom->guest_pricing_rules = [];
+                                            } else {
+                                                if (is_string($rawRules)) {
+                                                    $decodedRules = json_decode($rawRules, true);
+                                                    if (json_last_error() === JSON_ERROR_NONE) {
+                                                        $rawRules = $decodedRules;
+                                                    }
+                                                }
+                                                $hotelRoom->guest_pricing_rules = $rawRules;
+                                            }
+                                        }
                                         if (isset($room['available_rooms'])) {
                                             $hotelRoom->available_rooms = (int)$room['available_rooms'];
                                         }
@@ -3922,6 +3941,10 @@ class ApiController extends Controller
                                         if (is_string($availableDates)) {
                                             $availableDates = json_decode($availableDates, true) ?? [];
                                         }
+                                        $guestPricingRules = $room['guest_pricing_rules'] ?? $room['guestPricingRules'] ?? [];
+                                        if (is_string($guestPricingRules)) {
+                                            $guestPricingRules = json_decode($guestPricingRules, true) ?? [];
+                                        }
                                         
                                         $newRoom = HotelRoom::create([
                                             'property_id' => $property->id,
@@ -3939,6 +3962,8 @@ class ApiController extends Controller
                                             'status' => isset($room['status']) ? (bool)$room['status'] : true,
                                             'max_guests' => isset($room['max_guests']) ? (int)$room['max_guests'] : 1,
                                             'min_guests' => isset($room['min_guests']) ? (int)$room['min_guests'] : 1,
+                                            'base_guests' => isset($room['base_guests']) ? (int)$room['base_guests'] : 2,
+                                            'guest_pricing_rules' => $guestPricingRules,
                                             'available_rooms' => isset($room['available_rooms']) ? (int)$room['available_rooms'] : 1
                                         ]);
                                         \Log::info('New hotel room created successfully', [
