@@ -156,35 +156,41 @@ class HotelRoom extends Model
      */
     public function getAvailableDatesAttribute($value)
     {
-        // Read from the available_dates_hotel_rooms table instead of the old column
-        $availableDatesQuery = \DB::table('available_dates_hotel_rooms')
-            ->where('hotel_room_id', $this->id)
-            ->orderBy('from_date', 'asc');
+        $availableDates = [];
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('available_dates_hotel_rooms')) {
+                $availableDatesQuery = \DB::table('available_dates_hotel_rooms')
+                    ->where('hotel_room_id', $this->id)
+                    ->orderBy('from_date', 'asc');
 
-        // Keep the property_id filter only when we have a property_id (older rows may have null)
-        if (!empty($this->property_id)) {
-            $availableDatesQuery->where(function ($q) {
-                $q->whereNull('property_id')
-                    ->orWhere('property_id', $this->property_id);
-            });
-        }
-
-        $availableDates = $availableDatesQuery
-            ->get()
-            ->map(function ($item) {
-                $type = $item->type;
-                if ($type === 'closed') {
-                    $type = 'dead';
+                if (!empty($this->property_id)) {
+                    $availableDatesQuery->where(function ($q) {
+                        $q->whereNull('property_id')
+                            ->orWhere('property_id', $this->property_id);
+                    });
                 }
-                return [
-                    'from' => $item->from_date,
-                    'to' => $item->to_date,
-                    'price' => (float) $item->price,
-                    'type' => $type,
-                    'nonrefundable_percentage' => (float) ($item->nonrefundable_percentage ?? $this->nonrefundable_percentage ?? 0)
-                ];
-            })
-            ->toArray();
+
+                $availableDates = $availableDatesQuery
+                    ->get()
+                    ->map(function ($item) {
+                        $type = $item->type;
+                        if ($type === 'closed') {
+                            $type = 'dead';
+                        }
+                        return [
+                            'from' => $item->from_date,
+                            'to' => $item->to_date,
+                            'price' => (float) $item->price,
+                            'type' => $type,
+                            'nonrefundable_percentage' => (float) ($item->nonrefundable_percentage ?? $this->nonrefundable_percentage ?? 0)
+                        ];
+                    })
+                    ->toArray();
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Failed to read available_dates_hotel_rooms for hotel room ' . $this->id . ': ' . $e->getMessage());
+            $availableDates = [];
+        }
 
         // Backwards compatibility: if the new table has no rows, fallback to the legacy JSON column.
         $decodedValue = $availableDates;
