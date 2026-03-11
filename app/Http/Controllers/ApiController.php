@@ -8740,11 +8740,11 @@ class ApiController extends Controller
                 } else if ($sortBy == 'oldest') {
                     $propertyQuery = $propertyQuery->clone()->orderBy('created_at', 'ASC');
                 } else if ($sortBy == 'featured') {
+                    // Simplify featured sorting to avoid heavy joins and potential DB issues,
+                    // especially for hotel (5) and vacation home (4) classifications.
+                    // Sort by 'is_promoted' flag first, then recent properties.
                     $propertyQuery = $propertyQuery->clone()
-                        ->withCount(['advertisement' => function ($query) {
-                            $query->where(['status' => 0, 'is_enable' => 1]);
-                        }])
-                        ->orderBy('advertisement_count', 'DESC')
+                        ->orderBy('is_promoted', 'DESC')
                         ->orderBy('created_at', 'DESC');
                 }
             }
