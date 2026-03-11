@@ -8,11 +8,22 @@ $app = require_once __DIR__ . '/bootstrap/app.php';
 $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
-$slug = 'hurghada-hotel-malorca-5-stars';
+$slug = $argv[1] ?? 'hurghada-hotel-malorca-5-stars';
 $property = Property::where('slug_id', $slug)->first();
 
 if (!$property) {
     echo "Property not found for slug: $slug\n";
+    $candidates = Property::where('slug_id', 'like', '%' . $slug . '%')
+        ->orWhere('slug_id', 'like', '%' . str_replace('-', '%', $slug) . '%')
+        ->orWhere('title', 'like', '%' . str_replace('-', ' ', $slug) . '%')
+        ->limit(10)
+        ->get(['id', 'slug_id', 'title']);
+    if ($candidates->count() > 0) {
+        echo "Possible matches:\n";
+        foreach ($candidates as $c) {
+            echo "- ID: {$c->id}, slug_id: {$c->slug_id}, title: {$c->title}\n";
+        }
+    }
     exit;
 }
 
