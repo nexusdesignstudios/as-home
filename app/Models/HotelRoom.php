@@ -28,7 +28,8 @@ class HotelRoom extends Model
         'base_guests',
         'max_guests',
         'guest_pricing_rules',
-        'available_rooms'
+        'available_rooms',
+        'instant_booking'
     ];
 
     protected $casts = [
@@ -43,7 +44,8 @@ class HotelRoom extends Model
         'base_guests' => 'integer',
         'guest_pricing_rules' => 'array',
         'available_rooms' => 'integer',
-        'available_dates' => 'array'
+        'available_dates' => 'array',
+        'instant_booking' => 'boolean'
     ];
 
     // Automatically include available_dates in JSON responses

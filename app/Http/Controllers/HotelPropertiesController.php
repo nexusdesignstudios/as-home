@@ -64,11 +64,26 @@ class HotelPropertiesController extends Controller
             $tempRow['title'] = $row->title;
             $tempRow['address'] = $row->address;
             $tempRow['refund_policy'] = $row->refund_policy ?? 'N/A';
+            $tempRow['cancellation_period'] = $row->cancellation_period ?? 'N/A';
             $tempRow['room_count'] = $row->hotelRooms()->count();
             $tempRow['status'] = $row->status;
+            $tempRow['instant_booking'] = $row->instant_booking;
             $tempRow['created_at'] = $row->created_at;
 
             $operate = '';
+
+            // Update Instant Booking toggle
+            if (has_permissions('update', 'property')) {
+                $checked = $row->instant_booking ? 'checked' : '';
+                $operate .= '<div class="form-check form-switch d-inline-block align-middle me-2">
+                                <input class="form-check-input update-instant-booking" type="checkbox" role="switch" data-id="' . $row->id . '" ' . $checked . ' title="Toggle Instant Booking">
+                             </div>';
+            }
+
+            // Update Cancellation Period button
+            if (has_permissions('update', 'property')) {
+                $operate .= '<a href="javascript:void(0)" class="btn btn-sm btn-info update-cancellation-period" data-id="' . $row->id . '" data-cancellation-period="' . $row->cancellation_period . '" title="Update Cancellation Period"><i class="bi bi-clock"></i></a>&nbsp;&nbsp;';
+            }
 
             // View property details
             if (has_permissions('read', 'property')) {
@@ -91,5 +106,61 @@ class HotelPropertiesController extends Controller
 
         $bulkData['rows'] = $rows;
         return response()->json($bulkData);
+    }
+
+    /**
+     * Update cancellation period for a hotel property.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function updateCancellationPeriod(Request $request)
+    {
+        if (!has_permissions('update', 'property')) {
+            return response()->json(['error' => true, 'message' => PERMISSION_ERROR_MSG]);
+        }
+
+        $request->validate([
+            'property_id' => 'required|exists:propertys,id',
+            'cancellation_period' => 'nullable|string|in:7_days,same_day_6pm',
+        ]);
+
+        try {
+            $property = Property::findOrFail($request->property_id);
+            $property->cancellation_period = $request->cancellation_period;
+            $property->save();
+
+            return response()->json(['error' => false, 'message' => 'Cancellation period updated successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => true, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Update instant booking status for a hotel property.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function updateInstantBooking(Request $request)
+    {
+        if (!has_permissions('update', 'property')) {
+            return response()->json(['error' => true, 'message' => PERMISSION_ERROR_MSG]);
+        }
+
+        $request->validate([
+            'property_id' => 'required|exists:propertys,id',
+            'instant_booking' => 'required|boolean',
+        ]);
+
+        try {
+            $property = Property::findOrFail($request->property_id);
+            $property->instant_booking = $request->instant_booking;
+            $property->save();
+
+            return response()->json(['error' => false, 'message' => 'Instant booking status updated successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => true, 'message' => $e->getMessage()]);
+        }
     }
 }

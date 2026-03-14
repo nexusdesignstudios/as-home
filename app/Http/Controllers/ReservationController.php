@@ -1187,6 +1187,16 @@ class ReservationController extends Controller
                     $reservation->payment_status = $request->payment_status;
                 }
 
+                // If this is a flexible hotel reservation, approving it also confirms it (blocks dates)
+                if ($reservation->is_flexible_booking && ($reservation->reservable_type === 'App\Models\HotelRoom' || $reservation->reservable_type === 'hotel_room')) {
+                    $this->reservationService->handleReservationConfirmation($reservation, 'unpaid');
+                    
+                    ApiResponseService::successResponse('Flexible reservation approved and confirmed successfully. Available dates updated and approval email sent.', [
+                        'reservation' => $reservation->fresh()
+                    ]);
+                    return;
+                }
+
                 $reservation->save();
 
                 // Send approval email

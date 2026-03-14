@@ -7,6 +7,7 @@ use App\Http\Controllers\FaqController;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Str;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\UserController;
@@ -61,6 +62,325 @@ use App\Http\Controllers\InvoiceDownloadController;
 
 
 Route::get('customer-privacy-policy', [SettingController::class, 'show_privacy_policy'])->name('customer-privacy-policy');
+
+Route::get('/openapi.json', function () {
+    $postmanMap = [];
+    $postmanPath = base_path('postman/as-home-dashboard-api.json');
+
+    $flattenPostmanItems = function (array $items) use (&$flattenPostmanItems, &$postmanMap) {
+        foreach ($items as $item) {
+            if (isset($item['item']) && is_array($item['item'])) {
+                $flattenPostmanItems($item['item']);
+                continue;
+            }
+
+            if (!isset($item['request']) || !is_array($item['request'])) {
+                continue;
+            }
+
+            $request = $item['request'];
+            $method = strtoupper($request['method'] ?? 'GET');
+            $url = $request['url'] ?? [];
+            $path = null;
+
+            if (is_array($url) && isset($url['path']) && is_array($url['path'])) {
+                $path = '/' . implode('/', $url['path']);
+            } elseif (is_array($url) && isset($url['raw']) && is_string($url['raw'])) {
+                $raw = $url['raw'];
+                $rawPath = parse_url($raw, PHP_URL_PATH);
+                if (is_string($rawPath) && $rawPath !== '') {
+                    $path = $rawPath;
+                }
+            }
+
+            if (!$path) {
+                continue;
+            }
+
+            $postmanMap[$method . ' ' . $path] = [
+                'name' => $item['name'] ?? null,
+                'description' => $request['description'] ?? null,
+                'auth' => $request['auth'] ?? null,
+                'body' => $request['body'] ?? null,
+                'header' => $request['header'] ?? null,
+            ];
+        }
+    };
+
+    if (file_exists($postmanPath)) {
+        $postman = json_decode(file_get_contents($postmanPath), true);
+        if (is_array($postman) && isset($postman['item']) && is_array($postman['item'])) {
+            $flattenPostmanItems($postman['item']);
+        }
+    }
+
+    $manualRequestBodies = [
+        'POST /api/add_favourite' => [
+            'required' => true,
+            'content' => [
+                'application/json' => [
+                    'schema' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'type' => ['type' => 'integer', 'enum' => [0, 1]],
+                            'property_id' => ['type' => 'integer'],
+                        ],
+                        'required' => ['type', 'property_id'],
+                    ],
+                    'examples' => [
+                        'add' => ['value' => ['type' => 1, 'property_id' => 123]],
+                        'remove' => ['value' => ['type' => 0, 'property_id' => 123]],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $defaultResponseSchema = [
+        'type' => 'object',
+        'properties' => [
+            'error' => ['type' => 'boolean'],
+            'message' => ['type' => 'string'],
+            'data' => ['nullable' => true],
+        ],
+        'required' => ['error', 'message', 'data'],
+    ];
+
+    $defaultResponses = [
+        '200' => [
+            'description' => 'Success',
+            'content' => [
+                'application/json' => [
+                    'schema' => $defaultResponseSchema,
+                    'examples' => [
+                        'success' => [
+                            'value' => [
+                                'error' => false,
+                                'message' => 'Success',
+                                'data' => new \stdClass(),
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+        '401' => [
+            'description' => 'Unauthorized',
+            'content' => [
+                'application/json' => [
+                    'schema' => $defaultResponseSchema,
+                    'examples' => [
+                        'unauthorized' => [
+                            'value' => [
+                                'error' => true,
+                                'message' => 'Unauthorized',
+                                'data' => null,
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+        '422' => [
+            'description' => 'Validation Error',
+            'content' => [
+                'application/json' => [
+                    'schema' => $defaultResponseSchema,
+                    'examples' => [
+                        'validation_error' => [
+                            'value' => [
+                                'error' => true,
+                                'message' => 'Validation error',
+                                'data' => null,
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+        '500' => [
+            'description' => 'Server Error',
+            'content' => [
+                'application/json' => [
+                    'schema' => $defaultResponseSchema,
+                    'examples' => [
+                        'server_error' => [
+                            'value' => [
+                                'error' => true,
+                                'message' => 'Server Error',
+                                'data' => null,
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $paths = [];
+    foreach (app('router')->getRoutes() as $route) {
+        $uri = ltrim($route->uri(), '/');
+        if (!str_starts_with($uri, 'api/')) {
+            continue;
+        }
+
+        if ($uri === 'api/internal/routes') {
+            continue;
+        }
+
+        $openApiPath = '/' . $uri;
+        $routeMethods = array_values(array_diff($route->methods(), ['HEAD']));
+
+        foreach ($routeMethods as $httpMethod) {
+            $httpMethod = strtoupper($httpMethod);
+            $methodKey = strtolower($httpMethod);
+            $segments = explode('/', substr($uri, 4));
+            $tag = $segments[0] !== '' ? $segments[0] : 'api';
+
+            $operationId = Str::camel(strtolower($httpMethod) . '_' . preg_replace('/[^a-zA-Z0-9_]/', '_', $uri));
+            $operation = [
+                'tags' => [Str::headline($tag)],
+                'summary' => $route->getName() ?: $route->getActionName(),
+                'operationId' => $operationId,
+                'responses' => $defaultResponses,
+            ];
+
+            $middleware = $route->gatherMiddleware();
+            if (in_array('auth:sanctum', $middleware, true)) {
+                $operation['security'] = [['bearerAuth' => []]];
+            }
+
+            $parameters = [];
+            foreach ($route->parameterNames() as $paramName) {
+                $parameters[] = [
+                    'name' => $paramName,
+                    'in' => 'path',
+                    'required' => true,
+                    'schema' => ['type' => 'string'],
+                    'example' => '1',
+                ];
+            }
+            if ($parameters) {
+                $operation['parameters'] = $parameters;
+            }
+
+            $postmanKey = $httpMethod . ' ' . $openApiPath;
+            $postman = $postmanMap[$postmanKey] ?? null;
+            $manualRequestBody = $manualRequestBodies[$postmanKey] ?? null;
+
+            if ($postman && isset($postman['description']) && is_string($postman['description']) && $postman['description'] !== '') {
+                $operation['description'] = $postman['description'];
+            } elseif ($postman && isset($postman['name']) && is_string($postman['name']) && $postman['name'] !== '') {
+                $operation['description'] = $postman['name'];
+            }
+
+            if ($postman && isset($postman['auth']['type']) && $postman['auth']['type'] === 'bearer') {
+                $operation['security'] = [['bearerAuth' => []]];
+            }
+
+            $hasRequestBody = in_array($httpMethod, ['POST', 'PUT', 'PATCH', 'DELETE'], true);
+            if ($hasRequestBody) {
+                if ($manualRequestBody && !$postman) {
+                    $operation['requestBody'] = $manualRequestBody;
+                    $paths[$openApiPath][$methodKey] = $operation;
+                    continue;
+                }
+
+                $content = [];
+
+                if ($postman && isset($postman['body']['mode']) && is_string($postman['body']['mode'])) {
+                    $mode = $postman['body']['mode'];
+                    if ($mode === 'formdata' && isset($postman['body']['formdata']) && is_array($postman['body']['formdata'])) {
+                        $properties = [];
+                        $example = [];
+                        foreach ($postman['body']['formdata'] as $field) {
+                            if (!is_array($field) || !isset($field['key']) || !is_string($field['key'])) {
+                                continue;
+                            }
+
+                            $fieldKey = $field['key'];
+                            $fieldType = $field['type'] ?? 'text';
+                            $fieldValue = $field['value'] ?? null;
+
+                            if ($fieldType === 'file') {
+                                $properties[$fieldKey] = ['type' => 'string', 'format' => 'binary'];
+                            } else {
+                                $properties[$fieldKey] = ['type' => 'string'];
+                                if (is_string($fieldValue) && $fieldValue !== '') {
+                                    $example[$fieldKey] = $fieldValue;
+                                }
+                            }
+                        }
+
+                        $content['multipart/form-data'] = [
+                            'schema' => ['type' => 'object', 'properties' => $properties],
+                            'examples' => $example ? ['example' => ['value' => $example]] : new \stdClass(),
+                        ];
+                    } elseif ($mode === 'raw' && isset($postman['body']['raw']) && is_string($postman['body']['raw'])) {
+                        $raw = $postman['body']['raw'];
+                        $decoded = json_decode($raw, true);
+                        if (json_last_error() === JSON_ERROR_NONE) {
+                            $content['application/json'] = [
+                                'schema' => ['type' => 'object'],
+                                'examples' => ['example' => ['value' => $decoded]],
+                            ];
+                        } else {
+                            $content['text/plain'] = [
+                                'schema' => ['type' => 'string'],
+                                'examples' => ['example' => ['value' => $raw]],
+                            ];
+                        }
+                    }
+                }
+
+                if (!$content) {
+                    $content['application/json'] = [
+                        'schema' => ['type' => 'object'],
+                        'examples' => [
+                            'example' => ['value' => new \stdClass()],
+                        ],
+                    ];
+                }
+
+                $operation['requestBody'] = [
+                    'required' => $httpMethod !== 'DELETE',
+                    'content' => $content,
+                ];
+            }
+
+            $paths[$openApiPath][$methodKey] = $operation;
+        }
+    }
+
+    ksort($paths);
+
+    $title = config('app.name') ?: 'AS Home API';
+    $version = config('app.version') ?: '1.0.0';
+
+    $spec = [
+        'openapi' => '3.0.3',
+        'info' => [
+            'title' => $title,
+            'version' => $version,
+        ],
+        'servers' => [
+            ['url' => url('/')],
+        ],
+        'paths' => $paths,
+        'components' => [
+            'securitySchemes' => [
+                'bearerAuth' => [
+                    'type' => 'http',
+                    'scheme' => 'bearer',
+                ],
+            ],
+        ],
+    ];
+
+    return response()
+        ->json($spec)
+        ->setEncodingOptions(JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+});
 
 // Route to clear cache for CORS settings update
 Route::get('/clear-cache-all', function() {
@@ -328,6 +648,8 @@ Route::middleware(['language'])->group(function () {
         /// START :: HOTEL PROPERTIES ROUTE
         Route::get('hotel_properties', [HotelPropertiesController::class, 'index'])->name('hotel_properties.index');
         Route::get('hotel_properties_list', [HotelPropertiesController::class, 'getHotelPropertiesList'])->name('hotel_properties.list');
+        Route::post('hotel_properties/update-cancellation-period', [HotelPropertiesController::class, 'updateCancellationPeriod'])->name('hotel_properties.update_cancellation_period');
+        Route::post('hotel_properties/update-instant-booking', [HotelPropertiesController::class, 'updateInstantBooking'])->name('hotel_properties.update_instant_booking');
         /// END :: HOTEL PROPERTIES ROUTE
 
         /// START :: RESERVATIONS ROUTE

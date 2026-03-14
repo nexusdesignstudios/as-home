@@ -253,6 +253,42 @@
         </div>
         {{-- End Change Request Status --}}
 
+        <!-- Update Cancellation Period Modal -->
+        <div class="modal fade" id="updateCancellationPeriodModal" tabindex="-1" role="dialog" aria-labelledby="updateCancellationPeriodModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <form id="updateCancellationPeriodForm" action="{{ route('hotel_properties.update_cancellation_period') }}" method="POST">
+                        @csrf
+                        <input type="hidden" name="property_id" id="modal_property_id">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="updateCancellationPeriodModalLabel">{{ __('Update Cancellation Period') }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label for="cancellation_period">{{ __('Cancellation Period') }}</label>
+                                <select name="cancellation_period" id="cancellation_period" class="form-select">
+                                    <option value="">{{ __('No Cancellation Policy') }}</option>
+                                    <option value="7_days">{{ __('7 Days Cancellation Period') }}</option>
+                                    <option value="same_day_6pm">{{ __('Same Day at 06:00 PM') }}</option>
+                                </select>
+                                <small class="text-muted">
+                                    <ul>
+                                        <li><strong>7 Days:</strong> No flexible bookings from today to upcoming 6 days.</li>
+                                        <li><strong>Same Day 6 PM:</strong> No flexible bookings on the same day after 06:00 PM.</li>
+                                    </ul>
+                                </small>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Close') }}</button>
+                            <button type="submit" class="btn btn-primary">{{ __('Update') }}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <input type="hidden" id="property_id">
 
     </section>
@@ -304,6 +340,41 @@
             }
         });
 
+        $('#updateCancellationPeriodForm').submit(function(e) {
+            e.preventDefault();
+            var form = $(this);
+            var url = form.attr('action');
+            var formData = form.serialize();
+
+            $.ajax({
+                type: "POST",
+                url: url,
+                data: formData,
+                success: function(response) {
+                    if (response.error == false) {
+                        $('#updateCancellationPeriodModal').modal('hide');
+                        $('#table_list').bootstrapTable('refresh');
+                        Toastify({
+                            text: response.message,
+                            duration: 3000,
+                            close: true,
+                            gravity: "top",
+                            position: "right",
+                            backgroundColor: "linear-gradient(to right, #00b09b, #96c93d)",
+                        }).showToast();
+                    } else {
+                        Toastify({
+                            text: response.message,
+                            duration: 3000,
+                            close: true,
+                            gravity: "top",
+                            position: "right",
+                            backgroundColor: "linear-gradient(to right, #ff5f6d, #ffc371)",
+                        }).showToast();
+                    }
+                }
+            });
+        });
 
         function queryParams(p) {
 
@@ -327,6 +398,11 @@
             'click .edit_btn': function(e, value, row, index) {
                 $('#property_id').val(row.id);
                 $('#customer_table_list').bootstrapTable('refresh');
+            },
+            'click .update-cancellation-period': function(e, value, row, index) {
+                $('#modal_property_id').val(row.id);
+                $('#cancellation_period').val(row.cancellation_period || '');
+                $('#updateCancellationPeriodModal').modal('show');
             },
             'click .gallery-image-btn': function(e, value, row, index) {
                 $('.gallary-images-div').empty();

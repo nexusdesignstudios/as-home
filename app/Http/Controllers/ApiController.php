@@ -832,7 +832,7 @@ class ApiController extends Controller
             'company_employee_username', 'company_employee_email', 'company_employee_phone_number', 
             'company_employee_whatsappnumber', 'video_link', 'rentduration', 'meta_title', 
             'meta_description', 'meta_keywords', 'meta_image', 'three_d_image', 'rent_package',
-            'created_at', 'category_id', 'client_address'
+            'created_at', 'category_id', 'client_address', 'cancellation_period'
         ];
 
         $property = Property::select($select)
@@ -1935,6 +1935,7 @@ class ApiController extends Controller
             'reservation_email' => 'nullable|email',
             'hotel_vat' => 'nullable|string',
             'hotelAvailableRooms' => 'nullable|integer|min:0',
+            'cancellation_period' => 'nullable|string|in:7_days,same_day_6pm',
         ], [], [
             'documents.*' => 'document :position',
             'addons_packages.*.name' => 'package name :position',
@@ -2036,6 +2037,9 @@ class ApiController extends Controller
                 }
                 if (isset($request->hotelAvailableRooms)) {
                     $saveProperty->hotel_available_rooms = $request->hotelAvailableRooms;
+                }
+                if (isset($request->cancellation_period)) {
+                    $saveProperty->cancellation_period = $request->cancellation_period;
                 }
             }
 
@@ -2327,7 +2331,8 @@ class ApiController extends Controller
                                 'description' => $room['description'] ?? null,
                                 'status' => $room['status'] ?? 1,
                                 'max_guests' => isset($room['max_guests']) ? (int)$room['max_guests'] : null,
-                                'min_guests' => isset($room['min_guests']) ? (int)$room['min_guests'] : null
+                                'min_guests' => isset($room['min_guests']) ? (int)$room['min_guests'] : null,
+                                'instant_booking' => isset($room['instant_booking']) ? (bool)$room['instant_booking'] : true
                             ]);
                         } catch (\Exception $roomEx) {
                             throw $roomEx;
@@ -2720,6 +2725,7 @@ class ApiController extends Controller
             'hotel_rooms.*.guest_pricing_rules' => 'nullable',
             'hotel_apartment_type_id' => 'nullable|exists:hotel_apartment_types,id',
             'rent_package' => 'nullable|in:basic,premium',
+            'cancellation_period' => 'nullable|string|in:7_days,same_day_6pm',
             'addons_packages'       => 'nullable|array',
             'addons_packages.*.id' => 'nullable|exists:addons_packages,id',
             'addons_packages.*.name' => 'required_with:addons_packages',
@@ -3021,6 +3027,9 @@ class ApiController extends Controller
                         }
                         if (isset($request->hotelAvailableRooms)) {
                             $property->hotel_available_rooms = $request->hotelAvailableRooms;
+                        }
+                        if (isset($request->cancellation_period)) {
+                            $property->cancellation_period = $request->cancellation_period;
                         }
                     }
 
@@ -3914,6 +3923,9 @@ class ApiController extends Controller
                                         if (isset($room['available_rooms'])) {
                                             $hotelRoom->available_rooms = (int)$room['available_rooms'];
                                         }
+                                        if (isset($room['instant_booking'])) {
+                                            $hotelRoom->instant_booking = (bool)$room['instant_booking'];
+                                        }
                                         $hotelRoom->save();
                                     }
                                 } else {
@@ -3964,7 +3976,8 @@ class ApiController extends Controller
                                             'min_guests' => isset($room['min_guests']) ? (int)$room['min_guests'] : 1,
                                             'base_guests' => isset($room['base_guests']) ? (int)$room['base_guests'] : 2,
                                             'guest_pricing_rules' => $guestPricingRules,
-                                            'available_rooms' => isset($room['available_rooms']) ? (int)$room['available_rooms'] : 1
+                                            'available_rooms' => isset($room['available_rooms']) ? (int)$room['available_rooms'] : 1,
+                                            'instant_booking' => isset($room['instant_booking']) ? (bool)$room['instant_booking'] : true
                                         ]);
                                         \Log::info('New hotel room created successfully', [
                                             'room_id' => $newRoom->id, 
@@ -6028,6 +6041,11 @@ class ApiController extends Controller
                 if (empty($templateData)) {
                     $templateData = 'New Inquiry from {first_name} {last_name} ({email}) with subject "{subject}". Message: {message}';
                 }
+                // Add Action Required note for non-instant bookings
+                if ($reservation->requires_approval) {
+                    $templateData .= "\n\n⏳ **Action Required**: This is a non-instant booking. Please review and approve or reject this request in your dashboard.";
+                }
+
                 $emailTemplate = HelperService::replaceEmailVariables($templateData, $variables);
 
                 $data = array(
@@ -12880,6 +12898,33 @@ Best regards,
             // Get property with owner information
             $property = Property::with('customer')->findOrFail($request->property_id);
 
+            // NEW: Enforce cancellation period rules for hotel bookings
+            if ($property->property_classification == 5 && $isFlexibleBooking) {
+                $checkInDate = Carbon::parse($request->check_in_date)->startOfDay();
+                $now = HelperService::toAppTimezone(Carbon::now());
+                $today = $now->copy()->startOfDay();
+                
+                if ($property->cancellation_period == '7_days') {
+                    // Rule 1: No flexible booking from today to upcoming 6 days
+                    // If check-in is within 7 days from now (including today)
+                    $diffInDays = $today->diffInDays($checkInDate, false);
+                    if ($diffInDays < 7) {
+                        return response()->json([
+                            'error' => true,
+                            'message' => 'Flexible booking is not allowed within 7 days of check-in for this hotel.'
+                        ], 400);
+                    }
+                } elseif ($property->cancellation_period == 'same_day_6pm') {
+                    // Rule 2: No flexible booking on the same day after 06:00 pm
+                    if ($today->isSameDay($checkInDate) && $now->hour >= 18) {
+                        return response()->json([
+                            'error' => true,
+                            'message' => 'Flexible booking is not allowed after 06:00 PM for same-day check-in at this hotel.'
+                        ], 400);
+                    }
+                }
+            }
+
             if (!$property->customer) {
                 return response()->json([
                     'error' => true,
@@ -12987,6 +13032,15 @@ Best regards,
                 'updated_at' => now()
             ];
 
+            // Override approval workflow fields based on Property Instant Booking
+            if ($property->property_classification == 5 && !$property->instant_booking) {
+                // For non-instant hotel bookings, require approval for both flexible and non-refundable
+                $baseReservationData['status'] = 'pending';
+                $baseReservationData['approval_status'] = 'pending';
+                $baseReservationData['requires_approval'] = true;
+                $baseReservationData['booking_type'] = 'reservation_request'; // Both types follow this flow
+            }
+
             // Override approval workflow fields if explicitly provided in request
             if ($request->has('approval_status') && $request->approval_status !== null) {
                 $baseReservationData['approval_status'] = $request->approval_status;
@@ -12998,13 +13052,18 @@ Best regards,
                 $baseReservationData['booking_type'] = $request->booking_type;
             }
             
-            // Handle flexible reservations overrides
+            // Handle flexible reservations overrides for Instant Booking
             if ($request->has('booking_type') && $request->booking_type === 'flexible_booking') {
-                $baseReservationData['status'] = 'confirmed';
-                $baseReservationData['payment_status'] = 'unpaid';
-                $baseReservationData['payment_method'] = 'cash';
-                $baseReservationData['approval_status'] = 'approved';
-                $baseReservationData['requires_approval'] = false;
+                // If instant booking is on, keep the confirmed/approved status
+                // If not, it would have been overridden by the non-instant check above
+                if (!isset($baseReservationData['requires_approval']) || $baseReservationData['requires_approval'] === false) {
+                    $baseReservationData['status'] = 'confirmed';
+                    $baseReservationData['payment_status'] = 'unpaid';
+                    $baseReservationData['payment_method'] = 'cash';
+                    $baseReservationData['approval_status'] = 'approved';
+                    $baseReservationData['requires_approval'] = false;
+                }
+                
                 $baseReservationData['is_flexible_booking'] = true;
                 
                 // For flexible bookings, default refund policy to flexible/refundable if not provided
@@ -13121,6 +13180,17 @@ Best regards,
                     $reservationData['discount_percentage'] = $request->discount_percentage ?? 0;
                     
                     $createdReservations[] = \App\Models\Reservation::create($reservationData);
+                    
+                    // If flexible and instant booking (confirmed), update available dates
+                    if ($reservationData['status'] === 'confirmed' && $reservationData['is_flexible_booking']) {
+                        $reservationService->updateAvailableDates(
+                            'App\Models\HotelRoom',
+                            $reservableId,
+                            $request->check_in_date,
+                            $request->check_out_date,
+                            $createdReservations[count($createdReservations)-1]->id
+                        );
+                    }
                 }
             } 
             // Case 2: Property/Single Reservation
@@ -13142,6 +13212,18 @@ Best regards,
                 }
                 
                 $createdReservations[] = \App\Models\Reservation::create($reservationData);
+
+                // If flexible and instant booking (confirmed), update available dates
+                if ($reservationData['status'] === 'confirmed' && ($reservationData['is_flexible_booking'] ?? false)) {
+                    $reservationService = new \App\Services\ReservationService();
+                    $reservationService->updateAvailableDates(
+                        $reservationData['reservable_type'],
+                        $reservableId,
+                        $request->check_in_date,
+                        $request->check_out_date,
+                        $createdReservations[0]->id
+                    );
+                }
             }
             
             // Set main reservation context for response/emails
@@ -13394,6 +13476,11 @@ Best regards,
 
                 if (empty($templateData)) {
                     $templateData = 'New reservation request received for property "{property_name}" from {customer_name} ({customer_email}). Room Type: {room_type}. Amount: {total_amount} {currency_symbol}. Check-in: {check_in_date}, Check-out: {check_out_date}. Reservation ID: {reservation_id}. Please review and approve this booking in your dashboard.';
+                }
+
+                // Add Action Required note for non-instant bookings
+                if ($reservation->requires_approval) {
+                    $templateData .= "\n\n⏳ **Action Required**: This is a non-instant booking. Please review and approve or reject this request in your dashboard.";
                 }
 
                 $emailTemplate = HelperService::replaceEmailVariables($templateData, $variables);

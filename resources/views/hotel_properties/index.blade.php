@@ -62,6 +62,8 @@
                                     <th scope="col" data-field="title" data-sortable="true">{{ __('Title') }}</th>
                                     <th scope="col" data-field="address" data-sortable="true">{{ __('Address') }}</th>
                                     <th scope="col" data-field="refund_policy" data-sortable="true">{{ __('Refund Policy') }}</th>
+                                    <th scope="col" data-field="cancellation_period" data-sortable="true" data-formatter="cancellationPeriodFormatter">{{ __('Cancellation Period') }}</th>
+                                    <th scope="col" data-field="instant_booking" data-sortable="true" data-formatter="instantBookingFormatter">{{ __('Instant Booking') }}</th>
                                     <th scope="col" data-field="room_count" data-sortable="true">{{ __('Room Count') }}</th>
                                     <th scope="col" data-field="status" data-sortable="true" data-formatter="statusFormatter">{{ __('Status') }}</th>
                                     <th scope="col" data-field="created_at" data-sortable="true">{{ __('Created At') }}</th>
@@ -74,6 +76,42 @@
             </div>
         </div>
     </section>
+
+    <!-- Update Cancellation Period Modal -->
+    <div class="modal fade" id="updateCancellationPeriodModal" tabindex="-1" role="dialog" aria-labelledby="updateCancellationPeriodModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form id="updateCancellationPeriodForm" action="{{ route('hotel_properties.update_cancellation_period') }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="property_id" id="property_id">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="updateCancellationPeriodModalLabel">{{ __('Update Cancellation Period') }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="cancellation_period">{{ __('Cancellation Period') }}</label>
+                            <select name="cancellation_period" id="cancellation_period" class="form-select">
+                                <option value="">{{ __('No Cancellation Policy') }}</option>
+                                <option value="7_days">{{ __('7 Days Cancellation Period') }}</option>
+                                <option value="same_day_6pm">{{ __('Same Day at 06:00 PM') }}</option>
+                            </select>
+                            <small class="text-muted">
+                                <ul>
+                                    <li><strong>7 Days:</strong> No flexible bookings from today to upcoming 6 days.</li>
+                                    <li><strong>Same Day 6 PM:</strong> No flexible bookings on the same day after 06:00 PM.</li>
+                                </ul>
+                            </small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Close') }}</button>
+                        <button type="submit" class="btn btn-primary">{{ __('Update') }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('script')
@@ -95,5 +133,105 @@
                 return '<span class="badge bg-danger">{{ __('Inactive') }}</span>';
             }
         }
+
+        function instantBookingFormatter(value, row) {
+            if (value == 1) {
+                return '<span class="badge bg-success">{{ __('Yes') }}</span>';
+            } else {
+                return '<span class="badge bg-danger">{{ __('No') }}</span>';
+            }
+        }
+
+        function cancellationPeriodFormatter(value, row) {
+            if (value == '7_days') {
+                return '<span class="badge bg-info">7 Days</span>';
+            } else if (value == 'same_day_6pm') {
+                return '<span class="badge bg-warning">Same Day 6:00 PM</span>';
+            } else {
+                return '<span class="badge bg-secondary">N/A</span>';
+            }
+        }
+
+        window.actionEvents = {
+            'click .update-cancellation-period': function(e, value, row, index) {
+                $('#property_id').val(row.id);
+                $('#cancellation_period').val(row.cancellation_period == 'N/A' ? '' : row.cancellation_period);
+                $('#updateCancellationPeriodModal').modal('show');
+            }
+        };
+
+        $(document).on('change', '.update-instant-booking', function() {
+            var id = $(this).data('id');
+            var is_checked = $(this).is(':checked') ? 1 : 0;
+            var url = "{{ route('hotel_properties.update_instant_booking') }}";
+
+            $.ajax({
+                type: "POST",
+                url: url,
+                data: {
+                    _token: "{{ csrf_token() }}",
+                    property_id: id,
+                    instant_booking: is_checked
+                },
+                success: function(response) {
+                    if (response.error == false) {
+                        $('#hotel_properties_list').bootstrapTable('refresh');
+                        Toastify({
+                            text: response.message,
+                            duration: 3000,
+                            close: true,
+                            gravity: "top",
+                            position: "right",
+                            backgroundColor: "linear-gradient(to right, #00b09b, #96c93d)",
+                        }).showToast();
+                    } else {
+                        Toastify({
+                            text: response.message,
+                            duration: 3000,
+                            close: true,
+                            gravity: "top",
+                            position: "right",
+                            backgroundColor: "linear-gradient(to right, #ff5f6d, #ffc371)",
+                        }).showToast();
+                    }
+                }
+            });
+        });
+
+        $('#updateCancellationPeriodForm').submit(function(e) {
+            e.preventDefault();
+            var form = $(this);
+            var url = form.attr('action');
+            var formData = form.serialize();
+
+            $.ajax({
+                type: "POST",
+                url: url,
+                data: formData,
+                success: function(response) {
+                    if (response.error == false) {
+                        $('#updateCancellationPeriodModal').modal('hide');
+                        $('#hotel_properties_list').bootstrapTable('refresh');
+                        Toastify({
+                            text: response.message,
+                            duration: 3000,
+                            close: true,
+                            gravity: "top",
+                            position: "right",
+                            backgroundColor: "linear-gradient(to right, #00b09b, #96c93d)",
+                        }).showToast();
+                    } else {
+                        Toastify({
+                            text: response.message,
+                            duration: 3000,
+                            close: true,
+                            gravity: "top",
+                            position: "right",
+                            backgroundColor: "linear-gradient(to right, #ff5f6d, #ffc371)",
+                        }).showToast();
+                    }
+                }
+            });
+        });
     </script>
 @endsection

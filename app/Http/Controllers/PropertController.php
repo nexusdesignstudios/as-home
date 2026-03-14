@@ -172,6 +172,7 @@ class PropertController extends Controller
                         }
                     }
                 }],
+                'cancellation_period' => 'nullable|string|in:7_days,same_day_6pm',
             ], [], [
                 'documents.*' => 'document :position',
                 'addons_packages.*.name' => 'package name :position',
@@ -197,6 +198,7 @@ class PropertController extends Controller
                 $saveProperty->company_employee_phone_number = $request->company_employee_phone_number ?? null;
                 $saveProperty->address = $request->address;
                 $saveProperty->client_address = $request->client_address;
+                $saveProperty->cancellation_period = $request->cancellation_period ?? null;
                 $saveProperty->propery_type = $request->property_type;
                 $saveProperty->property_classification = $request->property_classification;
                 $saveProperty->price = $request->price;
@@ -770,6 +772,7 @@ class PropertController extends Controller
                             }
                         }
                     }],
+                    'cancellation_period' => 'nullable|string|in:7_days,same_day_6pm',
                 ], [
                     'title.required' => 'Property title is required.',
                     'description.required' => 'Property description is required.',
@@ -952,6 +955,7 @@ class PropertController extends Controller
                         $UpdateProperty->reservation_email = $request->reservation_email ?? null;
                     }
                     $UpdateProperty->hotel_vat = $request->hotel_vat ?? null;
+                    $UpdateProperty->cancellation_period = $request->cancellation_period ?? null;
                 }
 
                 // Handle agent_addons field (available for all property types)
@@ -1975,6 +1979,18 @@ class PropertController extends Controller
                 $requestStatusButtonCustomClasses = ["btn", "icon", "btn-warning", "btn-sm", "rounded-pill", "request-status-btn"];
                 $requestStatusButtonCustomAttributes = ["id" => $row->id, "title" => trans('Change Status'), "data-toggle" => "modal", "data-bs-target" => "#changeRequestStatusModal", "data-bs-toggle" => "modal"];
                 $operate .= BootstrapTableService::button('fa fa-exclamation-circle', '', $requestStatusButtonCustomClasses, $requestStatusButtonCustomAttributes);
+
+                // NEW: Add Cancellation Period button for Hotels
+                if ($row->property_classification == 5) {
+                    $cancellationButtonCustomClasses = ["btn", "icon", "btn-info", "btn-sm", "rounded-pill", "update-cancellation-period"];
+                    $cancellationButtonCustomAttributes = [
+                        "id" => $row->id, 
+                        "title" => trans('Update Cancellation Period'), 
+                        "data-id" => $row->id,
+                        "data-cancellation-period" => $row->cancellation_period ?? '',
+                    ];
+                    $operate .= BootstrapTableService::button('bi bi-clock', '', $cancellationButtonCustomClasses, $cancellationButtonCustomAttributes);
+                }
             }
 
             // Add delete button if user has permission
