@@ -13539,15 +13539,28 @@ Best regards,
 
                         if ($isFlexibleBooking) {
                         try {
-                            $reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation, $siblings);
-                            Log::info('Flexible booking confirmation email sent to customer', [
-                                'reservation_id' => $reservation->id,
-                                'customer_email' => $customer->email,
-                                'booking_type' => 'flexible_booking',
-                                'siblings_count' => count($siblings)
-                            ]);
+                            // Check if reservation is actually confirmed (Instant Booking ON)
+                            if ($reservation->status === 'confirmed') {
+                                $reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation, $siblings);
+                                Log::info('Flexible booking confirmation email sent to customer', [
+                                    'reservation_id' => $reservation->id,
+                                    'customer_email' => $customer->email,
+                                    'booking_type' => 'flexible_booking',
+                                    'status' => 'confirmed',
+                                    'siblings_count' => count($siblings)
+                                ]);
+                            } else {
+                                // Pending (Instant Booking OFF) - Send Pending Approval Email
+                                $reservationService->sendVacationHomePendingApprovalEmail($reservation);
+                                Log::info('Flexible booking pending approval email sent to customer', [
+                                    'reservation_id' => $reservation->id,
+                                    'customer_email' => $customer->email,
+                                    'booking_type' => 'flexible_booking',
+                                    'status' => 'pending'
+                                ]);
+                            }
                         } catch (\Exception $e) {
-                            Log::error('Flexible booking confirmation email failed: ' . $e->getMessage(), [
+                            Log::error('Flexible booking email failed: ' . $e->getMessage(), [
                                 'reservation_id' => $reservation->id,
                                 'customer_email' => $customer->email,
                                 'booking_type' => 'flexible_booking',
