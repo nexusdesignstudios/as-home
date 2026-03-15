@@ -1919,7 +1919,12 @@ class ReservationController extends Controller
             $paymentIntent = null;
             $paymentUrl = null;
 
-            if ($paymentMethod === 'paypal') {
+            if ($paymentMethod === 'pay_at_property' || $paymentMethod === 'cash') {
+                Log::info('Skipping payment gateway for pay_at_property/cash payment method', [
+                    'transaction_id' => $transactionId,
+                    'payment_method' => $paymentMethod
+                ]);
+            } elseif ($paymentMethod === 'paypal') {
                 // PayPal Logic (SDK)
                 $paypalSdk = new \App\Libraries\PaypalServerSdk();
                 

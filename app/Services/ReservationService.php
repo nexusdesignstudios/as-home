@@ -1429,7 +1429,7 @@ Best regards,
                 'title' => $emailTypeData['title'] ?? 'Reservation Confirmed'
             );
 
-            \App\Services\HelperService::sendMail($data);
+            \App\Services\HelperService::sendMail($data, false, true);
 
             \Illuminate\Support\Facades\Log::info('Aggregated reservation confirmation email sent', [
                 'customer_email' => $customer->email,
@@ -2181,7 +2181,7 @@ Best regards,
                     'email' => $customer->email,
                     'title' => $emailTypeData['title'],
                 );
-                \App\Services\HelperService::sendMail($data);
+                \App\Services\HelperService::sendMail($data, false, true);
 
                 \Illuminate\Support\Facades\Log::info('Flexible hotel booking approval email sent successfully', [
                     'reservation_id' => $reservation->id,
@@ -2284,7 +2284,7 @@ Best regards,
                     'email' => $customer->email,
                     'title' => $emailTypeData['title'],
                 );
-                \App\Services\HelperService::sendMail($data);
+                \App\Services\HelperService::sendMail($data, false, true);
 
                 \Illuminate\Support\Facades\Log::info('Vacation home pending approval email sent successfully', [
                     'reservation_id' => $reservation->id,

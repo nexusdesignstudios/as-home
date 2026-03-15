@@ -10,7 +10,8 @@ $kernel->bootstrap();
 
 $slugs = [
     'hurghada-hotel-malorca-5-stars',
-    'malorca-hotel'
+    'malorca-hotel',
+    'hotel-sharm-el-seikh'
 ];
 
 foreach ($slugs as $slug) {
@@ -23,6 +24,7 @@ foreach ($slugs as $slug) {
         echo "  Status: {$property->status}\n";
         echo "  Request Status: {$property->request_status}\n";
         echo "  Classification: {$property->property_classification}\n";
+        echo "  Cancellation Period: " . ($property->cancellation_period ?? 'NULL') . "\n";
         
         // Check rooms for this property
         $rooms = \App\Models\HotelRoom::where('property_id', $property->id)->get();

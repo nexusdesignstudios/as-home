@@ -79,7 +79,8 @@ class Property extends Model
         'rentduration',
         'video_link',
         'meta_image',
-        'cancellation_period'
+        'cancellation_period',
+        'added_by'
     ];
     protected $hidden = [
         'updated_at',

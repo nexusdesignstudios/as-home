@@ -57,16 +57,16 @@ class HomeController extends Controller
             $list['total_rant_property'] = (clone $propertyQuery)->where('propery_type', '1')->count();
 
             $list['total_properties'] = (clone $propertyQuery)->count();
-            $list['total_articles'] = Article::all()->count();
-            $list['total_categories'] = Category::all()->count();
-            $list['total_customer'] = Customer::all()->count();
+            $list['total_articles'] = Article::count();
+            $list['total_categories'] = Category::count();
+            $list['total_customer'] = Customer::count();
             
             // New Totals
             $list['total_vacation_homes'] = (clone $propertyQuery)->where('property_classification', 4)->count();
             $list['total_hotels'] = (clone $propertyQuery)->where('property_classification', 5)->count();
             $list['total_commercials'] = (clone $propertyQuery)->where('property_classification', 2)->count();
 
-            $list['recent_properties'] = Property::orderBy('id', 'DESC')->limit(10)->where('status', 1)->get();
+            // $list['recent_properties'] = Property::orderBy('id', 'DESC')->limit(10)->where('status', 1)->get();
             $today = now();
 
             /************************************************************************************ */
@@ -81,24 +81,30 @@ class HomeController extends Controller
                 $propertiesQuery->whereYear('created_at', $year);
             }
 
-            // Calculate sell and rent counts
-            $sellProperties = $propertiesQuery->clone()->where('propery_type', 0)->get();
-            $rentProperties = $propertiesQuery->clone()->where('propery_type', 1)->get();
-
             // Create month series for sell and rent properties
             $sellMonthSeries = array_fill(0, 12, 0);
             $rentMonthSeries = array_fill(0, 12, 0);
 
-            // Loop through sell properties and update month series
-            foreach ($sellProperties as $property) {
-                $monthIndex = Carbon::parse($property->created_at)->format('n') - 1; // Get the month index (0-11)
-                $sellMonthSeries[$monthIndex]++;
+            // Optimized Aggregation: Sell Properties
+            $sellCounts = $propertiesQuery->clone()
+                ->where('propery_type', 0)
+                ->selectRaw('MONTH(created_at) as month, COUNT(*) as count')
+                ->groupBy(DB::raw('MONTH(created_at)'))
+                ->pluck('count', 'month');
+
+            foreach ($sellCounts as $month => $count) {
+                $sellMonthSeries[$month - 1] = $count;
             }
 
-            // Loop through rent properties and update month series
-            foreach ($rentProperties as $property) {
-                $monthIndex = Carbon::parse($property->created_at)->format('n') - 1; // Get the month index (0-11)
-                $rentMonthSeries[$monthIndex]++;
+            // Optimized Aggregation: Rent Properties
+            $rentCounts = $propertiesQuery->clone()
+                ->where('propery_type', 1)
+                ->selectRaw('MONTH(created_at) as month, COUNT(*) as count')
+                ->groupBy(DB::raw('MONTH(created_at)'))
+                ->pluck('count', 'month');
+
+            foreach ($rentCounts as $month => $count) {
+                $rentMonthSeries[$month - 1] = $count;
             }
             /************************************************************************************ */
 
@@ -107,16 +113,21 @@ class HomeController extends Controller
             // Get Week wise data
             // Create an array to store the counts for each day of the week
             $sellWeekSeries = array_fill(1, 7, 0);
-            $sellWeekPropertyCounts = Property::selectRaw('DAYOFWEEK(created_at) as day_of_week,COUNT(*) as count')->where('propery_type', 0)->groupBy(DB::raw('DAYOFWEEK(created_at)'))->get();
-            foreach ($sellWeekPropertyCounts as $count) {
-                $sellWeekSeries[$count->day_of_week] = $count->count;
-            }
-
-            $rentWeekPropertyCounts = Property::selectRaw('DAYOFWEEK(created_at) as day_of_week,COUNT(*) as count')->where('propery_type', 1)->groupBy(DB::raw('DAYOFWEEK(created_at)'))->get();
-            // Create an array to store the counts for each day of the week
             $rentWeekSeries = array_fill(1, 7, 0);
-            foreach ($rentWeekPropertyCounts as $count) {
-                $rentWeekSeries[$count->day_of_week] = $count->count;
+
+            // Optimized Aggregation: Week wise (Sell & Rent)
+            // Note: We use $propertiesQuery to respect the year filter if provided
+            $weekCounts = $propertiesQuery->clone()
+                ->selectRaw('DAYOFWEEK(created_at) as day_of_week, propery_type, COUNT(*) as count')
+                ->groupBy(DB::raw('DAYOFWEEK(created_at)'), 'propery_type')
+                ->get();
+
+            foreach ($weekCounts as $item) {
+                if ($item->propery_type == 0) {
+                    $sellWeekSeries[$item->day_of_week] = $item->count;
+                } elseif ($item->propery_type == 1) {
+                    $rentWeekSeries[$item->day_of_week] = $item->count;
+                }
             }
 
             /************************************************************************************ */
@@ -124,16 +135,18 @@ class HomeController extends Controller
             $sellCountForDay = array_fill(1, 31, 0); // Initialize array for days 1 to 31
             $rentCountForDay = array_fill(1, 31, 0); // Initialize array for days 1 to 31
 
-            // Get all properties
-            $properties = $propertiesQuery->clone()->get();
+            // Optimized Aggregation: Day wise
+            $dayCounts = $propertiesQuery->clone()
+                ->selectRaw('DAY(created_at) as day, propery_type, COUNT(*) as count')
+                ->groupBy(DB::raw('DAY(created_at)'), 'propery_type')
+                ->get();
 
-            foreach ($properties as $property) {
-                $day = Carbon::parse($property->created_at)->day; // Get the day of the month
-
-                if ($property->getRawOriginal('propery_type') == 0) {
-                    $sellCountForDay[$day]++;
-                } elseif ($property->getRawOriginal('propery_type') == 1) {
-                    $rentCountForDay[$day]++;
+            foreach ($dayCounts as $item) {
+                $day = $item->day;
+                if ($item->propery_type == 0) {
+                    $sellCountForDay[$day] = $item->count;
+                } elseif ($item->propery_type == 1) {
+                    $rentCountForDay[$day] = $item->count;
                 }
             }
 
@@ -189,10 +202,11 @@ class HomeController extends Controller
 
 
 
-            $userData = Customer::select(DB::raw("COUNT(*) as count"))
-                ->whereYear('created_at', date('Y'))
-                ->groupBy(DB::raw("Month(created_at)"))
-                ->pluck('count');
+            // $userData = Customer::select(DB::raw("COUNT(*) as count"))
+            //     ->whereYear('created_at', date('Y'))
+            //     ->groupBy(DB::raw("Month(created_at)"))
+            //     ->pluck('count');
+            $userData = [];
 
             return view('home', compact('list', 'settings', 'properties', 'userData', 'chartData', 'currency_symbol', 'category_name', 'category_count', 'years', 'year'));
         }

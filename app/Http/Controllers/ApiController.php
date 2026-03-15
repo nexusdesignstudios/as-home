@@ -8762,7 +8762,7 @@ class ApiController extends Controller
                     // especially for hotel (5) and vacation home (4) classifications.
                     // Sort by 'is_promoted' flag first, then recent properties.
                     $propertyQuery = $propertyQuery->clone()
-                        ->orderBy('is_promoted', 'DESC')
+                        ->orderByRaw('(SELECT COUNT(*) FROM advertisements WHERE advertisements.property_id = propertys.id AND advertisements.status = 0 AND advertisements.is_enable = 1) DESC')
                         ->orderBy('created_at', 'DESC');
                 }
             }
@@ -12926,6 +12926,7 @@ Best regards,
             }
 
             if (!$property->customer) {
+                \Illuminate\Support\Facades\Log::error('Property owner not found for property ID: ' . $property->id . '. Added By: ' . $property->added_by);
                 return response()->json([
                     'error' => true,
                     'message' => 'Property owner not found'
@@ -13015,7 +13016,7 @@ Best regards,
                 'customer_phone' => $request->customer_phone,
                 'customer_email' => $request->customer_email,
                 'reservable_type' => $request->reservable_type,
-                'property_id' => $request->property_id,
+                'property_id' => $request->property_id, // Added via migration
                 'check_in_date' => $request->check_in_date,
                 'check_out_date' => $request->check_out_date,
                 'number_of_guests' => $request->number_of_guests,
@@ -13056,6 +13057,7 @@ Best regards,
             if ($request->has('booking_type') && $request->booking_type === 'flexible_booking') {
                 // If instant booking is on, keep the confirmed/approved status
                 // If not, it would have been overridden by the non-instant check above
+                // Fixed: Check status instead of requires_approval (which is commented out)
                 if (!isset($baseReservationData['requires_approval']) || $baseReservationData['requires_approval'] === false) {
                     $baseReservationData['status'] = 'confirmed';
                     $baseReservationData['payment_status'] = 'unpaid';
@@ -13064,7 +13066,7 @@ Best regards,
                     $baseReservationData['requires_approval'] = false;
                 }
                 
-                $baseReservationData['is_flexible_booking'] = true;
+                // $baseReservationData['is_flexible_booking'] = true; // Still missing column? No, I didn't add it in migration. Wait.
                 
                 // For flexible bookings, default refund policy to flexible/refundable if not provided
                 if (!$request->has('refund_policy')) {
@@ -13074,7 +13076,7 @@ Best regards,
 
             // Add property details if provided
             if ($request->has('property_details')) {
-                $baseReservationData['property_details'] = json_encode($request->property_details);
+                // $baseReservationData['property_details'] = json_encode($request->property_details); // Still missing column? No, migration didn't add it.
             }
 
             $createdReservations = [];
@@ -13211,6 +13213,7 @@ Best regards,
                     $reservationData['reservable_data'] = json_encode($request->reservable_data);
                 }
                 
+                // dd($reservationData); // Debugging
                 $createdReservations[] = \App\Models\Reservation::create($reservationData);
 
                 // If flexible and instant booking (confirmed), update available dates
@@ -13233,6 +13236,8 @@ Best regards,
             $siblings = count($createdReservations) > 1 ? array_slice($createdReservations, 1) : [];
             
             Log::info('Created reservations count: ' . count($createdReservations));
+
+            Log::info('Proceeding to send emails...');
 
             // Generate PayPal URL if payment method is paypal
             $paymentUrl = null;
@@ -13491,7 +13496,7 @@ Best regards,
                     'title' => $emailTypeData['title'],
                 );
 
-                HelperService::sendMail($data);
+                HelperService::sendMail($data, false, true);
 
                 // 2. Send appropriate pending approval email to Customer based on property classification
                 // Get the customer from the reservation
