@@ -928,6 +928,12 @@ class ReservationController extends Controller
                         $roomIsFlexible = $room->refund_policy === 'flexible';
                     }
 
+                    // For Hotels: Determine status based on instant_booking setting
+                    $status = 'pending';
+                    if ($roomIsFlexible && $property->instant_booking) {
+                        $status = 'confirmed';
+                    }
+
                     $reservationData = [
                         'customer_id' => Auth::guard('sanctum')->user()->id,
                         'reservable_id' => $roomId,
@@ -938,10 +944,10 @@ class ReservationController extends Controller
                         'number_of_guests' => $request->number_of_guests ?? 1,
                         'total_price' => $roomAmount,
                         'special_requests' => $request->special_requests,
-                        'status' => $request->status ?? (($roomIsFlexible && $property->instant_booking) ? 'confirmed' : 'pending'), // Use request status if provided, otherwise respect instant booking setting
-                        'payment_status' => $request->payment_status ?? ($roomIsFlexible ? 'unpaid' : 'unpaid'), // Use request payment status if provided
-                        'payment_method' => $request->payment_method ?? ($roomIsFlexible ? 'cash' : ($request->payment_method ?? 'online')), // Use request payment method if provided
-                        'refund_policy' => $roomIsFlexible ? 'flexible' : 'non-refundable', // Store the refund policy
+                        'status' => $request->status ?? $status, // Use calculated status
+                        'payment_status' => $request->payment_status ?? 'unpaid', 
+                        'payment_method' => $request->payment_method ?? ($roomIsFlexible ? 'cash' : 'online'), 
+                        'refund_policy' => $roomIsFlexible ? 'flexible' : 'non-refundable',
                         'booking_type' => $roomIsFlexible ? 'flexible_booking' : 'reservation',
                         'is_flexible_booking' => $roomIsFlexible,
                         'transaction_id' => $transactionId,
