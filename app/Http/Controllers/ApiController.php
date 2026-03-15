@@ -12946,7 +12946,7 @@ Best regards,
             }
 
             // Handle card data for flexible bookings
-            $isFlexibleBooking = $request->has('booking_type') && $request->booking_type === 'flexible_booking';
+            $isFlexibleBooking = $request->has('is_flexible_booking') && $request->is_flexible_booking === true;
             
             // Mask sensitive card information (only if card data is provided)
             $maskedCardNumber = null;
@@ -13056,7 +13056,7 @@ Best regards,
             }
             
             // Handle flexible reservations overrides for Instant Booking
-            if ($request->has('booking_type') && $request->booking_type === 'flexible_booking') {
+            if ($isFlexibleBooking) {
                 // If instant booking is on, keep the confirmed/approved status
                 // If not, it would have been overridden by the non-instant check above
                 // Fixed: Check status instead of requires_approval (which is commented out)
