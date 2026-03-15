@@ -13166,7 +13166,7 @@ Best regards,
                     Log::info('SubmitPaymentForm: Creating Reservation', [
                         'reservable_id' => $reservableId,
                         'booking_type' => $reservationData['booking_type'] ?? 'MISSING',
-                        'is_flexible_booking' => $reservationData['is_flexible_booking'] ?? 'MISSING',
+                        'is_flexible_booking' => isset($isFlexibleBooking) ? $isFlexibleBooking : 'MISSING',
                         'refund_policy' => $reservationData['refund_policy'] ?? 'MISSING'
                     ]);
                     // Use individual room amount
@@ -13186,7 +13186,7 @@ Best regards,
                     $createdReservations[] = \App\Models\Reservation::create($reservationData);
                     
                     // If flexible and instant booking (confirmed), update available dates
-                    if ($reservationData['status'] === 'confirmed' && $reservationData['is_flexible_booking']) {
+                    if ($reservationData['status'] === 'confirmed' && $isFlexibleBooking) {
                         $reservationService->updateAvailableDates(
                             'App\Models\HotelRoom',
                             $reservableId,
