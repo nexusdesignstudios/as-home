@@ -836,6 +836,16 @@ class ReservationController extends Controller
                 } else {
                     $isFlexible = $property->refund_policy === 'flexible';
                 }
+                
+                Log::info('Hotel Booking Request - Policy Check', [
+                    'property_id' => $property->id,
+                    'booking_type_request' => $bookingType,
+                    'is_flexible_initial' => $isFlexible,
+                    'cancellation_period' => $property->cancellation_period,
+                    'check_in' => $request->check_in_date,
+                    'check_out' => $request->check_out_date,
+                    'now' => Carbon::now()->toDateTimeString()
+                ]);
 
                 // Validate Cancellation Policy for Flexible Bookings
                 if ($isFlexible && $property->cancellation_period) {
@@ -847,13 +857,20 @@ class ReservationController extends Controller
                         if ($checkInDate->equalTo($today)) {
                             // Check current time (Server time)
                             if (Carbon::now()->hour >= 18) {
+                                Log::info('Flexible booking blocked by Same Day 6PM rule');
                                 return ApiResponseService::errorResponse("Flexible booking is not allowed after 6 PM for same-day check-in.");
                             }
                         }
                     } else {
                         $days = intval($cancellationPeriod);
                         if ($days > 0) {
-                            if ($checkInDate->diffInDays($today) < $days) {
+                            $diffDays = $checkInDate->diffInDays($today);
+                            Log::info('Checking N-Day Cancellation Rule', [
+                                'days_configured' => $days,
+                                'diff_days' => $diffDays
+                            ]);
+                            if ($diffDays < $days) {
+                                Log::info('Flexible booking blocked by N-Day rule');
                                 return ApiResponseService::errorResponse("Flexible booking is not allowed within the cancellation period ({$days} days). Please choose Non-Refundable.");
                             }
                         }
@@ -989,7 +1006,7 @@ class ReservationController extends Controller
                         $otherPending = [];
 
                         foreach ($pendingReservations as $res) {
-                            if ($res->refund_policy === 'flexible') {
+                            if ($res->is_flexible_booking || $res->refund_policy === 'flexible') {
                                 $flexiblePending[] = $res;
                             } else {
                                 $otherPending[] = $res;
@@ -997,10 +1014,33 @@ class ReservationController extends Controller
                         }
 
                         // Flexible Pending (Instant Booking OFF) -> Send Pending Approval Email
-                        foreach ($flexiblePending as $res) {
-                            // Use the same email method as Vacation Homes for pending approval
-                            $this->reservationService->sendVacationHomePendingApprovalEmail($res);
-                            $this->sendNewBookingNotificationToOwner($res);
+                        if (!empty($flexiblePending)) {
+                            // Check if property is a hotel (class 5)
+                            $isHotel = false;
+                            if (!empty($flexiblePending[0])) {
+                                if ($flexiblePending[0]->reservable_type === 'App\Models\HotelRoom' || $flexiblePending[0]->reservable_type === 'hotel_room') {
+                                    $isHotel = true;
+                                } elseif ($flexiblePending[0]->reservable_type === 'App\Models\Property' || $flexiblePending[0]->reservable_type === 'property') {
+                                    $property = \App\Models\Property::find($flexiblePending[0]->property_id);
+                                    if ($property && $property->getRawOriginal('property_classification') == 5) {
+                                        $isHotel = true;
+                                    }
+                                }
+                            }
+
+                            if ($isHotel) {
+                                // For Hotels, we might want an aggregated pending email, but individual works too
+                                foreach ($flexiblePending as $res) {
+                                    $this->reservationService->sendVacationHomePendingApprovalEmail($res);
+                                    $this->sendNewBookingNotificationToOwner($res);
+                                }
+                            } else {
+                                // Vacation Homes logic (already handled, but good to be explicit)
+                                foreach ($flexiblePending as $res) {
+                                    $this->reservationService->sendVacationHomePendingApprovalEmail($res);
+                                    $this->sendNewBookingNotificationToOwner($res);
+                                }
+                            }
                         }
 
                         // Non-Flexible Pending (Payment Required) -> Maintain existing behavior
