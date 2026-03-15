@@ -273,6 +273,18 @@
                             </select>
                             <input type="hidden" name="refund_policy" id="refund_policy_input" value="{{ $currentPolicy }}">
                         </div>
+                        
+                        {{-- Cancellation Period --}}
+                        <div class="form-group mandatory">
+                            {{ Form::label('cancellation_period', __('Cancellation Period (Days)'), ['class' => 'form-label col-12']) }}
+                            <select name="cancellation_period" id="cancellation_period" class="form-select form-control-sm">
+                                <option value="3" {{ isset($list->cancellation_period) && $list->cancellation_period == '3' ? 'selected' : '' }}>{{ __('3 Days') }}</option>
+                                <option value="5" {{ isset($list->cancellation_period) && $list->cancellation_period == '5' ? 'selected' : '' }}>{{ __('5 Days') }}</option>
+                                <option value="7" {{ isset($list->cancellation_period) && $list->cancellation_period == '7' ? 'selected' : '' }}>{{ __('7 Days') }}</option>
+                                <option value="14" {{ isset($list->cancellation_period) && $list->cancellation_period == '14' ? 'selected' : '' }}>{{ __('14 Days') }}</option>
+                            </select>
+                            <small class="text-muted">{{ __('Flexible booking will be disabled if check-in is within this period.') }}</small>
+                        </div>
                         <div class="form-group">
                             {{ Form::label('hotel_apartment_type_id', __('Hotel Apartment Type'), ['class' => 'form-label col-12']) }}
                             {{ Form::select('hotel_apartment_type_id', App\Models\HotelApartmentType::pluck('name', 'id'), isset($list->hotel_apartment_type_id) ? $list->hotel_apartment_type_id : null, ['class' => 'form-control select2', 'placeholder' => __('Select Apartment Type')]) }}

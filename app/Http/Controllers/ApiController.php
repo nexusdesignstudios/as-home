@@ -2725,7 +2725,7 @@ class ApiController extends Controller
             'hotel_rooms.*.guest_pricing_rules' => 'nullable',
             'hotel_apartment_type_id' => 'nullable|exists:hotel_apartment_types,id',
             'rent_package' => 'nullable|in:basic,premium',
-            'cancellation_period' => 'nullable|string|in:7_days,same_day_6pm',
+            'cancellation_period' => 'nullable|string|in:3,5,7,14,same_day_6pm',
             'addons_packages'       => 'nullable|array',
             'addons_packages.*.id' => 'nullable|exists:addons_packages,id',
             'addons_packages.*.name' => 'required_with:addons_packages',
@@ -12899,33 +12899,43 @@ Best regards,
             $property = Property::with('customer')->findOrFail($request->property_id);
 
             // NEW: Enforce cancellation period rules for hotel bookings
-            /* Commented out for testing purposes to bypass validation
             if ($property->property_classification == 5 && $isFlexibleBooking) {
                 $checkInDate = Carbon::parse($request->check_in_date)->startOfDay();
                 $now = HelperService::toAppTimezone(Carbon::now());
                 $today = $now->copy()->startOfDay();
                 
-                if ($property->cancellation_period == '7_days') {
-                    // Rule 1: No flexible booking from today to upcoming 6 days
-                    // If check-in is within 7 days from now (including today)
-                    $diffInDays = $today->diffInDays($checkInDate, false);
-                    if ($diffInDays < 7) {
-                        return response()->json([
-                            'error' => true,
-                            'message' => 'Flexible booking is not allowed within 7 days of check-in for this hotel.'
-                        ], 400);
-                    }
+                // Determine cancellation period (default to 7 days if not set)
+                $cancellationDays = 7;
+                if (is_numeric($property->cancellation_period)) {
+                    $cancellationDays = (int)$property->cancellation_period;
+                } elseif ($property->cancellation_period == '7_days') {
+                    $cancellationDays = 7;
                 } elseif ($property->cancellation_period == 'same_day_6pm') {
-                    // Rule 2: No flexible booking on the same day after 06:00 pm
-                    if ($today->isSameDay($checkInDate) && $now->hour >= 18) {
-                        return response()->json([
-                            'error' => true,
-                            'message' => 'Flexible booking is not allowed after 06:00 PM for same-day check-in at this hotel.'
-                        ], 400);
-                    }
+                    // Fallback for legacy data
+                    $cancellationDays = 0; 
+                }
+
+                // Rule 1: Cancellation Period Logic
+                // If flexible booking is attempted within X days of check-in, reject it.
+                $diffInDays = $today->diffInDays($checkInDate, false);
+                
+                if ($diffInDays < $cancellationDays) {
+                    return response()->json([
+                        'error' => true,
+                        'message' => "Flexible booking is not allowed within {$cancellationDays} days of check-in for this hotel. Please choose Non-Refundable."
+                    ], 400);
+                }
+                
+                // Rule 2: Same Day after 6:00 PM Policy
+                // Even if cancellation period allows (e.g. 0 days), 
+                // bookings for same day after 6 PM must be Non-Refundable.
+                if ($today->isSameDay($checkInDate) && $now->hour >= 18) {
+                    return response()->json([
+                        'error' => true,
+                        'message' => 'Flexible booking is not allowed after 06:00 PM for same-day check-in. Please choose Non-Refundable.'
+                    ], 400);
                 }
             }
-            */
 
             if (!$property->customer) {
                 \Illuminate\Support\Facades\Log::error('Property owner not found for property ID: ' . $property->id . '. Added By: ' . $property->added_by);
