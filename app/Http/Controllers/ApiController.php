@@ -13099,11 +13099,11 @@ Best regards,
             ]);
 
             if (trim($request->reservable_type) === 'hotel_room' && !empty($reservableData) && is_array($reservableData)) {
-                $isFlexibleBooking = $request->has('booking_type') && $request->booking_type === 'flexible_booking';
+                $isFlexibleBooking = $request->has('is_flexible_booking') && $request->is_flexible_booking === true;
             
             Log::info('SubmitPaymentForm: Flexible Booking Check', [
-                'has_booking_type' => $request->has('booking_type'),
-                'booking_type_value' => $request->booking_type,
+                'has_is_flexible_booking' => $request->has('is_flexible_booking'),
+                'is_flexible_booking_value' => $request->is_flexible_booking,
                 'is_flexible_booking_flag' => $isFlexibleBooking
             ]);
 
