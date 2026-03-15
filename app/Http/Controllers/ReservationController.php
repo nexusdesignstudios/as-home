@@ -627,8 +627,15 @@ class ReservationController extends Controller
                         $status = 'pending';
                     }
                 } else {
-                    // Other properties (Hotels, etc.): Status depends on flexible policy
-                    $status = $isFlexible ? 'confirmed' : 'pending';
+                    // Other properties (Hotels, etc.):
+                    if ($isFlexible) {
+                        // Flexible policy (Cash payment)
+                        // Respect instant_booking setting
+                        $status = $property->instant_booking ? 'confirmed' : 'pending';
+                    } else {
+                        // Non-refundable (Online payment)
+                        $status = 'pending';
+                    }
                 }
                 
                 // Create reservation data with conditional behavior based on refund policy
@@ -734,8 +741,14 @@ class ReservationController extends Controller
                         $this->sendNewBookingNotificationToOwner($reservation);
                     }
                 } elseif ($propertyClassification == 5) {
-                    // Hotel booking - send flexible hotel booking confirmation email
-                    $this->reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation);
+                    // Hotel booking
+                    if ($status === 'confirmed') {
+                        // Confirmed (Instant Booking ON + Flexible) -> Send confirmation email
+                        $this->reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation);
+                    } elseif ($isFlexible) {
+                        // Flexible but Pending (Instant Booking OFF) -> Send pending approval email
+                        $this->reservationService->sendVacationHomePendingApprovalEmail($reservation);
+                    }
                     
                     // Send notification to property owner
                     $this->sendNewBookingNotificationToOwner($reservation);
@@ -908,7 +921,7 @@ class ReservationController extends Controller
                         'number_of_guests' => $request->number_of_guests ?? 1,
                         'total_price' => $roomAmount,
                         'special_requests' => $request->special_requests,
-                        'status' => $request->status ?? ($roomIsFlexible ? 'confirmed' : 'pending'), // Use request status if provided (e.g. admin booking), otherwise auto-confirm only for flexible
+                        'status' => $request->status ?? (($roomIsFlexible && $property->instant_booking) ? 'confirmed' : 'pending'), // Use request status if provided, otherwise respect instant booking setting
                         'payment_status' => $request->payment_status ?? ($roomIsFlexible ? 'unpaid' : 'unpaid'), // Use request payment status if provided
                         'payment_method' => $request->payment_method ?? ($roomIsFlexible ? 'cash' : ($request->payment_method ?? 'online')), // Use request payment method if provided
                         'refund_policy' => $roomIsFlexible ? 'flexible' : 'non-refundable', // Store the refund policy
@@ -920,8 +933,8 @@ class ReservationController extends Controller
                     $reservation = $this->reservationService->createReservation($reservationData, true);
                     $reservations[] = $reservation;
                     
-                    // For flexible reservations, update available dates immediately since they're auto-confirmed
-                    if ($roomIsFlexible) {
+                    // For confirmed reservations, update available dates immediately
+                    if ($reservation->status === 'confirmed') {
                         try {
                             $this->reservationService->updateAvailableDates(
                                 $reservation->reservable_type,
@@ -931,14 +944,14 @@ class ReservationController extends Controller
                                 $reservation->id
                             );
                             
-                            Log::info('Available dates updated for flexible reservation', [
+                            Log::info('Available dates updated for confirmed reservation', [
                                 'reservation_id' => $reservation->id,
                                 'room_id' => $reservation->reservable_id,
                                 'check_in' => $reservation->check_in_date,
                                 'check_out' => $reservation->check_out_date
                             ]);
                         } catch (\Exception $e) {
-                            Log::error('Failed to update available dates for flexible reservation', [
+                            Log::error('Failed to update available dates for confirmed reservation', [
                                 'error' => $e->getMessage(),
                                 'reservation_id' => $reservation->id,
                                 'trace' => $e->getTraceAsString()
@@ -949,39 +962,59 @@ class ReservationController extends Controller
 
                 // Send emails after creating all reservations
                 if (!empty($reservations)) {
-                    $flexibleReservations = [];
-                    $otherReservations = [];
+                    $confirmedReservations = [];
+                    $pendingReservations = [];
 
                     foreach ($reservations as $res) {
-                        if ($res->refund_policy === 'flexible') {
-                            $flexibleReservations[] = $res;
+                        if ($res->status === 'confirmed') {
+                            $confirmedReservations[] = $res;
                         } else {
-                            $otherReservations[] = $res;
+                            $pendingReservations[] = $res;
                         }
                     }
 
-                    // Send aggregated email for flexible reservations
-                    if (!empty($flexibleReservations)) {
-                        $this->reservationService->sendAggregatedReservationConfirmationEmail($flexibleReservations);
+                    // Send aggregated email for confirmed reservations
+                    if (!empty($confirmedReservations)) {
+                        $this->reservationService->sendAggregatedReservationConfirmationEmail($confirmedReservations);
 
-                        // Send notifications for each flexible reservation
-                        foreach ($flexibleReservations as $res) {
+                        // Send notifications for each confirmed reservation
+                        foreach ($confirmedReservations as $res) {
                             $this->sendNewBookingNotificationToOwner($res);
                         }
                     }
 
-                    // Send individual approval emails for non-flexible reservations
-                    if (!empty($otherReservations)) {
-                        if (count($otherReservations) > 1) {
-                            $this->reservationService->sendAggregatedReservationConfirmationEmail($otherReservations);
-                            // Send notifications for each non-flexible reservation
-                            foreach ($otherReservations as $res) {
-                                $this->sendNewBookingNotificationToOwner($res);
+                    // Handle pending reservations
+                    if (!empty($pendingReservations)) {
+                        $flexiblePending = [];
+                        $otherPending = [];
+
+                        foreach ($pendingReservations as $res) {
+                            if ($res->refund_policy === 'flexible') {
+                                $flexiblePending[] = $res;
+                            } else {
+                                $otherPending[] = $res;
                             }
-                        } else {
-                            foreach ($otherReservations as $res) {
-                                $this->reservationService->sendReservationApprovalEmail($res);
-                                $this->sendNewBookingNotificationToOwner($res);
+                        }
+
+                        // Flexible Pending (Instant Booking OFF) -> Send Pending Approval Email
+                        foreach ($flexiblePending as $res) {
+                            // Use the same email method as Vacation Homes for pending approval
+                            $this->reservationService->sendVacationHomePendingApprovalEmail($res);
+                            $this->sendNewBookingNotificationToOwner($res);
+                        }
+
+                        // Non-Flexible Pending (Payment Required) -> Maintain existing behavior
+                        if (!empty($otherPending)) {
+                            if (count($otherPending) > 1) {
+                                $this->reservationService->sendAggregatedReservationConfirmationEmail($otherPending);
+                                foreach ($otherPending as $res) {
+                                    $this->sendNewBookingNotificationToOwner($res);
+                                }
+                            } else {
+                                foreach ($otherPending as $res) {
+                                    $this->reservationService->sendReservationApprovalEmail($res);
+                                    $this->sendNewBookingNotificationToOwner($res);
+                                }
                             }
                         }
                     }
