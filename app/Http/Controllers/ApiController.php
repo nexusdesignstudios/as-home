@@ -13057,18 +13057,27 @@ Best regards,
             
             // Handle flexible reservations overrides for Instant Booking
             if ($isFlexibleBooking) {
-                // If instant booking is on, keep the confirmed/approved status
-                // If not, it would have been overridden by the non-instant check above
-                // Fixed: Check status instead of requires_approval (which is commented out)
-                if (!isset($baseReservationData['requires_approval']) || $baseReservationData['requires_approval'] === false) {
-                    $baseReservationData['status'] = 'confirmed';
+                // Determine if we should force pending status
+                // If the property is set to NOT instant booking (requires_approval=true from block above),
+                // we should respect that even for flexible bookings.
+                
+                // If the base data already says "requires approval" (because of non-instant property setting), keep it pending.
+                // Otherwise, if it's instant booking, auto-confirm flexible bookings.
+                
+                if (isset($baseReservationData['requires_approval']) && $baseReservationData['requires_approval'] === true) {
+                    // Non-Instant Booking: Keep as Pending / Unpaid
+                    $baseReservationData['status'] = 'pending';
                     $baseReservationData['payment_status'] = 'unpaid';
-                    $baseReservationData['payment_method'] = 'cash';
+                    $baseReservationData['approval_status'] = 'pending';
+                } else {
+                    // Instant Booking: Auto-confirm Flexible
+                    $baseReservationData['status'] = 'confirmed';
+                    $baseReservationData['payment_status'] = 'unpaid'; // Still unpaid as it is pay at property
                     $baseReservationData['approval_status'] = 'approved';
                     $baseReservationData['requires_approval'] = false;
                 }
                 
-                // $baseReservationData['is_flexible_booking'] = true; // Still missing column? No, I didn't add it in migration. Wait.
+                $baseReservationData['payment_method'] = 'cash'; // Flexible is always Pay at Property (Cash)
                 
                 // For flexible bookings, default refund policy to flexible/refundable if not provided
                 if (!$request->has('refund_policy')) {
