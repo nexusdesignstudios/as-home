@@ -13047,8 +13047,6 @@ Best regards,
 
             // Override approval workflow fields based on Property Instant Booking
             if ($property->property_classification == 5 && !$property->instant_booking) {
-                // Override approval workflow fields based on Property Instant Booking
-            if ($property->property_classification == 5 && !$property->instant_booking) {
                 // For non-instant hotel bookings, require approval for both flexible and non-refundable
                 $baseReservationData['status'] = 'pending';
                 $baseReservationData['approval_status'] = 'pending';
@@ -13058,14 +13056,16 @@ Best regards,
 
             // Override approval workflow fields if explicitly provided in request
             if ($request->has('approval_status') && $request->approval_status !== null) {
-                // IMPORTANT: If property is non-instant (requires_approval=true), ignore frontend approval_status='approved'
-                // Only allow overriding if we are NOT in a forced pending state
-                if (!isset($baseReservationData['requires_approval']) || $baseReservationData['requires_approval'] !== true) {
-                    $baseReservationData['approval_status'] = $request->approval_status;
+                // Allow request override ONLY if it's 'pending', or if we are not forcing pending
+                if ($request->approval_status === 'pending' || !isset($baseReservationData['requires_approval']) || !$baseReservationData['requires_approval']) {
+                     $baseReservationData['approval_status'] = $request->approval_status;
                 }
             }
             if ($request->has('requires_approval') && $request->requires_approval !== null) {
-                $baseReservationData['requires_approval'] = $request->requires_approval;
+                 // Similar logic for requires_approval
+                 if ($request->requires_approval === true || !isset($baseReservationData['requires_approval']) || !$baseReservationData['requires_approval']) {
+                    $baseReservationData['requires_approval'] = $request->requires_approval;
+                 }
             }
             if ($request->has('booking_type') && $request->booking_type !== null) {
                 $baseReservationData['booking_type'] = $request->booking_type;
@@ -13544,43 +13544,43 @@ Best regards,
                         ]);
 
                         if ($isFlexibleBooking) {
-                            try {
-                                // Check if reservation is actually confirmed (Instant Booking ON)
-                                if ($reservation->status === 'confirmed') {
-                                    $reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation, $siblings);
-                                    Log::info('Flexible booking confirmation email sent to customer', [
-                                        'reservation_id' => $reservation->id,
-                                        'customer_email' => $customer->email,
-                                        'booking_type' => 'flexible_booking',
-                                        'status' => 'confirmed',
-                                        'siblings_count' => count($siblings)
-                                    ]);
-                                } else {
-                                    // Pending (Instant Booking OFF) - Send Pending Approval Email
-                                    $reservationService->sendVacationHomePendingApprovalEmail($reservation);
-                                    Log::info('Flexible booking pending approval email sent to customer', [
-                                        'reservation_id' => $reservation->id,
-                                        'customer_email' => $customer->email,
-                                        'booking_type' => 'flexible_booking',
-                                        'status' => 'pending'
-                                    ]);
-                                }
-                            } catch (\Exception $e) {
-                                Log::error('Flexible booking email failed: ' . $e->getMessage(), [
+                        try {
+                            // Check if reservation is actually confirmed (Instant Booking ON)
+                            if ($reservation->status === 'confirmed') {
+                                $reservationService->sendFlexibleHotelBookingConfirmationEmail($reservation, $siblings);
+                                Log::info('Flexible booking confirmation email sent to customer', [
                                     'reservation_id' => $reservation->id,
                                     'customer_email' => $customer->email,
                                     'booking_type' => 'flexible_booking',
-                                    'siblings_count' => count($siblings),
-                                    'trace' => $e->getTraceAsString()
+                                    'status' => 'confirmed',
+                                    'siblings_count' => count($siblings)
+                                ]);
+                            } else {
+                                // Pending (Instant Booking OFF) - Send Pending Approval Email
+                                $reservationService->sendVacationHomePendingApprovalEmail($reservation);
+                                Log::info('Flexible booking pending approval email sent to customer', [
+                                    'reservation_id' => $reservation->id,
+                                    'customer_email' => $customer->email,
+                                    'booking_type' => 'flexible_booking',
+                                    'status' => 'pending'
                                 ]);
                             }
-                        } elseif ($propertyClassification == 4) {
-                            // Vacation home - send pending approval email
-                            $reservationService->sendVacationHomePendingApprovalEmail($reservation);
-                        } elseif ($propertyClassification == 5) {
-                            // Hotel booking - send aggregated reservation confirmation email
-                            $reservationService->sendAggregatedReservationConfirmationEmail($createdReservations);
+                        } catch (\Exception $e) {
+                            Log::error('Flexible booking email failed: ' . $e->getMessage(), [
+                                'reservation_id' => $reservation->id,
+                                'customer_email' => $customer->email,
+                                'booking_type' => 'flexible_booking',
+                                'siblings_count' => count($siblings),
+                                'trace' => $e->getTraceAsString()
+                            ]);
                         }
+                    } elseif ($propertyClassification == 4) {
+                        // Vacation home - send pending approval email
+                        $reservationService->sendVacationHomePendingApprovalEmail($reservation);
+                    } elseif ($propertyClassification == 5) {
+                        // Hotel booking - send aggregated reservation confirmation email
+                        $reservationService->sendAggregatedReservationConfirmationEmail($createdReservations);
+                    }
                     
                     Log::info('Both emails sent: Payment form submission to owner and appropriate email to customer', [
                         'reservation_id' => $reservation->id,
