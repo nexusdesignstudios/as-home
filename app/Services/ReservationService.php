@@ -2301,10 +2301,23 @@ Best regards,
                     'final_template' => $emailTemplate
                 ]);
 
+                // Determine dynamic title based on property type
+                $emailTitle = 'Reservation Pending Approval';
+                
+                // If the email template type has a title configured in the database, use it as the base
+                if (!empty($emailTypeData['title'])) {
+                    $emailTitle = $emailTypeData['title'];
+                }
+                
+                // Check if we need to override the title based on property type
+                // It's cleaner to just use a generic "Reservation Pending Approval" for everything
+                // unless explicitly required otherwise. The user requested "Reservation Pending Approval".
+                $emailTitle = 'Reservation Pending Approval';
+
                 $data = array(
                     'email_template' => $emailTemplate,
                     'email' => $customer->email,
-                    'title' => $emailTypeData['title'],
+                    'title' => $emailTitle,
                 );
                 \App\Services\HelperService::sendMail($data, false, true);
 
