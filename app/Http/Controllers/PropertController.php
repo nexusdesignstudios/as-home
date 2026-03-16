@@ -930,6 +930,18 @@ class PropertController extends Controller
                     $UpdateProperty->check_out = $request->check_out ?? null;
                 }
 
+                // Set instant_booking and non_refundable fields
+                if (\Schema::hasColumn('propertys', 'instant_booking')) {
+                    if ($request->has('instant_booking')) {
+                        $UpdateProperty->instant_booking = $request->instant_booking;
+                    }
+                }
+                if (\Schema::hasColumn('propertys', 'non_refundable')) {
+                    if ($request->has('non_refundable')) {
+                        $UpdateProperty->non_refundable = $request->non_refundable;
+                    }
+                }
+
                 // Set hotel specific fields if property classification is hotel_booking (5)
                 if (isset($request->property_classification) && $request->property_classification == 5) {
                     $UpdateProperty->refund_policy = $request->refund_policy ?? 'flexible';
