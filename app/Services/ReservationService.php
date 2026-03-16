@@ -2176,10 +2176,16 @@ Best regards,
                     'final_template' => $emailTemplate
                 ]);
 
+                // Determine dynamic title based on property type
+                $emailTitle = $emailTypeData['title'] ?? 'Reservation Pending Approval';
+                if ($reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room') {
+                    $emailTitle = 'Hotel Reservation Pending Approval';
+                }
+
                 $data = array(
                     'email_template' => $emailTemplate,
                     'email' => $customer->email,
-                    'title' => $emailTypeData['title'],
+                    'title' => $emailTitle,
                 );
                 \App\Services\HelperService::sendMail($data, false, true);
 
