@@ -13575,12 +13575,12 @@ Best regards,
                                 ]);
                             }
                         } elseif ($propertyClassification == 4) {
-                        // Vacation home - send pending approval email
-                        $reservationService->sendVacationHomePendingApprovalEmail($reservation);
-                    } elseif ($propertyClassification == 5) {
-                        // Hotel booking - send aggregated reservation confirmation email
-                        $reservationService->sendAggregatedReservationConfirmationEmail($createdReservations);
-                    }
+                            // Vacation home - send pending approval email
+                            $reservationService->sendVacationHomePendingApprovalEmail($reservation);
+                        } elseif ($propertyClassification == 5) {
+                            // Hotel booking - send aggregated reservation confirmation email
+                            $reservationService->sendAggregatedReservationConfirmationEmail($createdReservations);
+                        }
                     
                     Log::info('Both emails sent: Payment form submission to owner and appropriate email to customer', [
                         'reservation_id' => $reservation->id,
