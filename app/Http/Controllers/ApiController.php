@@ -13047,6 +13047,8 @@ Best regards,
 
             // Override approval workflow fields based on Property Instant Booking
             if ($property->property_classification == 5 && !$property->instant_booking) {
+                // Override approval workflow fields based on Property Instant Booking
+            if ($property->property_classification == 5 && !$property->instant_booking) {
                 // For non-instant hotel bookings, require approval for both flexible and non-refundable
                 $baseReservationData['status'] = 'pending';
                 $baseReservationData['approval_status'] = 'pending';
@@ -13056,7 +13058,11 @@ Best regards,
 
             // Override approval workflow fields if explicitly provided in request
             if ($request->has('approval_status') && $request->approval_status !== null) {
-                $baseReservationData['approval_status'] = $request->approval_status;
+                // IMPORTANT: If property is non-instant (requires_approval=true), ignore frontend approval_status='approved'
+                // Only allow overriding if we are NOT in a forced pending state
+                if (!isset($baseReservationData['requires_approval']) || $baseReservationData['requires_approval'] !== true) {
+                    $baseReservationData['approval_status'] = $request->approval_status;
+                }
             }
             if ($request->has('requires_approval') && $request->requires_approval !== null) {
                 $baseReservationData['requires_approval'] = $request->requires_approval;
