@@ -2177,9 +2177,25 @@ Best regards,
                 ]);
 
                 // Determine dynamic title based on property type
-                $emailTitle = $emailTypeData['title'] ?? 'Reservation Pending Approval';
+                $emailTitle = 'Reservation Pending Approval';
+                
+                // If the email template type has a title configured in the database, use it as the base
+                if (!empty($emailTypeData['title'])) {
+                    $emailTitle = $emailTypeData['title'];
+                }
+                
+                // Override if it's explicitly a hotel room reservation
                 if ($reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room') {
                     $emailTitle = 'Hotel Reservation Pending Approval';
+                } elseif ($reservation->reservable_type === 'App\\Models\\Property' || $reservation->reservable_type === 'property') {
+                    // Check property classification
+                    $property = $reservation->reservable;
+                    if ($property && $property->getRawOriginal('property_classification') == 5) {
+                         $emailTitle = 'Hotel Reservation Pending Approval';
+                    } else {
+                         // Explicitly set for Vacation Homes if needed, or keep generic
+                         $emailTitle = 'Vacation Home Reservation Pending Approval';
+                    }
                 }
 
                 $data = array(
