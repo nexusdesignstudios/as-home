@@ -94,6 +94,8 @@ class RewriteApiResponseUrls
             return $s3Base . $matches[1];
         } elseif (preg_match('#^https?://[^/]+(/json/[^/]+.*)$#', $value, $matches)) {
             return $s3Base . $matches[1];
+        } elseif (preg_match('#^https?://[^/]+(/assets/images/[^/]+.*)$#', $value, $matches)) {
+            return $s3Base . $matches[1];
         }
 
         return $value;
