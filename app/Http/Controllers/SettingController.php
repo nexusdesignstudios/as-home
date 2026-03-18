@@ -586,16 +586,19 @@ class SettingController extends Controller
         } else {
             $input = $request->except(['_token', 'btnAdd']);
             $destinationPath = public_path('assets/images/logo');
+            $changedImages = false;
 
 
-            if ($request->hasFile('web_logo')) {
+            if ($request->hasFile('web_logo') && $request->file('web_logo')->isValid()) {
                 $file = $request->file('web_logo');
 
                 // Get Data from Settings table
                 $webLogoDatabaseData = system_setting('web_logo');
                 $databaseData = !empty($webLogoDatabaseData) ? $webLogoDatabaseData : null;
 
-                $input['web_logo'] = handleFileUpload($request, 'web_logo', $destinationPath, $file->getClientOriginalName(), $databaseData);
+                $filename = 'web-logo.' . $file->getClientOriginalExtension();
+                $input['web_logo'] = handleFileUpload($request, 'web_logo', $destinationPath, $filename, $databaseData);
+                $changedImages = true;
             }
             if ($request->hasFile('web_placeholder_logo') && $request->file('web_placeholder_logo')->isValid()) {
                 $file = $request->file('web_placeholder_logo');
@@ -604,7 +607,9 @@ class SettingController extends Controller
                 $webPlaceholderLogoDatabaseData = system_setting('web_placeholder_logo');
                 $databaseData = !empty($webPlaceholderLogoDatabaseData) ? $webPlaceholderLogoDatabaseData : null;
 
-                $input['web_placeholder_logo'] = handleFileUpload($request, 'web_placeholder_logo', $destinationPath, $file->getClientOriginalName(), $databaseData);
+                $filename = 'web-placeholder.' . $file->getClientOriginalExtension();
+                $input['web_placeholder_logo'] = handleFileUpload($request, 'web_placeholder_logo', $destinationPath, $filename, $databaseData);
+                $changedImages = true;
             }
             if ($request->hasFile('web_favicon') && $request->file('web_favicon')->isValid()) {
                 $file = $request->file('web_favicon');
@@ -613,7 +618,9 @@ class SettingController extends Controller
                 $webFavicon = system_setting('web_favicon');
                 $databaseData = !empty($webFavicon) ? $webFavicon : null;
 
-                $input['web_favicon'] = handleFileUpload($request, 'web_favicon', $destinationPath, $file->getClientOriginalName(), $databaseData);
+                $filename = 'web-favicon.' . $file->getClientOriginalExtension();
+                $input['web_favicon'] = handleFileUpload($request, 'web_favicon', $destinationPath, $filename, $databaseData);
+                $changedImages = true;
             }
             if ($request->hasFile('web_footer_logo') && $request->file('web_footer_logo')->isValid()) {
                 $file = $request->file('web_footer_logo');
@@ -622,12 +629,18 @@ class SettingController extends Controller
                 $webFooterLogo = system_setting('web_footer_logo');
                 $databaseData = !empty($webFooterLogo) ? $webFooterLogo : null;
 
-                $input['web_footer_logo'] = handleFileUpload($request, 'web_footer_logo', $destinationPath, $file->getClientOriginalName(), $databaseData);
+                $filename = 'web-footer-logo.' . $file->getClientOriginalExtension();
+                $input['web_footer_logo'] = handleFileUpload($request, 'web_footer_logo', $destinationPath, $filename, $databaseData);
+                $changedImages = true;
             }
 
             foreach ($input as $key => $value) {
 
                 Setting::updateOrCreate(['type' => $key], ['data' => $value]);
+            }
+
+            if ($changedImages) {
+                Setting::updateOrCreate(['type' => 'web_assets_version'], ['data' => (string) time()]);
             }
         }
 
