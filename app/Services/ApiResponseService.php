@@ -120,25 +120,9 @@ class ApiResponseService
             'data'    => $data,
             'code'    => $code ?? config('constants.RESPONSE_CODE.SUCCESS')
         ], $customData), $code ?? config('constants.RESPONSE_CODE.SUCCESS'));
-
-        self::addCorsHeaders($response);
         $response->send();
         if (!app()->runningInConsole()) {
             exit();
-        }
-    }
-
-    private static function addCorsHeaders($response)
-    {
-        $origin = request()->header('Origin');
-        if ($origin) {
-            $allowedOrigins = config('cors.allowed_origins', []);
-            if (in_array($origin, $allowedOrigins) || in_array('*', $allowedOrigins)) {
-                $response->header('Access-Control-Allow-Origin', $origin);
-                $response->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-                $response->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, token');
-                $response->header('Access-Control-Allow-Credentials', 'true');
-            }
         }
     }
 
@@ -186,8 +170,6 @@ class ApiResponseService
             'code'    => $code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'),
             'details' => (!empty($e) && is_object($e)) ? $e->getMessage() . ' --> ' . $e->getFile() . ' At Line : ' . $e->getLine() : ''
         ], $code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'));
-
-        self::addCorsHeaders($response);
         $response->send();
         if (!app()->runningInConsole()) {
             exit();
