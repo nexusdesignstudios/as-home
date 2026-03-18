@@ -2714,18 +2714,27 @@ class HelperService
     public static function replaceEmailVariables($templateContent, $variables)
     {
         foreach ($variables as $key => $variable) {
-
-            // Create the placeholder format
-            $placeholder = '{' . $key . '}';
-            $endPlaceHolderPair = "{end_$key}";
-            if (strpos($templateContent, $placeholder) !== false && strpos($templateContent, $endPlaceHolderPair) !== false) {
-                $pattern = $placeholder . $endPlaceHolderPair;
-                $templateContent = str_replace($pattern, $variable, $templateContent);
-            } else {
-                // Replace the placeholder with the variable format
-                $templateContent = str_replace($placeholder, $variable, $templateContent);
+            $tripleMustache = '/\{\{\{\s*' . preg_quote($key, '/') . '\s*\}\}\}/';
+            $doubleMustache = '/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/';
+            $singleBrace = '/\{\s*' . preg_quote($key, '/') . '\s*\}/';
+            $templateContent = preg_replace($tripleMustache, $variable, $templateContent);
+            $templateContent = preg_replace($doubleMustache, $variable, $templateContent);
+            $templateContent = preg_replace($singleBrace, $variable, $templateContent);
+            $pairStart = '{' . $key . '}';
+            $pairEnd = "{end_$key}";
+            if (strpos($templateContent, $pairStart) !== false && strpos($templateContent, $pairEnd) !== false) {
+                $templateContent = str_replace($pairStart . $pairEnd, $variable, $templateContent);
             }
         }
+        $templateContent = preg_replace_callback('/\{\{\#if\s+([a-zA-Z0-9_]+)\s*\}\}(.*?)\{\{\/if\}\}/s', function ($m) use ($variables) {
+            $k = $m[1];
+            $inner = $m[2];
+            $val = $variables[$k] ?? null;
+            if (empty($val) || $val === 'None' || $val === 'N/A') {
+                return '';
+            }
+            return $inner;
+        }, $templateContent);
         return $templateContent;
     }
 
