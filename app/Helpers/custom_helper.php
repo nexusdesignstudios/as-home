@@ -773,12 +773,22 @@ function handleFileUpload($request, $key, $destinationPath, $filename, $database
                 $s3Key = trim($directory, '/').'/'.$finalFilename;
                 $fileContent = $uploadedFile->get();
 
-                $result = $s3Client->putObject([
-                    'Bucket' => env('AWS_BUCKET'),
-                    'Key' => $s3Key,
-                    'Body' => $fileContent,
-                    'ContentType' => $uploadedFile->getClientMimeType(),
-                ]);
+                try {
+                    $result = $s3Client->putObject([
+                        'Bucket' => env('AWS_BUCKET'),
+                        'Key' => $s3Key,
+                        'Body' => $fileContent,
+                        'ContentType' => $uploadedFile->getClientMimeType(),
+                        'ACL' => 'public-read',
+                    ]);
+                } catch (\Throwable $e) {
+                    $result = $s3Client->putObject([
+                        'Bucket' => env('AWS_BUCKET'),
+                        'Key' => $s3Key,
+                        'Body' => $fileContent,
+                        'ContentType' => $uploadedFile->getClientMimeType(),
+                    ]);
+                }
                 $s3Key = trim($directory, '/').'/'.$finalFilename;
                 $exists = null;
                 try {

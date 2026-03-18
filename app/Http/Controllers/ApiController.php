@@ -7558,14 +7558,19 @@ class ApiController extends Controller
                         // Change Value to Bool
                         $settingsData[$row->type] = $row->data == 1 ? true : false;
                     } else if ($row->type == 'web_favicon' || $row->type == 'web_logo' || $row->type == 'web_placeholder_logo' || $row->type == 'web_footer_logo') {
-                        // Add Full URL to the specified type
-                        // Check if file exists, otherwise use default logo
-                        $logoPath = public_path('assets/images/logo/' . $row->data);
-                        if (!empty($row->data) && file_exists($logoPath)) {
-                            $settingsData[$row->type] = $mediaBase . '/assets/images/logo/' . $row->data;
+                        if ($disk === 's3') {
+                            if (!empty($row->data)) {
+                                $settingsData[$row->type] = $mediaBase . '/assets/images/logo/' . $row->data;
+                            } else {
+                                $settingsData[$row->type] = $mediaBase . '/assets/images/logo/logo.png';
+                            }
                         } else {
-                            // Fallback to default logo if file doesn't exist
-                            $settingsData[$row->type] = $mediaBase . '/assets/images/logo/logo.png';
+                            $logoPath = public_path('assets/images/logo/' . $row->data);
+                            if (!empty($row->data) && file_exists($logoPath)) {
+                                $settingsData[$row->type] = $mediaBase . '/assets/images/logo/' . $row->data;
+                            } else {
+                                $settingsData[$row->type] = $mediaBase . '/assets/images/logo/logo.png';
+                            }
                         }
                     } else if ($row->type == 'place_api_key') {
                         // Add Full URL to the specified type
