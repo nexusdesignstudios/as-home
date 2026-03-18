@@ -120,10 +120,60 @@ class ApiResponseService
             'data'    => $data,
             'code'    => $code ?? config('constants.RESPONSE_CODE.SUCCESS')
         ], $customData), $code ?? config('constants.RESPONSE_CODE.SUCCESS'));
+        self::addCorsHeaders($response);
         $response->send();
         if (!app()->runningInConsole()) {
             exit();
         }
+    }
+
+    private static function addCorsHeaders($response): void
+    {
+        $origin = request()->header('Origin');
+        if (!$origin) {
+            return;
+        }
+
+        if ($response->headers->has('Access-Control-Allow-Origin')) {
+            return;
+        }
+
+        $allowedOrigins = config('cors.allowed_origins', []);
+        $allowedOriginPatterns = config('cors.allowed_origins_patterns', []);
+        $supportsCredentials = (bool) config('cors.supports_credentials', false);
+
+        $hasWildcard = in_array('*', $allowedOrigins, true);
+        $originAllowed = $hasWildcard
+            || in_array($origin, $allowedOrigins, true)
+            || self::originMatchesPatterns($origin, $allowedOriginPatterns);
+
+        if (!$originAllowed) {
+            return;
+        }
+
+        $allowOriginValue = (!$supportsCredentials && $hasWildcard) ? '*' : $origin;
+
+        $response->headers->set('Access-Control-Allow-Origin', $allowOriginValue);
+        $response->headers->set('Vary', 'Origin', false);
+        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, token, Origin, Accept');
+        if ($supportsCredentials) {
+            $response->headers->set('Access-Control-Allow-Credentials', 'true');
+        }
+    }
+
+    private static function originMatchesPatterns(string $origin, array $patterns): bool
+    {
+        foreach ($patterns as $pattern) {
+            if (!is_string($pattern) || $pattern === '') {
+                continue;
+            }
+            $regex = '/' . str_replace('/', '\/', $pattern) . '/';
+            if (@preg_match($regex, $origin) === 1) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -170,6 +220,7 @@ class ApiResponseService
             'code'    => $code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'),
             'details' => (!empty($e) && is_object($e)) ? $e->getMessage() . ' --> ' . $e->getFile() . ' At Line : ' . $e->getLine() : ''
         ], $code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'));
+        self::addCorsHeaders($response);
         $response->send();
         if (!app()->runningInConsole()) {
             exit();
