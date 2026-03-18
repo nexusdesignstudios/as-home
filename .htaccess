@@ -3,7 +3,7 @@
         Options -MultiViews -Indexes
     </IfModule>
 <FilesMatch "\.(jpg|jpeg|png|svg|pdf|doc)$">
-  Header set Access-Control-Allow-Origin "*"
+  # Header set Access-Control-Allow-Origin "*"
 </FilesMatch>
     RewriteEngine On
     RewriteRule ^(.*)$ public/$1 [L]
