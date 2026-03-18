@@ -7518,7 +7518,7 @@ class ApiController extends Controller
     public function getWebSettings(Request $request)
     {
         try {
-            $baseUrl = $request->getSchemeAndHttpHost();
+            $assetBase = rtrim(env('ASSET_BASE_URL', config('app.url', url(''))), '/');
 
             // Types for web requirement only
             $types = array('company_name', 'currency_symbol', 'default_language', 'number_with_suffix', 'web_maintenance_mode', 'company_tel', 'company_tel2', 'system_version', 'web_favicon', 'web_logo', 'web_footer_logo', 'web_placeholder_logo', 'company_email', 'latitude', 'longitude', 'company_address', 'system_color', 'svg_clr', 'iframe_link', 'facebook_id', 'instagram_id', 'twitter_id', 'youtube_id', 'playstore_id', 'sell_background', 'appstore_id', 'category_background', 'web_maintenance_mod', 'seo_settings', 'company_tel1', 'place_api_key', 'paystack_public_key', 'sell_web_color', 'sell_web_background_color', 'rent_web_color', 'rent_web_background_color', 'about_us', 'terms_conditions', 'privacy_policy', 'number_with_otp_login', 'social_login', 'distance_option', 'otp_service_provider', 'text_property_submission', 'auto_approve', 'verification_required_for_user', 'allow_cookies', 'currency_code', 'bank_details', 'schema_for_deeplink', 'min_radius_range', 'max_radius_range', 'google_analytics_id');
@@ -7535,7 +7535,7 @@ class ApiController extends Controller
                     // Change data according to conditions
                     if ($row->type == 'company_logo') {
                         // Add logo image with its url
-                        $settingsData[$row->type] = $baseUrl . '/assets/images/logo/logo.png';
+                        $settingsData[$row->type] = $assetBase . '/assets/images/logo/logo.png';
                     } else if ($row->type == 'seo_settings') {
                         // Change Value to Bool
                         $settingsData[$row->type] = $row->data == 1 ? true : false;
@@ -7550,10 +7550,10 @@ class ApiController extends Controller
                         // Check if file exists, otherwise use default logo
                         $logoPath = public_path('assets/images/logo/' . $row->data);
                         if (!empty($row->data) && file_exists($logoPath)) {
-                            $settingsData[$row->type] = $baseUrl . '/assets/images/logo/' . $row->data;
+                            $settingsData[$row->type] = $assetBase . '/assets/images/logo/' . $row->data;
                         } else {
                             // Fallback to default logo if file doesn't exist
-                            $settingsData[$row->type] = $baseUrl . '/assets/images/logo/logo.png';
+                            $settingsData[$row->type] = $assetBase . '/assets/images/logo/logo.png';
                         }
                     } else if ($row->type == 'place_api_key') {
                         // Add Full URL to the specified type
@@ -7595,15 +7595,15 @@ class ApiController extends Controller
                         $settingsData['admin_name'] = $user_data->name ?? 'Admin';
                         $settingsData['admin_image'] = !empty($user_data->profile) 
                             ? url('/') . config('global.IMG_PATH') . config('global.ADMIN_PROFILE_IMG_PATH') . $user_data->profile
-                            : $baseUrl . '/assets/images/faces/2.jpg';
+                            : $assetBase . '/assets/images/faces/2.jpg';
                     } else {
                         $settingsData['admin_name'] = 'Admin';
-                        $settingsData['admin_image'] = $baseUrl . '/assets/images/faces/2.jpg';
+                        $settingsData['admin_image'] = $assetBase . '/assets/images/faces/2.jpg';
                     }
                 } catch (\Exception $e) {
                     \Log::warning('Failed to get admin user', ['error' => $e->getMessage()]);
                     $settingsData['admin_name'] = 'Admin';
-                    $settingsData['admin_image'] = $baseUrl . '/assets/images/faces/2.jpg';
+                    $settingsData['admin_image'] = $assetBase . '/assets/images/faces/2.jpg';
                 }
                 $settingsData['demo_mode'] = env('DEMO_MODE');
                 $settingsData['img_placeholder'] = url('/assets/images/placeholder.svg');
