@@ -18,29 +18,13 @@ class TestCancellationEmailFlow extends Command
     {
         $this->info('Starting cancellation email flow test...');
 
-        // Find a suitable reservation (Hotel or Property) that is confirmed/approved and has an owner
-        // Simplified query to avoid polymorphic relationship issues
-        $reservations = Reservation::whereIn('status', ['confirmed', 'approved', 'pending'])
+        $reservation = Reservation::whereIn('status', ['confirmed', 'approved', 'pending'])
+            ->whereNotNull('property_id')
             ->whereHas('customer')
+            ->whereHas('property')
+            ->with(['customer', 'property.customer'])
             ->orderBy('id', 'desc')
-            ->limit(50)
-            ->get();
-        
-        $reservation = null;
-        
-        foreach ($reservations as $res) {
-            if ($res->reservable_type === 'App\\Models\\Property') {
-                if ($res->reservable && $res->reservable->customer) {
-                    $reservation = $res;
-                    break;
-                }
-            } elseif ($res->reservable_type === 'App\\Models\\HotelRoom') {
-                if ($res->reservable && $res->reservable->property && $res->reservable->property->customer) {
-                    $reservation = $res;
-                    break;
-                }
-            }
-        }
+            ->first();
 
         if (!$reservation) {
             $this->error('No suitable reservation found for testing.');
@@ -52,12 +36,7 @@ class TestCancellationEmailFlow extends Command
 
         // Get customer and owner
         $customer = $reservation->customer;
-        $owner = null;
-        if ($reservation->reservable_type === 'App\\Models\\Property') {
-            $owner = $reservation->reservable->customer;
-        } else {
-            $owner = $reservation->reservable->property->customer;
-        }
+        $owner = $reservation->property ? $reservation->property->customer : null;
 
         if (!$owner) {
             $this->error('Owner not found (unexpected).');
@@ -66,6 +45,7 @@ class TestCancellationEmailFlow extends Command
 
         $this->info("Customer: {$customer->name} ({$customer->email})");
         $this->info("Owner: {$owner->name} ({$owner->email})");
+        $this->info("Property: " . ($reservation->property->title ?? 'Unknown Property') . " (property_id={$reservation->property_id})");
 
         // Backup original emails
         $originalCustomerEmail = $customer->email;
@@ -98,10 +78,7 @@ class TestCancellationEmailFlow extends Command
             $this->info('Calling updateStatusApi...');
             
             // Call the method
-            $response = $controller->updateStatusApi($request, $reservation->id);
-            
-            $this->info('Method called. Response status: ' . $response->getStatusCode());
-            $this->info('Response content: ' . json_encode($response->getData()));
+            $controller->updateStatusApi($request, $reservation->id);
 
             // Verify emails were sent (we can't check mail logs easily here, but we can assume if no exception and logic flowed)
             $this->info('Check your inbox at ' . $testEmail);

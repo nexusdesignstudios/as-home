@@ -1553,6 +1553,12 @@ The {app_name} Team</p>';
 
             // Get property information
             $propertyName = 'Unknown Property';
+            if (!$reservation->relationLoaded('property')) {
+                $reservation->load('property');
+            }
+            if ($reservation->property && !empty($reservation->property->title)) {
+                $propertyName = $reservation->property->title;
+            }
             if ($reservation->reservable_type === 'App\\Models\\Property') {
                 $property = \App\Models\Property::find($reservation->reservable_id);
                 if ($property) {

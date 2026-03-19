@@ -2355,6 +2355,13 @@ Best regards,
             }
             $reservable = $reservation->reservable;
 
+            if (!$reservation->relationLoaded('property')) {
+                $reservation->load('property');
+            }
+            if ($reservation->property && !empty($reservation->property->title)) {
+                $propertyName = $reservation->property->title;
+            }
+
             if ($reservable instanceof \App\Models\Property) {
                 $property = $reservable;
                 $propertyName = $property->title;
