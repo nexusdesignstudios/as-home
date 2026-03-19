@@ -2342,7 +2342,7 @@ Best regards,
      * @param \App\Models\Reservation $reservation
      * @return void
      */
-    public function sendReservationCancellationEmailToOwner($reservation)
+    public function sendReservationCancellationEmailToOwner($reservation, array $extraData = [])
     {
         try {
             // Get property information and owner
@@ -2403,8 +2403,76 @@ Best regards,
             // Get currency symbol
             $currencySymbol = system_setting('currency_symbol') ?? '$';
 
-            // Get customer info
-            $customerName = $reservation->customer ? $reservation->customer->name : 'Guest';
+            if (!$reservation->relationLoaded('customer')) {
+                $reservation->load('customer');
+            }
+
+            $reservableData = $reservation->reservable_data;
+            if (is_string($reservableData)) {
+                $decoded = json_decode($reservableData, true);
+                $reservableData = is_array($decoded) ? $decoded : [];
+            }
+            if (!is_array($reservableData)) {
+                $reservableData = [];
+            }
+
+            $customerName =
+                $extraData['guest_name'] ??
+                $reservation->customer_name ??
+                $reservation->user_name ??
+                ($reservation->customer ? $reservation->customer->name : null) ??
+                'Guest';
+
+            $guestEmail =
+                $extraData['guest_email'] ??
+                $extraData['user_email'] ??
+                $reservation->customer_email ??
+                $reservation->user_email ??
+                ($reservation->customer ? $reservation->customer->email : null) ??
+                'N/A';
+
+            $guestPhone =
+                $extraData['guest_phone'] ??
+                $extraData['user_phone'] ??
+                $reservation->customer_phone ??
+                ($reservation->customer ? $reservation->customer->mobile : null) ??
+                'N/A';
+
+            $roomType =
+                $extraData['room_type'] ??
+                $extraData['roomType'] ??
+                $extraData['room_type_name'] ??
+                $extraData['roomTypeName'] ??
+                (isset($reservableData[0]) && is_array($reservableData[0])
+                    ? ($reservableData[0]['roomTypeName'] ?? $reservableData[0]['room_type'] ?? $reservableData[0]['room_type_name'] ?? null)
+                    : null);
+
+            $roomNumber = $extraData['room_number'] ?? null;
+
+            if (empty($roomType) || empty($roomNumber)) {
+                if ($reservable instanceof \App\Models\HotelRoom) {
+                    $hotelRoom = $reservable;
+                    $customRoomType = trim($hotelRoom->custom_room_type ?? '');
+                    if (empty($roomType)) {
+                        $roomType = !empty($customRoomType) ? $customRoomType : (optional($hotelRoom->roomType)->name ?? 'Standard Room');
+                    }
+                    if (empty($roomNumber)) {
+                        $roomNumber = $hotelRoom->room_number ?? 'N/A';
+                    }
+                }
+            }
+
+            $packageType =
+                $extraData['package_type'] ??
+                $extraData['package_name'] ??
+                $extraData['packageType'] ??
+                $extraData['packageName'] ??
+                (isset($reservableData[0]) && is_array($reservableData[0])
+                    ? ($reservableData[0]['package_name'] ?? $reservableData[0]['packageType'] ?? $reservableData[0]['packageName'] ?? null)
+                    : null) ??
+                'Room Only';
+
+            $cancellationReason = $extraData['cancellation_reason'] ?? $extraData['reason'] ?? null;
 
             // Try to get template from settings, otherwise use default
         $emailTemplateData = system_setting('hotel_owner_cancellation_mail_template');
@@ -2414,9 +2482,16 @@ Best regards,
 <p>The reservation cancellation has been completed successfully.</p>
 <p><strong>Reservation Details</strong></p>
 <p><strong>Reservation ID:</strong> {reservation_id}<br>
+<strong>Guest Name:</strong> {customer_name}<br>
+<strong>Guest Email:</strong> {guest_email}<br>
+<strong>Guest Phone:</strong> {guest_phone}<br>
 <strong>Property:</strong> {hotel_name}<br>
+<strong>Room Type:</strong> {room_type}<br>
+<strong>Room Number:</strong> {room_number}<br>
+<strong>Package Type:</strong> {package_type}<br>
 <strong>Check-in Date:</strong> {check_in_date}<br>
 <strong>Check-out Date:</strong> {check_out_date}</p>
+{{#if cancellation_reason}}<p><strong>Cancellation Reason:</strong> {cancellation_reason}</p>{{/if}}
 <p>Thank you and best regards,</p>
 <p>Warm regards,<br>
 <strong>As-home Asset Management Team</strong></p>';
@@ -2431,15 +2506,21 @@ Best regards,
             'hotel_owner_name' => $propertyOwner->name,
             'owner_name' => $propertyOwner->name, // Keep for backward compatibility
             'customer_name' => $customerName,
+            'guest_email' => $guestEmail,
+            'guest_phone' => $guestPhone,
             'reservation_id' => $reservation->id,
             'hotel_name' => $propertyName,
             'property_name' => $propertyName, // Keep for backward compatibility
+            'room_type' => $roomType ?: 'N/A',
+            'room_number' => $roomNumber ?: 'N/A',
+            'package_type' => $packageType ?: 'Room Only',
             'check_in_date' => $checkInDate,
             'check_out_date' => $checkOutDate,
             'total_price' => number_format($reservation->total_price, 2),
             'currency_symbol' => $currencySymbol,
             'cancellation_date' => now()->format('d M Y, h:i A'),
             'current_date_today' => now()->format('d M Y, h:i A'),
+            'cancellation_reason' => $cancellationReason ?: 'N/A',
         ];
 
             // Replace variables in template

@@ -14,92 +14,112 @@ return new class extends Migration
     public function up()
     {
         Schema::table('projects', function (Blueprint $table) {
+            $anchor = Schema::hasColumn('projects', 'lot_size')
+                ? 'lot_size'
+                : (Schema::hasColumn('projects', 'id') ? 'id' : null);
+
+            $addString = function (string $column) use ($table, &$anchor) {
+                $col = $table->string($column)->nullable();
+                if ($anchor) {
+                    $col->after($anchor);
+                    $anchor = $column;
+                }
+            };
+
+            $addText = function (string $column) use ($table, &$anchor) {
+                $col = $table->text($column)->nullable();
+                if ($anchor) {
+                    $col->after($anchor);
+                    $anchor = $column;
+                }
+            };
+
             // Agreements documents
             if (!Schema::hasColumn('projects', 'ownership_contract')) {
-                $table->string('ownership_contract')->nullable()->after('lot_size');
+                $addString('ownership_contract');
             }
             if (!Schema::hasColumn('projects', 'national_id_passport')) {
-                $table->string('national_id_passport')->nullable()->after('ownership_contract');
+                $addString('national_id_passport');
             }
             if (!Schema::hasColumn('projects', 'alternative_id')) {
-                $table->string('alternative_id')->nullable()->after('national_id_passport');
+                $addString('alternative_id');
             }
             if (!Schema::hasColumn('projects', 'utilities_bills')) {
-                $table->string('utilities_bills')->nullable()->after('alternative_id');
+                $addString('utilities_bills');
             }
             if (!Schema::hasColumn('projects', 'power_of_attorney')) {
-                $table->string('power_of_attorney')->nullable()->after('utilities_bills');
+                $addString('power_of_attorney');
             }
             
             // Contact details - Ownership type
             if (!Schema::hasColumn('projects', 'ownership_type')) {
-                $table->string('ownership_type')->nullable()->after('power_of_attorney');
+                $addString('ownership_type');
             }
             
             // Individual/Admin Info
             if (!Schema::hasColumn('projects', 'admin_full_name')) {
-                $table->string('admin_full_name')->nullable()->after('ownership_type');
+                $addString('admin_full_name');
             }
             if (!Schema::hasColumn('projects', 'admin_email')) {
-                $table->string('admin_email')->nullable()->after('admin_full_name');
+                $addString('admin_email');
             }
             if (!Schema::hasColumn('projects', 'admin_phone_number')) {
-                $table->string('admin_phone_number')->nullable()->after('admin_email');
+                $addString('admin_phone_number');
             }
             if (!Schema::hasColumn('projects', 'admin_whatsapp_number')) {
-                $table->string('admin_whatsapp_number')->nullable()->after('admin_phone_number');
+                $addString('admin_whatsapp_number');
             }
             if (!Schema::hasColumn('projects', 'admin_address')) {
-                $table->text('admin_address')->nullable()->after('admin_whatsapp_number');
+                $addText('admin_address');
             }
             if (!Schema::hasColumn('projects', 'admin_profile_image')) {
-                $table->string('admin_profile_image')->nullable()->after('admin_address');
+                $addString('admin_profile_image');
             }
             
             // Employee Details
             if (!Schema::hasColumn('projects', 'company_employee_username')) {
-                $table->string('company_employee_username')->nullable()->after('admin_profile_image');
+                $addString('company_employee_username');
             }
             if (!Schema::hasColumn('projects', 'company_employee_email')) {
-                $table->string('company_employee_email')->nullable()->after('company_employee_username');
+                $addString('company_employee_email');
             }
             if (!Schema::hasColumn('projects', 'company_employee_phone_number')) {
-                $table->string('company_employee_phone_number')->nullable()->after('company_employee_email');
+                $addString('company_employee_phone_number');
             }
             if (!Schema::hasColumn('projects', 'company_employee_whatsappnumber')) {
-                $table->string('company_employee_whatsappnumber')->nullable()->after('company_employee_phone_number');
+                $addString('company_employee_whatsappnumber');
             }
             
             // Company Details
             if (!Schema::hasColumn('projects', 'company_legal_name')) {
-                $table->string('company_legal_name')->nullable()->after('company_employee_whatsappnumber');
+                $addString('company_legal_name');
             }
             if (!Schema::hasColumn('projects', 'manager_name')) {
-                $table->string('manager_name')->nullable()->after('company_legal_name');
+                $addString('manager_name');
             }
             if (!Schema::hasColumn('projects', 'type_of_company')) {
-                $table->string('type_of_company')->nullable()->after('manager_name');
+                $addString('type_of_company');
             }
             if (!Schema::hasColumn('projects', 'company_email_address')) {
-                $table->string('company_email_address')->nullable()->after('type_of_company');
+                $addString('company_email_address');
             }
             if (!Schema::hasColumn('projects', 'bank_branch')) {
-                $table->string('bank_branch')->nullable()->after('company_email_address');
+                $addString('bank_branch');
             }
             if (!Schema::hasColumn('projects', 'bank_address')) {
-                $table->text('bank_address')->nullable()->after('bank_branch');
+                $addText('bank_address');
             }
             if (!Schema::hasColumn('projects', 'company_country')) {
-                $table->string('company_country')->nullable()->after('bank_address');
+                $addString('company_country');
             }
             if (!Schema::hasColumn('projects', 'bank_account_number')) {
-                $table->string('bank_account_number')->nullable()->after('company_country');
+                $addString('bank_account_number');
             }
             if (!Schema::hasColumn('projects', 'iban')) {
-                $table->string('iban')->nullable()->after('bank_account_number');
+                $addString('iban');
             }
             if (!Schema::hasColumn('projects', 'swift_code')) {
-                $table->string('swift_code')->nullable()->after('iban');
+                $addString('swift_code');
             }
         });
     }

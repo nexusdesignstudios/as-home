@@ -828,12 +828,14 @@ class ReservationsAdminController extends Controller
 
                 $reservation->save();
 
+                $extraData = $request->all();
+
                 // Send cancellation email to the customer
-                $this->sendReservationCancellationEmail($reservation, 'cancellation');
+                $this->sendReservationCancellationEmail($reservation, 'cancellation', $extraData);
 
                 // Send cancellation email to the property owner
                 $reservationService = app(\App\Services\ReservationService::class);
-                $reservationService->sendReservationCancellationEmailToOwner($reservation);
+                $reservationService->sendReservationCancellationEmailToOwner($reservation, $extraData);
 
                 // Reload the reservation with updated data
                 $reservation->refresh();
@@ -1535,7 +1537,7 @@ The {app_name} Team</p>';
      * @param string $type 'cancellation' or 'decline'
      * @return void
      */
-    private function sendReservationCancellationEmail($reservation, $type = 'cancellation')
+    private function sendReservationCancellationEmail($reservation, $type = 'cancellation', array $extraData = [])
     {
         try {
             // Get customer information
@@ -1570,12 +1572,79 @@ The {app_name} Team</p>';
             // Get currency symbol
             $currencySymbol = system_setting('currency_symbol') ?? '$';
 
+            $reservableData = $reservation->reservable_data;
+            if (is_string($reservableData)) {
+                $decoded = json_decode($reservableData, true);
+                $reservableData = is_array($decoded) ? $decoded : [];
+            }
+            if (!is_array($reservableData)) {
+                $reservableData = [];
+            }
+
+            $guestEmail =
+                $extraData['guest_email'] ??
+                $extraData['user_email'] ??
+                $reservation->customer_email ??
+                $reservation->user_email ??
+                ($customer ? $customer->email : null) ??
+                'N/A';
+
+            $guestPhone =
+                $extraData['guest_phone'] ??
+                $extraData['user_phone'] ??
+                $reservation->customer_phone ??
+                ($customer ? $customer->mobile : null) ??
+                'N/A';
+
+            $roomType =
+                $extraData['room_type'] ??
+                $extraData['roomType'] ??
+                $extraData['room_type_name'] ??
+                $extraData['roomTypeName'] ??
+                (isset($reservableData[0]) && is_array($reservableData[0])
+                    ? ($reservableData[0]['roomTypeName'] ?? $reservableData[0]['room_type'] ?? $reservableData[0]['room_type_name'] ?? null)
+                    : null);
+
+            $roomNumber = $extraData['room_number'] ?? null;
+
+            if (empty($roomType) || empty($roomNumber)) {
+                if (in_array($reservation->reservable_type, ['App\\Models\\HotelRoom', 'hotel_room'])) {
+                    $hotelRoom = \App\Models\HotelRoom::find($reservation->reservable_id);
+                    if ($hotelRoom) {
+                        $customRoomType = trim($hotelRoom->custom_room_type ?? '');
+                        if (empty($roomType)) {
+                            $roomType = !empty($customRoomType) ? $customRoomType : (optional($hotelRoom->roomType)->name ?? 'Standard Room');
+                        }
+                        if (empty($roomNumber)) {
+                            $roomNumber = $hotelRoom->room_number ?? 'N/A';
+                        }
+                    }
+                }
+            }
+
+            $packageType =
+                $extraData['package_type'] ??
+                $extraData['package_name'] ??
+                $extraData['packageType'] ??
+                $extraData['packageName'] ??
+                (isset($reservableData[0]) && is_array($reservableData[0])
+                    ? ($reservableData[0]['package_name'] ?? $reservableData[0]['packageType'] ?? $reservableData[0]['packageName'] ?? null)
+                    : null) ??
+                'Room Only';
+
+            $cancellationReason = $extraData['cancellation_reason'] ?? $extraData['reason'] ?? null;
+
             // Prepare email variables
             $variables = [
                 'app_name' => env("APP_NAME") ?? "eBroker",
                 'customer_name' => $customer->name,
+                'guest_email' => $guestEmail,
+                'guest_phone' => $guestPhone,
                 'reservation_id' => $reservation->id,
                 'property_name' => $propertyName,
+                'room_type' => $roomType ?: 'N/A',
+                'room_number' => $roomNumber ?: 'N/A',
+                'package_type' => $packageType ?: 'Room Only',
                 'check_in_date' => $checkInDate,
                 'check_out_date' => $checkOutDate,
                 'total_price' => number_format($reservation->total_price, 2),
@@ -1583,6 +1652,7 @@ The {app_name} Team</p>';
                 'cancellation_date' => $reservation->cancelled_at ? $reservation->cancelled_at->format('d M Y, h:i A') : now()->format('d M Y, h:i A'),
                 'refund_processing_time' => '3-5 business days',
                 'current_date_today' => now()->format('d M Y, h:i A'),
+                'cancellation_reason' => $cancellationReason ? ("Cancellation Reason: " . $cancellationReason) : '',
             ];
 
             // Determine email template and title based on type
@@ -1630,9 +1700,14 @@ We are writing to confirm that your reservation has been cancelled.
 Reservation Details:
 - Reservation ID: {reservation_id}
 - Property: {property_name}
+- Guest Email: {guest_email}
+- Room Type: {room_type}
+- Room Number: {room_number}
+- Package Type: {package_type}
 - Check-in Date: {check_in_date}
 - Check-out Date: {check_out_date}
 - Total Amount: {currency_symbol}{total_price}
+{cancellation_reason}{end_cancellation_reason}
 
 If you requested a refund, please note that it will be processed according to our refund policy. Depending on your payment method, it may take 3-5 business days for the refund to appear in your account.
 

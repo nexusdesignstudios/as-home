@@ -3071,6 +3071,10 @@ class HelperService
                 }
 
                 $entry = explode("=", $env_value, 2);
+                if (count($entry) < 2) {
+                    $env_array[] = $env_value;
+                    continue;
+                }
                 $env_array[$entry[0]] = $entry[0] . "=\"" . str_replace("\"", "", $entry[1]) . "\"";
             }
 
