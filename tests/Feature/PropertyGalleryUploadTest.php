@@ -56,6 +56,29 @@ class PropertyGalleryUploadTest extends TestCase
                 'added_by' => 999, // Simulate user ID
              ]);
         }
+        $category = Category::first();
+        if (!$category) {
+            $category = Category::create(['category' => 'Test Category', 'status' => '1', 'parameter_types' => '']);
+        }
+        if (empty($property->title)) {
+            $property->title = 'Test User Property';
+        }
+        if (empty($property->description)) {
+            $property->description = 'Test Description';
+        }
+        if (empty($property->address)) {
+            $property->address = 'Test Address';
+        }
+        if (empty($property->category_id)) {
+            $property->category_id = $category->id;
+        }
+        if (empty($property->price)) {
+            $property->price = 100;
+        }
+        if ($property->added_by == 0) {
+            $property->added_by = 999;
+        }
+        $property->save();
 
         $propertyId = $property->id;
 
@@ -78,7 +101,8 @@ class PropertyGalleryUploadTest extends TestCase
 
         // 4. Send PUT/PATCH request to update property
         // The route is 'property.update'
-        $response = $this->patch(route('property.update', $propertyId), [
+        $response = $this->post(route('property.update', $propertyId), [
+            '_method' => 'PATCH',
             'title' => $property->title, // Required fields
             'description' => $property->description,
             'category' => $property->category_id,

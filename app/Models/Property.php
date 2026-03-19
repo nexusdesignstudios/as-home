@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Storage;
 use App\Traits\HasAppTimezone;
 use App\Models\PropertyTerms;
 
@@ -351,7 +352,27 @@ class Property extends Model
     }
     public function getTitleImageAttribute($image)
     {
-        return $image != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_TITLE_IMG_PATH') . $image : '';
+        if ($image === null || $image === '') {
+            return '';
+        }
+
+        $relativePath = 'images/' . trim(config('global.PROPERTY_TITLE_IMG_PATH'), '/') . '/' . $image;
+        $disk = config('filesystems.default', 'local');
+
+        if ($disk === 's3') {
+            try {
+                return Storage::disk('s3')->url($relativePath);
+            } catch (\Throwable $e) {
+            }
+        }
+
+        $fullLocalPath = public_path($relativePath);
+        if (is_string($fullLocalPath) && file_exists($fullLocalPath)) {
+            return url($relativePath);
+        }
+
+        $fallbackSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect width="100%" height="100%" fill="#f2f2f2"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#9aa0a6" font-family="Arial, sans-serif" font-size="24">No image</text></svg>';
+        return 'data:image/svg+xml;charset=UTF-8,' . rawurlencode($fallbackSvg);
     }
 
     public function setTitleImageAttribute($value)
@@ -361,7 +382,27 @@ class Property extends Model
 
     public function getMetaImageAttribute($image)
     {
-        return $image != '' ? url('') . config('global.IMG_PATH') . config('global.PROPERTY_SEO_IMG_PATH') . $image : '';
+        if ($image === null || $image === '') {
+            return '';
+        }
+
+        $relativePath = 'images/' . trim(config('global.PROPERTY_SEO_IMG_PATH'), '/') . '/' . $image;
+        $disk = config('filesystems.default', 'local');
+
+        if ($disk === 's3') {
+            try {
+                return Storage::disk('s3')->url($relativePath);
+            } catch (\Throwable $e) {
+            }
+        }
+
+        $fullLocalPath = public_path($relativePath);
+        if (is_string($fullLocalPath) && file_exists($fullLocalPath)) {
+            return url($relativePath);
+        }
+
+        $fallbackSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect width="100%" height="100%" fill="#f2f2f2"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#9aa0a6" font-family="Arial, sans-serif" font-size="24">No image</text></svg>';
+        return 'data:image/svg+xml;charset=UTF-8,' . rawurlencode($fallbackSvg);
     }
 
     public function setMetaImageAttribute($value)
@@ -371,7 +412,27 @@ class Property extends Model
 
     public function getThreeDImageAttribute($image)
     {
-        return $image != '' ? url('') . config('global.IMG_PATH') . config('global.3D_IMG_PATH') . $image : '';
+        if ($image === null || $image === '') {
+            return '';
+        }
+
+        $relativePath = 'images/' . trim(config('global.3D_IMG_PATH'), '/') . '/' . $image;
+        $disk = config('filesystems.default', 'local');
+
+        if ($disk === 's3') {
+            try {
+                return Storage::disk('s3')->url($relativePath);
+            } catch (\Throwable $e) {
+            }
+        }
+
+        $fullLocalPath = public_path($relativePath);
+        if (is_string($fullLocalPath) && file_exists($fullLocalPath)) {
+            return url($relativePath);
+        }
+
+        $fallbackSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect width="100%" height="100%" fill="#f2f2f2"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#9aa0a6" font-family="Arial, sans-serif" font-size="24">No image</text></svg>';
+        return 'data:image/svg+xml;charset=UTF-8,' . rawurlencode($fallbackSvg);
     }
 
     public function setThreeDImageAttribute($value)
@@ -881,6 +942,7 @@ class Property extends Model
         'status' => 'integer',
         'property_classification' => 'integer',
         'availability_type' => 'integer',
+        'available_dates' => 'array',
         'corresponding_day' => 'json',
         'agent_addons' => 'json',
         'instant_booking' => 'boolean',

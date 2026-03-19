@@ -7,10 +7,11 @@
                         @php
                             $companyLogoFile = system_setting('company_logo');
                             $companyLogoPath = !empty($companyLogoFile) ? public_path('assets/images/logo/' . $companyLogoFile) : null;
+                            $companyLogoUrl = (!empty($companyLogoFile) && $companyLogoPath && file_exists($companyLogoPath))
+                                ? url('assets/images/logo/' . $companyLogoFile)
+                                : url('favicon.ico');
                         @endphp
-                        @if (!empty($companyLogoFile) && $companyLogoPath && file_exists($companyLogoPath))
-                            <img src="{{ url('assets/images/logo/' . $companyLogoFile) }}" alt="Logo" srcset="" style="max-width: 180px; height: auto;">
-                        @endif
+                        <img src="{{ $companyLogoUrl }}" alt="Logo" style="max-width: 180px; height: auto;">
                     </a>
                 </div>
             </div>

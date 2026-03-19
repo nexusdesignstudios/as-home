@@ -130,8 +130,8 @@ class ReservationConfirmationTest extends TestCase
             '2024-06-05'
         );
 
-        // The dates should still be available because the first reservation is pending
-        $this->assertTrue($isAvailable, 'Pending reservations should not block other bookings');
+        // Pending reservations should block to prevent double booking
+        $this->assertFalse($isAvailable, 'Pending reservations should block other bookings');
 
         // Now confirm the first reservation
         $this->reservationService->handleReservationConfirmation($pendingReservation, 'paid');
