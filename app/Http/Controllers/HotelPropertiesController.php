@@ -120,6 +120,10 @@ class HotelPropertiesController extends Controller
             return response()->json(['error' => true, 'message' => PERMISSION_ERROR_MSG]);
         }
 
+        if ($request->has('cancellation_period') && $request->cancellation_period === 'on') {
+            $request->merge(['cancellation_period' => null]);
+        }
+
         $request->validate([
             'property_id' => 'required|exists:propertys,id',
             'cancellation_period' => 'nullable|string|regex:/^(same_day_6pm|\\d+|\\d+_days)$/',
@@ -127,7 +131,7 @@ class HotelPropertiesController extends Controller
 
         try {
             $property = Property::findOrFail($request->property_id);
-            $property->cancellation_period = $request->cancellation_period;
+            $property->cancellation_period = $request->cancellation_period ?: null;
             $property->save();
 
             return response()->json(['error' => false, 'message' => 'Cancellation period updated successfully']);

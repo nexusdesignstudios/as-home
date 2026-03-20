@@ -278,10 +278,12 @@
                         <div class="form-group mandatory">
                             {{ Form::label('cancellation_period', __('Cancellation Period (Days)'), ['class' => 'form-label col-12']) }}
                             <select name="cancellation_period" id="cancellation_period" class="form-select form-control-sm">
+                                <option value="" {{ empty($list->cancellation_period) ? 'selected' : '' }}>{{ __('No Cancellation Policy') }}</option>
                                 <option value="3" {{ isset($list->cancellation_period) && $list->cancellation_period == '3' ? 'selected' : '' }}>{{ __('3 Days') }}</option>
                                 <option value="5" {{ isset($list->cancellation_period) && $list->cancellation_period == '5' ? 'selected' : '' }}>{{ __('5 Days') }}</option>
                                 <option value="7" {{ isset($list->cancellation_period) && $list->cancellation_period == '7' ? 'selected' : '' }}>{{ __('7 Days') }}</option>
                                 <option value="14" {{ isset($list->cancellation_period) && $list->cancellation_period == '14' ? 'selected' : '' }}>{{ __('14 Days') }}</option>
+                                <option value="same_day_6pm" {{ isset($list->cancellation_period) && $list->cancellation_period == 'same_day_6pm' ? 'selected' : '' }}>{{ __('Same Day at 06:00 PM') }}</option>
                             </select>
                             <small class="text-muted">{{ __('Flexible booking will be disabled if check-in is within this period.') }}</small>
                         </div>

@@ -93,12 +93,16 @@
                             <label for="cancellation_period">{{ __('Cancellation Period') }}</label>
                             <select name="cancellation_period" id="cancellation_period" class="form-select">
                                 <option value="">{{ __('No Cancellation Policy') }}</option>
-                                <option value="7_days">{{ __('7 Days Cancellation Period') }}</option>
+                                <option value="3">{{ __('3 Days') }}</option>
+                                <option value="5">{{ __('5 Days') }}</option>
+                                <option value="7">{{ __('7 Days') }}</option>
+                                <option value="14">{{ __('14 Days') }}</option>
+                                <option value="7_days">{{ __('7 Days (Legacy)') }}</option>
                                 <option value="same_day_6pm">{{ __('Same Day at 06:00 PM') }}</option>
                             </select>
                             <small class="text-muted">
                                 <ul>
-                                    <li><strong>7 Days:</strong> No flexible bookings from today to upcoming 6 days.</li>
+                                    <li><strong>N Days:</strong> No flexible bookings if check-in is within N days.</li>
                                     <li><strong>Same Day 6 PM:</strong> No flexible bookings on the same day after 06:00 PM.</li>
                                 </ul>
                             </small>
@@ -143,13 +147,28 @@
         }
 
         function cancellationPeriodFormatter(value, row) {
-            if (value == '7_days') {
-                return '<span class="badge bg-info">7 Days</span>';
-            } else if (value == 'same_day_6pm') {
-                return '<span class="badge bg-warning">Same Day 6:00 PM</span>';
-            } else {
-                return '<span class="badge bg-secondary">N/A</span>';
+            if (!value || value === 'N/A') {
+                return '<span class="badge bg-secondary">{{ __('No Policy') }}</span>';
             }
+
+            if (value === 'same_day_6pm') {
+                return '<span class="badge bg-warning">Same Day 6:00 PM</span>';
+            }
+
+            var numeric = null;
+            if (/^\d+$/.test(value)) {
+                numeric = parseInt(value, 10);
+            } else if (/^\d+_days$/.test(value)) {
+                numeric = parseInt(value.split('_')[0], 10);
+            } else if (value === '7_days') {
+                numeric = 7;
+            }
+
+            if (numeric !== null && !isNaN(numeric)) {
+                return '<span class="badge bg-info">' + numeric + ' Days</span>';
+            }
+
+            return '<span class="badge bg-secondary">{{ __('No Policy') }}</span>';
         }
 
         window.actionEvents = {

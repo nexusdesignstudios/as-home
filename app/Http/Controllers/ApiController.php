@@ -2039,7 +2039,7 @@ class ApiController extends Controller
                     $saveProperty->hotel_available_rooms = $request->hotelAvailableRooms;
                 }
                 if (isset($request->cancellation_period)) {
-                    $saveProperty->cancellation_period = $request->cancellation_period;
+                    $saveProperty->cancellation_period = $request->cancellation_period === 'on' ? null : ($request->cancellation_period ?: null);
                 }
             }
 
@@ -3029,7 +3029,7 @@ class ApiController extends Controller
                             $property->hotel_available_rooms = $request->hotelAvailableRooms;
                         }
                         if (isset($request->cancellation_period)) {
-                            $property->cancellation_period = $request->cancellation_period;
+                            $property->cancellation_period = $request->cancellation_period === 'on' ? null : ($request->cancellation_period ?: null);
                         }
                     }
 

@@ -198,7 +198,7 @@ class PropertController extends Controller
                 $saveProperty->company_employee_phone_number = $request->company_employee_phone_number ?? null;
                 $saveProperty->address = $request->address;
                 $saveProperty->client_address = $request->client_address;
-                $saveProperty->cancellation_period = $request->cancellation_period ?? null;
+                $saveProperty->cancellation_period = ($request->cancellation_period ?? null) === 'on' ? null : ($request->cancellation_period ?: null);
                 $saveProperty->propery_type = $request->property_type;
                 $saveProperty->property_classification = $request->property_classification;
                 $saveProperty->price = $request->price;
@@ -967,7 +967,7 @@ class PropertController extends Controller
                         $UpdateProperty->reservation_email = $request->reservation_email ?? null;
                     }
                     $UpdateProperty->hotel_vat = $request->hotel_vat ?? null;
-                    $UpdateProperty->cancellation_period = $request->cancellation_period ?? null;
+                    $UpdateProperty->cancellation_period = ($request->cancellation_period ?? null) === 'on' ? null : ($request->cancellation_period ?: null);
                 }
 
                 // Handle agent_addons field (available for all property types)
