@@ -122,7 +122,7 @@ class HotelPropertiesController extends Controller
 
         $request->validate([
             'property_id' => 'required|exists:propertys,id',
-            'cancellation_period' => 'nullable|string|in:3,5,7,14,same_day_6pm',
+            'cancellation_period' => 'nullable|string|regex:/^(same_day_6pm|\\d+|\\d+_days)$/',
         ]);
 
         try {

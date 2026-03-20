@@ -586,26 +586,12 @@ class ReservationController extends Controller
                 // Check if property has flexible refund policy for flexible reservation behavior
                 $isFlexible = $property->refund_policy === 'flexible';
 
-                // Apply Cancellation Policy Logic to override Flexible
-                if ($isFlexible && $property->cancellation_period) {
+                // Apply Cancellation Policy Logic to override Flexible only when user configured
+                if ($isFlexible) {
                     $checkInDate = Carbon::parse($request->check_in_date)->startOfDay();
-                    $today = Carbon::today()->startOfDay();
-                    $cancellationPeriod = $property->cancellation_period;
-
-                    if ($cancellationPeriod === 'same_day_6pm') {
-                        if ($checkInDate->equalTo($today)) {
-                            // Check current time (Server time)
-                            if (Carbon::now()->hour >= 18) {
-                                $isFlexible = false; // Force non-refundable
-                            }
-                        }
-                    } else {
-                        $days = intval($cancellationPeriod);
-                        if ($days > 0) {
-                            if ($checkInDate->diffInDays($today) < $days) {
-                                $isFlexible = false; // Force non-refundable
-                            }
-                        }
+                    $evaluation = HelperService::evaluateFlexibleBookingCancellationPolicy($property, $checkInDate);
+                    if (!($evaluation['allowed'] ?? true)) {
+                        $isFlexible = false;
                     }
                 }
                 
@@ -848,32 +834,15 @@ class ReservationController extends Controller
                 ]);
 
                 // Validate Cancellation Policy for Flexible Bookings
-                if ($isFlexible && $property->cancellation_period) {
+                if ($isFlexible) {
                     $checkInDate = Carbon::parse($request->check_in_date)->startOfDay();
-                    $today = Carbon::today()->startOfDay();
-                    $cancellationPeriod = $property->cancellation_period;
-
-                    if ($cancellationPeriod === 'same_day_6pm') {
-                        if ($checkInDate->equalTo($today)) {
-                            // Check current time (Server time)
-                            if (Carbon::now()->hour >= 18) {
-                                Log::info('Flexible booking blocked by Same Day 6PM rule');
-                                return ApiResponseService::errorResponse("Flexible booking is not allowed after 6 PM for same-day check-in.");
-                            }
-                        }
-                    } else {
-                        $days = intval($cancellationPeriod);
-                        if ($days > 0) {
-                            $diffDays = $checkInDate->diffInDays($today);
-                            Log::info('Checking N-Day Cancellation Rule', [
-                                'days_configured' => $days,
-                                'diff_days' => $diffDays
-                            ]);
-                            if ($diffDays < $days) {
-                                Log::info('Flexible booking blocked by N-Day rule');
-                                return ApiResponseService::errorResponse("Flexible booking is not allowed within the cancellation period ({$days} days). Please choose Non-Refundable.");
-                            }
-                        }
+                    $evaluation = HelperService::evaluateFlexibleBookingCancellationPolicy($property, $checkInDate);
+                    if (!($evaluation['allowed'] ?? true)) {
+                        Log::info('Flexible booking blocked by cancellation policy', [
+                            'policy' => $evaluation['policy'] ?? null,
+                            'check_in' => $request->check_in_date,
+                        ]);
+                        return ApiResponseService::errorResponse($evaluation['message'] ?? 'Flexible booking is not allowed. Please choose Non-Refundable.');
                     }
                 }
                 

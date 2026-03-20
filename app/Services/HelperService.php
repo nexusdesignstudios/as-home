@@ -3320,6 +3320,107 @@ class HelperService
         }
     }
 
+    public static function getCancellationPolicy($property)
+    {
+        $raw = $property->cancellation_period ?? null;
+
+        if ($raw === null || $raw === '') {
+            return [
+                'state' => 'open',
+                'raw' => null,
+                'min_days_before_checkin' => null,
+                'same_day_cutoff_hour' => null,
+            ];
+        }
+
+        $policy = [
+            'state' => 'custom',
+            'raw' => $raw,
+            'min_days_before_checkin' => null,
+            'same_day_cutoff_hour' => null,
+        ];
+
+        if ($raw === 'same_day_6pm') {
+            $policy['min_days_before_checkin'] = 0;
+            $policy['same_day_cutoff_hour'] = 18;
+            return $policy;
+        }
+
+        if (is_numeric($raw)) {
+            $policy['min_days_before_checkin'] = (int) $raw;
+            return $policy;
+        }
+
+        if (preg_match('/^(\d+)_days$/', $raw, $matches)) {
+            $policy['min_days_before_checkin'] = (int) $matches[1];
+            return $policy;
+        }
+
+        $days = intval($raw);
+        if ($days > 0) {
+            $policy['min_days_before_checkin'] = $days;
+            return $policy;
+        }
+
+        return [
+            'state' => 'open',
+            'raw' => $raw,
+            'min_days_before_checkin' => null,
+            'same_day_cutoff_hour' => null,
+        ];
+    }
+
+    public static function evaluateFlexibleBookingCancellationPolicy($property, Carbon $checkInDate, $now = null)
+    {
+        $policy = self::getCancellationPolicy($property);
+
+        if (($policy['state'] ?? 'open') === 'open') {
+            return [
+                'state' => 'open',
+                'allowed' => true,
+                'message' => null,
+                'policy' => $policy,
+            ];
+        }
+
+        if (!$now) {
+            $now = self::toAppTimezone(Carbon::now());
+        }
+
+        $today = $now->copy()->startOfDay();
+        $checkIn = $checkInDate->copy()->startOfDay();
+
+        $cutoffHour = $policy['same_day_cutoff_hour'] ?? null;
+        if ($cutoffHour !== null && $today->isSameDay($checkIn) && $now->hour >= $cutoffHour) {
+            return [
+                'state' => 'custom',
+                'allowed' => false,
+                'message' => 'Flexible booking is not allowed after 06:00 PM for same-day check-in. Please choose Non-Refundable.',
+                'policy' => $policy,
+            ];
+        }
+
+        $minDays = $policy['min_days_before_checkin'] ?? null;
+        if ($minDays !== null && $minDays > 0) {
+            $diffInDays = $today->diffInDays($checkIn, false);
+            if ($diffInDays < $minDays) {
+                return [
+                    'state' => 'custom',
+                    'allowed' => false,
+                    'message' => "Flexible booking is not allowed within {$minDays} days of check-in. Please choose Non-Refundable.",
+                    'policy' => $policy,
+                ];
+            }
+        }
+
+        return [
+            'state' => 'custom',
+            'allowed' => true,
+            'message' => null,
+            'policy' => $policy,
+        ];
+    }
+
     // public static function getIntervalOfDate($endDate){
     //     $startDate = Carbon::now();
     //     $endDate = Carbon::parse($endDate);

@@ -1935,7 +1935,7 @@ class ApiController extends Controller
             'reservation_email' => 'nullable|email',
             'hotel_vat' => 'nullable|string',
             'hotelAvailableRooms' => 'nullable|integer|min:0',
-            'cancellation_period' => 'nullable|string|in:7_days,same_day_6pm',
+            'cancellation_period' => 'nullable|string|regex:/^(same_day_6pm|\\d+|\\d+_days)$/',
         ], [], [
             'documents.*' => 'document :position',
             'addons_packages.*.name' => 'package name :position',
@@ -2725,7 +2725,7 @@ class ApiController extends Controller
             'hotel_rooms.*.guest_pricing_rules' => 'nullable',
             'hotel_apartment_type_id' => 'nullable|exists:hotel_apartment_types,id',
             'rent_package' => 'nullable|in:basic,premium',
-            'cancellation_period' => 'nullable|string|in:3,5,7,14,same_day_6pm',
+            'cancellation_period' => 'nullable|string|regex:/^(same_day_6pm|\\d+|\\d+_days)$/',
             'addons_packages'       => 'nullable|array',
             'addons_packages.*.id' => 'nullable|exists:addons_packages,id',
             'addons_packages.*.name' => 'required_with:addons_packages',
@@ -12920,38 +12920,12 @@ Best regards,
             // NEW: Enforce cancellation period rules for hotel bookings
             if ($property->property_classification == 5 && $isFlexibleBooking) {
                 $checkInDate = Carbon::parse($request->check_in_date)->startOfDay();
-                $now = HelperService::toAppTimezone(Carbon::now());
-                $today = $now->copy()->startOfDay();
-                
-                // Determine cancellation period (default to 7 days if not set)
-                $cancellationDays = 7;
-                if (is_numeric($property->cancellation_period)) {
-                    $cancellationDays = (int)$property->cancellation_period;
-                } elseif ($property->cancellation_period == '7_days') {
-                    $cancellationDays = 7;
-                } elseif ($property->cancellation_period == 'same_day_6pm') {
-                    // Fallback for legacy data
-                    $cancellationDays = 0; 
-                }
 
-                // Rule 1: Cancellation Period Logic
-                // If flexible booking is attempted within X days of check-in, reject it.
-                $diffInDays = $today->diffInDays($checkInDate, false);
-                
-                if ($diffInDays < $cancellationDays) {
+                $evaluation = HelperService::evaluateFlexibleBookingCancellationPolicy($property, $checkInDate);
+                if (!($evaluation['allowed'] ?? true)) {
                     return response()->json([
                         'error' => true,
-                        'message' => "Flexible booking is not allowed within {$cancellationDays} days of check-in for this hotel. Please choose Non-Refundable."
-                    ], 400);
-                }
-                
-                // Rule 2: Same Day after 6:00 PM Policy
-                // Even if cancellation period allows (e.g. 0 days), 
-                // bookings for same day after 6 PM must be Non-Refundable.
-                if ($today->isSameDay($checkInDate) && $now->hour >= 18) {
-                    return response()->json([
-                        'error' => true,
-                        'message' => 'Flexible booking is not allowed after 06:00 PM for same-day check-in. Please choose Non-Refundable.'
+                        'message' => $evaluation['message'] ?? 'Flexible booking is not allowed. Please choose Non-Refundable.'
                     ], 400);
                 }
             }
@@ -13442,6 +13416,21 @@ Best regards,
                     
                     // Platform commission is 15% for hotels (as per PropertyTax logic)
                     $platformCommissionRate = 12; 
+
+                    $serviceChargeDisplayRate = (float) $serviceChargeRate;
+                    $serviceChargeFactor = 1 + ($serviceChargeDisplayRate / 100);
+                    $salesTaxDisplayRate = $serviceChargeFactor > 0 ? ((float) $salesTaxRate / $serviceChargeFactor) : (float) $salesTaxRate;
+                    $cityTaxDisplayRate = $serviceChargeFactor > 0 ? ((float) $cityTaxRate / $serviceChargeFactor) : (float) $cityTaxRate;
+                    $formatPercent = function (float $value, int $decimalsIfNotInteger = 2) {
+                        $rounded = round($value);
+                        if (abs($value - $rounded) < 0.01) {
+                            return (string) (int) $rounded;
+                        }
+                        return number_format($value, $decimalsIfNotInteger);
+                    };
+                    $serviceChargeDisplay = number_format($serviceChargeDisplayRate, 2);
+                    $salesTaxDisplay = $formatPercent($salesTaxDisplayRate);
+                    $cityTaxDisplay = $formatPercent($cityTaxDisplayRate);
                     
                     $totalGuestPayment = $request->amount;
                     
@@ -13471,6 +13460,12 @@ Best regards,
                                         <td style='padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: right; font-weight: bold;'>" . number_format($totalGuestPayment, 2) . " {$currencySymbol}</td>
                                     </tr>
                                     <tr>
+                                        <td colspan='2' style='padding: 10px 8px 6px;'>
+                                            <div style='border-top: 1px solid #e5e5e5; margin: 0 0 6px 0;'></div>
+                                            <div style='font-size: 12px; color: #777; font-weight: bold;'>Revenue &amp; Commission</div>
+                                        </td>
+                                    </tr>
+                                    <tr>
                                         <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>Base Room Revenue</td>
                                         <td style='padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: right;'>" . number_format($baseRoomRevenue, 2) . " {$currencySymbol}</td>
                                     </tr>
@@ -13479,15 +13474,21 @@ Best regards,
                                         <td style='padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: right; color: #dc3545;'>-" . number_format($platformCommission, 2) . " {$currencySymbol}</td>
                                     </tr>
                                     <tr>
-                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>Service Charge ({$serviceChargeRate}%)</td>
+                                        <td colspan='2' style='padding: 10px 8px 6px;'>
+                                            <div style='border-top: 1px solid #e5e5e5; margin: 0 0 6px 0;'></div>
+                                            <div style='font-size: 12px; color: #777; font-weight: bold;'>Taxes &amp; Fees</div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>Service Charge ({$serviceChargeDisplay}%)</td>
                                         <td style='padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: right; color: #dc3545;'>-" . number_format($serviceChargeAmount, 2) . " {$currencySymbol}</td>
                                     </tr>
                                     <tr>
-                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>Sales Tax ({$salesTaxRate}%)</td>
+                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>Sales Tax ({$salesTaxDisplay}%)</td>
                                         <td style='padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: right; color: #dc3545;'>-" . number_format($salesTaxAmount, 2) . " {$currencySymbol}</td>
                                     </tr>
                                     <tr>
-                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>City Tax ({$cityTaxRate}%)</td>
+                                        <td style='padding: 8px; border-bottom: 1px solid #f0f0f0;'>City Tax ({$cityTaxDisplay}%)</td>
                                         <td style='padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: right; color: #dc3545;'>-" . number_format($cityTaxAmount, 2) . " {$currencySymbol}</td>
                                     </tr>
                                     <tr style='font-weight: bold; background-color: #f9f9f9;'>
