@@ -3028,8 +3028,9 @@ class ApiController extends Controller
                         if (isset($request->hotelAvailableRooms)) {
                             $property->hotel_available_rooms = $request->hotelAvailableRooms;
                         }
-                        if (isset($request->cancellation_period)) {
-                            $property->cancellation_period = $request->cancellation_period === 'on' ? null : ($request->cancellation_period ?: null);
+                        if ($request->exists('cancellation_period')) {
+                            $value = $request->input('cancellation_period');
+                            $property->cancellation_period = $value === 'on' ? null : ($value ?: null);
                         }
                     }
 
