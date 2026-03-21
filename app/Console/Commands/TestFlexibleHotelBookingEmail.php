@@ -72,7 +72,7 @@ class TestFlexibleHotelBookingEmail extends Command
             'total_price' => number_format(1500, 2),
             'total_amount' => number_format(1500, 2),
             'currency_symbol' => system_setting('currency_symbol') ?? 'EGP',
-            'payment_status' => 'Paid',
+            'payment_status' => 'Unpaid',
             'special_requests' => 'None',
         ];
 

@@ -579,7 +579,11 @@ class ReservationService
                 
                 // Send reservation confirmation email to customer (unless skipped)
                 if (!$skipEmail) {
-                    $this->sendReservationConfirmationEmail($reservation);
+                    if ($reservation->is_flexible_booking && ($reservation->reservable_type === 'App\Models\HotelRoom' || $reservation->reservable_type === 'hotel_room')) {
+                        $this->sendFlexibleHotelBookingConfirmationEmail($reservation);
+                    } else {
+                        $this->sendReservationConfirmationEmail($reservation);
+                    }
                 }
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Failed to update available dates via admin confirmation', [
