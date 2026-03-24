@@ -385,8 +385,7 @@ class PropertController extends Controller
                 if ($request->hasfile('gallery_images')) {
                     \Illuminate\Support\Facades\Log::info('Gallery images found: ' . count($request->file('gallery_images')));
                     foreach ($request->file('gallery_images') as $file) {
-                        $name = microtime(true) . '.' . $file->extension();
-                        $file->move($destinationPath, $name);
+                        $name = store_image($file, 'PROPERTY_GALLERY_IMG_PATH', $saveProperty->id);
                         PropertyImages::create([
                             'image' => $name,
                             'propertys_id' => $saveProperty->id
@@ -1120,8 +1119,7 @@ class PropertController extends Controller
                         }
                         
                         foreach ($request->file('gallery_images') as $file) {
-                            $name = microtime(true) . '_' . uniqid() . '.' . $file->extension();
-                            $file->move($destinationPath, $name);
+                            $name = store_image($file, 'PROPERTY_GALLERY_IMG_PATH', $UpdateProperty->id);
                             $galleryImageNames[] = $name;
                         }
                         
@@ -1370,8 +1368,7 @@ class PropertController extends Controller
                         \Illuminate\Support\Facades\Log::info('Gallery images found in update: ' . count($request->file('gallery_images')));
                         foreach ($request->file('gallery_images') as $file) {
                             // dd('Inside gallery loop');
-                            $name = microtime(true) . '_' . uniqid() . '.' . $file->extension();
-                            $file->move($destinationPath, $name);
+                            $name = store_image($file, 'PROPERTY_GALLERY_IMG_PATH', $UpdateProperty->id);
 
                             PropertyImages::create([
                                 'image' => $name,

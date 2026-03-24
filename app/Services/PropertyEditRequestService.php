@@ -166,6 +166,53 @@ class PropertyEditRequestService
                 unset($editedData['hotel_rooms']);
             }
 
+            // Handle gallery image additions from edit request
+            if (isset($editedData['gallery_images']) && is_array($editedData['gallery_images'])) {
+                foreach ($editedData['gallery_images'] as $imageName) {
+                    \App\Models\PropertyImages::create([
+                        'image' => $imageName,
+                        'propertys_id' => $property->id
+                    ]);
+                }
+                unset($editedData['gallery_images']);
+            }
+
+            // Handle gallery image removals from edit request
+            if (isset($editedData['removed_gallery_images']) && is_array($editedData['removed_gallery_images'])) {
+                foreach ($editedData['removed_gallery_images'] as $imageId) {
+                    $image = \App\Models\PropertyImages::find($imageId);
+                    if ($image && $image->propertys_id == $property->id) {
+                        // Unlink the file from storage (both local and S3 if configured)
+                        if (function_exists('unlink_image')) {
+                            $relativeImagePath = config('global.IMG_PATH') . config('global.PROPERTY_GALLERY_IMG_PATH') . $property->id . "/" . $image->image;
+                            unlink_image($relativeImagePath);
+                        } else {
+                            $path = public_path('images') . config('global.PROPERTY_GALLERY_IMG_PATH') . "/" . $property->id . "/" . $image->image;
+                            if (file_exists($path)) {
+                                unlink($path);
+                            }
+                        }
+                        $image->delete();
+                    }
+                }
+                unset($editedData['removed_gallery_images']);
+            }
+
+            // Handle facilities from edit request
+            if (isset($editedData['facilities']) && is_array($editedData['facilities'])) {
+                \App\Models\AssignedOutdoorFacilities::where('property_id', $property->id)->delete();
+                foreach ($editedData['facilities'] as $facility) {
+                    if (isset($facility['facility_id'])) {
+                        $assignedFacility = new \App\Models\AssignedOutdoorFacilities();
+                        $assignedFacility->facility_id = $facility['facility_id'];
+                        $assignedFacility->property_id = $property->id;
+                        $assignedFacility->distance = $facility['distance'] ?? null;
+                        $assignedFacility->save();
+                    }
+                }
+                unset($editedData['facilities']);
+            }
+
             // Apply all other edited fields to the property
             foreach ($editedData as $field => $value) {
                 // Skip certain fields that shouldn't be updated directly

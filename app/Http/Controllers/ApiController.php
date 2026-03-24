@@ -3622,6 +3622,39 @@ class ApiController extends Controller
                             ]);
                         }
                         
+                        // Handle gallery images for approval (Upload to S3/local and add to editedData)
+                        if ($request->hasFile('gallery_images')) {
+                            $galleryImageNames = [];
+                            foreach ($request->file('gallery_images') as $file) {
+                                 // Use store_image to handle both local and S3 uploads correctly
+                                 $name = store_image($file, 'PROPERTY_GALLERY_IMG_PATH', $property->id);
+                                 if ($name) {
+                                     $galleryImageNames[] = $name;
+                                 }
+                             }
+                            
+                            if (!empty($galleryImageNames)) {
+                                $editedData['gallery_images'] = $galleryImageNames;
+                                \Log::info('Including new gallery images in edited_data for approval', [
+                                    'property_id' => $property->id,
+                                    'images_count' => count($galleryImageNames)
+                                ]);
+                            }
+                        }
+
+                        // Handle removed gallery images for approval
+                        if ($request->remove_gallery_images) {
+                            $removeIds = is_array($request->remove_gallery_images) 
+                                ? $request->remove_gallery_images 
+                                : explode(',', $request->remove_gallery_images);
+                                
+                            $editedData['removed_gallery_images'] = $removeIds;
+                            \Log::info('Including removed gallery images in edited_data for approval', [
+                                'property_id' => $property->id,
+                                'removed_count' => count($removeIds)
+                            ]);
+                        }
+                        
                         // Use PropertyEditRequestService to save the edit request
                         $editRequestService = new \App\Services\PropertyEditRequestService();
                         $editRequest = $editRequestService->saveEditRequest($property, $editedData, $current_user, $originalData);
@@ -3779,16 +3812,24 @@ class ApiController extends Controller
                     if ($request->remove_gallery_images) {
                         foreach ($request->remove_gallery_images as $key => $value) {
                             $gallary_images = PropertyImages::find($value);
-                            if (file_exists(public_path('images') . config('global.PROPERTY_GALLERY_IMG_PATH') . $gallary_images->propertys_id . '/' . $gallary_images->image)) {
-                                unlink(public_path('images') . config('global.PROPERTY_GALLERY_IMG_PATH') . $gallary_images->propertys_id . '/' . $gallary_images->image);
+                            if ($gallary_images) {
+                                // Use unlink_image to handle both local and S3
+                                if (function_exists('unlink_image')) {
+                                    $relativeImagePath = config('global.IMG_PATH') . config('global.PROPERTY_GALLERY_IMG_PATH') . $gallary_images->propertys_id . "/" . $gallary_images->image;
+                                    unlink_image($relativeImagePath);
+                                } else {
+                                    $localPath = public_path('images') . config('global.PROPERTY_GALLERY_IMG_PATH') . $gallary_images->propertys_id . '/' . $gallary_images->image;
+                                    if (file_exists($localPath)) {
+                                        unlink($localPath);
+                                    }
+                                }
+                                $gallary_images->delete();
                             }
-                            $gallary_images->delete();
                         }
                     }
                     if ($request->hasfile('gallery_images')) {
                         foreach ($request->file('gallery_images') as $file) {
-                            $name = microtime(true) . '.' . $file->extension();
-                            $file->move($destinationPath, $name);
+                            $name = store_image($file, 'PROPERTY_GALLERY_IMG_PATH', $property->id);
                             PropertyImages::create([
                                 'image' => $name,
                                 'propertys_id' => $property->id,
