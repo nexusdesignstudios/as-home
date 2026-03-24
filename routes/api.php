@@ -79,6 +79,7 @@ Route::get('get-property-reviews', [ApiController::class, 'getPropertyReviews'])
 Route::get('get-active-room-types', [HotelRoomTypeController::class, 'getActiveRoomTypes']);
 Route::get('get-hotel-apartment-types', [HotelApartmentTypeController::class, 'getHotelApartmentTypes']);
 Route::get('get-property-question-fields', [ApiController::class, 'getPropertyQuestionFields']);
+Route::get('get-property-taxes', [ApiController::class, 'getPropertyTaxes']);
 Route::post('save-feedback-answers', [ApiController::class, 'saveFeedbackAnswers']);
 /*********************************************************************** */
 
@@ -169,7 +170,6 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     /*********************************************************************** */
 
     /** Property Taxes */
-    Route::get('get-property-taxes', [ApiController::class, 'getPropertyTaxes']);
     Route::post('store-property-taxes', [ApiController::class, 'storePropertyTaxes']);
     /*********************************************************************** */
 
@@ -266,6 +266,10 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::apiResource('addons-packages', AddonsPackageController::class);
     /*********************************************************************** */
 });
+
+/** Public Room Types for Property Details */
+Route::get('hotel-room-types', [HotelRoomTypeController::class, 'index']);
+/*********************************************************************** */
 
 
 /** Using Auth guard sanctum for get the data with or without authentication */
