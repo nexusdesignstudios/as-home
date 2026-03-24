@@ -774,8 +774,8 @@ class ReservationsAdminController extends Controller
         $newStatus = $request->status;
 
         try {
-            // If changing from pending to confirmed, use the service method to handle the full confirmation logic
-            if ($oldStatus === 'pending' && $newStatus === 'confirmed') {
+            // If changing to confirmed, use the service method to handle the full confirmation logic
+            if ($newStatus === 'confirmed' && $oldStatus !== 'confirmed') {
                 $reservationService = app(\App\Services\ReservationService::class);
                 
                 // For flexible reservations (cash/offline), allow any payment status
@@ -1141,8 +1141,8 @@ class ReservationsAdminController extends Controller
         $newStatus = $request->status;
 
         try {
-            // If changing from pending to confirmed, use the service method to handle the full confirmation logic
-            if ($oldStatus === 'pending' && $newStatus === 'confirmed') {
+            // If changing to confirmed, use the service method to handle the full confirmation logic
+            if ($newStatus === 'confirmed' && $oldStatus !== 'confirmed') {
                 $reservationService = app(\App\Services\ReservationService::class);
                 
                 // For flexible reservations (cash/offline), allow any payment status
