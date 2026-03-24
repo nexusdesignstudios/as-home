@@ -33,8 +33,16 @@ class ReservationsAdminController extends Controller
      */
     protected function isFlexibleReservation($reservation)
     {
+        // Explicitly check booking_type or is_flexible_booking
+        if ($reservation->booking_type === 'flexible_booking' || $reservation->is_flexible_booking) {
+            return true;
+        }
+
+        // Fallback to legacy payment method check
         $paymentMethod = $reservation->payment_method ?? 'cash';
-        return !($paymentMethod === 'paymob' || $paymentMethod === 'online' || $reservation->payment);
+        $isOnline = ($paymentMethod === 'paymob' || $paymentMethod === 'online' || $reservation->payment);
+        
+        return !$isOnline;
     }
     /**
      * Display a listing of reservations.
@@ -773,6 +781,13 @@ class ReservationsAdminController extends Controller
         $oldStatus = $reservation->status;
         $newStatus = $request->status;
 
+        \Illuminate\Support\Facades\Log::info('Updating reservation status', [
+            'reservation_id' => $id,
+            'old_status' => $oldStatus,
+            'new_status' => $newStatus,
+            'is_flexible' => $this->isFlexibleReservation($reservation)
+        ]);
+
         try {
             // If changing to confirmed, use the service method to handle the full confirmation logic
             if ($newStatus === 'confirmed' && $oldStatus !== 'confirmed') {
@@ -1139,6 +1154,13 @@ class ReservationsAdminController extends Controller
 
         $oldStatus = $reservation->status;
         $newStatus = $request->status;
+
+        \Illuminate\Support\Facades\Log::info('Updating reservation status via API', [
+            'reservation_id' => $reservation->id,
+            'old_status' => $oldStatus,
+            'new_status' => $newStatus,
+            'is_flexible' => $this->isFlexibleReservation($reservation)
+        ]);
 
         try {
             // If changing to confirmed, use the service method to handle the full confirmation logic

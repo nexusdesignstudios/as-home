@@ -579,7 +579,19 @@ class ReservationService
                 
                 // Send reservation confirmation email to customer (unless skipped)
                 if (!$skipEmail) {
-                    if ($reservation->is_flexible_booking && ($reservation->reservable_type === 'App\Models\HotelRoom' || $reservation->reservable_type === 'hotel_room')) {
+                    $isFlexible = $reservation->booking_type === 'flexible_booking' || $reservation->is_flexible_booking;
+                    $isHotel = (in_array($reservation->reservable_type, ['App\\Models\\HotelRoom', 'App\Models\HotelRoom', 'hotel_room'])) || 
+                               ($reservation->reservable && $reservation->reservable->getRawOriginal('property_classification') == 5);
+                    
+                    \Illuminate\Support\Facades\Log::info('Checking email trigger for flexible booking', [
+                        'reservation_id' => $reservation->id,
+                        'is_flexible' => $isFlexible,
+                        'is_hotel' => $isHotel,
+                        'booking_type' => $reservation->booking_type,
+                        'is_flexible_booking_col' => $reservation->is_flexible_booking
+                    ]);
+
+                    if ($isFlexible && $isHotel) {
                         $this->sendFlexibleHotelBookingConfirmationEmail($reservation);
                     } else {
                         $this->sendReservationConfirmationEmail($reservation);
@@ -667,7 +679,19 @@ class ReservationService
     {
         try {
             // Check if this is a flexible hotel booking - if so, send the specialized confirmation email
-            if ($reservation->is_flexible_booking && (in_array($reservation->reservable_type, ['App\Models\HotelRoom', 'hotel_room']) || ($reservation->reservable && $reservation->reservable->getRawOriginal('property_classification') == 5))) {
+            $isFlexible = $reservation->booking_type === 'flexible_booking' || $reservation->is_flexible_booking;
+            $isHotel = (in_array($reservation->reservable_type, ['App\\Models\\HotelRoom', 'App\Models\HotelRoom', 'hotel_room'])) || 
+                       ($reservation->reservable && $reservation->reservable->getRawOriginal('property_classification') == 5);
+            
+            \Illuminate\Support\Facades\Log::info('Checking approval email trigger for flexible booking', [
+                'reservation_id' => $reservation->id,
+                'is_flexible' => $isFlexible,
+                'is_hotel' => $isHotel,
+                'booking_type' => $reservation->booking_type,
+                'is_flexible_booking_col' => $reservation->is_flexible_booking
+            ]);
+
+            if ($isFlexible && $isHotel) {
                 $this->sendFlexibleHotelBookingConfirmationEmail($reservation);
                 return;
             }
@@ -1977,7 +2001,15 @@ Best regards,
     {
         try {
             $customer = $reservation->customer;
-            if ($customer && $customer->email) {
+            $guestEmail = $customer->email ?? $reservation->customer_email ?? $reservation->user_email;
+            
+            \Illuminate\Support\Facades\Log::info('Attempting to send flexible hotel booking confirmation email', [
+                'reservation_id' => $reservation->id,
+                'guest_email' => $guestEmail,
+                'customer_id' => $customer->id ?? 'N/A'
+            ]);
+
+            if ($guestEmail) {
                 // Get Data of email type
                 $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("flexible_hotel_booking_confirmation");
 
@@ -1986,10 +2018,10 @@ Best regards,
                 $appName = env("APP_NAME") ?? "As Home";
 
                 // Combine reservation with siblings for multi-room logic
-                    $allReservations = array_merge([$reservation], $siblings);
-                    $isMultiRoom = count($allReservations) > 1;
+                $allReservations = array_merge([$reservation], $siblings);
+                $isMultiRoom = count($allReservations) > 1;
 
-                    // Get hotel and room information
+                // Get hotel and room information
                 $hotelName = '';
                 $roomType = '';
                 $roomNumber = '';
@@ -1997,12 +2029,15 @@ Best regards,
                 $checkInTime = '3:00 PM';
                 $checkOutTime = '12:00 PM';
 
-                if ($reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room') {
+                // Use property_details if available as fallback
+                $propertyDetails = is_string($reservation->property_details) ? json_decode($reservation->property_details, true) : $reservation->property_details;
+
+                if ($reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room' || $reservation->reservable_type === 'HotelRoom') {
                     $hotelRoom = $reservation->reservable;
                     if ($hotelRoom) {
-                        $hotelName = $hotelRoom->property->title ?? 'Hotel';
+                        $hotelName = $hotelRoom->property->title ?? $propertyDetails['property_title'] ?? 'Hotel';
                         $roomNumber = $hotelRoom->room_number ?? 'N/A';
-                        $hotelAddress = $hotelRoom->property->address ?? 'N/A';
+                        $hotelAddress = $hotelRoom->property->address ?? $propertyDetails['property_address'] ?? 'N/A';
                         $checkInTime = $hotelRoom->property->check_in ?? '3:00 PM';
                         $checkOutTime = $hotelRoom->property->check_out ?? '12:00 PM';
                         
@@ -2010,29 +2045,32 @@ Best regards,
                         $customRoomType = trim($hotelRoom->custom_room_type ?? '');
                         $roomType = !empty($customRoomType) ? $customRoomType : (optional($hotelRoom->roomType)->name ?? 'Standard Room');
                     }
-                } elseif ($reservation->reservable_type === 'App\\Models\\Property' || $reservation->reservable_type === 'property') {
+                } elseif ($reservation->reservable_type === 'App\\Models\\Property' || $reservation->reservable_type === 'property' || $reservation->reservable_type === 'Property') {
                     // For property reservations, use property details
-                    $hotelName = $reservation->property->title ?? 'Property';
-                    $roomType = $reservation->property->title ?? 'Property';
+                    $property = $reservation->reservable;
+                    $hotelName = $property->title ?? $propertyDetails['property_title'] ?? 'Property';
+                    $roomType = $property->title ?? $propertyDetails['property_title'] ?? 'Property';
                     $roomNumber = 'N/A';
-                    $hotelAddress = $reservation->property->address ?? 'N/A';
-                    $checkInTime = $reservation->property->check_in ?? '3:00 PM';
-                    $checkOutTime = $reservation->property->check_out ?? '12:00 PM';
+                    $hotelAddress = $property->address ?? $propertyDetails['property_address'] ?? 'N/A';
+                    $checkInTime = $property->check_in ?? '3:00 PM';
+                    $checkOutTime = $property->check_out ?? '12:00 PM';
                 }
 
-                // Send Push Notification to Customer
-                $user_token = \App\Models\Usertokens::where('customer_id', $customer->id)->pluck('fcm_id')->toArray();
-                if (!empty($user_token)) {
-                    $fcmMsg = array(
-                        'title' => 'Reservation Confirmed',
-                        'message' => 'Your reservation for ' . ($hotelName ?: 'Hotel') . ' has been confirmed!',
-                        'type' => 'reservation', 
-                        'body' => 'Your reservation for ' . ($hotelName ?: 'Hotel') . ' has been confirmed!',
-                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                        'sound' => 'default',
-                        'id' => (string)$reservation->id,
-                    );
-                    send_push_notification($user_token, $fcmMsg);
+                // Send Push Notification to Customer if we have a customer record
+                if ($customer) {
+                    $user_token = \App\Models\Usertokens::where('customer_id', $customer->id)->pluck('fcm_id')->toArray();
+                    if (!empty($user_token)) {
+                        $fcmMsg = array(
+                            'title' => 'Reservation Confirmed',
+                            'message' => 'Your reservation for ' . ($hotelName ?: 'Hotel') . ' has been confirmed!',
+                            'type' => 'reservation', 
+                            'body' => 'Your reservation for ' . ($hotelName ?: 'Hotel') . ' has been confirmed!',
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                            'sound' => 'default',
+                            'id' => (string)$reservation->id,
+                        );
+                        send_push_notification($user_token, $fcmMsg);
+                    }
                 }
 
                 // Fallback for room type
@@ -2060,8 +2098,8 @@ Best regards,
                     
                     // First pass to check if any room has a package
                     foreach ($allReservations as $res) {
-                         $reservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;
-                         if (!empty($reservableData) && isset($reservableData[0]['package_name'])) {
+                         $resReservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;
+                         if (!empty($resReservableData) && isset($resReservableData[0]['package_name'])) {
                              $hasPackages = true;
                              break;
                          }
@@ -2071,26 +2109,30 @@ Best regards,
                         $totalPriceValue += $res->total_price;
                         
                         $resName = 'Property';
-                        $packageName = '-';
+                        $resPackageName = '-';
                         
-                        if ($res->reservable_type === 'App\\Models\\HotelRoom' || $res->reservable_type === 'hotel_room') {
+                        if (in_array($res->reservable_type, ['App\\Models\\HotelRoom', 'hotel_room', 'HotelRoom'])) {
                              $hRoom = $res->reservable;
-                             $customRoomType = trim($hRoom->custom_room_type ?? '');
-                             $resName = !empty($customRoomType) ? $customRoomType : (optional($hRoom->roomType)->name ?? 'Standard Room');
+                             if ($hRoom) {
+                                $customRoomType = trim($hRoom->custom_room_type ?? '');
+                                $resName = !empty($customRoomType) ? $customRoomType : (optional($hRoom->roomType)->name ?? 'Standard Room');
+                             } else {
+                                $resName = 'Hotel Room';
+                             }
                              
                              // Extract package info from reservable_data
-                             $reservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;
-                             if (!empty($reservableData) && isset($reservableData[0]['package_name'])) {
-                                 $packageName = $reservableData[0]['package_name'];
+                             $resReservableData = is_string($res->reservable_data) ? json_decode($res->reservable_data, true) : $res->reservable_data;
+                             if (!empty($resReservableData) && isset($resReservableData[0]['package_name'])) {
+                                 $resPackageName = $resReservableData[0]['package_name'];
                              }
-                        } elseif ($res->reservable_type === 'App\\Models\\Property' || $res->reservable_type === 'property') {
+                        } elseif (in_array($res->reservable_type, ['App\\Models\\Property', 'property', 'Property'])) {
                              $resName = $res->reservable->title ?? 'Property';
                         }
                         
                         $resPrice = number_format($res->total_price, 2);
                         $resGuests = $res->number_of_guests;
                         
-                        $packageCell = $hasPackages ? "<td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>{$packageName}</td>" : "";
+                        $packageCell = $hasPackages ? "<td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>{$resPackageName}</td>" : "";
                         
                         $tableRows .= "
                             <tr>
@@ -2136,14 +2178,14 @@ Best regards,
                 }
 
                 // Get customer email and phone
-                $guestEmail = $customer->email ?? $reservation->customer_email ?? 'N/A';
                 $guestPhone = $customer->mobile ?? $reservation->customer_phone ?? 'N/A';
+                $customerName = $customer->name ?? $reservation->customer_name ?? $reservation->user_name ?? 'Guest';
                 $totalAmount = number_format($totalPriceValue, 2);
 
                 $variables = array(
                     'app_name' => $appName,
-                    'customer_name' => $customer->name,
-                    'user_name' => $customer->name, // Keep both for compatibility
+                    'customer_name' => $customerName,
+                    'user_name' => $customerName, // Keep both for compatibility
                     'guest_email' => $guestEmail,
                     'guest_phone' => $guestPhone,
                     'property_name' => $hotelName,
@@ -2171,33 +2213,20 @@ Best regards,
                         $emailTemplateData = "Dear {customer_name},\n\nYour reservation for {property_name} has been confirmed!\n\nWe are pleased to confirm your booking details:\n\nProperty: {property_name}\nRoom Type: {room_type}\nRoom Number: {room_number}\nAddress: {property_address}\nCheck-in Date: {check_in_date}\nCheck-out Date: {check_out_date}\nNumber of Guests: {number_of_guests}\nTotal Amount: {total_price} {currency_symbol}\n\nYour reservation is now confirmed and the room has been reserved for you.\n\nThank you for choosing {app_name}!\n\nBest regards,\n{app_name} Team";
                     }
                 
-                // Log the template and variables for debugging
-                \Illuminate\Support\Facades\Log::info('Email template before variable replacement', [
-                    'reservation_id' => $reservation->id,
-                    'template' => $emailTemplateData,
-                    'variables' => $variables
-                ]);
-                
                 $emailTemplate = \App\Services\HelperService::replaceEmailVariables($emailTemplateData, $variables);
                 
-                // Log the template after variable replacement
-                \Illuminate\Support\Facades\Log::info('Email template after variable replacement', [
-                    'reservation_id' => $reservation->id,
-                    'final_template' => $emailTemplate
-                ]);
-
                 // Determine dynamic title based on property type
                 $emailTitle = 'Flexible Hotel Booking Confirmation';
                 
                 // If the email template type has a title configured in the database, use it as the base
-                if (!empty($emailTypeData['title'])) {
+                if ($emailTypeData && !empty($emailTypeData['title'])) {
                     $emailTitle = $emailTypeData['title'];
                 }
                 
                 // Override if it's explicitly a hotel room reservation or requested by user
-                if ($reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room') {
+                if (in_array($reservation->reservable_type, ['App\\Models\\HotelRoom', 'hotel_room', 'HotelRoom'])) {
                     $emailTitle = 'Flexible Hotel Booking Confirmation';
-                } elseif ($reservation->reservable_type === 'App\\Models\\Property' || $reservation->reservable_type === 'property') {
+                } elseif (in_array($reservation->reservable_type, ['App\\Models\\Property', 'property', 'Property'])) {
                     // Check property classification
                     $property = $reservation->reservable;
                     if ($property && $property->getRawOriginal('property_classification') == 5) {
@@ -2207,16 +2236,20 @@ Best regards,
 
                 $data = array(
                     'email_template' => $emailTemplate,
-                    'email' => $customer->email,
+                    'email' => $guestEmail,
                     'title' => $emailTitle,
                 );
                 \App\Services\HelperService::sendMail($data, false, true);
 
                 \Illuminate\Support\Facades\Log::info('Flexible hotel booking approval email sent successfully', [
                     'reservation_id' => $reservation->id,
-                    'customer_email' => $customer->email,
+                    'guest_email' => $guestEmail,
                     'hotel_name' => $hotelName,
                     'room_type' => $roomType
+                ]);
+            } else {
+                \Illuminate\Support\Facades\Log::warning('Cannot send flexible hotel booking confirmation email: no email found', [
+                    'reservation_id' => $reservation->id
                 ]);
             }
         } catch (\Exception $e) {
