@@ -77,6 +77,7 @@ Route::get('get_seo_settings', [ApiController::class, 'get_seo_settings']);
 Route::get('get_report_reasons', [ApiController::class, 'get_report_reasons']);
 Route::get('get-property-reviews', [ApiController::class, 'getPropertyReviews']);
 Route::get('get-active-room-types', [HotelRoomTypeController::class, 'getActiveRoomTypes']);
+Route::get('get-hotel-addon-fields', [ApiController::class, 'getHotelAddonFields']);
 Route::get('get-hotel-apartment-types', [HotelApartmentTypeController::class, 'getHotelApartmentTypes']);
 Route::get('get-property-question-fields', [ApiController::class, 'getPropertyQuestionFields']);
 Route::get('get-property-taxes', [ApiController::class, 'getPropertyTaxes']);
@@ -163,10 +164,6 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::get('get-agent-verification-form-fields', [ApiController::class, 'getAgentVerificationFormFields']);
     Route::get('get-agent-verification-form-values', [ApiController::class, 'getAgentVerificationFormValues']);
     Route::post('apply-agent-verification', [ApiController::class, 'applyAgentVerification']);
-    /*********************************************************************** */
-
-    /** Hotel Addons */
-    Route::get('get-hotel-addon-fields', [ApiController::class, 'getHotelAddonFields']);
     /*********************************************************************** */
 
     /** Property Taxes */
