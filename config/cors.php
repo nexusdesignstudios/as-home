@@ -19,17 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => (function () {
-        $originsFromEnv = env('CORS_ALLOWED_ORIGINS');
-        $defaults = array_filter([
-            env('FRONTEND_URL'),
-            env('APP_URL'),
-            'https://ashome-eg.com',
-            'https://www.ashome-eg.com',
-        ]);
-        $originList = $originsFromEnv !== null ? (string) $originsFromEnv : implode(',', $defaults);
-        return array_values(array_filter(array_map('trim', explode(',', $originList))));
-    })(),
+    'allowed_origins' => ['*'],
 
     'allowed_origins_patterns' => [],
 
@@ -39,6 +29,6 @@ return [
 
     'max_age' => 86400,
 
-    'supports_credentials' => (bool) env('CORS_SUPPORTS_CREDENTIALS', true),
+    'supports_credentials' => false,
 
 ];
