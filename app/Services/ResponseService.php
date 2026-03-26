@@ -102,18 +102,50 @@ class ResponseService
      */
     public static function successResponse(string $message = "Success", $data = null, array $customData = array(), $code = null)
     {
-        // Headers removed to rely on standard Laravel CORS middleware (HandleCors)
-        // and config/cors.php to prevent duplicate headers.
-
-        response()->json(array_merge([
+        $response = response()->json(array_merge([
             'error'   => false,
             'message' => trans($message),
             'data'    => $data,
             'code'    => $code ?? config('constants.RESPONSE_CODE.SUCCESS')
-        ], $customData), $code ?? config('constants.RESPONSE_CODE.SUCCESS'))
-        // ->withHeaders($headers) // Removed
-        ->send();
+        ], $customData), $code ?? config('constants.RESPONSE_CODE.SUCCESS'));
+        
+        self::addCorsHeaders($response);
+        $response->send();
         exit();
+    }
+
+    private static function addCorsHeaders($response): void
+    {
+        $origin = request()->header('Origin');
+        if (!$origin) {
+            return;
+        }
+
+        if ($response->headers->has('Access-Control-Allow-Origin')) {
+            return;
+        }
+
+        $allowedOrigins = config('cors.allowed_origins', []);
+        $allowedOriginPatterns = config('cors.allowed_origins_patterns', []);
+        $supportsCredentials = (bool) config('cors.supports_credentials', false);
+
+        $hasWildcard = in_array('*', $allowedOrigins, true);
+        $originAllowed = $hasWildcard
+            || in_array($origin, $allowedOrigins, true);
+
+        if (!$originAllowed) {
+            return;
+        }
+
+        $allowOriginValue = (!$supportsCredentials && $hasWildcard) ? '*' : $origin;
+
+        $response->headers->set('Access-Control-Allow-Origin', $allowOriginValue);
+        $response->headers->set('Vary', 'Origin', false);
+        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, token, Origin, Accept');
+        if ($supportsCredentials) {
+            $response->headers->set('Access-Control-Allow-Credentials', 'true');
+        }
     }
 
     /**
@@ -142,18 +174,16 @@ class ResponseService
      */
     public static function errorResponse(string $message = 'Error Occurred', $data = null, $code = null, $e = null)
     {
-        // Headers removed to rely on standard Laravel CORS middleware (HandleCors)
-        // and config/cors.php to prevent duplicate headers.
-
-        response()->json([
+        $response = response()->json([
             'error'   => true,
             'message' => trans($message),
             'data'    => $data,
             'code'    => $code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'),
             'details' => (!empty($e) && is_object($e)) ? $e->getMessage() . ' --> ' . $e->getFile() . ' At Line : ' . $e->getLine() : ''
-        ],$code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'))
-        // ->withHeaders($headers) // Removed
-        ->send();
+        ], $code ?? config('constants.RESPONSE_CODE.EXCEPTION_ERROR'));
+        
+        self::addCorsHeaders($response);
+        $response->send();
         exit();
     }
 
@@ -179,13 +209,16 @@ class ResponseService
      */
     public static function warningResponse(string $message = 'Error Occurred', $data = null, $code = null)
     {
-        response()->json([
+        $response = response()->json([
             'error'   => false,
             'warning' => true,
             'code'    => $code,
             'message' => trans($message),
             'data'    => $data,
-        ],$code)->send();
+        ], $code);
+
+        self::addCorsHeaders($response);
+        $response->send();
         exit();
     }
 
