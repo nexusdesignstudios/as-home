@@ -13,6 +13,10 @@ class Reservation extends Model
     protected $fillable = [
         'customer_id',
         'customer_name',
+        'first_name',
+        'last_name',
+        'nationality',
+        'booking_source',
         'customer_phone',
         'customer_email',
         'user_name',

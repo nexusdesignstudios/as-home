@@ -2262,6 +2262,110 @@ Best regards,
     }
 
     /**
+     * Send hotel flexible pending approval email to customer.
+     *
+     * @param \App\Models\Reservation $reservation
+     * @return void
+     */
+    public function sendHotelFlexiblePendingApprovalEmail($reservation)
+    {
+        try {
+            $customer = $reservation->customer;
+            if ($customer && $customer->email) {
+                // Get Data of email type
+                $emailTypeData = \App\Services\HelperService::getEmailTemplatesTypes("hotel_flexible_pending_approval");
+
+                // Email Template
+                $emailTemplateData = system_setting('hotel_flexible_pending_approval_mail_template');
+                $appName = env("APP_NAME") ?? "As Home";
+
+                // Get property information
+                $propertyName = '';
+                $propertyAddress = '';
+                $roomType = 'Standard';
+
+                if ($reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room') {
+                    $hotelRoom = $reservation->reservable;
+                    if ($hotelRoom) {
+                        $customRoomType = trim($hotelRoom->custom_room_type ?? '');
+                        $roomType = !empty($customRoomType) ? $customRoomType : (optional($hotelRoom->roomType)->name ?? 'Standard Room');
+                        $property = $hotelRoom->property;
+                        $propertyName = $property->title ?? 'Property';
+                        $propertyAddress = $property->address ?? 'N/A';
+                    }
+                } else {
+                    $propertyName = $reservation->property->title ?? 'Property';
+                    $propertyAddress = $reservation->property->address ?? 'N/A';
+                }
+
+                // Get currency symbol
+                $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+                // Get customer email and phone
+                $guestEmail = $customer->email ?? $reservation->customer_email ?? 'N/A';
+                $guestPhone = $customer->mobile ?? $reservation->customer_phone ?? 'N/A';
+                $totalAmount = number_format($reservation->total_price, 2);
+
+                $variables = array(
+                    'app_name' => $appName,
+                    'customer_name' => $customer->name,
+                    'user_name' => $customer->name,
+                    'guest_email' => $guestEmail,
+                    'guest_phone' => $guestPhone,
+                    'first_name' => $reservation->first_name ?? 'N/A',
+                    'last_name' => $reservation->last_name ?? 'N/A',
+                    'nationality' => $reservation->nationality ?? 'N/A',
+                    'booking_source' => $reservation->booking_source ?? 'N/A',
+                    'property_name' => $propertyName,
+                    'property_address' => $propertyAddress,
+                    'room_type' => $roomType,
+                    'reservation_id' => $reservation->id,
+                    'check_in_date' => $reservation->check_in_date ? $reservation->check_in_date->format('d M Y') : 'N/A',
+                    'check_out_date' => $reservation->check_out_date ? $reservation->check_out_date->format('d M Y') : 'N/A',
+                    'number_of_guests' => $reservation->number_of_guests,
+                    'total_price' => $totalAmount,
+                    'total_amount' => $totalAmount,
+                    'currency_symbol' => $currencySymbol,
+                    'payment_status' => ucfirst($reservation->payment_status),
+                    'special_requests' => $reservation->special_requests ?? 'None',
+                );
+
+                if (empty($emailTemplateData)) {
+                    $emailTemplateData = "Dear {customer_name},\n\nWe have received your reservation request for {property_name} ({room_type}) and it is now pending approval from the property owner.\n\nYou'll receive a confirmation email with a payment link once your booking is approved.\n\nThank you for choosing {app_name}!\n\nBest regards,\n{app_name} Team";
+                }
+                
+                $emailTemplate = \App\Services\HelperService::replaceEmailVariables($emailTemplateData, $variables);
+                
+                $emailTitle = 'New Flexible Hotel Booking Request - Approval Required';
+                
+                if (!empty($emailTypeData['title'])) {
+                    $emailTitle = $emailTypeData['title'];
+                }
+
+                $data = array(
+                    'email_template' => $emailTemplate,
+                    'email' => $customer->email,
+                    'title' => $emailTitle,
+                );
+                
+                \App\Services\HelperService::sendMail($data, false, true);
+
+                \Illuminate\Support\Facades\Log::info('Hotel flexible pending approval email sent successfully', [
+                    'reservation_id' => $reservation->id,
+                    'customer_email' => $customer->email,
+                    'property_name' => $propertyName
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send hotel flexible pending approval email', [
+                'error' => $e->getMessage(),
+                'reservation_id' => $reservation->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
      * Send vacation home pending approval email to customer.
      *
      * @param \App\Models\Reservation $reservation
@@ -2342,17 +2446,12 @@ Best regards,
                 ]);
 
                 // Determine dynamic title based on property type
-                $emailTitle = 'Reservation Pending Approval';
+                $emailTitle = 'New Vacation Home Booking Request - Approval Required';
                 
                 // If the email template type has a title configured in the database, use it as the base
                 if (!empty($emailTypeData['title'])) {
                     $emailTitle = $emailTypeData['title'];
                 }
-                
-                // Check if we need to override the title based on property type
-                // It's cleaner to just use a generic "Reservation Pending Approval" for everything
-                // unless explicitly required otherwise. The user requested "Reservation Pending Approval".
-                $emailTitle = 'Reservation Pending Approval';
 
                 $data = array(
                     'email_template' => $emailTemplate,

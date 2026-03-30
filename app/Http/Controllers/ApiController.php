@@ -13060,6 +13060,10 @@ Best regards,
             $baseReservationData = [
                 'customer_id' => $request->customer_id,
                 'customer_name' => $request->customer_name,
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
+                'nationality' => $request->nationality,
+                'booking_source' => $request->booking_source,
                 'customer_phone' => $request->customer_phone,
                 'customer_email' => $request->customer_email,
                 'reservable_type' => $request->reservable_type,
@@ -13605,7 +13609,7 @@ Best regards,
                             'is_flexible_booking_flag' => $isFlexibleBooking
                         ]);
 
-                        if ($isFlexibleBooking) {
+                        if ($propertyClassification == 5 && $isFlexibleBooking) {
                         try {
                             // Check if reservation is actually confirmed (Instant Booking ON)
                             if ($reservation->status === 'confirmed') {
@@ -13619,8 +13623,8 @@ Best regards,
                                 ]);
                             } else {
                                 // Pending (Instant Booking OFF) - Send Pending Approval Email
-                                $reservationService->sendVacationHomePendingApprovalEmail($reservation);
-                                Log::info('Flexible booking pending approval email sent to customer', [
+                                $reservationService->sendHotelFlexiblePendingApprovalEmail($reservation);
+                                Log::info('Hotel flexible booking pending approval email sent to customer', [
                                     'reservation_id' => $reservation->id,
                                     'customer_email' => $customer->email,
                                     'booking_type' => 'flexible_booking',
@@ -13628,7 +13632,7 @@ Best regards,
                                 ]);
                             }
                         } catch (\Exception $e) {
-                            Log::error('Flexible booking email failed: ' . $e->getMessage(), [
+                            Log::error('Hotel flexible booking email failed: ' . $e->getMessage(), [
                                 'reservation_id' => $reservation->id,
                                 'customer_email' => $customer->email,
                                 'booking_type' => 'flexible_booking',
@@ -13640,8 +13644,13 @@ Best regards,
                         // Vacation home - send pending approval email
                         $reservationService->sendVacationHomePendingApprovalEmail($reservation);
                     } elseif ($propertyClassification == 5) {
-                        // Hotel booking - send aggregated reservation confirmation email
-                        $reservationService->sendAggregatedReservationConfirmationEmail($createdReservations);
+                        // Hotel booking (Non-flexible) - send aggregated reservation confirmation email
+                        // This usually means paymob/paypal instant confirmed or pending non-instant
+                        if ($reservation->status === 'pending') {
+                            $reservationService->sendHotelFlexiblePendingApprovalEmail($reservation);
+                        } else {
+                            $reservationService->sendAggregatedReservationConfirmationEmail($createdReservations);
+                        }
                     }
                     
                     Log::info('Both emails sent: Payment form submission to owner and appropriate email to customer', [
