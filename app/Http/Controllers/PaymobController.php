@@ -167,12 +167,14 @@ class PaymobController extends Controller
             // Route callback based on transaction ID prefix
             $isSendMoney = strpos($transactionId, 'SEND_') === 0;
             $isReservation = strpos($transactionId, 'RES_') === 0;
+            $isReservationChange = strpos($transactionId, 'RESC_') === 0;
             $isPackage = strpos($transactionId, 'PKG_') === 0;
 
             Log::info('Paymob callback - Checking transaction type', [
                 'transaction_id' => $transactionId,
                 'is_send_money' => $isSendMoney,
                 'is_reservation' => $isReservation,
+                'is_reservation_change' => $isReservationChange,
                 'is_package' => $isPackage
             ]);
 
@@ -186,6 +188,11 @@ class PaymobController extends Controller
                     'transaction_id' => $transactionId
                 ]);
                 return $this->handlePackagePaymentCallback($request, $transactionId, $paymentStatus, $paymobOrderId, $paymobTransactionId, $data);
+            } elseif ($isReservationChange) {
+                Log::info('Paymob callback - Reservation change transaction detected', [
+                    'transaction_id' => $transactionId
+                ]);
+                return $this->handleReservationChangeCallback($request, $transactionId, $paymentStatus, $paymobOrderId, $paymobTransactionId, $data);
             } elseif ($isReservation) {
                 Log::info('Paymob callback - Reservation transaction detected', [
                     'transaction_id' => $transactionId
@@ -584,6 +591,7 @@ class PaymobController extends Controller
             // Route return based on transaction ID prefix
             $isSendMoney = strpos($transactionId, 'SEND_') === 0;
             $isReservation = strpos($transactionId, 'RES_') === 0;
+            $isReservationChange = strpos($transactionId, 'RESC_') === 0;
             $isPackage = strpos($transactionId, 'PKG_') === 0;
             
             // If transaction ID is numeric, try to find the payment transaction to determine type
@@ -618,6 +626,11 @@ class PaymobController extends Controller
                     'transaction_id' => $transactionId
                 ]);
                 return $this->handleSendMoneyReturn($request);
+            } elseif ($isReservationChange) {
+                Log::info('Paymob return - Reservation change transaction detected', [
+                    'transaction_id' => $transactionId
+                ]);
+                return $this->handleReservationChangeReturn($request);
             } elseif ($isPackage) {
                 Log::info('Paymob return - Package payment transaction detected', [
                     'transaction_id' => $transactionId
@@ -2925,4 +2938,77 @@ www.ashome-eg.com';
             return ApiResponseService::errorResponse('Failed to verify payment');
         }
     }
+
+    /**
+     * Handle Reservation Change Callback (RESC_ prefix)
+     */
+    private function handleReservationChangeCallback(Request $request, $transactionId, $paymentStatus, $paymobOrderId, $paymobTransactionId, $data)
+    {
+        try {
+            // Extract change request ID from RESC_id_timestamp
+            $parts = explode('_', $transactionId);
+            $changeRequestId = $parts[1] ?? null;
+
+            if (!$changeRequestId) {
+                Log::error('handleReservationChangeCallback - Missing change request ID', ['transaction_id' => $transactionId]);
+                return ApiResponseService::errorResponse('Missing change request ID');
+            }
+
+            $changeRequest = \App\Models\ReservationChangeRequest::find($changeRequestId);
+            if (!$changeRequest) {
+                Log::error('handleReservationChangeCallback - Change request not found', ['id' => $changeRequestId]);
+                return ApiResponseService::errorResponse('Change request not found');
+            }
+
+            if ($paymentStatus === 'succeed') {
+                // Apply the change
+                $reservationService = app(\App\Services\ReservationService::class);
+                $reservationService->applyReservationChange(
+                    $changeRequest->reservation,
+                    $changeRequest->requested_check_in,
+                    $changeRequest->requested_check_out,
+                    (float) $changeRequest->requested_total_price
+                );
+
+                $changeRequest->status = 'completed';
+                $changeRequest->handheld_at = now();
+                $changeRequest->save();
+
+                Log::info('Reservation change completed via Paymob payment', ['change_request_id' => $changeRequestId]);
+            } else {
+                $changeRequest->status = 'failed';
+                $changeRequest->save();
+                Log::warning('Reservation change payment failed', ['change_request_id' => $changeRequestId]);
+            }
+
+            return ApiResponseService::successResponse('Reservation change processed');
+        } catch (\Exception $e) {
+            Log::error('handleReservationChangeCallback error: ' . $e->getMessage());
+            return ApiResponseService::errorResponse('Error processing reservation change');
+        }
+    }
+
+    /**
+     * Handle Reservation Change Return (RESC_ prefix)
+     */
+    private function handleReservationChangeReturn(Request $request)
+    {
+        $success = $request->input('success') === 'true';
+        $transactionId = $request->input('merchant_order_id');
+
+        if ($success) {
+            return redirect()->route('payments.paymob-success', [
+                'transaction_id' => $transactionId,
+                'source' => 'paymob',
+                'type' => 'reservation_change'
+            ]);
+        } else {
+            return redirect()->route('payments.paymob-failed', [
+                'transaction_id' => $transactionId,
+                'source' => 'paymob',
+                'type' => 'reservation_change'
+            ]);
+        }
+    }
 }
+

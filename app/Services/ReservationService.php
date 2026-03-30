@@ -501,6 +501,118 @@ class ReservationService
     }
 
     /**
+     * Calculate the total price for a stay.
+     *
+     * @param string $modelType
+     * @param int $modelId
+     * @param string $checkInDate
+     * @param string $checkOutDate
+     * @param array $data Additional data (apartment_id, etc.)
+     * @return float
+     */
+    public function calculateStayPrice($modelType, $modelId, $checkInDate, $checkOutDate, $data = [])
+    {
+        $model = $this->getModelInstance($modelType, $modelId);
+        if (!$model) {
+            return 0;
+        }
+
+        $checkIn = Carbon::parse($checkInDate);
+        $checkOut = Carbon::parse($checkOutDate);
+        $numberOfDays = $checkIn->diffInDays($checkOut);
+        if ($numberOfDays <= 0) $numberOfDays = 1;
+
+        // Vacation Home Logic
+        if ($modelType === 'App\\Models\\Property') {
+            $apartmentId = $data['apartment_id'] ?? null;
+            if ($apartmentId) {
+                $apartment = \App\Models\VacationApartment::find($apartmentId);
+                if ($apartment) {
+                    $pricePerNight = (float)$apartment->price_per_night;
+                    $discount = (float)($apartment->discount_percentage ?? 0);
+                    $discountedPrice = $pricePerNight * (1 - ($discount / 100));
+                    return $discountedPrice * $numberOfDays * max(1, (int)($data['apartment_quantity'] ?? 1));
+                }
+            }
+            return (float)$model->price * $numberOfDays;
+        }
+
+        // Hotel Room Logic
+        if ($modelType === 'App\\Models\\HotelRoom' || $modelType === 'hotel_room') {
+            // For simplified calculation, we use the room's price_per_night
+            // In a more robust system, we would iterate through each day's specific price in available_dates
+            return (float)($model->price_per_night ?? $model->price) * $numberOfDays;
+        }
+
+        return 0;
+    }
+
+    /**
+     * Release previously reserved dates in the model's available_dates.
+     *
+     * @param string $modelType
+     * @param int $modelId
+     * @param int $reservationId
+     * @return void
+     */
+    public function releaseAvailableDates($modelType, $modelId, $reservationId)
+    {
+        $model = $this->getModelInstance($modelType, $modelId);
+        if (!$model) return;
+
+        $availableDates = $model->available_dates ?? [];
+        if (!is_array($availableDates)) return;
+
+        $updatedDates = [];
+        foreach ($availableDates as $dateInfo) {
+            if (isset($dateInfo['reservation_id']) && $dateInfo['reservation_id'] == $reservationId) {
+                if (isset($dateInfo['type']) && $dateInfo['type'] === 'busy') {
+                    // For busy_days, just remove the entry
+                    continue;
+                }
+                $dateInfo['type'] = 'open';
+                unset($dateInfo['reservation_id']);
+            }
+            $updatedDates[] = $dateInfo;
+        }
+
+        $model->available_dates = $this->mergeAdjacentOpenRanges($updatedDates);
+        $model->save();
+    }
+
+    /**
+     * Apply a reservation change request.
+     *
+     * @param Reservation $reservation
+     * @param string $newCheckIn
+     * @param string $newCheckOut
+     * @param float $newTotalPrice
+     * @return void
+     */
+    public function applyReservationChange($reservation, $newCheckIn, $newCheckOut, $newTotalPrice)
+    {
+        DB::transaction(function () use ($reservation, $newCheckIn, $newCheckOut, $newTotalPrice) {
+            // 1. Release old dates
+            $this->releaseAvailableDates($reservation->reservable_type, $reservation->reservable_id, $reservation->id);
+
+            // 2. Update reservation
+            $reservation->check_in_date = $newCheckIn;
+            $reservation->check_out_date = $newCheckOut;
+            $reservation->total_price = $newTotalPrice;
+            $reservation->save();
+
+            // 3. Block new dates
+            $this->updateAvailableDates(
+                $reservation->reservable_type,
+                $reservation->reservable_id,
+                $newCheckIn,
+                $newCheckOut,
+                $reservation->id
+            );
+        });
+    }
+
+    /**
      * Handle reservation confirmation logic (extracted from PaymobController).
      * This method handles the same logic that occurs when a Paymob payment succeeds.
      *

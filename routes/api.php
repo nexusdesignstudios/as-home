@@ -346,6 +346,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/property-owner-reservations/{customer_id}', [App\Http\Controllers\ReservationController::class, 'getPropertyOwnerReservations']);
     Route::get('/property-reservations', [App\Http\Controllers\ReservationController::class, 'getPropertyReservations']);
     Route::get('/customer-reservation-counts/{customer_id}', [App\Http\Controllers\ReservationController::class, 'getCustomerReservationCounts']);
+
+    // Reservation Change Modification Routes
+    Route::post('/reservations/change-request', [App\Http\Controllers\ReservationChangeController::class, 'requestChange']);
+    Route::post('/reservations/change-request/{id}/approve', [App\Http\Controllers\ReservationChangeController::class, 'approveChange']);
+    Route::post('/reservations/change-request/{id}/reject', [App\Http\Controllers\ReservationChangeController::class, 'rejectChange']);
+    Route::get('/reservations/change-requests', [App\Http\Controllers\ReservationChangeController::class, 'getChangeRequests']);
 });
 
 // Admin routes
