@@ -204,6 +204,8 @@ class ReservationChangeController extends Controller
      */
     public function getChangeRequests(Request $request)
     {
+        Log::info('Fetching reservation change requests', $request->all());
+    {
         try {
             $query = ReservationChangeRequest::with(['reservation', 'requester', 'reservation.customer']);
 
@@ -227,7 +229,9 @@ class ReservationChangeController extends Controller
                  });
             }
 
-            return ApiResponseService::successResponse('Requests retrieved successfully', $query->get());
+            $results = $query->get();
+        Log::info('Change requests fetched', ['count' => $results->count()]);
+        return ApiResponseService::successResponse('Requests retrieved successfully', $results);
         } catch (\Exception $e) {
             Log::error('Get change requests failed: ' . $e->getMessage());
             return ApiResponseService::errorResponse('Failed to retrieve change requests: ' . $e->getMessage());
