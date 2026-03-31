@@ -1939,10 +1939,13 @@ If you have any questions, please contact us.<br><br>
 Best regards,<br>
 The {{app_name}} Team';
 
+            // Replace variables in template
+            $emailContent = \App\Services\HelperService::replaceEmailVariables($emailTemplate, $variables);
+
             $data = [
                 'email' => $customer->email,
                 'title' => 'Your Reservation Dates Have Been Modified - #' . $reservation->id,
-                'email_template' => $emailTemplate
+                'email_template' => $emailContent
             ];
 
             \App\Services\HelperService::sendMail($data);
@@ -2036,10 +2039,13 @@ Check-out: {{new_check_out_date}}<br><br>
 Best regards,<br>
 The {{app_name}} Team';
 
+            // Replace variables in template
+            $emailContent = \App\Services\HelperService::replaceEmailVariables($emailTemplate, $variables);
+
             $data = [
                 'email' => $owner->email,
                 'title' => 'Reservation Dates Modified - #' . $reservation->id,
-                'email_template' => $emailTemplate
+                'email_template' => $emailContent
             ];
 
             \App\Services\HelperService::sendMail($data);
