@@ -1302,7 +1302,7 @@ class ReservationService
                 'new_total_price' => number_format((float) $changeRequest->requested_total_price, 2),
                 'difference' => number_format((float) $difference, 2),
                 'currency_symbol' => $currencySymbol,
-                'payment_link' => url('/user/hotels-reservation/' . $reservation->id)
+                'payment_link' => rtrim(env('FRONTEND_URL', 'https://as-home.com'), '/') . '/user/hotels-reservation/' . $reservation->id
             ];
 
             if ($customer && $customer->email) {
