@@ -1799,6 +1799,15 @@ Best regards,
     public function areDatesAvailable($modelType, $modelId, $checkInDate, $checkOutDate, $excludeReservationId = null, $data = [])
     {
         try {
+            \Illuminate\Support\Facades\Log::info('areDatesAvailable called', [
+                'modelType' => $modelType,
+                'modelId' => $modelId,
+                'checkInDate' => $checkInDate,
+                'checkOutDate' => $checkOutDate,
+                'excludeReservationId' => $excludeReservationId,
+                'data' => $data
+            ]);
+            
             // Parse the check-in and check-out dates with error handling
             try {
                 // Parse dates and set to start of day to avoid timezone issues
@@ -1821,12 +1830,18 @@ Best regards,
             // Use format comparison to avoid timezone issues
             if ($checkIn->format('Y-m-d') < $today->format('Y-m-d') || 
                 $checkOut->format('Y-m-d') < $today->format('Y-m-d')) {
+                \Illuminate\Support\Facades\Log::info('Dates are in the past', [
+                    'checkIn' => $checkIn->format('Y-m-d'),
+                    'checkOut' => $checkOut->format('Y-m-d'),
+                    'today' => $today->format('Y-m-d')
+                ]);
                 return false;
             }
 
             // Get the model instance first
             $model = $this->getModelInstance($modelType, $modelId);
             if (!$model) {
+                \Illuminate\Support\Facades\Log::warning('Model not found', ['modelType' => $modelType, 'modelId' => $modelId]);
                 return false;
             }
 
@@ -1839,6 +1854,12 @@ Best regards,
                 if ($modelType === 'App\\Models\\HotelRoom' || $modelType === 'hotel_room') {
                     $hotelRoom = ($model instanceof \App\Models\HotelRoom) ? $model : \App\Models\HotelRoom::find($modelId);
                     $totalRooms = (int) ($hotelRoom->available_rooms ?? 1);
+                    
+                    \Illuminate\Support\Facades\Log::info('Checking hotel room availability', [
+                        'modelId' => $modelId,
+                        'totalRooms' => $totalRooms,
+                        'excludeReservationId' => $excludeReservationId
+                    ]);
 
                     if ($totalRooms > 1) {
                         $bookedRooms = $this->countBookedRooms(
@@ -1848,6 +1869,12 @@ Best regards,
                             $excludeReservationId,
                             ['confirmed', 'approved', 'pending']
                         );
+                        
+                        \Illuminate\Support\Facades\Log::info('Multi-room availability check', [
+                            'totalRooms' => $totalRooms,
+                            'bookedRooms' => $bookedRooms,
+                            'available' => $totalRooms - $bookedRooms
+                        ]);
 
                         if ($bookedRooms >= $totalRooms) {
                             \Illuminate\Support\Facades\Log::info('Hotel room type not available - all rooms booked', [
@@ -1863,7 +1890,16 @@ Best regards,
                         $checkInStr = $checkIn->format('Y-m-d');
                         $checkOutStr = $checkOut->format('Y-m-d');
                         
+                        \Illuminate\Support\Facades\Log::info('Single room overlap check', [
+                            'modelId' => $modelId,
+                            'checkInStr' => $checkInStr,
+                            'checkOutStr' => $checkOutStr,
+                            'excludeReservationId' => $excludeReservationId
+                        ]);
+                        
                         $hasOverlap = Reservation::datesOverlap($checkInStr, $checkOutStr, $modelId, $modelType, $excludeReservationId);
+                        
+                        \Illuminate\Support\Facades\Log::info('Overlap check result', ['hasOverlap' => $hasOverlap]);
                         
                         if ($hasOverlap) {
                             // Find the overlapping reservation IDS for logging
