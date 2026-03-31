@@ -3019,4 +3019,91 @@ Best regards,
 
         return $existingReservation;
     }
+
+    /**
+     * Update available dates for a room after date change
+     *
+     * @param int $roomId
+     * @param string $oldCheckIn
+     * @param string $oldCheckOut
+     * @param string $newCheckIn
+     * @param string $newCheckOut
+     * @return void
+     */
+    public function updateAvailableDatesAfterDateChange($roomId, $oldCheckIn, $oldCheckOut, $newCheckIn, $newCheckOut)
+    {
+        try {
+            \Illuminate\Support\Facades\Log::info('Updating available dates after date change', [
+                'room_id' => $roomId,
+                'old_check_in' => $oldCheckIn,
+                'old_check_out' => $oldCheckOut,
+                'new_check_in' => $newCheckIn,
+                'new_check_out' => $newCheckOut
+            ]);
+
+            $hotelRoom = HotelRoom::find($roomId);
+            if (!$hotelRoom) {
+                \Illuminate\Support\Facades\Log::warning('Hotel room not found for date update', ['room_id' => $roomId]);
+                return;
+            }
+
+            // Parse the available_dates JSON
+            $availableDates = $hotelRoom->available_dates;
+            if (is_string($availableDates)) {
+                $availableDates = json_decode($availableDates, true) ?? [];
+            }
+            if (!is_array($availableDates)) {
+                $availableDates = [];
+            }
+
+            // Convert old dates to Carbon for comparison
+            $oldCheckInDate = Carbon::parse($oldCheckIn);
+            $oldCheckOutDate = Carbon::parse($oldCheckOut);
+            $newCheckInDate = Carbon::parse($newCheckIn);
+            $newCheckOutDate = Carbon::parse($newCheckOut);
+
+            // Remove dates in the old range that are not in the new range
+            $updatedDates = [];
+            foreach ($availableDates as $date) {
+                $dateCarbon = Carbon::parse($date);
+                
+                // Keep the date if:
+                // 1. It's outside the old range, OR
+                // 2. It's inside the new range (meaning we're still blocking it)
+                $inOldRange = $dateCarbon->between($oldCheckInDate, $oldCheckOutDate);
+                $inNewRange = $dateCarbon->between($newCheckInDate, $newCheckOutDate);
+                
+                if (!$inOldRange || $inNewRange) {
+                    $updatedDates[] = $date;
+                }
+            }
+
+            // Add dates in the new range that weren't in the old range
+            $currentDate = $newCheckInDate->copy();
+            while ($currentDate->lt($newCheckOutDate)) {
+                $dateStr = $currentDate->format('Y-m-d');
+                if (!in_array($dateStr, $updatedDates)) {
+                    $updatedDates[] = $dateStr;
+                }
+                $currentDate->addDay();
+            }
+
+            // Sort and save
+            sort($updatedDates);
+            $hotelRoom->available_dates = json_encode($updatedDates);
+            $hotelRoom->save();
+
+            \Illuminate\Support\Facades\Log::info('Available dates updated successfully', [
+                'room_id' => $roomId,
+                'total_dates' => count($updatedDates)
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to update available dates', [
+                'room_id' => $roomId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            // Don't throw - we don't want to fail the reservation update if this fails
+        }
+    }
 }
