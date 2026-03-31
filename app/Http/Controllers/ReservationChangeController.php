@@ -246,7 +246,13 @@ class ReservationChangeController extends Controller
     {
         Log::info('Fetching reservation change requests', $request->all());
         try {
-            $query = ReservationChangeRequest::with(['reservation', 'requester', 'reservation.customer']);
+            $query = ReservationChangeRequest::with([
+                'reservation', 
+                'requester', 
+                'reservation.customer', 
+                'reservation.property', 
+                'reservation.hotelRoom.property'
+            ]);
 
             if ($request->has('reservation_id')) {
                 $query->where('reservation_id', $request->reservation_id);
@@ -261,10 +267,15 @@ class ReservationChangeController extends Controller
             if ($user && $user->type !== 'admin') {
                  // Guest sees their own requests, Owner sees requests for their properties
                  $query->where(function($q) use ($user) {
-                     $q->where('requester_id', $user->id)
+                     $q->where('requester_id', $user->id) // User is the requester
                        ->orWhereHas('reservation', function($qr) use ($user) {
-                           $qr->where('customer_id', $user->id)
-                             ->orWhere('property_owner_id', $user->id);
+                           $qr->where('customer_id', $user->id) // User is the guest
+                             ->orWhereHas('property', function($qp) use ($user) {
+                                 $qp->where('added_by', $user->id); // User is the property owner
+                             })
+                             ->orWhereHas('hotelRoom.property', function($qhp) use ($user) {
+                                 $qhp->where('added_by', $user->id); // User is the hotel owner
+                             });
                        });
                  });
             }
