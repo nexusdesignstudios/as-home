@@ -87,7 +87,7 @@ class ReservationChangeController extends Controller
             );
 
             if (!$isAvailable) {
-                return ApiResponseService::errorResponse('The requested dates are not available.');
+                return ApiResponseService::errorResponse('The requested dates are not available.', null, 422);
             }
 
             // 3. Price Calculation
