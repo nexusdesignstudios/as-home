@@ -1855,6 +1855,10 @@ The {app_name} Team';
 
             DB::commit();
 
+            // Send email notifications to guest and owner
+            $this->sendDateModificationEmailToGuest($reservation, $oldCheckIn, $oldCheckOut, $request->modification_reason);
+            $this->sendDateModificationEmailToOwner($reservation, $oldCheckIn, $oldCheckOut, $request->modification_reason);
+
             return $this->apiResponseService->successResponse('Reservation dates updated successfully', [
                 'reservation' => $reservation->fresh()
             ]);
@@ -1868,6 +1872,187 @@ The {app_name} Team';
             ]);
 
             return $this->apiResponseService->errorResponse('Failed to update reservation dates: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Send date modification email to guest
+     *
+     * @param \App\Models\Reservation $reservation
+     * @param string $oldCheckIn
+     * @param string $oldCheckOut
+     * @param string|null $modificationReason
+     * @return void
+     */
+    private function sendDateModificationEmailToGuest($reservation, $oldCheckIn, $oldCheckOut, $modificationReason = null)
+    {
+        try {
+            $customer = $reservation->customer;
+            if (!$customer || !$customer->email) {
+                \Illuminate\Support\Facades\Log::warning('Cannot send date modification email: customer email not found', [
+                    'reservation_id' => $reservation->id
+                ]);
+                return;
+            }
+
+            // Get property name
+            $propertyName = 'Property';
+            if ($reservation->reservable_type === 'App\\Models\\Property') {
+                $property = \App\Models\Property::find($reservation->reservable_id);
+                $propertyName = $property ? $property->title : 'Property';
+            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                $hotelRoom = \App\Models\HotelRoom::find($reservation->reservable_id);
+                if ($hotelRoom && $hotelRoom->property) {
+                    $propertyName = $hotelRoom->property->title;
+                }
+            }
+
+            $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+            $variables = [
+                'app_name' => env("APP_NAME") ?? "As Home",
+                'customer_name' => $customer->name,
+                'reservation_id' => $reservation->id,
+                'property_name' => $propertyName,
+                'old_check_in_date' => $oldCheckIn,
+                'old_check_out_date' => $oldCheckOut,
+                'new_check_in_date' => $reservation->check_in_date,
+                'new_check_out_date' => $reservation->check_out_date,
+                'total_price' => number_format($reservation->total_price, 2),
+                'currency_symbol' => $currencySymbol,
+                'modification_reason' => $modificationReason ?? 'No reason provided',
+                'modification_date' => now()->format('d M Y, h:i A'),
+            ];
+
+            $emailTemplate = 'Dear {{customer_name}},<br><br>
+Your reservation at <strong>{{property_name}}</strong> has been modified.<br><br>
+<strong>Reservation ID:</strong> #{{reservation_id}}<br><br>
+<strong>Previous Dates:</strong><br>
+Check-in: {{old_check_in_date}}<br>
+Check-out: {{old_check_out_date}}<br><br>
+<strong>New Dates:</strong><br>
+Check-in: {{new_check_in_date}}<br>
+Check-out: {{new_check_out_date}}<br><br>
+<strong>Total Price:</strong> {{currency_symbol}}{{total_price}}<br><br>
+<strong>Modification Reason:</strong> {{modification_reason}}<br><br>
+If you have any questions, please contact us.<br><br>
+Best regards,<br>
+The {{app_name}} Team';
+
+            $data = [
+                'email' => $customer->email,
+                'title' => 'Your Reservation Dates Have Been Modified - #' . $reservation->id,
+                'email_template' => $emailTemplate
+            ];
+
+            \App\Services\HelperService::sendMail($data);
+
+            \Illuminate\Support\Facades\Log::info('Date modification email sent to guest', [
+                'reservation_id' => $reservation->id,
+                'customer_email' => $customer->email
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send date modification email to guest: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'reservation_id' => $reservation->id
+            ]);
+        }
+    }
+
+    /**
+     * Send date modification email to property owner
+     *
+     * @param \App\Models\Reservation $reservation
+     * @param string $oldCheckIn
+     * @param string $oldCheckOut
+     * @param string|null $modificationReason
+     * @return void
+     */
+    private function sendDateModificationEmailToOwner($reservation, $oldCheckIn, $oldCheckOut, $modificationReason = null)
+    {
+        try {
+            // Get property and owner
+            $property = null;
+            $owner = null;
+
+            if ($reservation->reservable_type === 'App\\Models\\Property') {
+                $property = \App\Models\Property::find($reservation->reservable_id);
+            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                $hotelRoom = \App\Models\HotelRoom::find($reservation->reservable_id);
+                if ($hotelRoom) {
+                    $property = $hotelRoom->property;
+                }
+            }
+
+            if (!$property) {
+                \Illuminate\Support\Facades\Log::warning('Cannot send owner email: property not found', [
+                    'reservation_id' => $reservation->id
+                ]);
+                return;
+            }
+
+            $owner = \App\Models\Customer::find($property->added_by);
+            if (!$owner || !$owner->email) {
+                \Illuminate\Support\Facades\Log::warning('Cannot send owner email: owner email not found', [
+                    'reservation_id' => $reservation->id,
+                    'property_id' => $property->id
+                ]);
+                return;
+            }
+
+            $customer = $reservation->customer;
+            $currencySymbol = system_setting('currency_symbol') ?? '$';
+
+            $variables = [
+                'app_name' => env("APP_NAME") ?? "As Home",
+                'owner_name' => $owner->name,
+                'guest_name' => $customer ? $customer->name : 'Guest',
+                'guest_email' => $customer ? $customer->email : 'N/A',
+                'reservation_id' => $reservation->id,
+                'property_name' => $property->title,
+                'old_check_in_date' => $oldCheckIn,
+                'old_check_out_date' => $oldCheckOut,
+                'new_check_in_date' => $reservation->check_in_date,
+                'new_check_out_date' => $reservation->check_out_date,
+                'total_price' => number_format($reservation->total_price, 2),
+                'currency_symbol' => $currencySymbol,
+                'modification_reason' => $modificationReason ?? 'No reason provided',
+                'modification_date' => now()->format('d M Y, h:i A'),
+            ];
+
+            $emailTemplate = 'Dear {{owner_name}},<br><br>
+A reservation at your property <strong>{{property_name}}</strong> has been modified.<br><br>
+<strong>Reservation ID:</strong> #{{reservation_id}}<br>
+<strong>Guest Name:</strong> {{guest_name}}<br>
+<strong>Guest Email:</strong> {{guest_email}}<br><br>
+<strong>Previous Dates:</strong><br>
+Check-in: {{old_check_in_date}}<br>
+Check-out: {{old_check_out_date}}<br><br>
+<strong>New Dates:</strong><br>
+Check-in: {{new_check_in_date}}<br>
+Check-out: {{new_check_out_date}}<br><br>
+<strong>Total Price:</strong> {{currency_symbol}}{{total_price}}<br><br>
+<strong>Modification Reason:</strong> {{modification_reason}}<br><br>
+Best regards,<br>
+The {{app_name}} Team';
+
+            $data = [
+                'email' => $owner->email,
+                'title' => 'Reservation Dates Modified - #' . $reservation->id,
+                'email_template' => $emailTemplate
+            ];
+
+            \App\Services\HelperService::sendMail($data);
+
+            \Illuminate\Support\Facades\Log::info('Date modification email sent to owner', [
+                'reservation_id' => $reservation->id,
+                'owner_email' => $owner->email
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send date modification email to owner: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'reservation_id' => $reservation->id
+            ]);
         }
     }
 
