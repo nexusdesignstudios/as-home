@@ -1792,5 +1792,84 @@ The {app_name} Team';
         }
     }
 
+    /**
+     * Update reservation dates via API.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateReservationDates(Request $request, $id)
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'check_in_date' => 'required|date',
+            'check_out_date' => 'required|date|after_or_equal:check_in_date',
+            'modification_reason' => 'nullable|string|max:500'
+        ]);
+
+        if ($validator->fails()) {
+            return $this->apiResponseService->errorResponse('Validation failed', $validator->errors());
+        }
+
+        $reservation = Reservation::findOrFail($id);
+
+        \Illuminate\Support\Facades\Log::info('Updating reservation dates via API', [
+            'reservation_id' => $reservation->id,
+            'old_check_in' => $reservation->check_in_date,
+            'old_check_out' => $reservation->check_out_date,
+            'new_check_in' => $request->check_in_date,
+            'new_check_out' => $request->check_out_date
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $oldCheckIn = $reservation->check_in_date;
+            $oldCheckOut = $reservation->check_out_date;
+
+            // Update the dates
+            $reservation->check_in_date = $request->check_in_date;
+            $reservation->check_out_date = $request->check_out_date;
+            
+            // Optionally store modification metadata
+            if ($request->has('modification_reason')) {
+                $reservation->notes = ($reservation->notes ? $reservation->notes . "\n" : "") . 
+                    "Date modified: " . now()->toDateTimeString() . 
+                    " - Reason: " . $request->modification_reason;
+            }
+
+            $reservation->save();
+
+            // If this is a hotel room reservation, update available dates if needed
+            if ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                $reservationService = app(\App\Services\ReservationService::class);
+                // Update available dates for the room
+                $reservationService->updateAvailableDatesAfterDateChange(
+                    $reservation->reservable_id,
+                    $oldCheckIn,
+                    $oldCheckOut,
+                    $request->check_in_date,
+                    $request->check_out_date
+                );
+            }
+
+            DB::commit();
+
+            return $this->apiResponseService->successResponse('Reservation dates updated successfully', [
+                'reservation' => $reservation->fresh()
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            \Illuminate\Support\Facades\Log::error('Failed to update reservation dates', [
+                'reservation_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return $this->apiResponseService->errorResponse('Failed to update reservation dates: ' . $e->getMessage());
+        }
+    }
+
 
 }
