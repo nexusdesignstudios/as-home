@@ -245,7 +245,6 @@ class ReservationChangeController extends Controller
     public function getChangeRequests(Request $request)
     {
         Log::info('Fetching reservation change requests', $request->all());
-    {
         try {
             $query = ReservationChangeRequest::with(['reservation', 'requester', 'reservation.customer']);
 
