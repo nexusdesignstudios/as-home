@@ -33,6 +33,7 @@ class ReservationChangeController extends Controller
         try {
             Log::info('Reservation change request started', ['request_data' => $request->all()]);
             
+            Log::info('Starting validation');
             $validator = Validator::make($request->all(), [
                 'reservation_id' => 'required|exists:reservations,id',
                 'check_in_date' => 'required|date|after_or_equal:today',
@@ -44,10 +45,13 @@ class ReservationChangeController extends Controller
                 Log::warning('Validation failed', ['errors' => $validator->errors()->toArray()]);
                 return ApiResponseService::validationError($validator->errors()->first());
             }
+            Log::info('Validation passed');
 
+            Log::info('Looking up reservation', ['reservation_id' => $request->reservation_id]);
             $reservation = Reservation::findOrFail($request->reservation_id);
             Log::info('Reservation found', ['reservation_id' => $reservation->id, 'type' => $reservation->reservable_type]);
             
+            Log::info('Getting authenticated user');
             $user = Auth::guard('sanctum')->user();
 
             if (!$user) {
