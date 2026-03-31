@@ -1186,6 +1186,142 @@ class ReservationService
      * @param \App\Models\Reservation $reservation
      * @return void
      */
+
+    /**
+     * Send reservation change approval email to both guest and property owner.
+     *
+     * @param \App\Models\Reservation $reservation
+     * @param \App\Models\ReservationChangeRequest $changeRequest
+     * @return void
+     */
+    public function sendReservationChangeApprovalEmail($reservation, $changeRequest)
+    {
+        try {
+            $customer = $reservation->customer;
+            $property = null;
+            $propertyOwner = null;
+
+            if ($reservation->reservable_type === 'App\Models\Property') {
+                $property = $reservation->reservable;
+                $propertyOwner = $property->customer;
+            } elseif ($reservation->reservable_type === 'App\Models\HotelRoom') {
+                $hotelRoom = $reservation->reservable;
+                $property = $hotelRoom->property;
+                $propertyOwner = $property->customer;
+            }
+
+            if (!$property) return;
+
+            $appName = env("APP_NAME") ?? "As-home";
+            $currencySymbol = system_setting('currency_symbol') ?? 'EGP';
+
+            $variables = [
+                'app_name' => $appName,
+                'user_name' => $customer->name ?? 'Guest',
+                'customer_name' => $customer->name ?? 'Guest',
+                'owner_name' => $propertyOwner->name ?? 'Owner',
+                'reservation_id' => $reservation->id,
+                'property_name' => $property->title,
+                'old_check_in' => Carbon::parse($changeRequest->old_check_in)->format('d M Y'),
+                'old_check_out' => Carbon::parse($changeRequest->old_check_out)->format('d M Y'),
+                'new_check_in' => Carbon::parse($changeRequest->requested_check_in)->format('d M Y'),
+                'new_check_out' => Carbon::parse($changeRequest->requested_check_out)->format('d M Y'),
+                'old_total_price' => number_format((float) $changeRequest->old_total_price, 2),
+                'new_total_price' => number_format((float) $changeRequest->requested_total_price, 2),
+                'currency_symbol' => $currencySymbol,
+            ];
+
+            // 1. Send Guest Email
+            if ($customer && $customer->email) {
+                $guestTemplate = system_setting('reservation_change_approval_mail_template');
+                if (empty($guestTemplate)) {
+                    $guestTemplate = "Dear {customer_name},\n\nYour reservation date modification for {property_name} (ID: {reservation_id}) has been approved.\n\nOld Dates: {old_check_in} to {old_check_out}\nNew Dates: {new_check_in} to {new_check_out}\nNew Total Price: {new_total_price} {currency_symbol}\n\nThank you for choosing {app_name}!";
+                }
+                $guestEmailContent = HelperService::replaceEmailVariables($guestTemplate, $variables);
+                HelperService::sendMail([
+                    'email' => $customer->email,
+                    'email_template' => $guestEmailContent,
+                    'title' => 'Reservation Modification Approved - ' . $appName
+                ]);
+            }
+
+            if ($propertyOwner && $propertyOwner->email) {
+                $ownerTemplate = system_setting('reservation_change_owner_mail_template');
+                if (empty($ownerTemplate)) {
+                    $ownerTemplate = "Dear {owner_name},\n\nA reservation modification for your property {property_name} (ID: {reservation_id}) has been confirmed.\n\nGuest: {customer_name}\nOld Dates: {old_check_in} to {old_check_out}\nNew Dates: {new_check_in} to {new_check_out}\nNew Total Price: {new_total_price} {currency_symbol}\n\nPlease update your records accordingly.\n\nBest regards,\n{app_name} Team";
+                }
+                $ownerEmailContent = HelperService::replaceEmailVariables($ownerTemplate, $variables);
+                HelperService::sendMail([
+                    'email' => $propertyOwner->email,
+                    'email_template' => $ownerEmailContent,
+                    'title' => 'Reservation Modification Confirmed - ' . $appName
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send reservation change approval emails', [
+                'error' => $e->getMessage(),
+                'reservation_id' => $reservation->id
+            ]);
+        }
+    }
+
+    /**
+     * Send reservation change payment request email to guest.
+     *
+     * @param \App\Models\Reservation $reservation
+     * @param \App\Models\ReservationChangeRequest $changeRequest
+     * @return void
+     */
+    public function sendReservationChangePaymentRequestEmail($reservation, $changeRequest)
+    {
+        try {
+            $customer = $reservation->customer;
+            $property = null;
+
+            if ($reservation->reservable_type === 'App\Models\Property') {
+                $property = $reservation->reservable;
+            } elseif ($reservation->reservable_type === 'App\Models\HotelRoom') {
+                $hotelRoom = $reservation->reservable;
+                $property = $hotelRoom->property;
+            }
+
+            if (!$property) return;
+
+            $appName = env("APP_NAME") ?? "As-home";
+            $currencySymbol = system_setting('currency_symbol') ?? 'EGP';
+            $difference = $changeRequest->requested_total_price - $changeRequest->old_total_price;
+
+            $variables = [
+                'app_name' => $appName,
+                'customer_name' => $customer->name ?? 'Guest',
+                'reservation_id' => $reservation->id,
+                'property_name' => $property->title,
+                'new_check_in' => Carbon::parse($changeRequest->requested_check_in)->format('d M Y'),
+                'new_check_out' => Carbon::parse($changeRequest->requested_check_out)->format('d M Y'),
+                'new_total_price' => number_format((float) $changeRequest->requested_total_price, 2),
+                'difference' => number_format((float) $difference, 2),
+                'currency_symbol' => $currencySymbol,
+                'payment_link' => url('/user/hotels-reservation/' . $reservation->id)
+            ];
+
+            if ($customer && $customer->email) {
+                $template = system_setting('reservation_change_payment_mail_template');
+                if (empty($template)) {
+                    $template = "Dear {customer_name},\n\nYour reservation at {property_name} (ID: {reservation_id}) has a pending modification request.\n\nNew Dates: {new_check_in} to {new_check_out}\nNew Total Price: {new_total_price} {currency_symbol}\n\nAdditional Amount to Pay: {difference} {currency_symbol}\n\nPlease visit the link below to pay the difference and confirm your stay:\n{payment_link}\n\nIf you have any questions, please contact the property owner.\n\nThank you,\n{app_name} Team";
+                }
+                $emailContent = HelperService::replaceEmailVariables($template, $variables);
+                HelperService::sendMail([
+                    'email' => $customer->email,
+                    'email_template' => $emailContent,
+                    'title' => 'Date Modification - Payment Required - ' . $appName
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Reservation change payment email failed: ' . $e->getMessage());
+        }
+    }
+
     protected function sendReservationConfirmationEmail($reservation)
     {
         try {

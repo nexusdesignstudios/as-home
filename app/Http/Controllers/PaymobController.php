@@ -2974,6 +2974,9 @@ www.ashome-eg.com';
                 $changeRequest->handheld_at = now();
                 $changeRequest->save();
 
+                // Send notification emails
+                $reservationService->sendReservationChangeApprovalEmail($changeRequest->reservation, $changeRequest);
+
                 Log::info('Reservation change completed via Paymob payment', ['change_request_id' => $changeRequestId]);
             } else {
                 $changeRequest->status = 'failed';

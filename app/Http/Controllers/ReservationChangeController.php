@@ -81,6 +81,18 @@ class ReservationChangeController extends Controller
             );
 
             // 4. Create Request
+            $requesterType = $this->getRequesterType($user, $reservation);
+            $initialStatus = 'pending';
+
+            // 5. Host-Specific Logic: Immediate application or payment request
+            if ($requesterType === 'host' || $requesterType === 'admin') {
+                if ($requestedTotalPrice <= $reservation->total_price) {
+                    $initialStatus = 'completed';
+                } else {
+                    $initialStatus = 'waiting_for_payment';
+                }
+            }
+
             $changeRequest = ReservationChangeRequest::create([
                 'reservation_id' => $reservation->id,
                 'requested_check_in' => $request->check_in_date,
@@ -89,13 +101,35 @@ class ReservationChangeController extends Controller
                 'old_check_in' => $reservation->check_in_date,
                 'old_check_out' => $reservation->check_out_date,
                 'old_total_price' => $reservation->total_price,
-                'status' => 'pending',
+                'status' => $initialStatus,
                 'requester_id' => $user->id,
-                'requester_type' => $this->getRequesterType($user, $reservation),
+                'requester_type' => $requesterType,
                 'reason' => $request->reason,
+                'handheld_at' => ($initialStatus === 'completed') ? now() : null,
             ]);
 
-            return ApiResponseService::successResponse('Change request submitted successfully', ['change_request' => $changeRequest]);
+            // 6. Apply if completed immediately
+            if ($initialStatus === 'completed') {
+                $this->reservationService->applyReservationChange(
+                    $reservation,
+                    $request->check_in_date,
+                    $request->check_out_date,
+                    (float) $requestedTotalPrice
+                );
+                
+                // Notify both guest and owner
+                $this->reservationService->sendReservationChangeApprovalEmail($reservation, $changeRequest);
+            }
+
+            $message = 'Change request submitted successfully';
+            if ($initialStatus === 'completed') {
+                $message = 'Reservation dates updated successfully';
+            } elseif ($initialStatus === 'waiting_for_payment') {
+                $this->reservationService->sendReservationChangePaymentRequestEmail($reservation, $changeRequest);
+                $message = 'Date modification request created. Guest will be notified to pay the difference.';
+            }
+
+            return ApiResponseService::successResponse($message, ['change_request' => $changeRequest]);
         } catch (\Exception $e) {
             Log::error('Reservation change request failed: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
@@ -124,6 +158,9 @@ class ReservationChangeController extends Controller
             // Set status to waiting_for_payment
             $changeRequest->status = 'waiting_for_payment';
             $changeRequest->save();
+
+            // Notify guest about payment requirement
+            $this->reservationService->sendReservationChangePaymentRequestEmail($reservation, $changeRequest);
 
             // Initialize Payment Service
             $paymentSettings = HelperService::getActivePaymentDetails('paymob');
@@ -172,6 +209,9 @@ class ReservationChangeController extends Controller
             $changeRequest->status = 'completed';
             $changeRequest->handheld_at = now();
             $changeRequest->save();
+
+            // Send notification emails
+            $this->reservationService->sendReservationChangeApprovalEmail($reservation, $changeRequest);
 
             return ApiResponseService::successResponse('Change request approved and applied successfully.');
         }

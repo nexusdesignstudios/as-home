@@ -2154,77 +2154,6 @@ class HelperService
                             ],
                         )
                     );
-                case 'payment_form_submission':
-                    return array(
-                        'title' => 'New Payment Form Submission',
-                        'type' => 'payment_form_submission_mail_template',
-                        'required_fields' => array(
-                            [
-                                'name' => 'app_name',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'property_owner_name',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'customer_name',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'customer_email',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'customer_phone',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'property_name',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'property_address',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'room_type',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'check_in_date',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'check_out_date',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'number_of_guests',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'total_amount',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'currency_symbol',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'card_number_masked',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'special_requests',
-                                'is_condition' => false,
-                            ],
-                            [
-                                'name' => 'submission_date',
-                                'is_condition' => false,
-                            ],
-                        )
-                    );
                 case 'feedback_request':
                     return array(
                         'title' => 'Feedback Request Email',
@@ -2455,6 +2384,42 @@ class HelperService
                             ],
                         )
                     );
+                case 'reservation_change_approval':
+                    return array(
+                        'title' => 'Reservation Change Confirmation',
+                        'type' => 'reservation_change_approval_mail_template',
+                        'required_fields' => array(
+                            ['name' => 'app_name', 'is_condition' => false],
+                            ['name' => 'user_name', 'is_condition' => false],
+                            ['name' => 'reservation_id', 'is_condition' => false],
+                            ['name' => 'property_name', 'is_condition' => false],
+                            ['name' => 'old_check_in', 'is_condition' => false],
+                            ['name' => 'old_check_out', 'is_condition' => false],
+                            ['name' => 'new_check_in', 'is_condition' => false],
+                            ['name' => 'new_check_out', 'is_condition' => false],
+                            ['name' => 'old_total_price', 'is_condition' => false],
+                            ['name' => 'new_total_price', 'is_condition' => false],
+                            ['name' => 'currency_symbol', 'is_condition' => false],
+                        )
+                    );
+                case 'reservation_change_owner_notification':
+                    return array(
+                        'title' => 'Reservation Change Notification (Owner)',
+                        'type' => 'reservation_change_owner_mail_template',
+                        'required_fields' => array(
+                            ['name' => 'app_name', 'is_condition' => false],
+                            ['name' => 'owner_name', 'is_condition' => false],
+                            ['name' => 'customer_name', 'is_condition' => false],
+                            ['name' => 'reservation_id', 'is_condition' => false],
+                            ['name' => 'property_name', 'is_condition' => false],
+                            ['name' => 'old_check_in', 'is_condition' => false],
+                            ['name' => 'old_check_out', 'is_condition' => false],
+                            ['name' => 'new_check_in', 'is_condition' => false],
+                            ['name' => 'new_check_out', 'is_condition' => false],
+                            ['name' => 'new_total_price', 'is_condition' => false],
+                            ['name' => 'currency_symbol', 'is_condition' => false],
+                        )
+                    );
                 default:
                     // Return null for invalid types to indicate error
                     return null;
@@ -2558,6 +2523,16 @@ class HelperService
             [
                 'title' => 'Inquiry Form Submission',
                 'type' => 'inquiry_form',
+                'category' => 'main',
+            ],
+            [
+                'title' => 'Reservation Change Confirmation',
+                'type' => 'reservation_change_approval',
+                'category' => 'main',
+            ],
+            [
+                'title' => 'Reservation Change Notification (Owner)',
+                'type' => 'reservation_change_owner_notification',
                 'category' => 'main',
             ],
             [
