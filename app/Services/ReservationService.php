@@ -1859,11 +1859,24 @@ Best regards,
                         }
                     } else {
                         // For unique rooms or quantity 1, use the optimized overlap check
-                        $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
+                        // Convert dates to Y-m-d format for query consistency
+                        $checkInStr = $checkIn->format('Y-m-d');
+                        $checkOutStr = $checkOut->format('Y-m-d');
+                        
+                        $hasOverlap = Reservation::datesOverlap($checkInStr, $checkOutStr, $modelId, $modelType, $excludeReservationId);
                         
                         if ($hasOverlap) {
+                            // Find the overlapping reservation IDS for logging
+                            $overlappingIds = Reservation::where('reservable_id', $modelId)
+                                ->whereIn('status', ['confirmed', 'approved', 'pending'])
+                                ->where('id', '!=', $excludeReservationId)
+                                ->pluck('id')
+                                ->toArray();
+
                             \Illuminate\Support\Facades\Log::info('Room not available - has overlapping reservation', [
-                                'model_id' => $modelId
+                                'model_id' => $modelId,
+                                'overlapping_ids' => $overlappingIds,
+                                'exclude_id' => $excludeReservationId
                             ]);
                             return false;
                         }
@@ -2016,7 +2029,17 @@ Best regards,
             $query->where('id', '!=', $excludeReservationId);
         }
 
-        return $query->count();
+        $count = $query->count();
+        if ($count > 0) {
+            $ids = $query->pluck('id')->toArray();
+            \Log::info('Hotel rooms booked check found overlaps', [
+                'count' => $count,
+                'overlapping_ids' => $ids,
+                'exclude_id' => $excludeReservationId
+            ]);
+        }
+
+        return $count;
     }
 
     /**

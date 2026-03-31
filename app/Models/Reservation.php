@@ -122,10 +122,13 @@ class Reservation extends Model
     {
         $query = self::where('reservable_id', $reservableId)
             ->where(function($query) use ($reservableType) {
-                // Handle both possible reservable_type values
-                if ($reservableType === 'App\\Models\\HotelRoom') {
+                // Handle both possible reservable_type values (class name or short name)
+                if (str_contains($reservableType, 'HotelRoom') || $reservableType === 'hotel_room') {
                     $query->where('reservable_type', 'App\\Models\\HotelRoom')
                           ->orWhere('reservable_type', 'hotel_room');
+                } elseif (str_contains($reservableType, 'Property') || $reservableType === 'property') {
+                    $query->where('reservable_type', 'App\\Models\\Property')
+                          ->orWhere('reservable_type', 'property');
                 } else {
                     $query->where('reservable_type', $reservableType);
                 }
