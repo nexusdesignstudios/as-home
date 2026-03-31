@@ -118,7 +118,7 @@ class Reservation extends Model
      * @param  int|null  $excludeReservationId
      * @return bool
      */
-    public static function datesOverlap($checkInDate, $checkOutDate, $reservableId, $reservableType, $excludeReservationId = null)
+    public static function datesOverlap($checkInDate, $checkOutDate, $reservableId, $reservableType, $excludeReservationId = null, $apartmentId = null)
     {
         $query = self::where('reservable_id', $reservableId)
             ->where(function($query) use ($reservableType) {
@@ -141,16 +141,20 @@ class Reservation extends Model
                 })->orWhere(function ($q) use ($checkInDate, $checkOutDate) {
                     // Reservation ends during requested period (check-out day is available)
                     $q->where('check_out_date', '>', $checkInDate)
-                        ->where('check_out_date', '<', $checkOutDate); // Changed from <= to <
+                        ->where('check_out_date', '<', $checkOutDate);
                 })->orWhere(function ($q) use ($checkInDate, $checkOutDate) {
                     // Reservation completely contains requested period (check-out day is available)
                     $q->where('check_in_date', '<=', $checkInDate)
-                        ->where('check_out_date', '>', $checkOutDate); // Changed from >= to >
+                        ->where('check_out_date', '>', $checkOutDate);
                 });
             });
 
         if ($excludeReservationId) {
             $query->where('id', '!=', $excludeReservationId);
+        }
+
+        if ($apartmentId) {
+            $query->where('apartment_id', $apartmentId);
         }
 
         return $query->exists();

@@ -61,7 +61,11 @@ class ReservationChangeController extends Controller
                 $reservation->reservable_id,
                 $request->check_in_date,
                 $request->check_out_date,
-                $reservation->id // Exclude current reservation
+                $reservation->id, // Exclude current reservation
+                [
+                    'apartment_id' => $reservation->apartment_id,
+                    'apartment_quantity' => $reservation->apartment_quantity
+                ]
             );
 
             if (!$isAvailable) {

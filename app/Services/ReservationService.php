@@ -1835,81 +1835,55 @@ Best regards,
             // Only block when room type availability equals zero AND no available rooms for this day
             try {
                 // For hotel rooms, check if this specific room has a confirmed reservation
+                // If the room type has multiple units (available_rooms > 1), we check the count
                 if ($modelType === 'App\\Models\\HotelRoom' || $modelType === 'hotel_room') {
-                    // TEMP DEBUG: Log what we're checking
-                    \Illuminate\Support\Facades\Log::info('Checking room availability', [
-                        'modelId' => $modelId,
-                        'checkInDate' => $checkInDate,
-                        'checkOutDate' => $checkOutDate,
-                        'excludeReservationId' => $excludeReservationId
-                    ]);
-                    
-                    // Check for any existing reservations first
-                    $existingReservations = \App\Models\Reservation::where('reservable_id', $modelId)
-                        ->where('reservable_type', 'App\\Models\\HotelRoom')
-                        ->whereIn('status', ['confirmed', 'approved', 'pending']) // Match frontend logic
-                        ->where(function($q) use ($checkInDate, $checkOutDate) {
-                            $q->where('check_in_date', '>=', $checkInDate)
-                                ->where('check_in_date', '<', $checkOutDate);
-                        })->orWhere(function($q) use ($checkInDate, $checkOutDate) {
-                            $q->where('check_out_date', '>', $checkInDate)
-                                ->where('check_out_date', '<', $checkOutDate);
-                        })->orWhere(function($q) use ($checkInDate, $checkOutDate) {
-                            $q->where('check_in_date', '<=', $checkInDate)
-                                ->where('check_out_date', '>', $checkOutDate);
-                        })->get();
-                    
-                    if ($existingReservations->count() > 0) {
-                        \Illuminate\Support\Facades\Log::info('Existing confirmed reservations for room (Direct Query)', [
-                            'modelId' => $modelId,
-                            'reservations' => $existingReservations->toArray(),
-                            'count' => $existingReservations->count()
-                        ]);
-                    }
-                    
-                    $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
-                    
-                    if ($hasOverlap) {
-                        // Check if the overlapping reservation is actually 'confirmed' or 'approved'
-                        // If it's a flexible reservation that is 'confirmed' but 'unpaid', it should block dates
-                        // If it's a non-refundable reservation that is 'pending' or 'unpaid', it might not block dates depending on policy
-                        // But for safety, we currently block all 'confirmed', 'approved', 'pending' in datesOverlap scope
+                    $hotelRoom = ($model instanceof \App\Models\HotelRoom) ? $model : \App\Models\HotelRoom::find($modelId);
+                    $totalRooms = (int) ($hotelRoom->available_rooms ?? 1);
+
+                    if ($totalRooms > 1) {
+                        $bookedRooms = $this->countBookedRooms(
+                            $modelId,
+                            $checkInDate,
+                            $checkOutDate,
+                            $excludeReservationId,
+                            ['confirmed', 'approved', 'pending']
+                        );
+
+                        if ($bookedRooms >= $totalRooms) {
+                            \Illuminate\Support\Facades\Log::info('Hotel room type not available - all rooms booked', [
+                                'model_id' => $modelId,
+                                'total_rooms' => $totalRooms,
+                                'booked_rooms' => $bookedRooms
+                            ]);
+                            return false;
+                        }
+                    } else {
+                        // For unique rooms or quantity 1, use the optimized overlap check
+                        $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
                         
-                        // FIX: Ensure we only block for truly conflicting reservations
-                        // The existing check in datesOverlap includes 'pending', which might be too aggressive for some flows
-                        // However, to prevent double booking, 'pending' usually needs to block
-                        
-                        // For now, we trust datesOverlap as the source of truth for "is this room taken"
-                        \Illuminate\Support\Facades\Log::info('Room not available - has overlapping reservation (datesOverlap)', [
-                            'modelId' => $modelId
-                        ]);
-                        return false;
+                        if ($hasOverlap) {
+                            \Illuminate\Support\Facades\Log::info('Room not available - has overlapping reservation', [
+                                'model_id' => $modelId
+                            ]);
+                            return false;
+                        }
                     }
                 } else {
                     // For properties (vacation homes), check unit-level availability if apartment_id is provided
-                    // Check if this is a vacation home property with apartment_id in request context
                     $apartmentId = $data['apartment_id'] ?? null;
-                    $requestedQuantity = $data['apartment_quantity'] ?? 1;
+                    $requestedQuantity = (int) ($data['apartment_quantity'] ?? 1);
                     
-                    // SAFETY CHECK: Only apply multi-unit logic if:
-                    // 1. apartment_id is provided
-                    // 2. It's a vacation home (property_classification = 4)
-                    // 3. The apartment has quantity > 1 (multi-unit)
                     if ($apartmentId && $modelType === 'App\\Models\\Property') {
-                        // Get the apartment to check its quantity
                         $apartment = \App\Models\VacationApartment::find($apartmentId);
                         
                         if ($apartment && $apartment->property_id == $modelId) {
-                            // Check if property is vacation home
                             $property = Property::find($modelId);
                             $isVacationHome = $property && $property->getRawOriginal('property_classification') == 4;
                             
                             if ($isVacationHome) {
-                                $totalUnits = $apartment->quantity;
+                                $totalUnits = (int) ($apartment->quantity ?? 1);
                                 
-                                // SAFETY: Only use multi-unit logic if quantity > 1
                                 if ($totalUnits > 1) {
-                                    // MULTI-UNIT LOGIC: Count booked units
                                     $bookedUnits = $this->countBookedUnitsForApartment(
                                         $modelId,
                                         $apartmentId,
@@ -1921,62 +1895,24 @@ Best regards,
                                     
                                     $availableUnits = $totalUnits - $bookedUnits;
                                     
-                                    \Illuminate\Support\Facades\Log::info('Multi-unit vacation home availability check', [
-                                        'property_id' => $modelId,
-                                        'apartment_id' => $apartmentId,
-                                        'total_units' => $totalUnits,
-                                        'booked_units' => $bookedUnits,
-                                        'available_units' => $availableUnits,
-                                        'requested_quantity' => $requestedQuantity,
-                                        'can_book' => $availableUnits >= $requestedQuantity
-                                    ]);
-                                    
-                                    // Allow booking if enough units are available
-                                    return $availableUnits >= $requestedQuantity;
+                                    if ($availableUnits < $requestedQuantity) {
+                                        return false;
+                                    }
+                                    return true;
                                 } else {
-                                    // SINGLE-UNIT LOGIC: Use apartment-specific check
-                                    // If apartment_id is provided, we MUST check if THIS apartment is booked.
-                                    // We cannot use generic datesOverlap because it checks property-level which blocks all apartments.
-                                    
-                                    $bookedUnits = $this->countBookedUnitsForApartment(
-                                        $modelId,
-                                        $apartmentId,
-                                        $checkInDate,
-                                        $checkOutDate,
-                                        $excludeReservationId,
-                                        ['confirmed', 'approved', 'pending']
-                                    );
-
-                                    \Illuminate\Support\Facades\Log::info('Single-unit vacation home availability check', [
-                                        'property_id' => $modelId,
-                                        'apartment_id' => $apartmentId,
-                                        'booked_units' => $bookedUnits,
-                                        'can_book' => $bookedUnits < 1
-                                    ]);
-                                    
-                                    // Since quantity is 1, any booking blocks it
-                                    return $bookedUnits < 1;
+                                    $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId, $apartmentId);
+                                    return !$hasOverlap;
                                 }
                             }
-                        } else {
-                            \Illuminate\Support\Facades\Log::warning('Apartment verification failed in areDatesAvailable', [
-                                'apartment_id' => $apartmentId,
-                                'model_id' => $modelId,
-                                'apartment_exists' => !!$apartment,
-                                'apartment_property_id' => $apartment ? $apartment->property_id : null
-                            ]);
                         }
                     }
                     
-                    // FALLBACK: For all other properties (non-vacation homes, or vacation homes without apartment_id)
-                    // Use existing standard overlap check - NO CHANGES
+                    // FALLBACK: Generic property-level check
                     $hasOverlap = Reservation::datesOverlap($checkInDate, $checkOutDate, $modelId, $modelType, $excludeReservationId);
                     
                     if ($hasOverlap) {
-                        \Illuminate\Support\Facades\Log::info('Property not available - has overlapping reservation (Fallback datesOverlap)', [
-                            'modelId' => $modelId,
-                            'checkIn' => $checkInDate,
-                            'checkOut' => $checkOutDate
+                        \Illuminate\Support\Facades\Log::info('Property not available (Overlap)', [
+                            'model_id' => $modelId
                         ]);
                         return false;
                     }
@@ -2043,6 +1979,44 @@ Best regards,
             // Return false on error to be safe
             return false;
         }
+    }
+
+    /**
+     * Count booked rooms for a specific hotel room type during a date range.
+     * 
+     * @param int $hotelRoomId
+     * @param string $checkInDate
+     * @param string $checkOutDate
+     * @param int|null $excludeReservationId
+     * @param array $statuses
+     * @return int
+     */
+    public function countBookedRooms($hotelRoomId, $checkInDate, $checkOutDate, $excludeReservationId = null, $statuses = ['confirmed'])
+    {
+        $query = Reservation::where('reservable_id', $hotelRoomId)
+            ->where(function($q) {
+                $q->where('reservable_type', 'App\\Models\\HotelRoom')
+                  ->orWhere('reservable_type', 'hotel_room');
+            })
+            ->whereIn('status', $statuses)
+            ->where(function ($query) use ($checkInDate, $checkOutDate) {
+                $query->where(function ($q) use ($checkInDate, $checkOutDate) {
+                    $q->where('check_in_date', '>=', $checkInDate)
+                        ->where('check_in_date', '<', $checkOutDate);
+                })->orWhere(function ($q) use ($checkInDate, $checkOutDate) {
+                    $q->where('check_out_date', '>', $checkInDate)
+                        ->where('check_out_date', '<', $checkOutDate);
+                })->orWhere(function ($q) use ($checkInDate, $checkOutDate) {
+                    $q->where('check_in_date', '<=', $checkInDate)
+                        ->where('check_out_date', '>', $checkOutDate);
+                });
+            });
+
+        if ($excludeReservationId) {
+            $query->where('id', '!=', $excludeReservationId);
+        }
+
+        return $query->count();
     }
 
     /**
