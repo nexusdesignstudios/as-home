@@ -3106,4 +3106,101 @@ Best regards,
             // Don't throw - we don't want to fail the reservation update if this fails
         }
     }
+
+    /**
+     * Recalculate hotel room price for date changes
+     *
+     * @param \App\Models\Reservation $reservation
+     * @param string $newCheckIn
+     * @param string $newCheckOut
+     * @return array ['new_price' => float, 'price_difference' => float, 'old_price' => float]
+     */
+    public function recalculateHotelRoomPrice($reservation, $newCheckIn, $newCheckOut)
+    {
+        try {
+            $room = HotelRoom::find($reservation->reservable_id);
+            if (!$room) {
+                \Illuminate\Support\Facades\Log::warning('Room not found for price recalculation', [
+                    'reservation_id' => $reservation->id,
+                    'room_id' => $reservation->reservable_id
+                ]);
+                return [
+                    'new_price' => $reservation->total_price,
+                    'price_difference' => 0,
+                    'old_price' => $reservation->total_price
+                ];
+            }
+
+            $guests = $reservation->number_of_guests ?? 1;
+            $calculatedAmount = 0;
+            $currentDate = Carbon::parse($newCheckIn);
+            $endDate = Carbon::parse($newCheckOut);
+            
+            // Access available_dates via the model accessor
+            $roomAvailableDates = $room->available_dates ?? [];
+
+            \Illuminate\Support\Facades\Log::info('Recalculating hotel room price', [
+                'reservation_id' => $reservation->id,
+                'room_id' => $room->id,
+                'new_check_in' => $newCheckIn,
+                'new_check_out' => $newCheckOut,
+                'guests' => $guests
+            ]);
+
+            while ($currentDate->lt($endDate)) {
+                $dateStr = $currentDate->format('Y-m-d');
+                $dailyBasePrice = $room->price_per_night;
+
+                // Check if this date falls into any specific price range
+                if (is_array($roomAvailableDates)) {
+                    foreach ($roomAvailableDates as $range) {
+                        if (isset($range['from'], $range['to']) && 
+                            $dateStr >= $range['from'] && 
+                            $dateStr <= $range['to']) {
+                            if (isset($range['price'])) {
+                                $dailyBasePrice = (float)$range['price'];
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // Apply guest pricing rules
+                $dailyFinalPrice = $room->calculatePrice($guests, $dailyBasePrice);
+                $calculatedAmount += $dailyFinalPrice;
+
+                $currentDate->addDay();
+            }
+
+            $oldPrice = (float) $reservation->total_price;
+            $newPrice = $calculatedAmount;
+            $priceDifference = $newPrice - $oldPrice;
+
+            \Illuminate\Support\Facades\Log::info('Price recalculation complete', [
+                'reservation_id' => $reservation->id,
+                'old_price' => $oldPrice,
+                'new_price' => $newPrice,
+                'price_difference' => $priceDifference
+            ]);
+
+            return [
+                'new_price' => $newPrice,
+                'price_difference' => $priceDifference,
+                'old_price' => $oldPrice
+            ];
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to recalculate hotel room price', [
+                'reservation_id' => $reservation->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'new_price' => $reservation->total_price,
+                'price_difference' => 0,
+                'old_price' => $reservation->total_price
+            ];
+        }
+    }
 }

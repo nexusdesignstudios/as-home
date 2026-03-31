@@ -1386,6 +1386,88 @@ class ReservationsAdminController extends Controller
     }
 
     /**
+     * Generate payment link for reservation modification (price difference)
+     *
+     * @param \App\Models\Reservation $reservation
+     * @param float $priceDifference
+     * @return string|null
+     */
+    private function generatePaymentLinkForModification($reservation, $priceDifference)
+    {
+        try {
+            // Get customer information
+            $customer = $reservation->customer;
+            if (!$customer || !$customer->email) {
+                return null;
+            }
+
+            // Generate a unique transaction ID for the modification
+            $transactionId = 'MOD_' . time() . '_' . $customer->id . '_' . rand(1000, 9999);
+
+            // Create payment data
+            $paymentData = [
+                'payment_method' => 'paymob',
+                'paymob_api_key' => config('paymob.api_key'),
+                'paymob_integration_id' => config('paymob.integration_id'),
+                'paymob_iframe_id' => config('paymob.iframe_id'),
+                'paymob_currency' => config('paymob.currency'),
+            ];
+
+            $metadata = [
+                'email' => $customer->email,
+                'first_name' => $customer->name,
+                'last_name' => $customer->name,
+                'phone' => $customer->mobile ?? '1234567890',
+                'payment_transaction_id' => $transactionId,
+                'reservation_id' => $reservation->id,
+                'payment_type' => 'modification',
+                'price_difference' => $priceDifference
+            ];
+
+            // Create payment service
+            $paymentService = \App\Services\Payment\PaymentService::create($paymentData);
+
+            // Create payment intent for the price difference amount
+            $paymentIntent = $paymentService->createAndFormatPaymentIntent($priceDifference, $metadata);
+
+            // Create payment record for the modification
+            $payment = \App\Models\PaymobPayment::create([
+                'reservation_id' => $reservation->id,
+                'customer_id' => $customer->id,
+                'transaction_id' => $transactionId,
+                'amount' => $priceDifference,
+                'currency' => config('paymob.currency', 'EGP'),
+                'status' => 'pending',
+                'payment_method' => 'paymob',
+                'reservable_id' => $reservation->reservable_id,
+                'reservable_type' => $reservation->reservable_type,
+                'paymob_order_id' => $paymentIntent['id'] ?? null,
+                'metadata' => json_encode(['type' => 'modification', 'original_reservation_id' => $reservation->id])
+            ]);
+
+            \Illuminate\Support\Facades\Log::info('Payment link generated for modification', [
+                'reservation_id' => $reservation->id,
+                'payment_id' => $payment->id,
+                'transaction_id' => $transactionId,
+                'price_difference' => $priceDifference,
+                'payment_link' => $paymentIntent['iframe_url'] ?? null
+            ]);
+
+            // Return the iframe URL from the payment intent
+            return $paymentIntent['iframe_url'] ?? null;
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to generate payment link for modification', [
+                'reservation_id' => $reservation->id,
+                'price_difference' => $priceDifference,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return null;
+        }
+    }
+
+    /**
      * Calculate customer discount.
      *
      * @param int $customerId
@@ -1818,7 +1900,9 @@ The {app_name} Team';
             'old_check_in' => $reservation->check_in_date,
             'old_check_out' => $reservation->check_out_date,
             'new_check_in' => $request->check_in_date,
-            'new_check_out' => $request->check_out_date
+            'new_check_out' => $request->check_out_date,
+            'is_hotel' => $reservation->reservable_type === 'App\\Models\\HotelRoom',
+            'is_flexible' => $this->isFlexibleReservation($reservation)
         ]);
 
         try {
@@ -1826,6 +1910,42 @@ The {app_name} Team';
 
             $oldCheckIn = $reservation->check_in_date;
             $oldCheckOut = $reservation->check_out_date;
+            $oldPrice = (float) $reservation->total_price;
+            $priceDifference = 0;
+            $paymentLink = null;
+
+            // If this is a hotel room reservation, recalculate price
+            if ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                $reservationService = app(\App\Services\ReservationService::class);
+                $priceData = $reservationService->recalculateHotelRoomPrice(
+                    $reservation,
+                    $request->check_in_date,
+                    $request->check_out_date
+                );
+
+                $newPrice = $priceData['new_price'];
+                $priceDifference = $priceData['price_difference'];
+
+                \Illuminate\Support\Facades\Log::info('Hotel room price recalculated', [
+                    'reservation_id' => $reservation->id,
+                    'old_price' => $oldPrice,
+                    'new_price' => $newPrice,
+                    'price_difference' => $priceDifference
+                ]);
+
+                // If price increased and it's non-refundable, generate payment link
+                if ($priceDifference > 0 && !$this->isFlexibleReservation($reservation)) {
+                    $paymentLink = $this->generatePaymentLinkForModification($reservation, $priceDifference);
+                    \Illuminate\Support\Facades\Log::info('Generated payment link for price difference', [
+                        'reservation_id' => $reservation->id,
+                        'payment_link' => $paymentLink,
+                        'price_difference' => $priceDifference
+                    ]);
+                }
+
+                // Update the total price
+                $reservation->total_price = $newPrice;
+            }
 
             // Update the dates
             $reservation->check_in_date = $request->check_in_date;
@@ -1856,12 +1976,22 @@ The {app_name} Team';
             DB::commit();
 
             // Send email notifications to guest and owner
-            $this->sendDateModificationEmailToGuest($reservation, $oldCheckIn, $oldCheckOut, $request->modification_reason);
-            $this->sendDateModificationEmailToOwner($reservation, $oldCheckIn, $oldCheckOut, $request->modification_reason);
+            $this->sendDateModificationEmailToGuest($reservation, $oldCheckIn, $oldCheckOut, $request->modification_reason, $oldPrice, $priceDifference, $paymentLink);
+            $this->sendDateModificationEmailToOwner($reservation, $oldCheckIn, $oldCheckOut, $request->modification_reason, $oldPrice, $priceDifference, $paymentLink);
 
-            return $this->apiResponseService->successResponse('Reservation dates updated successfully', [
-                'reservation' => $reservation->fresh()
-            ]);
+            $responseData = [
+                'reservation' => $reservation->fresh(),
+                'old_price' => $oldPrice,
+                'new_price' => $reservation->total_price,
+                'price_difference' => $priceDifference
+            ];
+
+            if ($paymentLink) {
+                $responseData['payment_link'] = $paymentLink;
+                $responseData['payment_required'] = true;
+            }
+
+            return $this->apiResponseService->successResponse('Reservation dates updated successfully', $responseData);
         } catch (\Exception $e) {
             DB::rollBack();
             
@@ -1882,9 +2012,12 @@ The {app_name} Team';
      * @param string $oldCheckIn
      * @param string $oldCheckOut
      * @param string|null $modificationReason
+     * @param float $oldPrice
+     * @param float $priceDifference
+     * @param string|null $paymentLink
      * @return void
      */
-    private function sendDateModificationEmailToGuest($reservation, $oldCheckIn, $oldCheckOut, $modificationReason = null)
+    private function sendDateModificationEmailToGuest($reservation, $oldCheckIn, $oldCheckOut, $modificationReason = null, $oldPrice = null, $priceDifference = 0, $paymentLink = null)
     {
         try {
             $customer = $reservation->customer;
@@ -1908,6 +2041,32 @@ The {app_name} Team';
             }
 
             $currencySymbol = system_setting('currency_symbol') ?? '$';
+            $isFlexible = $this->isFlexibleReservation($reservation);
+            
+            // Build price section
+            $priceSection = '';
+            if ($oldPrice !== null && $priceDifference != 0) {
+                $priceSection = '<strong>Previous Price:</strong> ' . $currencySymbol . number_format($oldPrice, 2) . '<br>';
+                $priceSection .= '<strong>New Price:</strong> ' . $currencySymbol . number_format($reservation->total_price, 2) . '<br>';
+                if ($priceDifference > 0) {
+                    $priceSection .= '<strong>Additional Amount:</strong> ' . $currencySymbol . number_format($priceDifference, 2) . '<br>';
+                } else {
+                    $priceSection .= '<strong>Refund/Credit:</strong> ' . $currencySymbol . number_format(abs($priceDifference), 2) . '<br>';
+                }
+            } else {
+                $priceSection = '<strong>Total Price:</strong> ' . $currencySymbol . number_format($reservation->total_price, 2) . '<br>';
+            }
+
+            // Build payment section for non-refundable with price increase
+            $paymentSection = '';
+            if (!$isFlexible && $priceDifference > 0 && $paymentLink) {
+                $paymentSection = '<br><strong>Payment Required:</strong><br>';
+                $paymentSection .= 'Your reservation dates have been extended. Please complete the additional payment to confirm the new dates.<br>';
+                $paymentSection .= '<a href="' . $paymentLink . '" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">Complete Payment</a><br><br>';
+            } elseif (!$isFlexible && $priceDifference > 0) {
+                $paymentSection = '<br><strong>Payment Required:</strong><br>';
+                $paymentSection .= 'Your reservation dates have been extended. Please contact us to complete the additional payment of ' . $currencySymbol . number_format($priceDifference, 2) . '.<br><br>';
+            }
 
             $variables = [
                 'app_name' => env("APP_NAME") ?? "As Home",
@@ -1919,9 +2078,15 @@ The {app_name} Team';
                 'new_check_in_date' => $reservation->check_in_date,
                 'new_check_out_date' => $reservation->check_out_date,
                 'total_price' => number_format($reservation->total_price, 2),
+                'old_price' => $oldPrice ? number_format($oldPrice, 2) : null,
+                'price_difference' => $priceDifference ? number_format(abs($priceDifference), 2) : null,
+                'price_direction' => $priceDifference > 0 ? 'increase' : ($priceDifference < 0 ? 'decrease' : 'same'),
                 'currency_symbol' => $currencySymbol,
                 'modification_reason' => $modificationReason ?? 'No reason provided',
                 'modification_date' => now()->format('d M Y, h:i A'),
+                'is_flexible' => $isFlexible ? 'Yes' : 'No',
+                'price_section' => $priceSection,
+                'payment_section' => $paymentSection,
             ];
 
             $emailTemplate = 'Dear {{customer_name}},<br><br>
@@ -1933,8 +2098,9 @@ Check-out: {{old_check_out_date}}<br><br>
 <strong>New Dates:</strong><br>
 Check-in: {{new_check_in_date}}<br>
 Check-out: {{new_check_out_date}}<br><br>
-<strong>Total Price:</strong> {{currency_symbol}}{{total_price}}<br><br>
+' . $priceSection . '<br>
 <strong>Modification Reason:</strong> {{modification_reason}}<br><br>
+' . $paymentSection . '
 If you have any questions, please contact us.<br><br>
 Best regards,<br>
 The {{app_name}} Team';
@@ -1952,7 +2118,10 @@ The {{app_name}} Team';
 
             \Illuminate\Support\Facades\Log::info('Date modification email sent to guest', [
                 'reservation_id' => $reservation->id,
-                'customer_email' => $customer->email
+                'customer_email' => $customer->email,
+                'price_difference' => $priceDifference,
+                'is_flexible' => $isFlexible,
+                'has_payment_link' => !empty($paymentLink)
             ]);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Failed to send date modification email to guest: ' . $e->getMessage(), [
@@ -1969,9 +2138,12 @@ The {{app_name}} Team';
      * @param string $oldCheckIn
      * @param string $oldCheckOut
      * @param string|null $modificationReason
+     * @param float|null $oldPrice
+     * @param float $priceDifference
+     * @param string|null $paymentLink
      * @return void
      */
-    private function sendDateModificationEmailToOwner($reservation, $oldCheckIn, $oldCheckOut, $modificationReason = null)
+    private function sendDateModificationEmailToOwner($reservation, $oldCheckIn, $oldCheckOut, $modificationReason = null, $oldPrice = null, $priceDifference = 0, $paymentLink = null)
     {
         try {
             // Get property and owner
@@ -2005,6 +2177,32 @@ The {{app_name}} Team';
 
             $customer = $reservation->customer;
             $currencySymbol = system_setting('currency_symbol') ?? '$';
+            $isFlexible = $this->isFlexibleReservation($reservation);
+
+            // Build price section
+            $priceSection = '';
+            if ($oldPrice !== null && $priceDifference != 0) {
+                $priceSection = '<strong>Previous Price:</strong> ' . $currencySymbol . number_format($oldPrice, 2) . '<br>';
+                $priceSection .= '<strong>New Price:</strong> ' . $currencySymbol . number_format($reservation->total_price, 2) . '<br>';
+                if ($priceDifference > 0) {
+                    $priceSection .= '<strong>Additional Amount:</strong> ' . $currencySymbol . number_format($priceDifference, 2) . '<br>';
+                } else {
+                    $priceSection .= '<strong>Refund/Credit:</strong> ' . $currencySymbol . number_format(abs($priceDifference), 2) . '<br>';
+                }
+            } else {
+                $priceSection = '<strong>Total Price:</strong> ' . $currencySymbol . number_format($reservation->total_price, 2) . '<br>';
+            }
+
+            // Payment status section
+            $paymentStatus = '';
+            if (!$isFlexible && $priceDifference > 0) {
+                $paymentStatus = '<strong>Payment Status:</strong> Guest needs to pay additional ' . $currencySymbol . number_format($priceDifference, 2) . '<br>';
+                if ($paymentLink) {
+                    $paymentStatus .= 'Payment link has been sent to guest.<br>';
+                }
+            } elseif ($isFlexible) {
+                $paymentStatus = '<strong>Booking Type:</strong> Flexible (Cash/Offline)<br>';
+            }
 
             $variables = [
                 'app_name' => env("APP_NAME") ?? "As Home",
@@ -2018,9 +2216,15 @@ The {{app_name}} Team';
                 'new_check_in_date' => $reservation->check_in_date,
                 'new_check_out_date' => $reservation->check_out_date,
                 'total_price' => number_format($reservation->total_price, 2),
+                'old_price' => $oldPrice ? number_format($oldPrice, 2) : null,
+                'price_difference' => $priceDifference ? number_format(abs($priceDifference), 2) : null,
+                'price_direction' => $priceDifference > 0 ? 'increase' : ($priceDifference < 0 ? 'decrease' : 'same'),
                 'currency_symbol' => $currencySymbol,
                 'modification_reason' => $modificationReason ?? 'No reason provided',
                 'modification_date' => now()->format('d M Y, h:i A'),
+                'is_flexible' => $isFlexible ? 'Yes' : 'No',
+                'price_section' => $priceSection,
+                'payment_status' => $paymentStatus,
             ];
 
             $emailTemplate = 'Dear {{owner_name}},<br><br>
@@ -2034,7 +2238,8 @@ Check-out: {{old_check_out_date}}<br><br>
 <strong>New Dates:</strong><br>
 Check-in: {{new_check_in_date}}<br>
 Check-out: {{new_check_out_date}}<br><br>
-<strong>Total Price:</strong> {{currency_symbol}}{{total_price}}<br><br>
+' . $priceSection . '<br>
+' . $paymentStatus . '<br>
 <strong>Modification Reason:</strong> {{modification_reason}}<br><br>
 Best regards,<br>
 The {{app_name}} Team';
@@ -2052,7 +2257,9 @@ The {{app_name}} Team';
 
             \Illuminate\Support\Facades\Log::info('Date modification email sent to owner', [
                 'reservation_id' => $reservation->id,
-                'owner_email' => $owner->email
+                'owner_email' => $owner->email,
+                'price_difference' => $priceDifference,
+                'is_flexible' => $isFlexible
             ]);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Failed to send date modification email to owner: ' . $e->getMessage(), [
