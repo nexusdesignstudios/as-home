@@ -250,8 +250,7 @@ class ReservationChangeController extends Controller
                 'reservation', 
                 'requester', 
                 'reservation.customer', 
-                'reservation.property', 
-                'reservation.hotelRoom.property'
+                'reservation.property'
             ]);
 
             if ($request->has('reservation_id')) {
@@ -262,7 +261,7 @@ class ReservationChangeController extends Controller
                 $query->where('status', $request->status);
             }
 
-            // If user is guest, only show theirs
+            // Authentication & Scope Check
             $user = Auth::guard('sanctum')->user();
             if ($user && $user->type !== 'admin') {
                  // Guest sees their own requests, Owner sees requests for their properties
@@ -271,10 +270,7 @@ class ReservationChangeController extends Controller
                        ->orWhereHas('reservation', function($qr) use ($user) {
                            $qr->where('customer_id', $user->id) // User is the guest
                              ->orWhereHas('property', function($qp) use ($user) {
-                                 $qp->where('added_by', $user->id); // User is the property owner
-                             })
-                             ->orWhereHas('hotelRoom.property', function($qhp) use ($user) {
-                                 $qhp->where('added_by', $user->id); // User is the hotel owner
+                                 $qp->where('added_by', $user->id); // User is the owner of the property
                              });
                        });
                  });
