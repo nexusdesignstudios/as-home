@@ -31,6 +31,8 @@ class ReservationChangeController extends Controller
     public function requestChange(Request $request)
     {
         try {
+            Log::info('Reservation change request started', ['request_data' => $request->all()]);
+            
             $validator = Validator::make($request->all(), [
                 'reservation_id' => 'required|exists:reservations,id',
                 'check_in_date' => 'required|date|after_or_equal:today',
@@ -39,15 +41,20 @@ class ReservationChangeController extends Controller
             ]);
 
             if ($validator->fails()) {
+                Log::warning('Validation failed', ['errors' => $validator->errors()->toArray()]);
                 return ApiResponseService::validationError($validator->errors()->first());
             }
 
             $reservation = Reservation::findOrFail($request->reservation_id);
+            Log::info('Reservation found', ['reservation_id' => $reservation->id, 'type' => $reservation->reservable_type]);
+            
             $user = Auth::guard('sanctum')->user();
 
             if (!$user) {
+                Log::warning('No authenticated user');
                 return ApiResponseService::errorResponse('Unauthorized', null, 401);
             }
+            Log::info('User authenticated', ['user_id' => $user->id]);
 
             // 1. Deadline Check: 2 PM of original checkout date
             $deadline = Carbon::parse($reservation->check_out_date)->setHour(14)->setMinute(0)->setSecond(0);
@@ -56,6 +63,13 @@ class ReservationChangeController extends Controller
             }
 
             // 2. Check Availability
+            Log::info('Checking availability', [
+                'reservable_type' => $reservation->reservable_type,
+                'reservable_id' => $reservation->reservable_id,
+                'apartment_id' => $reservation->apartment_id,
+                'apartment_quantity' => $reservation->apartment_quantity
+            ]);
+            
             $isAvailable = $this->reservationService->areDatesAvailable(
                 $reservation->reservable_type,
                 $reservation->reservable_id,
@@ -73,6 +87,7 @@ class ReservationChangeController extends Controller
             }
 
             // 3. Price Calculation
+            Log::info('Calculating price');
             $requestedTotalPrice = $this->reservationService->calculateStayPrice(
                 $reservation->reservable_type,
                 $reservation->reservable_id,
@@ -83,6 +98,7 @@ class ReservationChangeController extends Controller
                     'apartment_quantity' => $reservation->apartment_quantity
                 ]
             );
+            Log::info('Price calculated', ['price' => $requestedTotalPrice]);
 
             // 4. Create Request
             $requesterType = $this->getRequesterType($user, $reservation);
