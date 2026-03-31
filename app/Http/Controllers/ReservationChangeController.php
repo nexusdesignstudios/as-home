@@ -88,13 +88,9 @@ class ReservationChangeController extends Controller
             $requesterType = $this->getRequesterType($user, $reservation);
             $initialStatus = 'pending';
 
-            // 5. Host-Specific Logic: Immediate application or payment request
+            // 5. Host-Specific Logic: Immediate application for owners/admins
             if ($requesterType === 'host' || $requesterType === 'admin') {
-                if ($requestedTotalPrice <= $reservation->total_price) {
-                    $initialStatus = 'completed';
-                } else {
-                    $initialStatus = 'waiting_for_payment';
-                }
+                $initialStatus = 'completed';
             }
 
             $changeRequest = ReservationChangeRequest::create([
@@ -263,11 +259,12 @@ class ReservationChangeController extends Controller
             // If user is guest, only show theirs
             $user = Auth::guard('sanctum')->user();
             if ($user && $user->type !== 'admin') {
-                 // For simplicity, limiting to requester or owner
+                 // Guest sees their own requests, Owner sees requests for their properties
                  $query->where(function($q) use ($user) {
                      $q->where('requester_id', $user->id)
                        ->orWhereHas('reservation', function($qr) use ($user) {
-                           $qr->where('customer_id', $user->id);
+                           $qr->where('customer_id', $user->id)
+                             ->orWhere('property_owner_id', $user->id);
                        });
                  });
             }
