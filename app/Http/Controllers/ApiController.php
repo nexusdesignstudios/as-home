@@ -98,6 +98,7 @@ use App\Models\HotelRoom;
 use App\Models\HotelRoomType;
 use App\Models\PropertyTerms;
 use App\Models\HotelAddonField;
+use App\Models\PaymobPayment;
 use App\Models\HotelAddonFieldValue;
 use App\Models\PropertyQuestionField;
 use App\Models\PropertyQuestionAnswer;
@@ -13409,6 +13410,45 @@ Best regards,
                     Log::info('PayPal payment URL generated in submitPaymentForm', ['url' => $paymentUrl]);
                 } catch (\Exception $e) {
                     Log::error('Failed to generate PayPal URL in submitPaymentForm', ['error' => $e->getMessage()]);
+                }
+            } elseif ($request->payment_method === 'paymob') {
+                try {
+                    $paymentData = [
+                        'payment_method' => 'paymob',
+                        'paymob_api_key' => config('paymob.api_key'),
+                        'paymob_integration_id' => config('paymob.integration_id'),
+                        'paymob_iframe_id' => config('paymob.iframe_id'),
+                        'paymob_currency' => config('paymob.currency'),
+                    ];
+
+                    $metadata = [
+                        'email' => $request->customer_email,
+                        'first_name' => $request->customer_name, // Simplification: using full name or splitting if needed
+                        'last_name' => '',
+                        'phone' => $request->customer_phone,
+                        'payment_transaction_id' => $transactionId,
+                    ];
+
+                    // Create payment record in DB first
+                    PaymobPayment::create([
+                        'customer_id' => $request->customer_id,
+                        'transaction_id' => $transactionId,
+                        'amount' => $request->amount,
+                        'currency' => config('paymob.currency', 'EGP'),
+                        'status' => 'pending',
+                        'payment_method' => 'paymob',
+                        'reservable_id' => $request->property_id,
+                        'reservable_type' => $request->reservable_type === 'hotel_room' ? 'App\\Models\\HotelRoom' : 'App\\Models\\Property',
+                        'reservation_id' => $reservation->id,
+                    ]);
+
+                    $paymentService = PaymentService::create($paymentData);
+                    $paymentIntent = $paymentService->createAndFormatPaymentIntent($request->amount, $metadata);
+                    
+                    $paymentUrl = $paymentIntent['iframe_url'] ?? null;
+                    Log::info('Paymob payment URL generated in submitPaymentForm', ['url' => $paymentUrl]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to generate Paymob URL in submitPaymentForm', ['error' => $e->getMessage()]);
                 }
             }
 
