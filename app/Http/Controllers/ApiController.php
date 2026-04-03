@@ -12996,17 +12996,24 @@ Best regards,
             'original_amount' => 'nullable|numeric|min:0',
             'approval_status' => 'nullable|in:pending,approved,rejected',
             'requires_approval' => 'nullable|boolean',
-            'booking_type' => 'nullable|in:reservation_request,flexible_booking',
+            'booking_type' => 'nullable|in:reservation_request,flexible_booking,instant_booking',
             'is_flexible_booking' => 'nullable|boolean',
             'flexible_booking_discount' => 'nullable|numeric|min:0',
             'property_details' => 'nullable|array',
-            'refund_policy' => 'nullable|string|in:refundable,non-refundable'
+            'refund_policy' => 'nullable|string|in:refundable,non-refundable',
+            'requires_payment_redirect' => 'nullable|boolean'
         ];
 
-        // Conditional validation: Only require card data for non-flexible bookings
+        // Conditional validation: Support the new guest details flow
+        // Card data is optional for:
+        // 1. Flexible bookings (Pay at Property)
+        // 2. Hotel Room bookings (handled via specialized form)
+        // 3. Reservations using a redirected payment gateway (PayPal/Paymob)
         $isFlexibleBooking = $request->has('booking_type') && $request->booking_type === 'flexible_booking';
+        $isHotelBooking = $request->reservable_type === 'hotel_room';
+        $requiresRedirect = $request->has('requires_payment_redirect') && ($request->requires_payment_redirect == 1 || $request->requires_payment_redirect === true || $request->requires_payment_redirect === 'true');
         
-        if (!$isFlexibleBooking) {
+        if (!$isFlexibleBooking && !$isHotelBooking && !$requiresRedirect) {
             // Non-flexible bookings require card data
             $rules['card_number'] = 'required|string|min:16|max:19';
             $rules['expiry_date'] = 'required|string|max:7';
