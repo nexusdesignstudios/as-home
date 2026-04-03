@@ -1935,7 +1935,7 @@ class ApiController extends Controller
             'reservation_email' => 'nullable|email',
             'hotel_vat' => 'nullable|string',
             'hotelAvailableRooms' => 'nullable|integer|min:0',
-            'cancellation_period' => 'nullable|string|regex:/^(same_day_6pm|[0-9]+|[0-9]+_days)$/',
+            'cancellation_period' => 'nullable|string|regex:/^(same_day_6pm|[0-9]+|[0-9]+_days)?$/',
         ], [], [
             'documents.*' => 'document :position',
             'addons_packages.*.name' => 'package name :position',
@@ -2725,7 +2725,7 @@ class ApiController extends Controller
             'hotel_rooms.*.guest_pricing_rules' => 'nullable',
             'hotel_apartment_type_id' => 'nullable|exists:hotel_apartment_types,id',
             'rent_package' => 'nullable|in:basic,premium',
-            'cancellation_period' => 'nullable|string|regex:/^(same_day_6pm|[0-9]+|[0-9]+_days)$/',
+            'cancellation_period' => 'nullable|string|regex:/^(same_day_6pm|[0-9]+|[0-9]+_days)?$/',
             'addons_packages'       => 'nullable|array',
             'addons_packages.*.id' => 'nullable|exists:addons_packages,id',
             'addons_packages.*.name' => 'required_with:addons_packages',

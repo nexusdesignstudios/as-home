@@ -172,7 +172,7 @@ class PropertController extends Controller
                         }
                     }
                 }],
-                'cancellation_period' => 'nullable|string|regex:/^(same_day_6pm|[0-9]+|[0-9]+_days)$/',
+                'cancellation_period' => 'nullable|string|regex:/^(same_day_6pm|[0-9]+|[0-9]+_days)?$/',
             ], [], [
                 'documents.*' => 'document :position',
                 'addons_packages.*.name' => 'package name :position',
@@ -771,7 +771,7 @@ class PropertController extends Controller
                             }
                         }
                     }],
-                    'cancellation_period' => 'nullable|string|regex:/^(same_day_6pm|[0-9]+|[0-9]+_days)$/',
+                    'cancellation_period' => 'nullable|string|regex:/^(same_day_6pm|[0-9]+|[0-9]+_days)?$/',
                 ], [
                     'title.required' => 'Property title is required.',
                     'description.required' => 'Property description is required.',
