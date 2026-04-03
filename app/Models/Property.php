@@ -81,6 +81,8 @@ class Property extends Model
         'video_link',
         'meta_image',
         'cancellation_period',
+        'cancellation_policy',
+        'cancellation_custom_days',
         'added_by'
     ];
     protected $hidden = [

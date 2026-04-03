@@ -109,7 +109,7 @@ class HotelPropertiesController extends Controller
     }
 
     /**
-     * Update cancellation period for a hotel property.
+     * Update cancellation policy for a hotel property.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
@@ -120,23 +120,58 @@ class HotelPropertiesController extends Controller
             return response()->json(['error' => true, 'message' => PERMISSION_ERROR_MSG]);
         }
 
-        if ($request->has('cancellation_period') && $request->cancellation_period === 'on') {
-            $request->merge(['cancellation_period' => null]);
-        }
-
-        $request->validate([
-            'property_id' => 'required|exists:propertys,id',
-            'cancellation_period' => 'nullable|string|regex:/^(same_day_6pm|\\d+|\\d+_days)$/',
-        ]);
-
         try {
+            $validated = $request->validate([
+                'property_id' => 'required|exists:propertys,id',
+                'cancellation_policy' => 'nullable|string|in:none,3_days,5_days,7_days,same_day_6pm,custom',
+                'cancellation_custom_days' => 'nullable|integer|min:1|max:365',
+            ]);
+
             $property = Property::findOrFail($request->property_id);
-            $property->cancellation_period = $request->cancellation_period ?: null;
+            
+            // Store the cancellation policy type
+            $property->cancellation_policy = $request->cancellation_policy ?: 'none';
+            
+            // Store custom days if provided
+            if ($request->cancellation_policy === 'custom' && $request->has('cancellation_custom_days')) {
+                $property->cancellation_custom_days = $request->cancellation_custom_days;
+                $property->cancellation_period = $request->cancellation_custom_days . '_days';
+            } else {
+                $property->cancellation_custom_days = null;
+                // Map policy to cancellation_period format
+                $policyMap = [
+                    'none' => null,
+                    '3_days' => '3_days',
+                    '5_days' => '5_days',
+                    '7_days' => '7_days',
+                    'same_day_6pm' => 'same_day_6pm',
+                    'custom' => null // handled above
+                ];
+                $property->cancellation_period = $policyMap[$request->cancellation_policy] ?? null;
+            }
+            
             $property->save();
 
-            return response()->json(['error' => false, 'message' => 'Cancellation period updated successfully']);
+            return response()->json([
+                'error' => false, 
+                'message' => 'Cancellation policy updated successfully',
+                'data' => [
+                    'cancellation_policy' => $property->cancellation_policy,
+                    'cancellation_period' => $property->cancellation_period,
+                    'cancellation_custom_days' => $property->cancellation_custom_days
+                ]
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => true, 
+                'message' => 'Validation failed: ' . implode(', ', $e->validator->errors()->all())
+            ], 422);
         } catch (\Exception $e) {
-            return response()->json(['error' => true, 'message' => $e->getMessage()]);
+            \Log::error('Cancellation policy update error: ' . $e->getMessage());
+            return response()->json([
+                'error' => true, 
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
         }
     }
 

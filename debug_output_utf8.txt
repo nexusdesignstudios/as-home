@@ -1,0 +1,11 @@
+﻿
+    --- Checking Reservation 2959 and 2960 ---
+Res ID: 2959 | Status: approved | Checkout: 2026-03-25
+Reservable: hotel_room (ID: 1523)
+
+Res ID: 2960 | Status: confirmed | Checkout: 2026-03-25
+Reservable: hotel_room (ID: 1523)
+
+--- Searching for all CONFIRMED reservations in March 2026 (Checkout in March) ---
+Found 59 TOTAL confirmed reservations in March 2026.
+[MATCH] ID: 1211 | Property: Shellghada Blue Beach Hotel Hurghada - N/A | Status: confirmed | Checkout: 2026-03-03

@@ -1,0 +1,6 @@
+﻿
+    Checking reservations between 2026-03-01 and 2026-03-31
+Found 46 hotel properties.
+Found 0 confirmed hotel reservations in March 2026.
+Checking last few lines of log for tax invoice related entries...
+Found 0 related log entries in last 500 lines.

@@ -68,7 +68,7 @@ class TestFeedbackRequestEmail extends Command
             $propertyClassification = null;
             $formType = null;
             
-            if ($reservation->reservable_type === 'App\\Models\\Property') {
+            if ($reservation->reservable_type === 'App\\Models\\Property' || $reservation->reservable_type === 'property') {
                 $property = $reservation->reservable;
                 if ($property) {
                     $propertyClassification = $property->getRawOriginal('property_classification');
@@ -76,7 +76,7 @@ class TestFeedbackRequestEmail extends Command
                         $formType = 'vacation_homes';
                     }
                 }
-            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room') {
                 $hotelRoom = $reservation->reservable;
                 if ($hotelRoom && $hotelRoom->property) {
                     $propertyClassification = $hotelRoom->property->getRawOriginal('property_classification');
@@ -98,19 +98,27 @@ class TestFeedbackRequestEmail extends Command
                 }
             }
 
+            $propertyName = '';
+            $propertyId = '';
+            
+            if ($reservation->reservable_type === 'App\\Models\\Property' || $reservation->reservable_type === 'property') {
+                $propertyName = $reservation->reservable->title ?? 'N/A';
+                $propertyId = $reservation->reservable_id;
+            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room') {
+                $propertyName = $reservation->reservable->property->title ?? 'N/A';
+                $propertyId = $reservation->reservable->property->id ?? '';
+            }
+
             // Generate feedback form URL
-            $appUrl = config('app.url');
-            $feedbackUrl = "{$appUrl}/feedback/{$token}";
+            $baseUrl = function_exists('system_setting') ? (system_setting('web_url') ?: null) : null;
+            if (empty($baseUrl)) {
+                $baseUrl = 'https://ashome-eg.com';
+            }
+            $baseUrl = rtrim($baseUrl ?: (config('app.url') ?: 'https://ashome-eg.com'), '/');
+            $feedbackUrl = "{$baseUrl}/feedback/{$token}" . ($propertyId ? "?property_id={$propertyId}" : '');
 
             // Prepare email variables
             $appName = env("APP_NAME") ?? "As-home";
-            $propertyName = '';
-            
-            if ($reservation->reservable_type === 'App\\Models\\Property') {
-                $propertyName = $reservation->reservable->title ?? 'N/A';
-            } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
-                $propertyName = $reservation->reservable->property->title ?? 'N/A';
-            }
 
             $variables = [
                 'app_name' => $appName,

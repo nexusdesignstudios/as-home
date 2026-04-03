@@ -1,0 +1,91 @@
+﻿
+    Shellghada (ID: 100) Email: shellghada@gmail.com
+
+--- AS OWNER (Properties 519, 520) ---
+Found 1 reservations for her properties.
+- Res ID: 1215 | Property: Shellghada Hotel and Beach - Room | Client: Shellghada | Status: cancelled | Checkout: 2026-01-30
+
+--- AS CUSTOMER (Reservations she made) ---
+Found 2 reservations she made.
+- Res ID: 1215 | Property: Shellghada Hotel and Beach - Room | Status: cancelled | Checkout: 2026-01-30
+- Res ID: 1280 | Property: Unknown | Status: cancelled | Checkout: 2026-01-28
+
+--- FOR PROPERTY 522 (Ref 522) ---
+Property 522: Shellghada Hotel and Beach | Owner: reservation (reservationshellghada@gmail.com)
+Found 76 reservations for Property 522.
+- Res ID: 1298 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1336 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1299 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1337 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1300 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1338 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1301 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1339 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1302 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1340 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1303 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1341 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1304 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1342 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1343 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1344 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1305 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1345 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1306 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1307 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1308 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1346 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1309 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1347 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1310 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1348 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1311 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1349 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1312 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1350 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1313 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1351 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1314 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1352 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1315 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1353 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1316 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1354 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1317 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1355 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1318 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1356 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1319 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1357 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1320 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1358 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1321 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1359 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1322 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1360 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1323 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1361 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1324 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1362 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1325 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1363 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1326 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1364 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1327 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1365 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1328 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1366 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1329 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1367 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1330 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1368 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1331 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1369 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1332 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1370 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1333 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1371 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1334 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1372 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01
+- Res ID: 1335 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-02-28
+- Res ID: 1373 | Client: reservation (reservationshellghada@gmail.com) | Status: cancelled | Checkout: 2026-03-01

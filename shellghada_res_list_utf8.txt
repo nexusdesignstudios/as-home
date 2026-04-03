@@ -1,0 +1,8 @@
+﻿
+    Owner: Shellghada (ID: 100)
+Found 2 property IDs: 519, 520
+Found 1 total reservations:
+
+ID    | Property/Room                  | Client               | Check-in     | Check-out    | Status     | Amount    
+------------------------------------------------------------------------------------------------------------------------
+1215  | Shellghada Hotel and Beach -   | Shellghada           | 2026-01-29   | 2026-01-30   | cancelled  | 2750      

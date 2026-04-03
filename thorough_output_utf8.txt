@@ -1,0 +1,65 @@
+﻿
+    Checking ALL reservations between 2026-03-01 and 2026-03-31
+Found 2 confirmed Hotel reservations in March 2026.
+Found 0 confirmed Vacation Home reservations in March 2026.
+Found 59 TOTAL confirmed reservations in March 2026.
+Reservations found:
+- ID: 1105, Class: N/A, Method: paymob, Status: confirmed, Payment: paid, Checkout: 2026-03-03
+- ID: 1106, Class: N/A, Method: paymob, Status: confirmed, Payment: paid, Checkout: 2026-03-03
+- ID: 1107, Class: N/A, Method: paymob, Status: confirmed, Payment: paid, Checkout: 2026-03-03
+- ID: 1108, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-05
+- ID: 1109, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-05
+- ID: 1110, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-05
+- ID: 1111, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-07
+- ID: 1112, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-07
+- ID: 1113, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-07
+- ID: 1119, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-10
+- ID: 1120, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-10
+- ID: 1121, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-10
+- ID: 1122, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-19
+- ID: 1123, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-19
+- ID: 1124, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-19
+- ID: 1125, Class: N/A, Method: paymob, Status: confirmed, Payment: paid, Checkout: 2026-03-21
+- ID: 1126, Class: N/A, Method: paymob, Status: confirmed, Payment: paid, Checkout: 2026-03-21
+- ID: 1127, Class: N/A, Method: paymob, Status: confirmed, Payment: paid, Checkout: 2026-03-21
+- ID: 1130, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-25
+- ID: 1131, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-25
+- ID: 1132, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-25
+- ID: 1133, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-27
+- ID: 1134, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-27
+- ID: 1135, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-27
+- ID: 1136, Class: N/A, Method: paymob, Status: confirmed, Payment: paid, Checkout: 2026-03-28
+- ID: 1137, Class: N/A, Method: paymob, Status: confirmed, Payment: paid, Checkout: 2026-03-28
+- ID: 1138, Class: N/A, Method: paymob, Status: confirmed, Payment: paid, Checkout: 2026-03-28
+- ID: 1155, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-31
+- ID: 1156, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-31
+- ID: 1157, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-31
+- ID: 1211, Class: 5, Method: cash, Status: confirmed, Payment: paid, Checkout: 2026-03-03
+- ID: 1650, Class: 5, Method: paypal, Status: confirmed, Payment: paid, Checkout: 2026-03-17
+- ID: 2894, Class: N/A, Method: cash, Status: confirmed, Payment: paid, Checkout: 2026-03-22
+- ID: 2907, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-04
+- ID: 2914, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-19
+- ID: 2915, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-19
+- ID: 2916, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-25
+- ID: 2917, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-19
+- ID: 2918, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-24
+- ID: 2919, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-24
+- ID: 2920, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-11
+- ID: 2921, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-18
+- ID: 2923, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-12
+- ID: 2926, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-19
+- ID: 2928, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-13
+- ID: 2929, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-13
+- ID: 2940, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-24
+- ID: 2941, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-25
+- ID: 2942, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-25
+- ID: 2943, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-25
+- ID: 2945, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-23
+- ID: 2947, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-24
+- ID: 2950, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-30
+- ID: 2951, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-25
+- ID: 2952, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-25
+- ID: 2958, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-22
+- ID: 2960, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-25
+- ID: 2962, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-26
+- ID: 2963, Class: N/A, Method: cash, Status: confirmed, Payment: unpaid, Checkout: 2026-03-27

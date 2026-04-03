@@ -1,0 +1,10 @@
+﻿
+    --- Searching by Mobile: 201007825652 ---
+Found Customer: Shellghada | Email: shellghada@gmail.com | Mobile: 201007825652
+
+--- Searching by Mobile suffix: 1007825652 ---
+Found Customer: Shellghada | Email: shellghada@gmail.com | Mobile: 201007825652
+
+--- Searching by Reservation ID: 522 ---
+Reservation 522 found. Customer ID: 14
+Customer Name: ibrahim ahmed | Email: nexlancer.eg@gmail.com | Mobile: 201061874267

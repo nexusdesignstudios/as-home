@@ -1,0 +1,11 @@
+﻿
+    Searching for properties titled like: Shellghada Hotel and Beach
+Found 3 properties.
+- ID: 519 | Title: Shellghada Hotel and Beach | Owner: shellghada@gmail.com
+- ID: 520 | Title: Shellghada Hotel and Beach | Owner: shellghada@gmail.com
+- ID: 522 | Title: Shellghada Hotel and Beach | Owner: reservationshellghada@gmail.com
+
+Searching for CONFIRMED reservations in March 2026 (Checkout in March)...
+Found 0 confirmed reservations:
+
+No confirmed reservations found for March 2026.

@@ -67,7 +67,7 @@ class SendFeedbackRequestEmails extends Command
                     $propertyClassification = null;
                     $formType = null;
                     
-                    if ($reservation->reservable_type === 'App\\Models\\Property') {
+                    if ($reservation->reservable_type === 'App\\Models\\Property' || $reservation->reservable_type === 'property') {
                         $property = $reservation->reservable;
                         if ($property) {
                             $propertyClassification = $property->getRawOriginal('property_classification');
@@ -75,7 +75,7 @@ class SendFeedbackRequestEmails extends Command
                                 $formType = 'vacation_homes';
                             }
                         }
-                    } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                    } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room') {
                         $hotelRoom = $reservation->reservable;
                         if ($hotelRoom && $hotelRoom->property) {
                             $propertyClassification = $hotelRoom->property->getRawOriginal('property_classification');
@@ -95,10 +95,10 @@ class SendFeedbackRequestEmails extends Command
                     $property = null;
                     $propertyName = '';
                     
-                    if ($reservation->reservable_type === 'App\\Models\\Property') {
+                    if ($reservation->reservable_type === 'App\\Models\\Property' || $reservation->reservable_type === 'property') {
                         $property = $reservation->reservable;
                         $propertyName = $property->title ?? 'N/A';
-                    } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom') {
+                    } elseif ($reservation->reservable_type === 'App\\Models\\HotelRoom' || $reservation->reservable_type === 'hotel_room') {
                         $property = $reservation->reservable->property ?? null;
                         $propertyName = $property->title ?? 'N/A';
                     }

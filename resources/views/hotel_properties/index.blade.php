@@ -77,7 +77,7 @@
         </div>
     </section>
 
-    <!-- Update Cancellation Period Modal -->
+    <!-- Update Cancellation Policy Modal -->
     <div class="modal fade" id="updateCancellationPeriodModal" tabindex="-1" role="dialog" aria-labelledby="updateCancellationPeriodModalLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
@@ -85,32 +85,80 @@
                     @csrf
                     <input type="hidden" name="property_id" id="property_id">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="updateCancellationPeriodModalLabel">{{ __('Update Cancellation Period') }}</h5>
+                        <h5 class="modal-title" id="updateCancellationPeriodModalLabel">{{ __('Edit Cancellation Policy') }}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <div class="form-group">
-                            <label for="cancellation_period">{{ __('Cancellation Period') }}</label>
-                            <select name="cancellation_period" id="cancellation_period" class="form-select">
-                                <option value="">{{ __('No Cancellation Policy') }}</option>
-                                <option value="3">{{ __('3 Days') }}</option>
-                                <option value="5">{{ __('5 Days') }}</option>
-                                <option value="7">{{ __('7 Days') }}</option>
-                                <option value="14">{{ __('14 Days') }}</option>
-                                <option value="7_days">{{ __('7 Days (Legacy)') }}</option>
-                                <option value="same_day_6pm">{{ __('Same Day at 06:00 PM') }}</option>
-                            </select>
-                            <small class="text-muted">
-                                <ul>
-                                    <li><strong>N Days:</strong> No flexible bookings if check-in is within N days.</li>
-                                    <li><strong>Same Day 6 PM:</strong> No flexible bookings on the same day after 06:00 PM.</li>
-                                </ul>
-                            </small>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">{{ __('Cancellation Policy') }}</label>
+                            
+                            <!-- No Cancellation Policy -->
+                            <div class="form-check mb-2 p-2 rounded" style="background: #f8f9fa; border-left: 4px solid #6c757d;">
+                                <input class="form-check-input" type="radio" name="cancellation_policy" id="policy_none" value="none" checked>
+                                <label class="form-check-label d-flex align-items-center" for="policy_none">
+                                    <span class="me-2">🚫</span>
+                                    <span>{{ __('No Cancellation Policy') }}</span>
+                                </label>
+                            </div>
+
+                            <!-- 3 Days -->
+                            <div class="form-check mb-2 p-2 rounded" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                                <input class="form-check-input" type="radio" name="cancellation_policy" id="policy_3_days" value="3_days">
+                                <label class="form-check-label d-flex align-items-center" for="policy_3_days">
+                                    <span class="me-2">📅</span>
+                                    <span>{{ __('3 Days Cancellation Period') }}</span>
+                                </label>
+                            </div>
+
+                            <!-- 5 Days -->
+                            <div class="form-check mb-2 p-2 rounded" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                                <input class="form-check-input" type="radio" name="cancellation_policy" id="policy_5_days" value="5_days">
+                                <label class="form-check-label d-flex align-items-center" for="policy_5_days">
+                                    <span class="me-2">📅</span>
+                                    <span>{{ __('5 Days Cancellation Period') }}</span>
+                                </label>
+                            </div>
+
+                            <!-- 7 Days -->
+                            <div class="form-check mb-2 p-2 rounded" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+                                <input class="form-check-input" type="radio" name="cancellation_policy" id="policy_7_days" value="7_days">
+                                <label class="form-check-label d-flex align-items-center" for="policy_7_days">
+                                    <span class="me-2">📅</span>
+                                    <span>{{ __('7 Days Cancellation Period') }}</span>
+                                </label>
+                            </div>
+
+                            <!-- Same Day 6 PM -->
+                            <div class="form-check mb-2 p-2 rounded" style="background: #fff3e0; border-left: 4px solid #FF9800;">
+                                <input class="form-check-input" type="radio" name="cancellation_policy" id="policy_same_day_6pm" value="same_day_6pm">
+                                <label class="form-check-label d-flex align-items-center" for="policy_same_day_6pm">
+                                    <span class="me-2">⏰</span>
+                                    <span>{{ __('Same Day at 06:00 PM') }}</span>
+                                </label>
+                            </div>
+
+                            <!-- Custom Days -->
+                            <div class="form-check mb-2 p-2 rounded" style="background: #f3e5f5; border-left: 4px solid #9C27B0;">
+                                <input class="form-check-input" type="radio" name="cancellation_policy" id="policy_custom" value="custom">
+                                <label class="form-check-label d-flex align-items-center" for="policy_custom">
+                                    <span class="me-2">⚙️</span>
+                                    <span>{{ __('Custom Days') }}</span>
+                                </label>
+                                <div class="mt-2 ms-4" id="custom_days_container" style="display: none;">
+                                    <input type="number" name="cancellation_custom_days" id="cancellation_custom_days" class="form-control form-control-sm" placeholder="{{ __('Enter days') }}" min="1" max="365">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Info Box -->
+                        <div class="alert alert-info d-flex align-items-center" role="alert">
+                            <span class="me-2">ℹ️</span>
+                            <small>{{ __('Allows flexible bookings at any time.') }}</small>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Close') }}</button>
-                        <button type="submit" class="btn btn-primary">{{ __('Update') }}</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                        <button type="submit" class="btn btn-primary" style="background-color: #D4AF37; border-color: #D4AF37;">{{ __('Save Changes') }}</button>
                     </div>
                 </form>
             </div>
@@ -174,10 +222,51 @@
         window.actionEvents = {
             'click .update-cancellation-period': function(e, value, row, index) {
                 $('#property_id').val(row.id);
-                $('#cancellation_period').val(row.cancellation_period == 'N/A' ? '' : row.cancellation_period);
+                
+                // Map cancellation_period to cancellation_policy
+                var policy = 'none';
+                if (row.cancellation_period && row.cancellation_period !== 'N/A') {
+                    if (row.cancellation_period === 'same_day_6pm') {
+                        policy = 'same_day_6pm';
+                    } else if (row.cancellation_period === '3_days' || row.cancellation_period === '3') {
+                        policy = '3_days';
+                    } else if (row.cancellation_period === '5_days' || row.cancellation_period === '5') {
+                        policy = '5_days';
+                    } else if (row.cancellation_period === '7_days' || row.cancellation_period === '7') {
+                        policy = '7_days';
+                    } else if (/^\d+$/.test(row.cancellation_period) || /^\d+_days$/.test(row.cancellation_period)) {
+                        // Custom days
+                        policy = 'custom';
+                        var days = row.cancellation_period.replace('_days', '').replace('_day', '');
+                        $('#cancellation_custom_days').val(days);
+                    }
+                }
+                
+                // Set radio button
+                $('input[name="cancellation_policy"][value="' + policy + '"]').prop('checked', true);
+                
+                // Show/hide custom days input
+                if (policy === 'custom') {
+                    $('#custom_days_container').show();
+                } else {
+                    $('#custom_days_container').hide();
+                    $('#cancellation_custom_days').val('');
+                }
+                
                 $('#updateCancellationPeriodModal').modal('show');
             }
         };
+
+        // Show/hide custom days input based on radio selection
+        $('input[name="cancellation_policy"]').on('change', function() {
+            if ($(this).val() === 'custom') {
+                $('#custom_days_container').show();
+                $('#cancellation_custom_days').focus();
+            } else {
+                $('#custom_days_container').hide();
+                $('#cancellation_custom_days').val('');
+            }
+        });
 
         $(document).on('change', '.update-instant-booking', function() {
             var id = $(this).data('id');
@@ -223,11 +312,15 @@
             var url = form.attr('action');
             var formData = form.serialize();
 
+            // Debug: Log form data
+            console.log('Submitting cancellation policy:', formData);
+
             $.ajax({
                 type: "POST",
                 url: url,
                 data: formData,
                 success: function(response) {
+                    console.log('Success response:', response);
                     if (response.error == false) {
                         $('#updateCancellationPeriodModal').modal('hide');
                         $('#hotel_properties_list').bootstrapTable('refresh');
@@ -239,16 +332,24 @@
                             position: "right",
                             backgroundColor: "linear-gradient(to right, #00b09b, #96c93d)",
                         }).showToast();
-                    } else {
-                        Toastify({
-                            text: response.message,
-                            duration: 3000,
-                            close: true,
-                            gravity: "top",
-                            position: "right",
-                            backgroundColor: "linear-gradient(to right, #ff5f6d, #ffc371)",
-                        }).showToast();
                     }
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error:', xhr.responseText);
+                    var errorMessage = 'An error occurred while saving';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    } else if (xhr.responseText) {
+                        errorMessage = xhr.responseText.substring(0, 100);
+                    }
+                    Toastify({
+                        text: errorMessage,
+                        duration: 5000,
+                        close: true,
+                        gravity: "top",
+                        position: "right",
+                        backgroundColor: "linear-gradient(to right, #ff5f6d, #ffc371)",
+                    }).showToast();
                 }
             });
         });

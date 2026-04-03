@@ -1,0 +1,7 @@
+﻿
+    Searching for Shellghada reservations (Confirmed/Approved) with Checkout in March 2026...
+
+ID    | Status     | Property                       | Client                         | Check-in     | Check-out    | Payment    | Amount    
+------------------------------------------------------------------------------------------------------------------------------------------------------
+2959  | confirmed  | Shellghada Hotel and Beach - N | ahmed@cairo-trade.com          | 2026-03-22   | 2026-03-24   | paid       | 5796      
+2960  | confirmed  | Shellghada Hotel and Beach - N | ahmed@cairo-trade.com          | 2026-03-22   | 2026-03-24   | paid       | 5796      

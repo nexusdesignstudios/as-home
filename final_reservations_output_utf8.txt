@@ -1,0 +1,9 @@
+﻿
+    Searching for Shellghada reservations (Confirmed/Approved) with Checkout in March 2026...
+
+ID    | Status     | Property                       | Client                         | Check-in     | Check-out    | Payment    | Amount    
+------------------------------------------------------------------------------------------------------------------------------------------------------
+1211  | confirmed  | Shellghada Blue Beach Hotel Hu | Ayman.yehia@As-home-group.com  | 2026-03-02   | 2026-03-03   | paid       | 3000      
+2894  | confirmed  | Shellghada Hotel and Beach - N | jcanher@gmail.com              | 2026-03-20   | 2026-03-22   | paid       | 5796      
+2959  | approved   | Shellghada Hotel and Beach - N | ahmed@cairo-trade.com          | 2026-03-22   | 2026-03-25   | unpaid     | 8694      
+2960  | confirmed  | Shellghada Hotel and Beach - N | ahmed@cairo-trade.com          | 2026-03-22   | 2026-03-25   | unpaid     | 8694      

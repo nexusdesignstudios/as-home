@@ -1,0 +1,12 @@
+﻿
+    --- CUSTOMER FOUND: ┘â┘┘╪د ╪ذ┘╪┤╪ش╪╣ (ID: 140) ---
+Found 2 total reservations:
+- ID: 2959 | Status: confirmed | P-Status: paid | Method: cash | In: 2026-03-22 | Out: 2026-03-24 | Amount: 5796 | Property: Shellghada Hotel and Beach - N/A
+- ID: 2960 | Status: confirmed | P-Status: paid | Method: cash | In: 2026-03-22 | Out: 2026-03-24 | Amount: 5796 | Property: Shellghada Hotel and Beach - N/A
+
+--- SEARCHING FOR ALL MARCH 2026 RESERVATIONS (Status: Confirmed or Approved) ---
+Found 61 TOTAL confirmed/approved reservations in March.
+[MATCH] ID: 1211 | Client: Ayman.yehia@As-home-group.com | Status: confirmed | Out: 2026-03-03 | Amount: 3000 | Property: Shellghada Blue Beach Hotel Hurghada - N/A
+[MATCH] ID: 2894 | Client: jcanher@gmail.com | Status: confirmed | Out: 2026-03-22 | Amount: 5796 | Property: Shellghada Hotel and Beach - N/A
+[MATCH] ID: 2959 | Client: ahmed@cairo-trade.com | Status: confirmed | Out: 2026-03-24 | Amount: 5796 | Property: Shellghada Hotel and Beach - N/A
+[MATCH] ID: 2960 | Client: ahmed@cairo-trade.com | Status: confirmed | Out: 2026-03-24 | Amount: 5796 | Property: Shellghada Hotel and Beach - N/A
