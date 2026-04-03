@@ -2648,9 +2648,77 @@ class ApiController extends Controller
     }
 
     //* END :: post_property   *//
+    //* START :: update_hotel_policy *//
+    /// Lightweight endpoint: only updates instant_booking + cancellation_period for a hotel property
+    public function update_hotel_policy(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'id'               => 'required|exists:propertys,id',
+            'instant_booking'  => 'nullable|boolean',
+            'cancellation_period' => ['nullable', function ($attribute, $value, $fail) {
+                if (!empty($value) && !preg_match('/^(same_day_6pm|[0-9]+|[0-9]+_days)$/', $value)) {
+                    $fail('The cancellation period format is invalid.');
+                }
+            }],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'error'   => true,
+                'message' => $validator->errors()->first(),
+                'data'    => null,
+            ]);
+        }
+
+        try {
+            $current_user = Auth::user()->id;
+            $property = Property::where('added_by', $current_user)
+                ->where('property_classification', 5) // Hotels only
+                ->find($request->id);
+
+            if (!$property) {
+                return response()->json([
+                    'error'   => true,
+                    'message' => 'Hotel property not found or access denied.',
+                    'data'    => null,
+                ]);
+            }
+
+            if ($request->has('instant_booking')) {
+                $property->instant_booking = filter_var($request->input('instant_booking'), FILTER_VALIDATE_BOOLEAN);
+            }
+
+            if ($request->exists('cancellation_period')) {
+                $val = $request->input('cancellation_period');
+                $property->cancellation_period = !empty($val) ? $val : null;
+            }
+
+            $property->save();
+
+            return response()->json([
+                'error'   => false,
+                'message' => 'Hotel policy updated successfully.',
+                'data'    => [
+                    'id'                  => $property->id,
+                    'instant_booking'     => $property->instant_booking,
+                    'cancellation_period' => $property->cancellation_period,
+                ],
+            ]);
+        } catch (Exception $e) {
+            Log::error('update_hotel_policy error: ' . $e->getMessage(), ['request' => $request->all()]);
+            return response()->json([
+                'error'   => true,
+                'message' => 'Something went wrong. Please try again.',
+                'data'    => null,
+            ]);
+        }
+    }
+    //* END :: update_hotel_policy *//
+
     //* START :: update_post_property   *//
     /// This api use for update and delete  property
     public function update_post_property(Request $request)
+
     {
         // Override PHP upload limits for this endpoint
         ini_set('upload_max_filesize', '100M');
