@@ -13224,6 +13224,17 @@ Best regards,
                 }
             }
 
+            // Fix for Instant Bookings requiring Payment Redirect:
+            // If it's a redirect payment (PayPal/Paymob), we MUST start as pending/unpaid
+            // even if it's an instant booking, until the payment is confirmed.
+            $paymentMethod = $request->payment_method;
+            $paymentGateway = $request->payment_gateway;
+            if ($paymentMethod === 'paypal' || $paymentGateway === 'paypal' || $paymentMethod === 'paymob' || $paymentGateway === 'paymob') {
+                $baseReservationData['status'] = 'pending';
+                $baseReservationData['payment_status'] = 'unpaid';
+                $baseReservationData['approval_status'] = 'pending';
+            }
+
             // Add property details if provided
             if ($request->has('property_details')) {
                 // $baseReservationData['property_details'] = json_encode($request->property_details); // Still missing column? No, migration didn't add it.
@@ -13393,8 +13404,10 @@ Best regards,
             $paymentUrl = null;
             $paymentMethod = $request->payment_method;
             $paymentGateway = $request->payment_gateway;
+            $isRedirectPayment = false;
 
             if ($paymentMethod === 'paypal' || $paymentGateway === 'paypal') {
+                $isRedirectPayment = true;
                 try {
                     $paypal = new Paypal();
                     $paypal->add_field('return', 'https://ashome-eg.com/');
@@ -13415,6 +13428,7 @@ Best regards,
                     Log::error('Failed to generate PayPal URL in submitPaymentForm', ['error' => $e->getMessage()]);
                 }
             } elseif ($paymentMethod === 'paymob' || $paymentGateway === 'paymob') {
+                $isRedirectPayment = true;
                 try {
                     $paymentData = [
                         'payment_method' => 'paymob',
@@ -13455,8 +13469,11 @@ Best regards,
                 }
             }
 
-            // Send emails to both property owner and customer (if flexible booking)
-            try {
+            // Only send emails if NOT redirecting to a payment gateway.
+            // If redirecting, emails will be handled by the payment callback later.
+            if (empty($paymentUrl)) {
+                // Send emails to both property owner and customer (if flexible booking)
+                try {
                 // 1. Send Payment Form Submission Notification to Property Owner
                 $emailTypeData = HelperService::getEmailTemplatesTypes('payment_form_submission');
                 $templateData = system_setting('payment_form_submission_mail_template');
@@ -13806,8 +13823,9 @@ Best regards,
                 Log::error('Failed to send payment form submission emails: ' . $e->getMessage());
                 $submission->update(['status' => 'failed', 'notes' => 'Email sending failed: ' . $e->getMessage()]);
             }
+        }
 
-            DB::commit();
+        DB::commit();
 
             return response()->json([
                 'error' => false,
