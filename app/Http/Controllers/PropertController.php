@@ -172,7 +172,11 @@ class PropertController extends Controller
                         }
                     }
                 }],
-                'cancellation_period' => 'nullable|string|regex:/^(same_day_6pm|[0-9]+|[0-9]+_days)?$/',
+                'cancellation_period' => ['nullable', function ($attribute, $value, $fail) {
+                    if (!empty($value) && !preg_match('/^(same_day_6pm|[0-9]+|[0-9]+_days)$/', $value)) {
+                        $fail('The cancellation period format is invalid.');
+                    }
+                }],
             ], [], [
                 'documents.*' => 'document :position',
                 'addons_packages.*.name' => 'package name :position',
@@ -771,7 +775,11 @@ class PropertController extends Controller
                             }
                         }
                     }],
-                    'cancellation_period' => 'nullable|string|regex:/^(same_day_6pm|[0-9]+|[0-9]+_days)?$/',
+                    'cancellation_period' => ['nullable', function ($attribute, $value, $fail) {
+                        if (!empty($value) && !preg_match('/^(same_day_6pm|[0-9]+|[0-9]+_days)$/', $value)) {
+                            $fail('The cancellation period format is invalid.');
+                        }
+                    }],
                 ], [
                     'title.required' => 'Property title is required.',
                     'description.required' => 'Property description is required.',
