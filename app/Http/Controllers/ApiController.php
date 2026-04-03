@@ -13438,10 +13438,16 @@ Best regards,
                         'paymob_currency' => config('paymob.currency'),
                     ];
 
+                    // Split customer name for Paymob (requires first and last name)
+                    $customerName = $request->customer_name ?? 'Guest';
+                    $nameParts = explode(' ', trim($customerName), 2);
+                    $firstName = $nameParts[0];
+                    $lastName = $nameParts[1] ?? '.'; // Use dot if last name is missing
+
                     $metadata = [
                         'email' => $request->customer_email,
-                        'first_name' => $request->customer_name, // Simplification: using full name or splitting if needed
-                        'last_name' => '',
+                        'first_name' => $firstName,
+                        'last_name' => $lastName,
                         'phone' => $request->customer_phone,
                         'payment_transaction_id' => $transactionId,
                     ];
@@ -13787,11 +13793,15 @@ Best regards,
                         // Vacation home - send pending approval email
                         $reservationService->sendVacationHomePendingApprovalEmail($reservation);
                     } elseif ($propertyClassification == 5) {
-                        // Hotel booking (Non-flexible) - send aggregated reservation confirmation email
-                        // This usually means paymob/paypal instant confirmed or pending non-instant
+                        // Hotel booking (Non-flexible)
                         if ($reservation->status === 'pending') {
-                            $reservationService->sendHotelFlexiblePendingApprovalEmail($reservation);
+                            // Only send pending email if it's NOT an online payment redirect
+                            // Because redirected payments shouldn't send any confirmation/pending email until paid
+                            if (!$isRedirectPayment) {
+                                $reservationService->sendHotelNonRefundablePendingApprovalEmail($reservation);
+                            }
                         } else {
+                            // Instant Confirmed (Non-refundable) - should only happen for cash or if payment was already confirmed
                             $reservationService->sendAggregatedReservationConfirmationEmail($createdReservations);
                         }
                     }
