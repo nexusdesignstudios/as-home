@@ -13389,9 +13389,12 @@ Best regards,
 
             Log::info('Proceeding to send emails...');
 
-            // Generate PayPal URL if payment method is paypal
+            // Generate Provider-specific payment URL (PayPal, Paymob, etc.)
             $paymentUrl = null;
-            if ($request->payment_method === 'paypal') {
+            $paymentMethod = $request->payment_method;
+            $paymentGateway = $request->payment_gateway;
+
+            if ($paymentMethod === 'paypal' || $paymentGateway === 'paypal') {
                 try {
                     $paypal = new Paypal();
                     $paypal->add_field('return', 'https://ashome-eg.com/');
@@ -13411,7 +13414,7 @@ Best regards,
                 } catch (\Exception $e) {
                     Log::error('Failed to generate PayPal URL in submitPaymentForm', ['error' => $e->getMessage()]);
                 }
-            } elseif ($request->payment_method === 'paymob') {
+            } elseif ($paymentMethod === 'paymob' || $paymentGateway === 'paymob') {
                 try {
                     $paymentData = [
                         'payment_method' => 'paymob',
