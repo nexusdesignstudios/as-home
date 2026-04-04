@@ -101,6 +101,8 @@ class SendTestPaymentEmail extends Command
                     'customer_name' => 'John Doe',
                     'customer_email' => 'john.doe@example.com',
                     'customer_phone' => '+1234567890',
+                    'nationality' => 'Egyptian',
+                    'booking_source' => 'Saudi Arabia',
                     'property_name' => 'Luxury Villa in Cairo',
                     'property_address' => '123 Nile View, Cairo, Egypt',
                     'room_type' => 'Deluxe Suite (Package: Breakfast Included)',

@@ -12986,6 +12986,8 @@ Best regards,
             'currency' => 'nullable|string|max:3',
             'check_in_date' => 'required|date|after_or_equal:today',
             'check_out_date' => 'required|date|after:check_in_date',
+            'nationality' => 'nullable|string',
+            'booking_source' => 'nullable|string',
             'number_of_guests' => 'required|integer|min:1',
             'special_requests' => 'nullable|string',
             'reservable_type' => 'required|in:property,hotel_room',
@@ -13702,6 +13704,8 @@ Best regards,
                     'customer_name' => $request->customer_name,
                     'customer_email' => $request->customer_email,
                     'customer_phone' => $request->customer_phone,
+                    'nationality' => $request->nationality ?? 'Not Specified',
+                    'booking_source' => $request->booking_source ?? 'Direct',
                     'property_name' => $property->title,
                     'property_address' => $property->address,
                     'room_type' => $roomType,
@@ -13722,7 +13726,10 @@ Best regards,
                 );
 
                 if (empty($templateData)) {
-                    $templateData = 'New reservation request received for property "{property_name}" from {customer_name} ({customer_email}). Room Type: {room_type}. Amount: {total_amount} {currency_symbol}. Check-in: {check_in_date}, Check-out: {check_out_date}. Reservation ID: {reservation_id}. Please review and approve this booking in your dashboard.';
+                    $templateData = 'New reservation request received for property "{property_name}" from {customer_name} ({customer_email}). 
+                    Nationality: {nationality}
+                    Booking Source (Origin Country): {booking_source}
+                    Room Type: {room_type}. Amount: {total_amount} {currency_symbol}. Check-in: {check_in_date}, Check-out: {check_out_date}. Reservation ID: {reservation_id}. Please review and approve this booking in your dashboard.';
                 }
 
                 // Add Action Required note for non-instant bookings

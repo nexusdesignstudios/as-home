@@ -3418,6 +3418,8 @@ The {app_name} Team';
                 'customer_name' => $customer->name,
                 'customer_email' => $customer->email,
                 'customer_phone' => $customer->mobile ?? $customer->phone ?? 'N/A',
+                'nationality' => $reservation->nationality ?? 'Not Specified',
+                'booking_source' => $reservation->booking_source ?? 'Direct',
                 'property_name' => $propertyName,
                 'hotel_name' => $propertyName, // Alias for template compatibility
                 'property_address' => $propertyAddress,
@@ -3651,7 +3653,10 @@ As-home Asset Management Team
             );
 
             if (empty($templateData)) {
-                $templateData = 'New flexible booking request received for {hotel_name} from {customer_name} ({customer_email}). Room Type: {room_type}. Amount: {total_price} {currency_symbol}. Check-in: {check_in_date}, Check-out: {check_out_date}. Number of Guests: {number_of_guests}. Special Requests: {special_requests}. Reservation ID: {reservation_id}. Please review and approve this booking in your dashboard.';
+                $templateData = 'New reservation request received for property "{property_name}" from {customer_name} ({customer_email}). 
+                Nationality: {nationality}
+                Booking Source (Origin Country): {booking_source}
+                Room Type: {room_type}. Amount: {total_amount} {currency_symbol}. Check-in: {check_in_date}, Check-out: {check_out_date}. Reservation ID: {reservation_id}. Please review and approve this booking in your dashboard.';
             }
 
             $emailTemplate = \App\Services\HelperService::replaceEmailVariables($templateData, $variables);
