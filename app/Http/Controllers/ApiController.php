@@ -8920,14 +8920,7 @@ class ApiController extends Controller
 
             if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
-                // Add relevance score calculation for sorting
-                $propertyQuery = $propertyQuery->clone()->addSelect(DB::raw("(
-                    (CASE WHEN title LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
-                    (CASE WHEN title_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
-                    (CASE WHEN description LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
-                    (CASE WHEN description_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
-                    (CASE WHEN address LIKE " . DB::getPdo()->quote("%$search%") . " THEN 3 ELSE 0 END)
-                ) as relevance_score"));
+                // Relevance score move to final fetch to avoid being overwritten by select()
             }
 
             // Sort By Parameter
@@ -8989,6 +8982,20 @@ class ApiController extends Controller
                 ])
                 ->select('id', 'slug_id', 'propery_type', 'title_image', 'category_id', 'title', 'price', 'city', 'state', 'country', 'rentduration', 'added_by', 'is_premium', 'property_classification', 'rent_package', 'latitude', 'longitude', 'total_click')
                 ->withCount('favourite');
+
+            // CRITICAL FIX: Add relevance score AFTER select() call to prevent it being overwritten
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $propertiesData = $propertiesData->addSelect(DB::raw("(
+                    (CASE WHEN title LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
+                    (CASE WHEN title_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
+                    (CASE WHEN description LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
+                    (CASE WHEN description_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
+                    (CASE WHEN address LIKE " . DB::getPdo()->quote("%$search%") . " THEN 3 ELSE 0 END) +
+                    (CASE WHEN city LIKE " . DB::getPdo()->quote("%$search%") . " THEN 2 ELSE 0 END) +
+                    (CASE WHEN state LIKE " . DB::getPdo()->quote("%$search%") . " THEN 2 ELSE 0 END)
+                ) as relevance_score"));
+            }
 
             // Latitude and Longitude
             if ($request->has('latitude') && !empty($request->latitude) && $request->has('longitude') && !empty($request->longitude)) {
@@ -9387,6 +9394,23 @@ class ApiController extends Controller
                 ])
                 ->select('id', 'slug_id', 'propery_type', 'title_image', 'category_id', 'title', 'price', 'city', 'state', 'country', 'rentduration', 'added_by', 'is_premium', 'property_classification', 'rent_package', 'latitude', 'longitude', 'total_click')
                 ->withCount('favourite');
+
+            // Apply search relevance scoring if search is present
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $propertiesData = $propertiesData->addSelect(DB::raw("(
+                    (CASE WHEN title LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
+                    (CASE WHEN title_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
+                    (CASE WHEN description LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
+                    (CASE WHEN description_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
+                    (CASE WHEN address LIKE " . DB::getPdo()->quote("%$search%") . " THEN 3 ELSE 0 END) +
+                    (CASE WHEN city LIKE " . DB::getPdo()->quote("%$search%") . " THEN 2 ELSE 0 END) +
+                    (CASE WHEN state LIKE " . DB::getPdo()->quote("%$search%") . " THEN 2 ELSE 0 END)
+                ) as relevance_score"));
+
+                // Override ordering to prioritize relevance
+                $propertiesData = $propertiesData->orderBy('relevance_score', 'DESC');
+            }
 
             // Latitude and Longitude
             if ($request->has('latitude') && !empty($request->latitude) && $request->has('longitude') && !empty($request->longitude)) {
