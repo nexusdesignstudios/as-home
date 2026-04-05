@@ -8665,15 +8665,6 @@ class ApiController extends Controller
                         $query1->whereRaw("REPLACE(REPLACE(category, ' ', ''), '-', '') LIKE ?", ["%" . str_replace([' ', '-'], '', $search) . "%"]);
                     });
                 });
-
-                // Add relevance score calculation for sorting
-                $propertyQuery = $propertyQuery->clone()->addSelect(DB::raw("(
-                    (CASE WHEN title LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
-                    (CASE WHEN title_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
-                    (CASE WHEN description LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
-                    (CASE WHEN description_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
-                    (CASE WHEN address LIKE " . DB::getPdo()->quote("%$search%") . " THEN 3 ELSE 0 END)
-                ) as relevance_score"));
             }
 
             // IF Promoted Passed then show the data according to
@@ -8926,6 +8917,18 @@ class ApiController extends Controller
 
             // Get total properties
             $totalProperties = $baseQueryForCount->count();
+
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                // Add relevance score calculation for sorting
+                $propertyQuery = $propertyQuery->clone()->addSelect(DB::raw("(
+                    (CASE WHEN title LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
+                    (CASE WHEN title_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
+                    (CASE WHEN description LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
+                    (CASE WHEN description_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
+                    (CASE WHEN address LIKE " . DB::getPdo()->quote("%$search%") . " THEN 3 ELSE 0 END)
+                ) as relevance_score"));
+            }
 
             // Sort By Parameter
             if ($request->has('sort_by') && !empty($request->sort_by)) {
