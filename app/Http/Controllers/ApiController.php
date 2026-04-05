@@ -1420,13 +1420,38 @@ class ApiController extends Controller
 
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
-            $property = $property->where(function ($query) use ($search) {
-                $query->where('title', 'LIKE', "%$search%")
-                    ->orWhere('address', 'LIKE', "%$search%")
-                    ->orWhereHas('category', function ($query1) use ($search) {
-                        $query1->where('category', 'LIKE', "%$search%");
-                    });
+            $searchNormalized = str_replace([' ', '-'], '', $search);
+            
+            // Expand search to include descriptions and Arabic fields
+            $property = $property->where(function ($query) use ($search, $searchNormalized) {
+                // Title & Address (normalized and standard matches)
+                $query->whereRaw("REPLACE(REPLACE(title, ' ', ''), '-', '') LIKE ?", ["%" . $searchNormalized . "%"])
+                     ->orWhereRaw("REPLACE(REPLACE(title_ar, ' ', ''), '-', '') LIKE ?", ["%" . $searchNormalized . "%"])
+                     ->orWhereRaw("REPLACE(REPLACE(address, ' ', ''), '-', '') LIKE ?", ["%" . $searchNormalized . "%"])
+                     ->orWhereRaw("REPLACE(REPLACE(city, ' ', ''), '-', '') LIKE ?", ["%" . $searchNormalized . "%"])
+                     ->orWhereRaw("REPLACE(REPLACE(state, ' ', ''), '-', '') LIKE ?", ["%" . $searchNormalized . "%"])
+                     // Descriptions
+                     ->orWhere('description', 'LIKE', "%$search%")
+                     ->orWhere('description_ar', 'LIKE', "%$search%")
+                     ->orWhere('area_description', 'LIKE', "%$search%")
+                     ->orWhere('area_description_ar', 'LIKE', "%$search%")
+                     // Category
+                     ->orWhereHas('category', function ($query1) use ($search) {
+                         $query1->where('category', 'LIKE', "%$search%");
+                     });
             });
+            
+            // Add relevance score calculation for sorting
+            // Title: 10, Description: 5, Address: 3, City/State: 2, Category: 1
+            $property = $property->addSelect(DB::raw("(
+                (CASE WHEN title LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
+                (CASE WHEN title_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
+                (CASE WHEN description LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
+                (CASE WHEN description_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
+                (CASE WHEN address LIKE " . DB::getPdo()->quote("%$search%") . " THEN 3 ELSE 0 END) +
+                (CASE WHEN city LIKE " . DB::getPdo()->quote("%$search%") . " THEN 2 ELSE 0 END) +
+                (CASE WHEN state LIKE " . DB::getPdo()->quote("%$search%") . " THEN 2 ELSE 0 END)
+            ) as relevance_score"));
         }
 
         // If Top Rated passed then show the property data with Order by on Total Click Descending
@@ -1610,6 +1635,9 @@ class ApiController extends Controller
                     }
                 }
         
+        if ($request->has('search') && !empty($request->search)) {
+            $property = $property->orderBy('relevance_score', 'DESC');
+        }
         $result = $property->orderBy('id', 'DESC')->skip($offset)->take($limit)->get();
         
                 // Log bedroom filter results after query execution for ALL bedroom values
@@ -8614,14 +8642,21 @@ class ApiController extends Controller
                 // Normalize search: remove spaces from database fields to match frontend sanitization
                 // This allows "5starhotel" to match "5 star hotel" in the database
                 $propertyQuery = $propertyQuery->clone()->where(function ($query) use ($search, $isHotelSearch, $hasHotelNameColumn) {
+                    $searchNormalized = str_replace([' ', '-'], '', $search);
+                    
                     // Search title with spaces removed (normalized)
-                    $query->whereRaw("REPLACE(REPLACE(title, ' ', ''), '-', '') LIKE ?", ["%" . str_replace([' ', '-'], '', $search) . "%"])
+                    $query->whereRaw("REPLACE(REPLACE(title, ' ', ''), '-', '') LIKE ?", ["%" . $searchNormalized . "%"])
+                        // Search title Arabic
+                        ->orWhereRaw("REPLACE(REPLACE(title_ar, ' ', ''), '-', '') LIKE ?", ["%" . $searchNormalized . "%"])
                         // Search address with spaces removed (normalized)
-                        ->orWhereRaw("REPLACE(REPLACE(address, ' ', ''), '-', '') LIKE ?", ["%" . str_replace([' ', '-'], '', $search) . "%"]);
+                        ->orWhereRaw("REPLACE(REPLACE(address, ' ', ''), '-', '') LIKE ?", ["%" . $searchNormalized . "%"])
+                        // Search descriptions
+                        ->orWhere('description', 'LIKE', "%$search%")
+                        ->orWhere('description_ar', 'LIKE', "%$search%");
                     
                     // Only search hotel_name if it's a hotel search and column exists
                     if ($isHotelSearch && $hasHotelNameColumn) {
-                        $query->orWhereRaw("REPLACE(REPLACE(hotel_name, ' ', ''), '-', '') LIKE ?", ["%" . str_replace([' ', '-'], '', $search) . "%"]);
+                        $query->orWhereRaw("REPLACE(REPLACE(hotel_name, ' ', ''), '-', '') LIKE ?", ["%" . $searchNormalized . "%"]);
                     }
                     
                     // Search category with spaces removed (normalized)
@@ -8629,6 +8664,15 @@ class ApiController extends Controller
                         $query1->whereRaw("REPLACE(REPLACE(category, ' ', ''), '-', '') LIKE ?", ["%" . str_replace([' ', '-'], '', $search) . "%"]);
                     });
                 });
+
+                // Add relevance score calculation for sorting
+                $propertyQuery = $propertyQuery->clone()->addSelect(DB::raw("(
+                    (CASE WHEN title LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
+                    (CASE WHEN title_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
+                    (CASE WHEN description LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
+                    (CASE WHEN description_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
+                    (CASE WHEN address LIKE " . DB::getPdo()->quote("%$search%") . " THEN 3 ELSE 0 END)
+                ) as relevance_score"));
             }
 
             // IF Promoted Passed then show the data according to
@@ -8885,6 +8929,15 @@ class ApiController extends Controller
             // Sort By Parameter
             if ($request->has('sort_by') && !empty($request->sort_by)) {
                 $sortBy = $request->sort_by;
+                
+                // If search is present, relevance_score can be a secondary sort 
+                // but usually user-selected sort (like price) should take precedence.
+                // However, the prompt implies relevance is the primary sort.
+                // We'll prioritize relevance if it's NOT a specific price/date sort.
+                if ($request->has('search') && !empty($request->search) && $sortBy == 'featured') {
+                    $propertyQuery = $propertyQuery->clone()->orderBy('relevance_score', 'DESC');
+                }
+
                 if ($sortBy == 'price_asc') {
                     // Force numeric sorting for price
                     $propertyQuery = $propertyQuery->clone()->orderByRaw('CAST(price AS DECIMAL(15,2)) ASC');
@@ -8912,7 +8965,11 @@ class ApiController extends Controller
             else if ($request->has('most_liked') && $request->most_liked == 1) {
                 $propertyQuery = $propertyQuery->clone()->orderBy('favourite_count', 'DESC');
             } else {
-                // If No Most Viewed or Most Liked Passed then show the property data with Order by on Id Descending
+                // DEFAULT CASE: If search is present, sort by relevance. 
+                // Otherwise sort by Id Descending.
+                if ($request->has('search') && !empty($request->search)) {
+                    $propertyQuery = $propertyQuery->clone()->orderBy('relevance_score', 'DESC');
+                }
                 $propertyQuery = $propertyQuery->clone()->orderBy('id', 'DESC');
             }
 
@@ -9046,9 +9103,10 @@ class ApiController extends Controller
                     $propertiesData = $expandedProperties->values();
                 }
             } else {
-                // Default or Featured: Sort by promoted first
-                $propertiesData = $expandedProperties->sortByDesc(function ($property) {
-                    return $property->promoted;
+                // Default or Featured: Sort by relevance if search is present, then by promoted
+                $propertiesData = $expandedProperties->sortByDesc(function ($property) use ($request) {
+                    $score = $request->has('search') ? ($property->relevance_score ?? 0) : 0;
+                    return [$score, $property->promoted];
                 })->values();
             }
 
