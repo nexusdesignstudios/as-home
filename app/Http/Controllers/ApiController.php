@@ -1440,18 +1440,6 @@ class ApiController extends Controller
                          $query1->where('category', 'LIKE', "%$search%");
                      });
             });
-            
-            // Add relevance score calculation for sorting
-            // Title: 10, Description: 5, Address: 3, City/State: 2, Category: 1
-            $property = $property->addSelect(DB::raw("(
-                (CASE WHEN title LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
-                (CASE WHEN title_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
-                (CASE WHEN description LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
-                (CASE WHEN description_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
-                (CASE WHEN address LIKE " . DB::getPdo()->quote("%$search%") . " THEN 3 ELSE 0 END) +
-                (CASE WHEN city LIKE " . DB::getPdo()->quote("%$search%") . " THEN 2 ELSE 0 END) +
-                (CASE WHEN state LIKE " . DB::getPdo()->quote("%$search%") . " THEN 2 ELSE 0 END)
-            ) as relevance_score"));
         }
 
         // If Top Rated passed then show the property data with Order by on Total Click Descending
@@ -1636,6 +1624,19 @@ class ApiController extends Controller
                 }
         
         if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            // Add relevance score calculation for sorting
+            // Title: 10, Description: 5, Address: 3, City/State: 2, Category: 1
+            $property = $property->addSelect(DB::raw("(
+                (CASE WHEN title LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
+                (CASE WHEN title_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 10 ELSE 0 END) +
+                (CASE WHEN description LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
+                (CASE WHEN description_ar LIKE " . DB::getPdo()->quote("%$search%") . " THEN 5 ELSE 0 END) +
+                (CASE WHEN address LIKE " . DB::getPdo()->quote("%$search%") . " THEN 3 ELSE 0 END) +
+                (CASE WHEN city LIKE " . DB::getPdo()->quote("%$search%") . " THEN 2 ELSE 0 END) +
+                (CASE WHEN state LIKE " . DB::getPdo()->quote("%$search%") . " THEN 2 ELSE 0 END)
+            ) as relevance_score"));
+            
             $property = $property->orderBy('relevance_score', 'DESC');
         }
         $result = $property->orderBy('id', 'DESC')->skip($offset)->take($limit)->get();
