@@ -46,6 +46,7 @@ use App\Http\Controllers\ReservationsAdminController;
 use App\Http\Controllers\PropertyQuestionFormController;
 use App\Http\Controllers\TaxInvoiceController;
 use App\Http\Controllers\ExplorerReservationController;
+use App\Http\Controllers\ExplorerHomeController;
 use App\Http\Controllers\InvoiceDownloadController;
 
 
@@ -419,9 +420,7 @@ Route::group(['prefix' => 'install'], static function () {
 
 
 Route::middleware(['language'])->group(function () {
-    Route::get('/', function () {
-        return view('auth.login');
-    });
+    Route::get('/', [ExplorerHomeController::class, 'index'])->name('explorer.home');
     Route::middleware(['auth', 'checklogin'])->group(function () {
         Route::get('render_svg', [HomeController::class, 'render_svg'])->name('render_svg');
         Route::get('dashboard', [App\Http\Controllers\HomeController::class, 'blank_dashboard'])->name('dashboard');

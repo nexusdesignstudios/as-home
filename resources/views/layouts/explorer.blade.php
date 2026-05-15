@@ -5,7 +5,7 @@
     $navActive = $__env->yieldContent('explorer_nav_active', 'home');
 
     $navItems = [
-        ['id' => 'home',  'label' => 'Discover',    'href' => '#'],
+        ['id' => 'home',  'label' => 'Discover',    'href' => route('explorer.home')],
         ['id' => 'trips', 'label' => 'My trips',     'href' => '#'],
         ['id' => 'rsv',   'label' => 'Reservations', 'href' => route('explorer.reservations.index')],
         ['id' => 'saved', 'label' => 'Saved',         'href' => '#'],
