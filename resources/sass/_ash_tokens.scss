@@ -1,0 +1,151 @@
+// As-home Design System — tokens for the web layer
+// Source of truth: design/colors_and_type.css
+// Fonts: Cormorant Garamond (serif display) + Inter (sans UI)
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  // ============ BRAND ============
+  // Hummingbird-and-star wordmark navy/gold
+  --ash-navy-900: #0B1628;   // splash bg, primary brand navy
+  --ash-navy-800: #162440;   // mid stop in cover gradient
+  --ash-navy-700: #1E3158;   // lighter navy stop
+  --ash-navy-icon: #1A2B47;  // app icon background
+
+  --ash-gold-700: #8A6520;   // dark gold (filter text)
+  --ash-gold-600: #BA7517;   // deep ochre (annotations)
+  --ash-gold-500: #D4A843;   // primary gold — splash divider, host accent
+  --ash-gold-400: #E1A03E;   // dark theme tertiary
+  --ash-gold-300: #E7B973;   // light-theme tertiary (theme.dart)
+  --ash-gold-200: #F5EDD8;   // gold-light surface (filter chip bg)
+  --ash-gold-150: #FDF3DC;   // hosting role pill bg
+  --ash-gold-100: #FAEEDA;   // hotels tag bg from home zones
+
+  // ============ NEUTRALS — light ============
+  --ash-bg-primary:   #FAFAFA;   // theme.dart primary light
+  --ash-bg-secondary: #FFFFFF;   // card surfaces
+  --ash-bg-tertiary:  #F8F9FA;   // home scaffold bg
+  --ash-bg-warm:      #FAFAF8;   // explorer-mode warm white
+
+  --ash-text-primary:   #4D5454;   // default body
+  --ash-text-secondary: rgba(77, 84, 84, 0.7);
+  --ash-text-tertiary:  rgba(77, 84, 84, 0.5);
+  --ash-text-on-navy:   #FFFFFF;
+  --ash-text-on-navy-muted: rgba(255,255,255,0.45);
+
+  --ash-border:        rgba(238, 238, 238, 0.6);  // widgetsBorderColorLight
+  --ash-border-strong: #EEEEEE;
+  --ash-divider:       rgba(0,0,0,0.06);
+
+  // ============ NEUTRALS — dark ============
+  --ash-dark-bg-primary:   #0C0C0C;
+  --ash-dark-bg-secondary: #1C1C1C;
+  --ash-dark-text:         #FDFDFD;
+  --ash-dark-text-muted:   rgba(253,253,253,0.3);
+  --ash-dark-border:       rgba(253,253,253,0.10);
+
+  // ============ SEMANTIC / SECTION ACCENTS ============
+  // Real Estate - blue
+  --ash-re-bg:   #E6F1FB;
+  --ash-re-bg-2: #B5D4F4;
+  --ash-re-fg:   #0C447C;
+  --ash-re-mid:  #185FA5;
+  --ash-re-dot:  #378ADD;
+
+  // Vacation Homes - green
+  --ash-vh-bg:   #E1F5EE;
+  --ash-vh-bg-2: #9FE1CB;
+  --ash-vh-fg:   #085041;
+  --ash-vh-mid:  #1D9E75;
+
+  // Hotels - warm gold
+  --ash-ht-bg:   #FAEEDA;
+  --ash-ht-bg-2: #FAC775;
+  --ash-ht-fg:   #633806;
+  --ash-ht-mid:  #BA7517;
+
+  // Status
+  --ash-success: #0CA1A1;
+  --ash-error:   #A60404;
+  --ash-warning: #C2AF6F;
+  --ash-scarcity:#A32D2D;
+
+  // Mode pills
+  --ash-host-pill-bg:     #F5EDD8;
+  --ash-host-pill-dot:    #C9A84C;
+  --ash-host-pill-fg:     #8A6520;
+  --ash-explorer-pill-bg: #EEEBF5;
+  --ash-explorer-pill-fg: #0B1628;
+
+  // ============ SPACING (8pt base) ============
+  --ash-space-1:  4px;
+  --ash-space-2:  8px;
+  --ash-space-3:  12px;
+  --ash-space-4:  16px;   // sidePadding constant
+  --ash-space-5:  18px;   // profile padding
+  --ash-space-6:  24px;
+  --ash-space-8:  32px;
+  --ash-space-10: 40px;
+
+  // ============ RADII ============
+  --ash-radius-xs:  4px;    // tags, small chips
+  --ash-radius-sm:  8px;    // image inner
+  --ash-radius-md:  12px;   // big card
+  --ash-radius-lg:  16px;   // property card
+  --ash-radius-xl:  18px;   // profile inner
+  --ash-radius-2xl: 20px;   // pill tabs
+  --ash-radius-pill: 999px;
+
+  // ============ SHADOWS ============
+  --ash-shadow-sm:        0 2px 10px rgba(0,0,0,0.05);             // search field
+  --ash-shadow-card:      0 4px 12px rgba(0,0,0,0.10);             // avatar
+  --ash-shadow-lift:      0 8px 24px rgba(0,0,0,0.15);             // splash logo
+  --ash-shadow-gold:      0 3px 10px rgba(212, 168, 67, 0.40);     // tertiary FAB
+  --ash-shadow-gold-glow: 0 0 32px rgba(212,168,67,0.15);
+
+  // ============ TYPE — base ============
+  // Web layer: Inter for sans-serif UI, Manrope kept as mobile-origin fallback
+  --ash-font-sans:  'Inter', 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  // Web layer: Cormorant Garamond for display/editorial headings
+  --ash-font-serif: 'Cormorant Garamond', Georgia, serif;
+
+  // Web surface tokens
+  --ash-canvas: #F8F5EE;
+  --ash-paper:  #FFFEFA;
+
+  // Sizes follow Font extension in theme.dart
+  --ash-fs-smaller:    10px;
+  --ash-fs-small:      12px;
+  --ash-fs-normal:     14px;
+  --ash-fs-large:      16px;
+  --ash-fs-larger:     18px;
+  --ash-fs-extraLarge: 24px;
+  --ash-fs-xxLarge:    28px;
+  --ash-fs-display:    42px;  // As-Home wordmark
+
+  --ash-fw-regular:  400;
+  --ash-fw-medium:   500;
+  --ash-fw-semibold: 600;
+  --ash-fw-bold:     700;
+  --ash-fw-extra:    800;
+
+  --ash-lh-tight:  1.2;
+  --ash-lh-snug:   1.35;
+  --ash-lh-normal: 1.5;
+
+  --ash-tracking-wide:    0.04em;
+  --ash-tracking-wider:   0.06em;
+  --ash-tracking-display: -0.025em;
+
+  // ============ TRANSITIONS ============
+  --ash-ease-in-out: cubic-bezier(.4,0,.2,1);
+  --ash-dur-quick:   180ms;
+  --ash-dur-base:    300ms;
+  --ash-dur-slow:    700ms;
+}
+
+// ============ UTILITY CLASSES ============
+.ash-font-serif { font-family: var(--ash-font-serif); }
+.ash-font-sans  { font-family: var(--ash-font-sans); }
+.ash-canvas     { background: var(--ash-canvas, #F8F5EE); }
+.ash-paper      { background: var(--ash-paper, #FFFEFA); }

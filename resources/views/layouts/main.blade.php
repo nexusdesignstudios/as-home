@@ -2,12 +2,12 @@
 
 @if($language)
     @if ($language->rtl)
-        <html lang="en" dir="rtl">
+        <html lang="en" dir="rtl" class="ash-web">
     @else
-        <html lang="en">
+        <html lang="en" class="ash-web">
     @endif
 @else
-    <html lang="en">
+    <html lang="en" class="ash-web">
 @endif
 
 <head>
@@ -57,6 +57,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     @include('layouts.include')
+    @vite(['resources/sass/app.scss', 'resources/js/app.js'])
     @yield('css')
 </head>
 
