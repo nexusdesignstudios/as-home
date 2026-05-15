@@ -8,8 +8,8 @@
     $property    = optional($reservation)->property;
     $customer    = optional($reservation)->customer;
 
-    $checkIn     = $reservation ? \Carbon\Carbon::parse($reservation->check_in)  : null;
-    $checkOut    = $reservation ? \Carbon\Carbon::parse($reservation->check_out) : null;
+    $checkIn     = $reservation ? \Carbon\Carbon::parse($reservation->check_in_date)  : null;
+    $checkOut    = $reservation ? \Carbon\Carbon::parse($reservation->check_out_date) : null;
     $nights      = ($checkIn && $checkOut) ? $checkIn->diffInDays($checkOut) : 0;
 
     $statusColor = match(optional($reservation)->status) {
@@ -25,22 +25,22 @@
         default      => ucfirst(optional($reservation)->status ?? ''),
     };
 
-    $baseRate      = optional($property)->price_per_night ?? 0;
+    $baseRate      = optional($property)->price ?? 0;
     $baseTotal     = $baseRate * $nights;
-    $cleaningFee   = $reservation->cleaning_fee   ?? 0;
-    $serviceFee    = $reservation->service_fee    ?? 0;
-    $totalAmount   = $reservation->total_amount   ?? ($baseTotal + $cleaningFee + $serviceFee);
+    $cleaningFee   = $reservation->cleaning_fee   ?? 0;  // column doesn't exist yet; ?? 0
+    $serviceFee    = $reservation->service_fee    ?? 0;  // column doesn't exist yet; ?? 0
+    $totalAmount   = $reservation->total_price    ?? ($baseTotal + $cleaningFee + $serviceFee);
 
     // Guest information fields
-    $guestName    = optional($customer)->name ?? optional($reservation)->guest_name ?? '—';
-    $guestNation  = optional($customer)->nationality ?? '—';
+    $guestName    = optional($customer)->name ?? $reservation->customer_name ?? '—';
+    $guestNation  = $reservation->nationality ?? '—';               // nationality lives on Reservation
     $guestCountry = optional($customer)->country ?? '—';
-    $guestPhone   = optional($customer)->phone ?? '—';
-    $guestEmail   = optional($customer)->email ?? '—';
-    $guestPassport = optional($customer)->passport_number ?? '—';
+    $guestPhone   = optional($customer)->mobile ?? '—';             // Customer uses ->mobile not ->phone
+    $guestEmail   = optional($customer)->email ?? $reservation->customer_email ?? '—';
+    $guestPassport = optional($customer)->passport_number ?? '—';  // not yet on Customer model; ?? '—'
 
-    // Property image
-    $heroImg = optional($property)->images->first()->image ?? null;
+    // Property image — title_image accessor already returns a full URL
+    $heroImg = optional($property)->title_image ?: null;
 
     // Loyalty
     $loyaltyTier      = optional($customer)->loyalty_tier ?? null;
@@ -355,7 +355,7 @@
         {{-- Property photo --}}
         <div class="bkd-hero">
             @if($heroImg)
-                <img src="{{ asset('assets/images/property/' . $heroImg) }}" alt="{{ optional($property)->name }}">
+                <img src="{{ $heroImg }}" alt="{{ optional($property)->name }}">
             @endif
         </div>
 
@@ -390,8 +390,8 @@
             <div class="bkd-stay-item">
                 <div class="exp-label">Guests</div>
                 <div class="bkd-stay-display">
-                    {{ $reservation->guests_count ?? 1 }}
-                    {{ ($reservation->guests_count ?? 1) === 1 ? 'adult' : 'adults' }}
+                    {{ $reservation->number_of_guests ?? 1 }}
+                    {{ ($reservation->number_of_guests ?? 1) === 1 ? 'adult' : 'adults' }}
                 </div>
                 <div class="bkd-stay-note">{{ $guestName }}</div>
             </div>

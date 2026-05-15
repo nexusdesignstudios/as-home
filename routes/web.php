@@ -45,6 +45,7 @@ use App\Http\Controllers\HotelApartmentTypeController;
 use App\Http\Controllers\ReservationsAdminController;
 use App\Http\Controllers\PropertyQuestionFormController;
 use App\Http\Controllers\TaxInvoiceController;
+use App\Http\Controllers\ExplorerReservationController;
 use App\Http\Controllers\InvoiceDownloadController;
 
 
@@ -1036,3 +1037,15 @@ Route::get('/check-property-documents', function() {
         'propertiesList' => $propertiesList,
     ]);
 })->name('check-property-documents');
+
+// ── Guest Explorer — customer-facing reservation pages ────────────────────
+// NOTE: Uses the default 'auth' (web/User) guard until a customer session
+// guard is added to config/auth.php.  Add middleware 'auth:customer' and
+// update ExplorerReservationController::index/show to auth('customer')->id()
+// when that guard exists.
+Route::middleware(['auth'])->prefix('my')->name('explorer.')->group(function () {
+    Route::get('reservations', [ExplorerReservationController::class, 'index'])
+        ->name('reservations.index');
+    Route::get('reservations/{id}', [ExplorerReservationController::class, 'show'])
+        ->name('reservations.show');
+});

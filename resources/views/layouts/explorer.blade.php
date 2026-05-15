@@ -7,7 +7,7 @@
     $navItems = [
         ['id' => 'home',  'label' => 'Discover',    'href' => '#'],
         ['id' => 'trips', 'label' => 'My trips',     'href' => '#'],
-        ['id' => 'rsv',   'label' => 'Reservations', 'href' => '#'],
+        ['id' => 'rsv',   'label' => 'Reservations', 'href' => route('explorer.reservations.index')],
         ['id' => 'saved', 'label' => 'Saved',         'href' => '#'],
         ['id' => 'inbox', 'label' => 'Inbox',         'href' => '#'],
         ['id' => 'loyal', 'label' => 'Loyalty',       'href' => '#'],

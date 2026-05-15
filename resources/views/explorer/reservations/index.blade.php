@@ -288,14 +288,14 @@
         @php
             $sc    = $statusColor($r->status ?? 'pending');
             $sl    = $statusLabel($r->status ?? 'pending');
-            $img   = optional($r->property)->images->first()->image ?? null;
-            $nights = \Carbon\Carbon::parse($r->check_in)->diffInDays(\Carbon\Carbon::parse($r->check_out));
+            $img   = optional($r->property)->title_image ?: null;
+            $nights = \Carbon\Carbon::parse($r->check_in_date)->diffInDays(\Carbon\Carbon::parse($r->check_out_date));
         @endphp
         <div class="rsv-card">
             {{-- Thumbnail --}}
             <div class="rsv-thumb">
                 @if($img)
-                    <img src="{{ asset('assets/images/property/' . $img) }}" alt="{{ optional($r->property)->name }}">
+                    <img src="{{ $img }}" alt="{{ optional($r->property)->name }}">
                 @else
                     <div style="width:100%;height:100%;background:#E4DDD0;"></div>
                 @endif
@@ -312,13 +312,13 @@
                 <div class="rsv-meta">
                     <span>📍 {{ optional($r->property)->address ?? optional($r->property)->city ?? '—' }}</span>
                     <span>
-                        {{ \Carbon\Carbon::parse($r->check_in)->format('M j') }} –
-                        {{ \Carbon\Carbon::parse($r->check_out)->format('M j, Y') }}
+                        {{ \Carbon\Carbon::parse($r->check_in_date)->format('M j') }} –
+                        {{ \Carbon\Carbon::parse($r->check_out_date)->format('M j, Y') }}
                     </span>
                     <span>{{ $nights }} night{{ $nights != 1 ? 's' : '' }}</span>
                 </div>
                 <div class="rsv-price">
-                    EGP {{ number_format($r->total_amount ?? 0) }}
+                    EGP {{ number_format($r->total_price ?? 0) }}
                 </div>
             </div>
 
@@ -342,10 +342,10 @@
     <div class="rsv-list">
         @forelse($reservations as $r)
         @php
-            $checkIn  = \Carbon\Carbon::parse($r->check_in);
-            $checkOut = \Carbon\Carbon::parse($r->check_out);
+            $checkIn  = \Carbon\Carbon::parse($r->check_in_date);
+            $checkOut = \Carbon\Carbon::parse($r->check_out_date);
             $dateRange = $checkIn->format('M j') . ' – ' . $checkOut->format('M j, Y');
-            $img = optional($r->property)->images->first()->image ?? null;
+            $img = optional($r->property)->title_image ?: null;
             $reviewed = $r->reviewed ?? false;
             $rating   = $r->rating ?? 0;
         @endphp
@@ -353,7 +353,7 @@
             {{-- Thumbnail (desaturated for past) --}}
             <div class="rsv-thumb past-thumb">
                 @if($img)
-                    <img src="{{ asset('assets/images/property/' . $img) }}" alt="{{ optional($r->property)->name }}">
+                    <img src="{{ $img }}" alt="{{ optional($r->property)->name }}">
                 @else
                     <div style="width:100%;height:100%;background:#E4DDD0;"></div>
                 @endif
@@ -398,12 +398,12 @@
     <div class="rsv-list">
         @forelse($reservations as $r)
         @php
-            $img = optional($r->property)->images->first()->image ?? null;
+            $img = optional($r->property)->title_image ?: null;
         @endphp
         <div class="rsv-card">
             <div class="rsv-thumb" style="filter:saturate(0.6) opacity(0.7);">
                 @if($img)
-                    <img src="{{ asset('assets/images/property/' . $img) }}" alt="{{ optional($r->property)->name }}">
+                    <img src="{{ $img }}" alt="{{ optional($r->property)->name }}">
                 @else
                     <div style="width:100%;height:100%;background:#E4DDD0;"></div>
                 @endif
@@ -418,8 +418,8 @@
                 <div class="rsv-meta">
                     <span>📍 {{ optional($r->property)->address ?? optional($r->property)->city ?? '—' }}</span>
                     <span>
-                        {{ \Carbon\Carbon::parse($r->check_in)->format('M j') }} –
-                        {{ \Carbon\Carbon::parse($r->check_out)->format('M j, Y') }}
+                        {{ \Carbon\Carbon::parse($r->check_in_date)->format('M j') }} –
+                        {{ \Carbon\Carbon::parse($r->check_out_date)->format('M j, Y') }}
                     </span>
                 </div>
             </div>
