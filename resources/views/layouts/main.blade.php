@@ -11,14 +11,15 @@
 @endif
 
 <head>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17844407850"></script>
+    @php $gaId = optional(\App\Models\Setting::where('type', 'google_analytics_id')->first())->data; @endphp
+    @if($gaId)
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ $gaId }}"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-
-        gtag('config', 'AW-17844407850');
+        gtag('config', '{{ $gaId }}');
     </script>
     <!-- Event snippet for Subscribe conversion page -->
     <script>
@@ -35,6 +36,7 @@
       return false;
     }
     </script>
+    @endif
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -47,6 +49,11 @@
     @endphp
     <link rel="shortcut icon" href="{{ $faviconUrl }}" type="image/x-icon">
     <title>@yield('title') || {{ config('app.name') }}</title>
+    <meta name="description" content="@yield('meta_description', 'Ashome — Find hotels, vacation rentals, and real estate in Egypt')">
+    <meta property="og:title" content="@yield('og_title', config('app.name'))">
+    <meta property="og:description" content="@yield('og_description', 'Ashome — Find hotels, vacation rentals, and real estate in Egypt')">
+    <meta property="og:type" content="website">
+    <link rel="canonical" href="{{ request()->url() }}">
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     @include('layouts.include')

@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use Laravel\Telescope\Telescope;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Telescope\IncomingEntry;
 use Laravel\Telescope\TelescopeApplicationServiceProvider;
@@ -15,6 +14,9 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
      */
     public function register(): void
     {
+        if ($this->app->isProduction()) {
+            return;
+        }
 
         $this->hideSensitiveRequestDetails();
 
@@ -29,18 +31,14 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
                    $entry->hasMonitoredTag();
         });
     }
-    // public function register()
-    // {
-    //     Telescope::filter(function (IncomingEntry $entry) {
-    //         return $entry->type === 'request';
-    //     });
-    // }
 
-    protected function authorization()
+    protected function authorization(): void
     {
+        $this->gate();
 
-        Telescope::auth(function () {
-            return auth()->check(); // Allow access only if the user is authenticated
+        Telescope::auth(function ($request) {
+            return app()->environment('local') ||
+                   Gate::check('viewTelescope', [$request->user()]);
         });
     }
 
@@ -72,9 +70,7 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
     protected function gate(): void
     {
         Gate::define('viewTelescope', function ($user) {
-            return in_array($user->email, [
-                //
-            ]);
+            return intval($user->type) === 0;
         });
     }
 

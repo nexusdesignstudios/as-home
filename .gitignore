@@ -26,3 +26,33 @@ Homestead.json
 .sftp/
 storage
 composer.lock
+
+# Private keys
+*.pem
+
+# Log files in root
+*.log
+
+# Debug/test scripts in root
+/check_*.php
+/debug_*.php
+/test_*.php
+/fix_*.php
+/analyze_*.php
+/verify_*.php
+/find_*.php
+
+# Output and data files
+*.txt
+*.sql
+*.csv
+
+# AI session notes (root only)
+/*.md
+!README.md
+
+# Postman
+*.postman_collection.json
+
+# Artifact files from shell injection incident
+'*

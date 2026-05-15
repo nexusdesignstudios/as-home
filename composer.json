@@ -6,7 +6,6 @@
     "license": "MIT",
     "require": {
         "php": "^8.1.0",
-        "barryvdh/laravel-debugbar": "^3.7",
         "barryvdh/laravel-dompdf": "^3.1",
         "dacoto/laravel-wizard-installer": "^1.0",
         "doctrine/dbal": "^3.6",
@@ -16,7 +15,6 @@
         "kornrunner/blurhash": "^1.2",
         "laravel/framework": "^10.0",
         "laravel/sanctum": "^3.2",
-        "laravel/telescope": "^5.1",
         "laravel/tinker": "^2.7",
         "laravel/ui": "^4.0",
         "laravelcollective/html": "^6.3",
@@ -36,7 +34,9 @@
         "weidner/goutte": "^2.3"
     },
     "require-dev": {
+        "barryvdh/laravel-debugbar": "^3.7",
         "barryvdh/laravel-ide-helper": "^2.13",
+        "laravel/telescope": "^5.1",
         "beyondcode/laravel-query-detector": "^1.8",
         "fakerphp/faker": "^1.9.1",
         "laravel/pint": "^1.0",
