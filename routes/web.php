@@ -47,6 +47,7 @@ use App\Http\Controllers\PropertyQuestionFormController;
 use App\Http\Controllers\TaxInvoiceController;
 use App\Http\Controllers\ExplorerReservationController;
 use App\Http\Controllers\ExplorerHomeController;
+use App\Http\Controllers\ExplorerListingController;
 use App\Http\Controllers\InvoiceDownloadController;
 
 
@@ -1036,6 +1037,10 @@ Route::get('/check-property-documents', function() {
         'propertiesList' => $propertiesList,
     ]);
 })->name('check-property-documents');
+
+// ── Guest Explorer — public listing detail (no auth required) ────────────────
+Route::get('/listing/{id}', [ExplorerListingController::class, 'show'])
+    ->name('listing.show');
 
 // ── Guest Explorer — customer-facing reservation pages ────────────────────
 // NOTE: Uses the default 'auth' (web/User) guard until a customer session
