@@ -49,6 +49,7 @@ use App\Http\Controllers\ExplorerReservationController;
 use App\Http\Controllers\ExplorerHomeController;
 use App\Http\Controllers\ExplorerListingController;
 use App\Http\Controllers\ExplorerCheckoutController;
+use App\Http\Controllers\Auth\CustomerAuthController;
 use App\Http\Controllers\InvoiceDownloadController;
 
 
@@ -1039,6 +1040,18 @@ Route::get('/check-property-documents', function() {
     ]);
 })->name('check-property-documents');
 
+// ── Customer auth routes ──────────────────────────────────────────────────────
+Route::middleware('guest:customer')->group(function () {
+    Route::get('/login',    [CustomerAuthController::class, 'showLogin'])    ->name('customer.login');
+    Route::post('/login',   [CustomerAuthController::class, 'login']);
+    Route::get('/register', [CustomerAuthController::class, 'showRegister'])->name('customer.register');
+    Route::post('/register',[CustomerAuthController::class, 'register']);
+});
+
+Route::post('/logout', [CustomerAuthController::class, 'logout'])
+    ->name('customer.logout')
+    ->middleware('auth:customer');
+
 // ── Guest Explorer — public listing detail (no auth required) ────────────────
 Route::get('/listing/{id}', [ExplorerListingController::class, 'show'])
     ->name('listing.show');
@@ -1053,7 +1066,7 @@ Route::get('/checkout/confirm', [ExplorerCheckoutController::class, 'confirm'])-
 // guard is added to config/auth.php.  Add middleware 'auth:customer' and
 // update ExplorerReservationController::index/show to auth('customer')->id()
 // when that guard exists.
-Route::middleware(['auth'])->prefix('my')->name('explorer.')->group(function () {
+Route::middleware(['auth:customer'])->prefix('my')->name('explorer.')->group(function () {
     Route::get('reservations', [ExplorerReservationController::class, 'index'])
         ->name('reservations.index');
     Route::get('reservations/{id}', [ExplorerReservationController::class, 'show'])

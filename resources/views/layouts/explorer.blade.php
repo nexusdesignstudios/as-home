@@ -240,18 +240,23 @@
         <a href="#" class="exp-btn-host">Switch to host</a>
 
         {{-- Auth: avatar or login/register --}}
-        @auth
+        @auth('customer')
             @php
-                $initials = collect(explode(' ', auth()->user()->name ?? ''))
+                $custUser = auth('customer')->user();
+                $initials = collect(explode(' ', $custUser->name ?? ''))
                     ->map(fn($w) => strtoupper($w[0] ?? ''))
                     ->filter()
                     ->take(2)
                     ->join('');
             @endphp
-            <div class="exp-avatar" title="{{ auth()->user()->name }}">{{ $initials ?: 'AY' }}</div>
+            <div class="exp-avatar" title="{{ $custUser->name ?? '' }}">{{ $initials ?: 'AY' }}</div>
+            <form method="POST" action="{{ route('customer.logout') }}" style="display:inline;">
+                @csrf
+                <button type="submit" style="background:none; border:none; cursor:pointer; font-size:12px; color:var(--ash-text-secondary); font-family:inherit; padding:0; margin-left:10px;">Sign out</button>
+            </form>
         @else
-            <a href="{{ route('login') }}" class="exp-btn-login">Login</a>
-            <a href="{{ route('register') }}" class="exp-btn-register">Register</a>
+            <a href="{{ route('customer.login') }}" class="exp-btn-login">Login</a>
+            <a href="{{ route('customer.register') }}" class="exp-btn-register">Register</a>
         @endauth
 
     </header>
