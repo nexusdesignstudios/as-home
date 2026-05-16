@@ -48,6 +48,7 @@ use App\Http\Controllers\TaxInvoiceController;
 use App\Http\Controllers\ExplorerReservationController;
 use App\Http\Controllers\ExplorerHomeController;
 use App\Http\Controllers\ExplorerListingController;
+use App\Http\Controllers\ExplorerCheckoutController;
 use App\Http\Controllers\InvoiceDownloadController;
 
 
@@ -1041,6 +1042,11 @@ Route::get('/check-property-documents', function() {
 // ── Guest Explorer — public listing detail (no auth required) ────────────────
 Route::get('/listing/{id}', [ExplorerListingController::class, 'show'])
     ->name('listing.show');
+
+// ── Guest Explorer — checkout flow (public for now; auth gate added later) ───
+Route::get('/checkout',         [ExplorerCheckoutController::class, 'show'])   ->name('checkout.show');
+Route::post('/checkout',        [ExplorerCheckoutController::class, 'store'])  ->name('checkout.store');
+Route::get('/checkout/confirm', [ExplorerCheckoutController::class, 'confirm'])->name('checkout.confirm');
 
 // ── Guest Explorer — customer-facing reservation pages ────────────────────
 // NOTE: Uses the default 'auth' (web/User) guard until a customer session

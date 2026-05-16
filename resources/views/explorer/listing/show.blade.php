@@ -571,7 +571,7 @@
                     <div class="lr-cell"><div class="k">Check-out</div><div class="v">Add date</div></div>
                     <div class="lr-cell full"><div class="k">Guests</div><div class="v">Add guests</div></div>
                 </div>
-                <a href="#" class="lr-cta">Reserve</a>
+                <a href="{{ route('checkout.show', ['property_id' => $property->id, 'guests' => 2]) }}" class="lr-cta">Reserve</a>
                 <p class="lr-note">You won't be charged yet</p>
                 @if($price)
                 <div class="lr-breakdown">
