@@ -1237,18 +1237,18 @@ class ReservationController extends Controller
     public function updateReservationStatus(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'status' => 'required|in:pending,approved,confirmed,cancelled,completed',
+            'status' => 'required|in:pending,approved,confirmed,cancelled,completed,paid,no_show',
             'payment_status' => 'nullable|in:paid,unpaid,partial',
         ]);
 
         if ($validator->fails()) {
-            ApiResponseService::errorResponse('Validation failed', $validator->errors());
+            return ApiResponseService::errorResponse('Validation failed', $validator->errors());
         }
 
         $reservation = Reservation::find($id);
 
         if (!$reservation) {
-            ApiResponseService::errorResponse('Reservation not found');
+            return ApiResponseService::errorResponse('Reservation not found');
         }
 
         try {
@@ -1319,6 +1319,29 @@ class ReservationController extends Controller
 
                 ApiResponseService::successResponse('Reservation declined successfully. Decline email sent to customer.', [
                     'reservation' => $reservation
+                ]);
+                return;
+            } elseif ($newStatus === 'paid') {
+                // Host marks cash/at-hotel payment as received.
+                // Keep reservation status as 'completed', update payment_status to 'paid'.
+                // This reservation IS counted in commission calculations.
+                $reservation->status = 'completed';
+                $reservation->payment_status = 'paid';
+                $reservation->save();
+
+                ApiResponseService::successResponse('Reservation marked as paid. Payment received and booking completed.', [
+                    'reservation' => $reservation->fresh()
+                ]);
+                return;
+            } elseif ($newStatus === 'no_show') {
+                // Guest did not show up. Mark status as 'no_show' and payment as 'unpaid'.
+                // This reservation is EXCLUDED from monthly commission calculations.
+                $reservation->status = 'no_show';
+                $reservation->payment_status = 'unpaid';
+                $reservation->save();
+
+                ApiResponseService::successResponse('Reservation marked as no-show. This booking will be excluded from commission calculations.', [
+                    'reservation' => $reservation->fresh()
                 ]);
                 return;
             } else {
@@ -2502,14 +2525,32 @@ class ReservationController extends Controller
                 if (isset($reservation->reservable) && $reservation->reservable) {
                     $hotelRoom = $reservation->reservable;
 
-                    // Load the room type if available
-                    $roomTypeName = isset($hotelRoom->roomType) ? $hotelRoom->roomType->name : 'Unknown';
+                    // Ensure roomType relationship is loaded
+                    if (!$hotelRoom->relationLoaded('roomType')) {
+                        $hotelRoom->load('roomType');
+                    }
+
+                    $roomTypeName = $hotelRoom->roomType->name ?? null;
 
                     $data['room_info'] = [
                         'id' => $hotelRoom->id,
                         'room_number' => $hotelRoom->room_number ?? 'N/A',
-                        'room_type' => $roomTypeName,
+                        'room_type' => $roomTypeName ?? 'Unknown',
                         'price_per_night' => $hotelRoom->price_per_night ?? 0
+                    ];
+
+                    // Flat fields the Flutter OwnerRevenueModel reads directly
+                    $data['property_title'] = $reservation->property->title ?? null;
+                    $data['reservable_title'] = $hotelRoom->room_number ?? null;
+                    // Populate reservable map so Flutter _roomType getter finds room_type
+                    $data['reservable'] = [
+                        'id'                      => $hotelRoom->id,
+                        'title'                   => $hotelRoom->room_number,
+                        'room_type'               => $roomTypeName,
+                        'room_type_name'          => $roomTypeName,
+                        'property_classification' => $reservation->property
+                            ? ($reservation->property->getRawOriginal('property_classification') ?? $reservation->property->property_classification)
+                            : null,
                     ];
                 } else {
                     // Handle case where reservable relationship is null
@@ -2519,6 +2560,7 @@ class ReservationController extends Controller
                         'room_type' => 'Unknown',
                         'price_per_night' => 0
                     ];
+                    $data['property_title'] = $reservation->property->title ?? null;
                 }
 
                 // Status mapping for flexible reservations - fix display consistency
