@@ -261,6 +261,10 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::put('hotel-rooms/update-availability', [HotelRoomController::class, 'updateAvailability']);
     Route::apiResource('hotel-rooms', HotelRoomController::class);
 
+    /** Hotel room settings + inventory (host management) */
+    Route::put('update-hotel-room/{roomId}', [ApiController::class, 'updateHotelRoom']);
+    Route::put('update-room-inventory', [ApiController::class, 'updateRoomInventory']);
+
     /** Addons Packages */
     Route::apiResource('addons-packages', AddonsPackageController::class);
     /*********************************************************************** */

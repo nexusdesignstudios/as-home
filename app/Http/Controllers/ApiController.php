@@ -8973,11 +8973,13 @@ class ApiController extends Controller
             // Get properties list data
             $propertiesData = $propertyQuery->clone()
                 ->with([
-                    'category:id,category,image,slug_id,parameter_types', 
+                    'category:id,category,image,slug_id,parameter_types',
                     'vacationApartments' => function($query) {
-                        // Only load active vacation apartments (status = 1)
                         $query->where('status', 1);
-                    }, 
+                    },
+                    'hotelRooms' => function($query) {
+                        $query->where('status', 1)->with('roomType');
+                    },
                     'assignParameter.parameter'
                 ])
                 ->select('id', 'slug_id', 'propery_type', 'title_image', 'category_id', 'title', 'price', 'city', 'state', 'country', 'rentduration', 'added_by', 'is_premium', 'property_classification', 'rent_package', 'latitude', 'longitude', 'total_click')
@@ -14243,7 +14245,126 @@ Best regards,
                 ]);
             }
         }
-        
+
         return $availableRoom;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Room settings update — PUT /api/update-hotel-room/{roomId}
+    // Accepts: price_per_night, discount_percentage, nonrefundable_percentage,
+    //          available_rooms, max_guests, min_guests, base_guests,
+    //          refund_policy, guest_pricing_rules, is_hidden
+    // ─────────────────────────────────────────────────────────────────────────
+    public function updateHotelRoom(Request $request, $roomId)
+    {
+        try {
+            $room = \App\Models\HotelRoom::find($roomId);
+            if (!$room) {
+                return response()->json(['error' => true, 'message' => 'Room not found'], 404);
+            }
+
+            // Ownership check
+            $property = \App\Models\Property::find($room->property_id);
+            $userId = auth()->guard('sanctum')->id();
+            if (!$property || ($property->added_by != $userId && $userId != 0)) {
+                return response()->json(['error' => true, 'message' => 'Unauthorized'], 403);
+            }
+
+            // Apply allowed fields
+            if ($request->has('price_per_night')) {
+                $room->price_per_night = (float) $request->price_per_night;
+            }
+            if ($request->has('discount_percentage')) {
+                $room->discount_percentage = (int) $request->discount_percentage;
+            }
+            if ($request->has('nonrefundable_percentage')) {
+                $room->nonrefundable_percentage = (int) $request->nonrefundable_percentage;
+            }
+            if ($request->has('available_rooms')) {
+                $room->available_rooms = (int) $request->available_rooms;
+            }
+            if ($request->has('max_guests')) {
+                $room->max_guests = (int) $request->max_guests;
+            }
+            if ($request->has('min_guests')) {
+                $room->min_guests = (int) $request->min_guests;
+            }
+            if ($request->has('base_guests')) {
+                $room->base_guests = (int) $request->base_guests;
+            }
+            if ($request->has('refund_policy')) {
+                $room->refund_policy = $request->refund_policy;
+            }
+            if ($request->has('guest_pricing_rules')) {
+                $rules = $request->guest_pricing_rules;
+                $room->guest_pricing_rules = is_array($rules) ? $rules : json_decode($rules, true);
+            }
+            if ($request->has('is_hidden')) {
+                // status: true = visible, false = hidden
+                $room->status = !((bool) $request->is_hidden);
+            }
+
+            $room->save();
+
+            return response()->json([
+                'error'   => false,
+                'message' => 'Room updated successfully',
+                'data'    => $room->load('roomType'),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('updateHotelRoom error: ' . $e->getMessage());
+            return response()->json(['error' => true, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Room inventory update — PUT /api/update-room-inventory
+    // Accepts: property_id, room_type_name (optional), total_rooms
+    // Updates available_rooms on all matching rooms
+    // ─────────────────────────────────────────────────────────────────────────
+    public function updateRoomInventory(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'property_id'    => 'required|integer',
+                'total_rooms'    => 'required|integer|min:0',
+                'room_type_name' => 'nullable|string',
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['error' => true, 'message' => $validator->errors()->first()], 422);
+            }
+
+            $query = \App\Models\HotelRoom::where('property_id', $request->property_id);
+
+            if ($request->filled('room_type_name')) {
+                $typeName = $request->room_type_name;
+                $query->where(function ($q) use ($typeName) {
+                    $q->where('custom_room_type', $typeName)
+                      ->orWhereHas('roomType', function ($rq) use ($typeName) {
+                          $rq->where('name', $typeName);
+                      });
+                });
+            }
+
+            $rooms = $query->get();
+            if ($rooms->isEmpty()) {
+                return response()->json(['error' => true, 'message' => 'No matching rooms found'], 404);
+            }
+
+            // Distribute total across matching rooms (each gets ≥1 if total > 0)
+            $perRoom = max(0, (int) ceil($request->total_rooms / max(1, $rooms->count())));
+            \App\Models\HotelRoom::whereIn('id', $rooms->pluck('id'))
+                ->update(['available_rooms' => $perRoom]);
+
+            return response()->json([
+                'error'       => false,
+                'message'     => 'Inventory updated',
+                'total_rooms' => $request->total_rooms,
+                'rooms_updated' => $rooms->count(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('updateRoomInventory error: ' . $e->getMessage());
+            return response()->json(['error' => true, 'message' => $e->getMessage()], 500);
+        }
     }
 }

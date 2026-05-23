@@ -590,6 +590,15 @@ function get_property_details($result, $current_user = null, $skipLimitCheck = f
             $roomData['base_guests'] = $room->base_guests;
             $roomData['min_guests'] = $room->min_guests;
             $roomData['max_guests'] = $room->max_guests;
+            // Always include room_type with human-readable name — load lazily if not eager-loaded
+            if (!isset($roomData['room_type']) || $roomData['room_type'] === null) {
+                $roomType = $room->roomType;
+                $roomData['room_type'] = $roomType ? [
+                    'id'          => $roomType->id,
+                    'name'        => $roomType->name,
+                    'description' => $roomType->description ?? null,
+                ] : null;
+            }
 
             return $roomData;
         })->toArray() : [];
