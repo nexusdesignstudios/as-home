@@ -14371,6 +14371,15 @@ Best regards,
                 $rules = $request->guest_pricing_rules;
                 $room->guest_pricing_rules = is_array($rules) ? $rules : json_decode($rules, true);
             }
+            if ($request->has('enable_guest_pricing')) {
+                $room->enable_guest_pricing = (bool) $request->enable_guest_pricing;
+            }
+            if ($request->has('single_guest_rate')) {
+                $room->single_guest_rate = (float) $request->single_guest_rate;
+            }
+            if ($request->has('extra_guest_rate')) {
+                $room->extra_guest_rate = (float) $request->extra_guest_rate;
+            }
             if ($request->has('is_hidden')) {
                 // status: true = visible, false = hidden
                 $room->status = !((bool) $request->is_hidden);
