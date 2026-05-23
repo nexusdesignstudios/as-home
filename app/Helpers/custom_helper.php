@@ -600,6 +600,19 @@ function get_property_details($result, $current_user = null, $skipLimitCheck = f
                 ] : null;
             }
 
+            // Pre-computed room_type_name so Flutter never shows raw type_N slugs
+            $customType = trim($room->custom_room_type ?? '');
+            $joinedName = optional($room->roomType)->name ?? '';
+            if (!empty($customType) && !preg_match('/^type_\d+$/', $customType)) {
+                $roomData['room_type_name'] = $customType;
+            } elseif (!empty($joinedName)) {
+                $roomData['room_type_name'] = $joinedName;
+            } elseif (!empty($customType) && preg_match('/^type_(\d+)$/', $customType, $typeMatch)) {
+                $roomData['room_type_name'] = 'Room Type ' . $typeMatch[1];
+            } else {
+                $roomData['room_type_name'] = '';
+            }
+
             return $roomData;
         })->toArray() : [];
         $tempRow['hotel_apartment_type'] = $row->hotel_apartment_type;
