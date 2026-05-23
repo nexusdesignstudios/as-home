@@ -14250,6 +14250,78 @@ Best regards,
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // GET /api/hotel-meal-plans/{hotelId}
+    // Returns the host-configured meal plan deltas and active flags for a hotel.
+    // Until a dedicated meal_plans table exists, reads from property meta / guest_pricing_rules.
+    // ─────────────────────────────────────────────────────────────────────────
+    public function getHotelMealPlans(Request $request, $hotelId)
+    {
+        $defaults = [
+            ['name' => 'room_only',     'label' => 'Room Only',       'delta' => 0,    'active' => true],
+            ['name' => 'bed_breakfast', 'label' => 'Bed & Breakfast', 'delta' => 380,  'active' => true],
+            ['name' => 'half_board',    'label' => 'Half Board',      'delta' => 780,  'active' => true],
+            ['name' => 'full_board',    'label' => 'Full Board',      'delta' => 1180, 'active' => false],
+            ['name' => 'all_inclusive', 'label' => 'All Inclusive',   'delta' => 1640, 'active' => false],
+        ];
+
+        // Try to read per-room meal plan config from the cheapest active room's guest_pricing_rules
+        $room = \App\Models\HotelRoom::where('property_id', $hotelId)
+            ->where('status', 1)
+            ->whereNotNull('guest_pricing_rules')
+            ->orderBy('price_per_night')
+            ->first();
+
+        if ($room && isset($room->guest_pricing_rules['meal_plans'])) {
+            $plans = $room->guest_pricing_rules['meal_plans'];
+            $result = [];
+            foreach ($defaults as $def) {
+                $stored = $plans[$def['name']] ?? null;
+                $result[] = [
+                    'name'   => $def['name'],
+                    'label'  => $def['label'],
+                    'delta'  => (int) ($stored['delta'] ?? $stored['price_delta'] ?? $def['delta']),
+                    'active' => (bool) ($stored['active'] ?? $def['active']),
+                ];
+            }
+            return response()->json(['error' => false, 'data' => ['meal_plans' => $result]]);
+        }
+
+        return response()->json(['error' => false, 'data' => ['meal_plans' => $defaults]]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // GET /api/hotel-extras/{hotelId}
+    // Returns à la carte extras configured by the host (from addon packages).
+    // ─────────────────────────────────────────────────────────────────────────
+    public function getHotelExtras(Request $request, $hotelId)
+    {
+        $packages = \App\Models\Property::where('id', $hotelId)
+            ->with(['addons_packages' => function($q) {
+                $q->where('status', 'active')->orWhere('status', '');
+            }])->first()?->addons_packages ?? [];
+
+        $mealPlanKeys = ['room_only','bed_breakfast','half_board','full_board','all_inclusive','breakfast'];
+        $extras = collect($packages)->filter(function($pkg) use ($mealPlanKeys) {
+            // Exclude items that look like meal plans
+            $name = strtolower($pkg->name ?? '');
+            foreach ($mealPlanKeys as $key) {
+                if (str_contains($name, str_replace('_', ' ', $key))) return false;
+            }
+            return true;
+        })->map(function($pkg) {
+            return [
+                'name'        => $pkg->name,
+                'price'       => (float) $pkg->price,
+                'unit'        => $pkg->unit_type ?? 'per booking',
+                'pricingType' => str_contains(strtolower($pkg->unit_type ?? ''), 'guest') ? 'per_guest_per_night' : 'per_booking',
+                'description' => $pkg->description ?? null,
+            ];
+        })->values()->toArray();
+
+        return response()->json(['error' => false, 'data' => ['extras' => $extras]]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Room settings update — PUT /api/update-hotel-room/{roomId}
     // Accepts: price_per_night, discount_percentage, nonrefundable_percentage,
     //          available_rooms, max_guests, min_guests, base_guests,

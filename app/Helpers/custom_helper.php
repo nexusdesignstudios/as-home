@@ -611,6 +611,33 @@ function get_property_details($result, $current_user = null, $skipLimitCheck = f
         $tempRow['hotel_vat'] = $row->hotel_vat;
         $tempRow['cancellation_period'] = $row->cancellation_period;
 
+        // Closed dates: dates the host has marked as unavailable for all rooms
+        // Source: available_dates_hotel_rooms with type='dead' for any room of this property
+        if (isset($row->id) && ($row->property_classification == 5 || (isset($row->getRawOriginal) && $row->getRawOriginal('property_classification') == 5))) {
+            try {
+                $closedRows = \DB::table('available_dates_hotel_rooms')
+                    ->where('property_id', $row->id)
+                    ->where('type', 'dead')
+                    ->select('from_date', 'to_date')
+                    ->get();
+                $closedDates = [];
+                foreach ($closedRows as $cr) {
+                    $start = \Carbon\Carbon::parse($cr->from_date);
+                    $end   = \Carbon\Carbon::parse($cr->to_date);
+                    $cursor = $start->copy();
+                    while ($cursor->lte($end)) {
+                        $closedDates[] = $cursor->format('Y-m-d');
+                        $cursor->addDay();
+                    }
+                }
+                $tempRow['closed_dates'] = array_values(array_unique($closedDates));
+            } catch (\Exception $e) {
+                $tempRow['closed_dates'] = [];
+            }
+        } else {
+            $tempRow['closed_dates'] = [];
+        }
+
         // Add vacation apartments for vacation home properties (classification 4)
         $tempRow['vacation_apartments'] = $row->vacationApartments;
         // }

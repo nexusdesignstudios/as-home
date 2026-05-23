@@ -272,6 +272,10 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
 
 /** Public Room Types for Property Details */
 Route::get('hotel-room-types', [HotelRoomTypeController::class, 'index']);
+
+/** Hotel guest-facing read endpoints (no auth required) */
+Route::get('hotel-meal-plans/{hotelId}', [ApiController::class, 'getHotelMealPlans']);
+Route::get('hotel-extras/{hotelId}',     [ApiController::class, 'getHotelExtras']);
 /*********************************************************************** */
 
 
